@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServiceRoleSupabaseClient } from "@/lib/supabase/server";
 
 function getAdminEmails() {
   const raw =
@@ -15,7 +15,7 @@ function getAdminEmails() {
 // GET /api/admin/is-admin
 export async function GET() {
   try {
-    const supabase = createServerSupabaseClient();
+   const supabase = createServiceRoleSupabaseClient();
 
     // Uses cookies/session on the server
     const { data, error } = await supabase.auth.getUser();
