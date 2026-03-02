@@ -1,126 +1,35 @@
-"use client";
+import { NextResponse } from "next/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
+function getAdminEmails() {
+  const raw =
+    process.env.CAMEL_ADMIN_EMAILS ||
+    process.env.NEXT_PUBLIC_CAMEL_ADMIN_EMAILS ||
+    "";
+  return raw
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
 
-export default function PartnerLoginPage() {
-  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
-  const router = useRouter();
+export async function GET() {
+  try {
+    const supabase = createServerSupabaseClient();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+    // Who is logged in (cookie-based)
+    const { data, error } = await supabase.auth.getUser();
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
-
-  // Read ?reason=... without useSearchParams (avoids build/prerender issues)
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const reason = new URLSearchParams(window.location.search).get("reason") || "";
-
-    if (reason === "not_authorized") {
-      setInfo("You are not authorized to access that page.");
-    } else if (reason === "signed_out") {
-      setInfo("You have been signed out.");
-    } else {
-      setInfo(null);
-    }
-  }, []);
-
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setInfo(null);
-
-    const eTrim = email.trim();
-    if (!eTrim || !password) {
-      setError("Please enter your email and password.");
-      return;
+    const email = (data?.user?.email || "").toLowerCase().trim();
+    if (error || !email) {
+      return NextResponse.json({ isAdmin: false }, { status: 200 });
     }
 
-    setLoading(true);
-    try {
-      const { error: signInErr } = await supabase.auth.signInWithPassword({
-        email: eTrim,
-        password,
-      });
-      if (signInErr) throw signInErr;
+    const admins = getAdminEmails();
+    const isAdmin = admins.includes(email);
 
-      // ✅ SERVER-SIDE admin check (reliable on Vercel)
-      const res = await fetch("/api/admin/is-admin", { cache: "no-store" });
-      const json = await res.json().catch(() => null);
-
-      if (json?.isAdmin) {
-        router.replace("/admin/approvals");
-        return;
-      }
-
-      router.replace("/partner/dashboard");
-    } catch (err: any) {
-      setError(err?.message || "Login failed.");
-    } finally {
-      setLoading(false);
-    }
+    return NextResponse.json({ isAdmin }, { status: 200 });
+  } catch {
+    // Never crash login flow
+    return NextResponse.json({ isAdmin: false }, { status: 200 });
   }
-
-  return (
-    <div className="mx-auto w-full max-w-2xl rounded-2xl bg-white p-6 md:p-10 shadow-[0_18px_45px_rgba(0,0,0,0.10)] border border-black/5">
-      <h1 className="text-2xl font-semibold text-[#003768]">Partner Login</h1>
-      <p className="mt-2 text-gray-600">Log in to manage your profile and requests.</p>
-
-      {info ? (
-        <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-          {info}
-        </div>
-      ) : null}
-
-      {error ? (
-        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error}
-        </div>
-      ) : null}
-
-      <form onSubmit={handleLogin} className="mt-8 space-y-4">
-        <div>
-          <label className="text-sm font-medium text-[#003768]">Email</label>
-          <input
-            type="email"
-            className="mt-1 w-full rounded-xl border border-black/10 p-2"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-          />
-        </div>
-
-        <div>
-          <label className="text-sm font-medium text-[#003768]">Password</label>
-          <input
-            type="password"
-            className="mt-1 w-full rounded-xl border border-black/10 p-2"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="mt-2 w-full rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60"
-        >
-          {loading ? "Logging in…" : "Log in"}
-        </button>
-
-        <p className="text-center text-sm text-gray-600">
-          Need an account?{" "}
-          <Link href="/partner/signup" className="font-medium text-[#005b9f] hover:underline">
-            Partner signup
-          </Link>
-        </p>
-      </form>
-    </div>
-  );
 }
