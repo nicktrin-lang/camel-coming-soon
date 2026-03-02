@@ -183,11 +183,15 @@ export default function PartnerProfilePage() {
     // Create from approved application
     setCreating(true);
 
-    const { data: appRow, error: appErr } = await supabase
-      .from("partner_applications")
-      .select("company_name,full_name,email,phone,address,website,status")
-      .eq("user_id", userId)
-      .maybeSingle();
+   const { data: appRow, error: appErr } = (await (supabase as any)
+  .from("partner_applications")
+  .select("company_name,full_name,email,phone,address,website,status")
+  .eq("user_id", userId)
+  .maybeSingle()) as {
+  data: any;
+  error: any;
+};
+
 
     if (appErr) {
       setError(appErr.message);
@@ -204,18 +208,22 @@ export default function PartnerProfilePage() {
       return;
     }
 
-    const { error: insertErr } = await supabase.from("partner_profiles").insert({
-      user_id: userId,
-      company_name: appRow?.company_name ?? null,
-      contact_name: appRow?.full_name ?? null,
-      phone: appRow?.phone ?? null,
-      address: appRow?.address ?? null,
-      website: appRow?.website ?? null,
-      service_radius_km: 30,
-      base_address: appRow?.address ?? null,
-      base_lat: null,
-      base_lng: null,
-    });
+const payload = {
+  user_id: userId,
+  company_name: (appRow as any)?.company_name ?? null,
+  contact_name: (appRow as any)?.full_name ?? null,
+  phone: (appRow as any)?.phone ?? null,
+  address: (appRow as any)?.address ?? null,
+  website: (appRow as any)?.website ?? null,
+  service_radius_km: 30,
+  base_address: (appRow as any)?.address ?? null,
+  base_lat: null,
+  base_lng: null,
+};
+
+const { error: insertErr } = await (supabase as any)
+  .from("partner_profiles")
+  .insert([payload]);
 
     if (insertErr) {
       setError(insertErr.message);
@@ -405,20 +413,22 @@ export default function PartnerProfilePage() {
       return;
     }
 
-    const { error } = await supabase
-      .from("partner_profiles")
-      .update({
-        company_name: profile.company_name,
-        contact_name: profile.contact_name,
-        phone: profile.phone,
-        address: profile.address,
-        website: profile.website,
-        base_address: profile.base_address,
-        service_radius_km: profile.service_radius_km,
-        base_lat: parsedLat,
-        base_lng: parsedLng,
-      })
-      .eq("id", profile.id);
+const updatePayload = {
+  company_name: profile.company_name,
+  contact_name: profile.contact_name,
+  phone: profile.phone,
+  address: profile.address,
+  website: profile.website,
+  base_address: profile.base_address,
+  service_radius_km: profile.service_radius_km,
+  base_lat: parsedLat,
+  base_lng: parsedLng,
+};
+
+const { error } = await (supabase as any)
+  .from("partner_profiles")
+  .update(updatePayload)
+  .eq("id", profile.id);
 
     if (error) {
       setError(error.message);

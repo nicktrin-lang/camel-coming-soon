@@ -131,16 +131,23 @@ export default function PartnerSignupPage() {
       }
 
       // 2) Create partner application (keep schema unchanged)
-      const { error: insertErr } = await supabase.from("partner_applications").insert({
-        user_id: userId,
-        company_name: company,
-        full_name: name,
-        email: mail,
-        phone: ph,
-        address: combinedAddress, // ✅ combined string
-        website: normalizeWebsite(website),
-        status: "pending",
-      });
+ const payload = {
+  user_id: userId,
+  company_name: company,
+  full_name: name,
+  email,
+phone,
+address: [address1, address2, province, postcode, country]
+  .map((s) => (s || "").trim())
+  .filter(Boolean)
+  .join(", "),
+website,
+status: "pending",
+};
+
+const { error: insertErr } = await (supabase as any)
+  .from("partner_applications")
+  .insert(payload);
 
       if (insertErr) throw insertErr;
 
