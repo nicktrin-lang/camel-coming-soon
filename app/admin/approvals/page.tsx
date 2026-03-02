@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
 type AppStatus = "pending" | "approved" | "rejected";
@@ -20,7 +21,7 @@ function fmtDateTime(iso?: string | null) {
   try {
     return new Date(iso).toLocaleString();
   } catch {
-    return iso;
+    return iso ?? "—";
   }
 }
 
@@ -37,6 +38,7 @@ async function safeJson(res: Response): Promise<any> {
 
 export default function AdminApprovalsPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
+  const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<PartnerApplication[]>([]);
@@ -47,12 +49,30 @@ export default function AdminApprovalsPage() {
     setError(null);
 
     try {
-      // Ensure a session exists client-side
+      // 1) Confirm client session exists (fast feedback)
       const { data: userData, error: userErr } = await supabase.auth.getUser();
-      if (userErr || !userData?.user) throw new Error("Not signed in.");
+      if (userErr || !userData?.user) {
+        router.replace("/partner/login?reason=not_authorized");
+        return;
+      }
 
-      // ✅ IMPORTANT FOR PRODUCTION:
-      // Send Supabase auth cookies to the API route
+      // 2) Server decides if admin (cookie-auth)
+      const isAdminRes = await fetch("/api/admin/is-admin", {
+        method: "GET",
+        cache: "no-store",
+        credentials: "include",
+      });
+      const isAdminJson = await safeJson(isAdminRes);
+
+      if (!isAdminJson?.isAdmin) {
+        setError("Not authorized");
+        // Optional: kick them out
+        // router.replace("/partner/login?reason=not_authorized");
+        setRows([]);
+        return;
+      }
+
+      // 3) Load applications (cookie-auth again)
       const res = await fetch("/api/admin/applications", {
         method: "GET",
         cache: "no-store",
@@ -199,8 +219,7 @@ export default function AdminApprovalsPage() {
                 </tr>
               ) : (
                 rows.map((r) => {
-                  const status = (r.status || "pending")
-                    .toLowerCase() as AppStatus;
+                  const status = (r.status || "pending").toLowerCase() as AppStatus;
 
                   const badge =
                     status === "approved"
@@ -214,15 +233,9 @@ export default function AdminApprovalsPage() {
                       <td className="px-4 py-4 text-gray-700">
                         {fmtDateTime(r.created_at)}
                       </td>
-                      <td className="px-4 py-4 text-gray-900">
-                        {r.email || "—"}
-                      </td>
-                      <td className="px-4 py-4 text-gray-900">
-                        {r.full_name || "—"}
-                      </td>
-                      <td className="px-4 py-4 text-gray-900">
-                        {r.company_name || "—"}
-                      </td>
+                      <td className="px-4 py-4 text-gray-900">{r.email || "—"}</td>
+                      <td className="px-4 py-4 text-gray-900">{r.full_name || "—"}</td>
+                      <td className="px-4 py-4 text-gray-900">{r.company_name || "—"}</td>
                       <td className="px-4 py-4">
                         <span
                           className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${badge}`}

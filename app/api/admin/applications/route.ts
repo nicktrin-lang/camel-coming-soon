@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
-  createServerSupabaseClient,
-  createServiceSupabaseClient,
+  createAuthedServerSupabaseClient,
+  createServiceRoleSupabaseClient,
 } from "@/lib/supabase/server";
 
 function getAdminEmails() {
@@ -17,25 +17,23 @@ function getAdminEmails() {
 
 export async function GET() {
   try {
-    // 1) Cookie-based client to identify logged-in user
-    const authClient = createServerSupabaseClient();
-    const { data: userData, error: userErr } = await authClient.auth.getUser();
+    // 1) Identify caller via cookies (real session)
+    const authed = createAuthedServerSupabaseClient();
+    const { data: userData, error: userErr } = await authed.auth.getUser();
 
-    if (userErr || !userData?.user?.email) {
+    const email = (userData?.user?.email || "").toLowerCase().trim();
+    if (userErr || !email) {
       return NextResponse.json({ error: "Not signed in" }, { status: 401 });
     }
 
-    // 2) Check admin allowlist
-    const email = userData.user.email.toLowerCase().trim();
+    // 2) Check admin list
     const admins = getAdminEmails();
-
     if (!admins.includes(email)) {
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    // 3) Service role client for DB (bypasses RLS)
-    const db = createServiceSupabaseClient();
-
+    // 3) Load applications using service role (stable regardless of RLS)
+    const db = createServiceRoleSupabaseClient();
     const { data, error } = await db
       .from("partner_applications")
       .select("id,email,company_name,full_name,status,created_at")

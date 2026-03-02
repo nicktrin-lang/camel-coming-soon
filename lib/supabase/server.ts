@@ -1,33 +1,37 @@
-import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { createClient } from "@supabase/supabase-js";
 
-export function createServerSupabaseClient() {
+/**
+ * Cookie-aware Supabase client (uses anon key) — lets Route Handlers know who is logged in.
+ */
+export function createAuthedServerSupabaseClient() {
+  const cookieStore = cookies();
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-  const cookieStore = cookies();
-
   return createServerClient(url, anonKey, {
     cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
+      getAll() {
+        return cookieStore.getAll();
       },
-      set(name: string, value: string, options: any) {
-        cookieStore.set({ name, value, ...options });
-      },
-      remove(name: string, options: any) {
-        cookieStore.set({ name, value: "", ...options });
+      setAll(cookiesToSet) {
+        // In Route Handlers this is allowed; if you ever call this in a Server Component,
+        // Next may throw. Here we only use it in Route Handlers.
+        cookiesToSet.forEach(({ name, value, options }) => {
+          cookieStore.set(name, value, options);
+        });
       },
     },
   });
 }
 
 /**
- * Use this ONLY for server-side admin operations that need to bypass RLS.
- * Never expose this key to the browser.
+ * Service role client (server-only) — use ONLY for DB reads/writes that must bypass RLS.
+ * Never import this into client components.
  */
-export function createServiceSupabaseClient() {
+export function createServiceRoleSupabaseClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 

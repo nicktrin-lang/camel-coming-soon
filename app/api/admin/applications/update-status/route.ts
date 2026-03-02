@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
-  createServerSupabaseClient,
-  createServiceSupabaseClient,
+  createAuthedServerSupabaseClient,
+  createServiceRoleSupabaseClient,
 } from "@/lib/supabase/server";
 import { sendApprovalEmail } from "@/lib/email";
 
@@ -29,10 +29,7 @@ export async function POST(req: Request) {
     const nextStatus = body?.status;
 
     if (!id) {
-      return NextResponse.json(
-        { error: "Missing application id" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing application id" }, { status: 400 });
     }
     if (!isAllowedStatus(nextStatus)) {
       return NextResponse.json(
@@ -41,26 +38,24 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1) Cookie-based client to identify logged-in user
-    const authClient = createServerSupabaseClient();
-    const { data: userData, error: userErr } = await authClient.auth.getUser();
+    // 1) Identify caller via cookies
+    const authed = createAuthedServerSupabaseClient();
+    const { data: userData, error: userErr } = await authed.auth.getUser();
+    const email = (userData?.user?.email || "").toLowerCase().trim();
 
-    if (userErr || !userData?.user?.email) {
+    if (userErr || !email) {
       return NextResponse.json({ error: "Not signed in" }, { status: 401 });
     }
 
-    // 2) Check admin allowlist
-    const adminEmail = userData.user.email.toLowerCase().trim();
+    // 2) Check admin list
     const admins = getAdminEmails();
-
-    if (!admins.includes(adminEmail)) {
+    if (!admins.includes(email)) {
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    // 3) Service role client for DB operations (bypasses RLS)
-    const db = createServiceSupabaseClient();
+    // 3) DB operations with service role
+    const db = createServiceRoleSupabaseClient();
 
-    // Read current
     const { data: current, error: currentErr } = await db
       .from("partner_applications")
       .select("id,email,status")
@@ -73,7 +68,6 @@ export async function POST(req: Request) {
 
     const prevStatus = String(current?.status || "").toLowerCase() as StatusValue;
 
-    // Update
     const { data: updated, error: updateErr } = await db
       .from("partner_applications")
       .update({ status: nextStatus })
@@ -85,21 +79,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: updateErr.message }, { status: 400 });
     }
 
-    // Email if changed -> approved
     const updatedStatus = String(updated?.status || "").toLowerCase() as StatusValue;
     const toEmail = updated?.email || current?.email || null;
-    const becameApproved = prevStatus !== "approved" && updatedStatus === "approved";
 
+    const becameApproved = prevStatus !== "approved" && updatedStatus === "approved";
     if (becameApproved && toEmail) {
       try {
         await sendApprovalEmail(toEmail);
       } catch (emailErr: any) {
         return NextResponse.json(
-          {
-            ok: true,
-            data: updated,
-            warning: emailErr?.message || "Approved but email failed",
-          },
+          { ok: true, data: updated, warning: emailErr?.message || "Approved but email failed" },
           { status: 200 }
         );
       }
