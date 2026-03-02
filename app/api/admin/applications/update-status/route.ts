@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  createAuthedServerSupabaseClient,
+  createRouteHandlerSupabaseClient,
   createServiceRoleSupabaseClient,
 } from "@/lib/supabase/server";
 import { sendApprovalEmail } from "@/lib/email";
@@ -16,6 +16,7 @@ function getAdminEmails() {
     process.env.CAMEL_ADMIN_EMAILS ||
     process.env.NEXT_PUBLIC_CAMEL_ADMIN_EMAILS ||
     "";
+
   return raw
     .split(",")
     .map((s) => s.trim().toLowerCase())
@@ -38,22 +39,22 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1) Identify caller via cookies
-    const authed = createAuthedServerSupabaseClient();
+    // 1) Identify caller via cookies (real session)
+    const authed = await createRouteHandlerSupabaseClient();
     const { data: userData, error: userErr } = await authed.auth.getUser();
-    const email = (userData?.user?.email || "").toLowerCase().trim();
 
-    if (userErr || !email) {
+    const adminEmail = (userData?.user?.email || "").toLowerCase().trim();
+    if (userErr || !adminEmail) {
       return NextResponse.json({ error: "Not signed in" }, { status: 401 });
     }
 
     // 2) Check admin list
     const admins = getAdminEmails();
-    if (!admins.includes(email)) {
+    if (!admins.includes(adminEmail)) {
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    // 3) DB operations with service role
+    // 3) Use service role for DB reads/writes
     const db = createServiceRoleSupabaseClient();
 
     const { data: current, error: currentErr } = await db

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  createAuthedServerSupabaseClient,
+  createRouteHandlerSupabaseClient,
   createServiceRoleSupabaseClient,
 } from "@/lib/supabase/server";
 
@@ -9,6 +9,7 @@ function getAdminEmails() {
     process.env.CAMEL_ADMIN_EMAILS ||
     process.env.NEXT_PUBLIC_CAMEL_ADMIN_EMAILS ||
     "";
+
   return raw
     .split(",")
     .map((s) => s.trim().toLowerCase())
@@ -18,7 +19,7 @@ function getAdminEmails() {
 export async function GET() {
   try {
     // 1) Identify caller via cookies (real session)
-    const authed = createAuthedServerSupabaseClient();
+    const authed = await createRouteHandlerSupabaseClient();
     const { data: userData, error: userErr } = await authed.auth.getUser();
 
     const email = (userData?.user?.email || "").toLowerCase().trim();
@@ -32,7 +33,7 @@ export async function GET() {
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    // 3) Load applications using service role (stable regardless of RLS)
+    // 3) Load applications using service role (bypasses RLS)
     const db = createServiceRoleSupabaseClient();
     const { data, error } = await db
       .from("partner_applications")

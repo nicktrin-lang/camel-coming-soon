@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createAuthedServerSupabaseClient } from "@/lib/supabase/server";
+import { createRouteHandlerSupabaseClient } from "@/lib/supabase/server";
 
 function getAdminEmails() {
   const raw =
@@ -14,17 +14,13 @@ function getAdminEmails() {
 
 export async function GET() {
   try {
-    const supabase = createAuthedServerSupabaseClient();
+    const supabase = await createRouteHandlerSupabaseClient();
+    const { data } = await supabase.auth.getUser();
 
-    const { data, error } = await supabase.auth.getUser();
     const email = (data?.user?.email || "").toLowerCase().trim();
+    const isAdmin = !!email && getAdminEmails().includes(email);
 
-    if (error || !email) {
-      return NextResponse.json({ isAdmin: false }, { status: 200 });
-    }
-
-    const admins = getAdminEmails();
-    return NextResponse.json({ isAdmin: admins.includes(email) }, { status: 200 });
+    return NextResponse.json({ isAdmin }, { status: 200 });
   } catch {
     return NextResponse.json({ isAdmin: false }, { status: 200 });
   }
