@@ -66,13 +66,11 @@ export default function AdminApprovalsPage() {
 
       if (!isAdminJson?.isAdmin) {
         setError("Not authorized");
-        // Optional: kick them out
-        // router.replace("/partner/login?reason=not_authorized");
         setRows([]);
         return;
       }
 
-      // 3) Load applications (cookie-auth again)
+      // 3) Load applications (cookie-auth)
       const res = await fetch("/api/admin/applications", {
         method: "GET",
         cache: "no-store",
@@ -147,9 +145,7 @@ export default function AdminApprovalsPage() {
       {/* Header row */}
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-[#003768]">
-            Admin Approvals
-          </h1>
+          <h1 className="text-2xl font-semibold text-[#003768]">Admin Approvals</h1>
           <p className="mt-2 text-gray-600">
             Review partner applications and approve/reject them.
           </p>
@@ -173,11 +169,19 @@ export default function AdminApprovalsPage() {
             {loading ? "Refreshing…" : "Refresh"}
           </button>
 
+          {/* ✅ Admin-only navigation: show BOTH links */}
           <Link
             href="/partner/dashboard"
+            className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-medium text-[#003768] hover:bg-black/5"
+          >
+            Partner Dashboard
+          </Link>
+
+          <Link
+            href="/admin/approvals"
             className="rounded-full bg-[#ff7a00] px-4 py-2 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
           >
-            Dashboard
+            Admin Approvals
           </Link>
         </div>
       </div>
