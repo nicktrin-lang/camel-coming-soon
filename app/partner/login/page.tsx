@@ -5,6 +5,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
+async function safeJson(res: Response): Promise<any> {
+  const text = await res.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { _raw: text };
+  }
+}
+
 export default function PartnerLoginPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const router = useRouter();
@@ -18,42 +28,56 @@ export default function PartnerLoginPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+
     const reason = new URLSearchParams(window.location.search).get("reason") || "";
 
-    if (reason === "not_authorized") setInfo("You are not authorized to access that page.");
-    else if (reason === "signed_out") setInfo("You have been signed out.");
-    else setInfo(null);
+    if (reason === "not_authorized") {
+      setInfo("You are not authorized to access that page.");
+    } else if (reason === "signed_out") {
+      setInfo("You have been signed out.");
+    } else if (reason === "not_signed_in") {
+      setInfo("Please sign in to continue.");
+    } else {
+      setInfo(null);
+    }
   }, []);
-
-  async function routeAfterLogin() {
-    // Ask server (cookie-aware) if the logged in user is admin
-    const res = await fetch("/api/admin/is-admin", { cache: "no-store" });
-    const json = await res.json().catch(() => null);
-
-    if (json?.isAdmin) router.replace("/admin/approvals");
-    else router.replace("/partner/dashboard");
-  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setInfo(null);
 
-    const eTrim = email.trim();
+    const eTrim = email.trim().toLowerCase();
     if (!eTrim || !password) {
       setError("Please enter your email and password.");
       return;
     }
 
     setLoading(true);
+
     try {
       const { error: signInErr } = await supabase.auth.signInWithPassword({
         email: eTrim,
         password,
       });
+
       if (signInErr) throw signInErr;
 
-      await routeAfterLogin();
+      // Important: wait for cookie/session to settle, then ask server if user is admin
+      const adminRes = await fetch("/api/admin/is-admin", {
+        method: "GET",
+        cache: "no-store",
+        credentials: "include",
+      });
+
+      const adminJson = await safeJson(adminRes);
+
+      if (adminJson?.isAdmin) {
+        window.location.href = "/admin/approvals";
+        return;
+      }
+
+      window.location.href = "/partner/dashboard";
     } catch (err: any) {
       setError(err?.message || "Login failed.");
     } finally {
@@ -111,10 +135,7 @@ export default function PartnerLoginPage() {
 
         <p className="text-center text-sm text-gray-600">
           Need an account?{" "}
-          <Link
-            href="/partner/signup"
-            className="font-medium text-[#005b9f] hover:underline"
-          >
+          <Link href="/partner/signup" className="font-medium text-[#005b9f] hover:underline">
             Partner signup
           </Link>
         </p>
