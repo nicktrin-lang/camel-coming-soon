@@ -1,8 +1,14 @@
 "use client";
 
+import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
+
+const MapPicker = dynamic(() => import("./MapPicker"), {
+  ssr: false,
+});
 
 type ProfileState = {
   company_name: string;
@@ -22,6 +28,8 @@ type Suggestion = {
   lat: number | null;
   lng: number | null;
 };
+
+type AdminRole = "none" | "admin" | "super_admin";
 
 function parseCoordinate(
   value: string | number | null | undefined,
@@ -70,6 +78,7 @@ export default function PartnerProfilePage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [adminRole, setAdminRole] = useState<AdminRole>("none");
 
   const [profile, setProfile] = useState<ProfileState>({
     company_name: "",
@@ -102,6 +111,16 @@ export default function PartnerProfilePage() {
           return;
         }
 
+        const meRes = await fetch("/api/admin/me", {
+          method: "GET",
+          cache: "no-store",
+          credentials: "include",
+        });
+        const meJson = await safeJson(meRes);
+
+        if (!mounted) return;
+        setAdminRole(String(meJson?.role || "none") as AdminRole);
+
         const user = userData.user;
         const email = (user.email || "").toLowerCase().trim();
 
@@ -129,8 +148,12 @@ export default function PartnerProfilePage() {
         if (!mounted) return;
 
         setProfile({
-          company_name: String(existingProfile?.company_name ?? (application as any)?.company_name ?? ""),
-          contact_name: String(existingProfile?.contact_name ?? (application as any)?.full_name ?? ""),
+          company_name: String(
+            existingProfile?.company_name ?? (application as any)?.company_name ?? ""
+          ),
+          contact_name: String(
+            existingProfile?.contact_name ?? (application as any)?.full_name ?? ""
+          ),
           phone: String(existingProfile?.phone ?? (application as any)?.phone ?? ""),
           address: String(existingProfile?.address ?? (application as any)?.address ?? ""),
           website: String(existingProfile?.website ?? (application as any)?.website ?? ""),
@@ -181,6 +204,16 @@ export default function PartnerProfilePage() {
     }));
     setSuggestions([]);
     setShowSuggestions(false);
+  }
+
+  function handleMapPick(lat: number, lng: number) {
+    setSaved(false);
+    setError(null);
+    setProfile((prev) => ({
+      ...prev,
+      base_lat: String(lat),
+      base_lng: String(lng),
+    }));
   }
 
   function useCurrentLocation() {
@@ -312,9 +345,15 @@ export default function PartnerProfilePage() {
     }
   }
 
+  const lat = parseCoordinate(profile.base_lat, "lat");
+  const lng = parseCoordinate(profile.base_lng, "lng");
+
+  const isAdmin = adminRole === "admin" || adminRole === "super_admin";
+  const isSuperAdmin = adminRole === "super_admin";
+
   if (loading) {
     return (
-      <div className="mx-auto w-full max-w-5xl">
+      <div className="mx-auto w-full max-w-7xl">
         <div className="rounded-2xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.10)] md:p-10">
           <p className="text-gray-600">Loading…</p>
         </div>
@@ -323,9 +362,47 @@ export default function PartnerProfilePage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
-      <h1 className="text-3xl font-semibold text-[#003768]">Edit Profile</h1>
-      <p className="mt-2 text-gray-600">Update your partner details and base location.</p>
+    <div className="mx-auto w-full max-w-7xl">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold text-[#003768]">Edit Profile</h1>
+          <p className="mt-2 text-gray-600">Update your partner details and base location.</p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/partner/dashboard"
+            className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[#003768] hover:bg-black/5"
+          >
+            Partner Dashboard
+          </Link>
+
+          <Link
+            href="/partner/requests"
+            className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[#003768] hover:bg-black/5"
+          >
+            View Requests
+          </Link>
+
+          {isAdmin ? (
+            <Link
+              href="/admin/approvals"
+              className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[#003768] hover:bg-black/5"
+            >
+              Admin Approvals
+            </Link>
+          ) : null}
+
+          {isSuperAdmin ? (
+            <Link
+              href="/admin/users"
+              className="rounded-full bg-[#ff7a00] px-4 py-2 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+            >
+              Admin Users
+            </Link>
+          ) : null}
+        </div>
+      </div>
 
       {error ? (
         <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -410,7 +487,7 @@ export default function PartnerProfilePage() {
         <div className="mt-8 rounded-2xl border border-black/10 p-4">
           <h2 className="text-xl font-semibold text-[#003768]">Base location</h2>
           <p className="mt-2 text-sm text-gray-600">
-            Type an address to see suggestions, or use GPS. Then click Save.
+            Type an address to see suggestions, use GPS, or click on the map. Then click Save.
           </p>
 
           <div className="mt-4 flex flex-wrap gap-3">
@@ -501,6 +578,13 @@ export default function PartnerProfilePage() {
                 onChange={(e) => updateField("base_lng", e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="mt-6">
+            <MapPicker lat={lat} lng={lng} onPick={handleMapPick} />
+            <p className="mt-2 text-xs text-gray-500">
+              Click anywhere on the map to set the partner base location.
+            </p>
           </div>
         </div>
 
