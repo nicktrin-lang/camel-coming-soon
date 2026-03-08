@@ -206,15 +206,46 @@ export default function PartnerProfilePage() {
     setShowSuggestions(false);
   }
 
-  function handleMapPick(lat: number, lng: number) {
-    setSaved(false);
-    setError(null);
-    setProfile((prev) => ({
-      ...prev,
-      base_lat: String(lat),
-      base_lng: String(lng),
-    }));
+ async function handleMapPick(lat: number, lng: number) {
+  setSaved(false);
+  setError(null);
+
+  setProfile((prev) => ({
+    ...prev,
+    base_lat: String(lat),
+    base_lng: String(lng),
+  }));
+
+  try {
+    const res = await fetch(
+      `/api/geocode?lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(String(lng))}`,
+      {
+        method: "GET",
+        cache: "no-store",
+      }
+    );
+
+    const json = await safeJson(res);
+
+    if (!res.ok) {
+      throw new Error(json?.error || json?._raw || "Failed to get address from map location.");
+    }
+
+    const displayName = String(json?.display_name || "").trim();
+
+    if (displayName) {
+      setProfile((prev) => ({
+        ...prev,
+        base_lat: String(lat),
+        base_lng: String(lng),
+        base_address: displayName,
+        search_address: displayName,
+      }));
+    }
+  } catch (e: any) {
+    setError(e?.message || "Failed to get address from map location.");
   }
+}
 
   function useCurrentLocation() {
     setError(null);
