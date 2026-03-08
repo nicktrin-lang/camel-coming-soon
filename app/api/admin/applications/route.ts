@@ -4,21 +4,8 @@ import {
   createServiceRoleSupabaseClient,
 } from "@/lib/supabase/server";
 
-function getAdminEmails() {
-  const raw =
-    process.env.CAMEL_ADMIN_EMAILS ||
-    process.env.NEXT_PUBLIC_CAMEL_ADMIN_EMAILS ||
-    "";
-
-  return raw
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-}
-
 export async function GET() {
   try {
-    // 1) Identify caller via cookies (real session)
     const authed = await createRouteHandlerSupabaseClient();
     const { data: userData, error: userErr } = await authed.auth.getUser();
 
@@ -27,14 +14,22 @@ export async function GET() {
       return NextResponse.json({ error: "Not signed in" }, { status: 401 });
     }
 
-    // 2) Check admin list
-    const admins = getAdminEmails();
-    if (!admins.includes(email)) {
+    const db = createServiceRoleSupabaseClient();
+
+    const { data: adminRow, error: adminErr } = await db
+      .from("admins")
+      .select("role")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (adminErr) {
+      return NextResponse.json({ error: adminErr.message }, { status: 400 });
+    }
+
+    if (!adminRow) {
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    // 3) Load applications using service role (bypasses RLS)
-    const db = createServiceRoleSupabaseClient();
     const { data, error } = await db
       .from("partner_applications")
       .select("id,email,company_name,full_name,status,created_at")

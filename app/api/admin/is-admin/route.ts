@@ -16,7 +16,7 @@ export async function GET() {
 
     const db = createServiceRoleSupabaseClient();
     const { data: adminRow, error: adminErr } = await db
-      .from("admin_users")
+      .from("admins")
       .select("role")
       .eq("email", email)
       .maybeSingle();
@@ -26,8 +26,12 @@ export async function GET() {
     }
 
     const role = adminRow?.role || "none";
+
     return NextResponse.json(
-      { isAdmin: role === "admin" || role === "super_admin", role },
+      {
+        isAdmin: role === "admin" || role === "super_admin",
+        role,
+      },
       { status: 200 }
     );
   } catch (e: any) {

@@ -6,6 +6,7 @@ import {
 import { sendApprovalEmail } from "@/lib/email";
 
 type StatusValue = "pending" | "approved" | "rejected";
+
 function isAllowedStatus(s: any): s is StatusValue {
   return s === "pending" || s === "approved" || s === "rejected";
 }
@@ -19,6 +20,7 @@ export async function POST(req: Request) {
     if (!id) {
       return NextResponse.json({ error: "Missing application id" }, { status: 400 });
     }
+
     if (!isAllowedStatus(nextStatus)) {
       return NextResponse.json(
         { error: "Invalid status (pending, approved, rejected)" },
@@ -26,7 +28,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Who is calling (cookie session)
     const authed = await createRouteHandlerSupabaseClient();
     const { data: userData, error: userErr } = await authed.auth.getUser();
 
@@ -35,10 +36,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Not signed in" }, { status: 401 });
     }
 
-    // Check admin_users table (admin OR super_admin)
     const db = createServiceRoleSupabaseClient();
+
     const { data: adminRow, error: adminErr } = await db
-      .from("admin_users")
+      .from("admins")
       .select("role")
       .eq("email", email)
       .maybeSingle();
@@ -46,11 +47,11 @@ export async function POST(req: Request) {
     if (adminErr) {
       return NextResponse.json({ error: adminErr.message }, { status: 400 });
     }
+
     if (!adminRow) {
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    // Read current
     const { data: current, error: currentErr } = await db
       .from("partner_applications")
       .select("id,email,status")
@@ -63,7 +64,6 @@ export async function POST(req: Request) {
 
     const prevStatus = String(current?.status || "").toLowerCase() as StatusValue;
 
-    // Update
     const { data: updated, error: updateErr } = await db
       .from("partner_applications")
       .update({ status: nextStatus })
@@ -75,7 +75,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: updateErr.message }, { status: 400 });
     }
 
-    // Email only when it becomes approved
     const updatedStatus = String(updated?.status || "").toLowerCase() as StatusValue;
     const toEmail = updated?.email || current?.email || null;
     const becameApproved = prevStatus !== "approved" && updatedStatus === "approved";
