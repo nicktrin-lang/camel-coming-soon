@@ -1,12 +1,9 @@
-// app/partner/dashboard/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
-
-type AdminRole = "none" | "admin" | "super_admin";
 
 type PartnerApplication = {
   id: string;
@@ -15,14 +12,7 @@ type PartnerApplication = {
   company_name: string | null;
   status: string | null;
   created_at: string | null;
-
-  // DB may or may not have these — keep optional and NEVER select columns that don't exist
-  address?: string | null;
-  address1?: string | null;
-  address2?: string | null;
-  province?: string | null;
-  postcode?: string | null;
-  country?: string | null;
+  address: string | null;
 };
 
 function fmtDateTime(iso?: string | null) {
@@ -49,7 +39,7 @@ export default function PartnerDashboardPage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
-  const [adminRole, setAdminRole] = useState<AdminRole>("none");
+  const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [app, setApp] = useState<PartnerApplication | null>(null);
@@ -63,7 +53,6 @@ export default function PartnerDashboardPage() {
       setError(null);
 
       try {
-        // Ensure signed in
         const { data: userData, error: userErr } = await supabase.auth.getUser();
         if (userErr || !userData?.user) {
           router.replace("/partner/login?reason=not_authorized");
@@ -74,19 +63,15 @@ export default function PartnerDashboardPage() {
         if (!mounted) return;
         setEmail(userEmail);
 
-        // Role check (cookie-auth)
-        const meRes = await fetch("/api/admin/me", {
+        const adminRes = await fetch("/api/admin/is-admin", {
           method: "GET",
           cache: "no-store",
           credentials: "include",
         });
-        const meJson = await safeJson(meRes);
+        const adminJson = await safeJson(adminRes);
         if (!mounted) return;
+        setIsAdmin(!!adminJson?.isAdmin);
 
-        const role = (meJson?.role || "none") as AdminRole;
-        setAdminRole(role);
-
-        // Load partner application row (ONLY select columns that exist)
         const { data: appRow, error: appErr } = await supabase
           .from("partner_applications")
           .select("id,email,full_name,company_name,status,created_at,address")
@@ -116,16 +101,6 @@ export default function PartnerDashboardPage() {
 
   const status = String(app?.status || "approved").toLowerCase();
   const showApproved = status === "approved" || !app;
-
-  const addressLine =
-    app?.address ||
-    [app?.address1, app?.address2, app?.province, app?.postcode, app?.country]
-      .filter(Boolean)
-      .join(", ") ||
-    "—";
-
-  const isAdmin = adminRole === "admin" || adminRole === "super_admin";
-  const isSuperAdmin = adminRole === "super_admin";
 
   return (
     <div className="mx-auto w-full max-w-5xl">
@@ -168,7 +143,7 @@ export default function PartnerDashboardPage() {
 
           <div>
             <span className="text-gray-600">Address:</span>{" "}
-            <span className="font-medium">{addressLine}</span>
+            <span className="font-medium">{app?.address || "—"}</span>
           </div>
 
           <div>
@@ -198,15 +173,6 @@ export default function PartnerDashboardPage() {
               className="rounded-full border border-black/10 bg-white px-7 py-3 font-semibold text-[#003768] hover:bg-black/5"
             >
               Admin Approvals
-            </Link>
-          ) : null}
-
-          {isSuperAdmin ? (
-            <Link
-              href="/admin/users"
-              className="rounded-full border border-black/10 bg-white px-7 py-3 font-semibold text-[#003768] hover:bg-black/5"
-            >
-              Admin Users
             </Link>
           ) : null}
         </div>

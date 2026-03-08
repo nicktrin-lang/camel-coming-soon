@@ -6,14 +6,6 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
-function getAdminEmails() {
-  const raw = process.env.NEXT_PUBLIC_CAMEL_ADMIN_EMAILS || "";
-  return raw
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-}
-
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const router = useRouter();
@@ -28,18 +20,30 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     async function check() {
       setChecking(true);
 
-      const admins = getAdminEmails();
-      const { data, error } = await supabase.auth.getUser();
-      const email = (data?.user?.email || "").toLowerCase();
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      if (userErr || !userData?.user) {
+        if (mounted) {
+          setIsAdmin(false);
+          setChecking(false);
+        }
+        router.replace("/partner/login?reason=not_authorized");
+        return;
+      }
 
-      const ok = !error && !!data?.user && admins.includes(email);
+      const adminRes = await fetch("/api/admin/is-admin", {
+        method: "GET",
+        cache: "no-store",
+        credentials: "include",
+      });
+      const adminJson = await adminRes.json().catch(() => null);
+      const ok = !!adminJson?.isAdmin;
 
       if (!mounted) return;
+
       setIsAdmin(ok);
       setChecking(false);
 
       if (!ok) {
-        // Kick non-admins to partner login (same behaviour as your partner gating)
         router.replace("/partner/login?reason=not_authorized");
       }
     }
@@ -64,13 +68,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const linkClass = (href: string) =>
     `rounded-full px-3 py-2 hover:bg-white/10 ${isActive(href) ? "bg-white/15" : ""}`;
 
+  const hideTopAdminApprovalsLink = pathname === "/admin/approvals";
+
   return (
     <div className="min-h-screen bg-[#e3f4ff]">
-      {/* Header */}
       <header className="fixed left-0 top-0 z-50 w-full shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
         <div className="bg-gradient-to-br from-[#003768] to-[#005b9f] text-white">
-          <div className="mx-auto flex max-w-6xl items-center gap-4 px-6 py-3">
-            {/* Logo */}
+          <div className="mx-auto flex max-w-7xl items-center gap-4 px-6 py-3">
             <Link href="/" className="flex items-center">
               <Image
                 src="/camel-logo.png"
@@ -82,15 +86,16 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               />
             </Link>
 
-            {/* Nav */}
             <nav className="ml-auto flex items-center gap-3 text-sm">
               <Link href="/" className={linkClass("/")}>
                 Home
               </Link>
 
-              <Link href="/admin/approvals" className={linkClass("/admin/approvals")}>
-                Admin Approvals
-              </Link>
+              {!hideTopAdminApprovalsLink && !checking && isAdmin ? (
+                <Link href="/admin/approvals" className={linkClass("/admin/approvals")}>
+                  Admin Approvals
+                </Link>
+              ) : null}
 
               {!checking && isAdmin ? (
                 <button
@@ -105,11 +110,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      {/* Spacer for fixed header */}
       <div className="h-[105px] md:h-[115px]" />
 
-      {/* Centered white card wrapper */}
-      <main className="mx-auto max-w-6xl px-6 py-10">
+      <main className="mx-auto max-w-7xl px-6 py-10">
         <div className="rounded-2xl bg-white shadow-[0_18px_45px_rgba(0,0,0,0.10)] border border-black/5">
           <div className="p-6 md:p-10">{children}</div>
         </div>
