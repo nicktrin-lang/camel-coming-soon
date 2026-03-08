@@ -1,10 +1,10 @@
-// app/layout.tsx
 "use client";
 
 import "./globals.css";
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
 export default function RootLayout({
@@ -14,64 +14,99 @@ export default function RootLayout({
 }) {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const router = useRouter();
+  const pathname = usePathname();
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     let mounted = true;
 
-    async function checkUser() {
+    async function refreshUser() {
       const { data } = await supabase.auth.getUser();
       if (!mounted) return;
       setIsLoggedIn(!!data?.user);
     }
 
-    checkUser();
+    refreshUser();
 
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
-      checkUser();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      refreshUser();
     });
 
     return () => {
       mounted = false;
-      sub.subscription.unsubscribe();
+      subscription.unsubscribe();
     };
   }, [supabase]);
 
   async function handleLogout() {
     await supabase.auth.signOut();
+
+    setIsLoggedIn(false);
+
     router.replace("/partner/login?reason=signed_out");
+    router.refresh();
+
+    setTimeout(() => {
+      window.location.href = "/partner/login?reason=signed_out";
+    }, 50);
   }
+
+  const isPartnerArea =
+    pathname?.startsWith("/partner") || pathname?.startsWith("/admin");
 
   return (
     <html lang="en">
-      <body className="min-h-screen bg-[#e8f1f8]">
-        {/* Top Header */}
-        <header className="bg-gradient-to-r from-[#003768] to-[#005b9f] px-6 py-4 text-white shadow-md">
-          <div className="mx-auto flex max-w-7xl items-center justify-between">
-            <Link href="/" className="flex items-center gap-2">
-              <span className="text-xl font-bold">Camel</span>
-            </Link>
+      <body className="min-h-screen bg-[#e3f4ff]">
+        <header className="fixed left-0 top-0 z-50 w-full shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
+          <div className="bg-gradient-to-br from-[#003768] to-[#005b9f] text-white">
+            <div className="mx-auto flex max-w-7xl items-center gap-4 px-6 py-3">
+              <Link href="/" className="flex items-center">
+                <Image
+                  src="/camel-logo.png"
+                  alt="Camel Global Ltd logo"
+                  width={220}
+                  height={80}
+                  priority
+                  className="h-[64px] w-auto"
+                />
+              </Link>
 
-            <div className="flex items-center gap-6 text-sm font-medium">
-              <Link href="/">Home</Link>
+              <nav className="ml-auto flex items-center gap-6 text-sm font-medium">
+                <Link href="/" className="hover:opacity-90">
+                  Home
+                </Link>
 
-              {isLoggedIn ? (
-                <button
-                  onClick={handleLogout}
-                  className="rounded-full bg-[#ff7a00] px-4 py-2 font-semibold text-white shadow hover:opacity-95"
-                >
-                  Logout
-                </button>
-              ) : null}
+                {!isLoggedIn && !isPartnerArea ? (
+                  <>
+                    <Link href="/partner/signup" className="hover:opacity-90">
+                      Partner Sign Up
+                    </Link>
+                    <Link href="/partner/login" className="hover:opacity-90">
+                      Partner Login
+                    </Link>
+                  </>
+                ) : null}
+
+                {isLoggedIn ? (
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="rounded-full bg-[#ff7a00] px-5 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+                  >
+                    Logout
+                  </button>
+                ) : null}
+              </nav>
             </div>
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="mx-auto max-w-7xl px-6 py-10">
-          {children}
-        </main>
+        <div className="h-[105px] md:h-[115px]" />
+
+        <main>{children}</main>
       </body>
     </html>
   );
