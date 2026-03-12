@@ -639,7 +639,6 @@ export default function PartnerProfilePage() {
                 value={profile.address2}
                 onChange={(e) => updateField("address2", e.target.value)}
               />
-            />
             </div>
 
             <div>
