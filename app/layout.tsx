@@ -57,54 +57,60 @@ export default function RootLayout({
   const isPartnerArea =
     pathname?.startsWith("/partner") || pathname?.startsWith("/admin");
 
+  const isHomepage = pathname === "/";
+
   return (
     <html lang="en">
       <body className="min-h-screen bg-[#e3f4ff]">
-        <header className="fixed left-0 top-0 z-50 w-full shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
-          <div className="bg-gradient-to-br from-[#003768] to-[#005b9f] text-white">
-            <div className="mx-auto flex max-w-7xl items-center gap-4 px-6 py-3">
-              <Link href="/" className="flex items-center">
-                <Image
-                  src="/camel-logo.png"
-                  alt="Camel Global Ltd logo"
-                  width={220}
-                  height={80}
-                  priority
-                  className="h-[64px] w-auto"
-                />
-              </Link>
+        {!isHomepage ? (
+          <>
+            <header className="fixed left-0 top-0 z-50 w-full shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
+              <div className="bg-gradient-to-br from-[#003768] to-[#005b9f] text-white">
+                <div className="mx-auto flex max-w-7xl items-center gap-4 px-6 py-3">
+                  <Link href="/" className="flex items-center">
+                    <Image
+                      src="/camel-logo.png"
+                      alt="Camel Global Ltd logo"
+                      width={220}
+                      height={80}
+                      priority
+                      className="h-[64px] w-auto"
+                    />
+                  </Link>
 
-              <nav className="ml-auto flex items-center gap-6 text-sm font-medium">
-                <Link href="/" className="hover:opacity-90">
-                  Home
-                </Link>
-
-                {!isLoggedIn && !isPartnerArea ? (
-                  <>
-                    <Link href="/partner/signup" className="hover:opacity-90">
-                      Partner Sign Up
+                  <nav className="ml-auto flex items-center gap-6 text-sm font-medium">
+                    <Link href="/" className="hover:opacity-90">
+                      Home
                     </Link>
-                    <Link href="/partner/login" className="hover:opacity-90">
-                      Partner Login
-                    </Link>
-                  </>
-                ) : null}
 
-                {isLoggedIn ? (
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="rounded-full bg-[#ff7a00] px-5 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
-                  >
-                    Logout
-                  </button>
-                ) : null}
-              </nav>
-            </div>
-          </div>
-        </header>
+                    {!isLoggedIn && !isPartnerArea ? (
+                      <>
+                        <Link href="/partner/signup" className="hover:opacity-90">
+                          Partner Sign Up
+                        </Link>
+                        <Link href="/partner/login" className="hover:opacity-90">
+                          Partner Login
+                        </Link>
+                      </>
+                    ) : null}
 
-        <div className="h-[105px] md:h-[115px]" />
+                    {isLoggedIn ? (
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="rounded-full bg-[#ff7a00] px-5 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+                      >
+                        Logout
+                      </button>
+                    ) : null}
+                  </nav>
+                </div>
+              </div>
+            </header>
+
+            <div className="h-[105px] md:h-[115px]" />
+          </>
+        ) : null}
 
         <main>{children}</main>
       </body>
