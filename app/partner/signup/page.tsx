@@ -245,7 +245,7 @@ const { error: insertErr } = await (supabase as any)
             </div>
 
             <div>
-              <label className="text-sm font-medium text-[#003768]">Address line 2</label>
+              <label className="text-sm font-medium text-[#003768]">Business Address line 2</label>
               <input
                 className="mt-1 w-full rounded-xl border border-black/10 p-2"
                 value={address2}

@@ -327,7 +327,7 @@ export default function AdminApprovalDetailPage() {
 
               <div className="mt-5 space-y-3 text-sm">
                 <div>
-                  <span className="font-medium text-[#003768]">Primary address:</span>{" "}
+                  <span className="font-medium text-[#003768]">Business address:</span>{" "}
                   <span className="text-gray-800">{primaryAddress}</span>
                 </div>
 
@@ -367,7 +367,7 @@ export default function AdminApprovalDetailPage() {
                 </div>
 
                 <div>
-                  <span className="font-medium text-[#003768]">Base address:</span>{" "}
+                  <span className="font-medium text-[#003768]">Car Fleet Address:</span>{" "}
                   <span className="text-gray-800">{profile?.base_address || "—"}</span>
                 </div>
 
