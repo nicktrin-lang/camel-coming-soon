@@ -171,11 +171,11 @@ const { error: insertErr } = await (supabase as any)
         </div>
 
         <Link
-          href="/partner/login"
-          className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-medium text-[#003768] hover:bg-black/5"
-        >
-          Back to login
-        </Link>
+  href="/partner/login"
+  className="rounded-full bg-[#ff7a00] px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+>
+  Back to login
+</Link>
       </div>
 
       <form onSubmit={onSubmit} className="mt-8 space-y-4">

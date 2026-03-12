@@ -5,8 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
-type AdminRole = "none" | "admin" | "super_admin";
-
 type PartnerApplication = {
   id: string;
   email: string | null;
@@ -15,6 +13,26 @@ type PartnerApplication = {
   status: string | null;
   created_at: string | null;
   address: string | null;
+  address1?: string | null;
+  address2?: string | null;
+  province?: string | null;
+  postcode?: string | null;
+  country?: string | null;
+};
+
+type PartnerProfile = {
+  company_name: string | null;
+  contact_name: string | null;
+  phone: string | null;
+  address: string | null;
+  address1?: string | null;
+  address2?: string | null;
+  province?: string | null;
+  postcode?: string | null;
+  country?: string | null;
+  base_address: string | null;
+  base_lat: number | null;
+  base_lng: number | null;
 };
 
 function fmtDateTime(iso?: string | null) {
@@ -36,15 +54,21 @@ async function safeJson(res: Response): Promise<any> {
   }
 }
 
+function buildAddress(parts: Array<string | null | undefined>) {
+  return parts.map((v) => (v || "").trim()).filter(Boolean).join(", ");
+}
+
 export default function PartnerDashboardPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
-  const [adminRole, setAdminRole] = useState<AdminRole>("none");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [app, setApp] = useState<PartnerApplication | null>(null);
+  const [profile, setProfile] = useState<PartnerProfile | null>(null);
   const [email, setEmail] = useState<string>("");
 
   useEffect(() => {
@@ -57,7 +81,7 @@ export default function PartnerDashboardPage() {
       try {
         const { data: userData, error: userErr } = await supabase.auth.getUser();
         if (userErr || !userData?.user) {
-          router.replace("/partner/login?reason=not_signed_in");
+          router.replace("/partner/login?reason=not_authorized");
           return;
         }
 
@@ -73,12 +97,15 @@ export default function PartnerDashboardPage() {
         const meJson = await safeJson(meRes);
 
         if (!mounted) return;
-        const role = String(meJson?.role || "none") as AdminRole;
-        setAdminRole(role);
+        const role = String(meJson?.role || "none");
+        setIsAdmin(role === "admin" || role === "super_admin");
+        setIsSuperAdmin(role === "super_admin");
 
         const { data: appRow, error: appErr } = await supabase
           .from("partner_applications")
-          .select("id,email,full_name,company_name,status,created_at,address")
+          .select(
+            "id,email,full_name,company_name,status,created_at,address,address1,address2,province,postcode,country"
+          )
           .eq("email", userEmail)
           .order("created_at", { ascending: false })
           .limit(1)
@@ -86,8 +113,19 @@ export default function PartnerDashboardPage() {
 
         if (appErr) throw appErr;
 
+        const { data: profileRow, error: profileErr } = await supabase
+          .from("partner_profiles")
+          .select(
+            "company_name,contact_name,phone,address,address1,address2,province,postcode,country,base_address,base_lat,base_lng"
+          )
+          .eq("user_id", userData.user.id)
+          .maybeSingle();
+
+        if (profileErr) throw profileErr;
+
         if (!mounted) return;
         setApp((appRow as any) || null);
+        setProfile((profileRow as any) || null);
       } catch (e: any) {
         if (!mounted) return;
         setError(e?.message || "Failed to load dashboard.");
@@ -98,24 +136,40 @@ export default function PartnerDashboardPage() {
     }
 
     load();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      load();
-    });
-
     return () => {
       mounted = false;
-      subscription.unsubscribe();
     };
   }, [router, supabase]);
 
   const status = String(app?.status || "approved").toLowerCase();
   const showApproved = status === "approved" || !app;
 
-  const isAdmin = adminRole === "admin" || adminRole === "super_admin";
-  const isSuperAdmin = adminRole === "super_admin";
+  const structuredProfileAddress = buildAddress([
+    profile?.address1,
+    profile?.address2,
+    profile?.province,
+    profile?.postcode,
+    profile?.country,
+  ]);
+
+  const structuredApplicationAddress = buildAddress([
+    app?.address1,
+    app?.address2,
+    app?.province,
+    app?.postcode,
+    app?.country,
+  ]);
+
+  const addressLine =
+    profile?.base_address ||
+    structuredProfileAddress ||
+    profile?.address ||
+    structuredApplicationAddress ||
+    app?.address ||
+    "—";
+
+  const nameLine = profile?.contact_name || app?.full_name || "—";
+  const companyLine = profile?.company_name || app?.company_name || "—";
 
   return (
     <div className="mx-auto w-full max-w-5xl">
@@ -130,7 +184,7 @@ export default function PartnerDashboardPage() {
         </div>
       ) : null}
 
-      <div className="mt-8 rounded-2xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.10)] md:p-10">
+      <div className="mt-8 rounded-2xl bg-white p-6 md:p-10 shadow-[0_18px_45px_rgba(0,0,0,0.10)] border border-black/5">
         <h2 className="text-xl font-semibold text-[#003768]">Account</h2>
 
         <div className="mt-5 space-y-2 text-sm text-gray-800">
@@ -148,17 +202,17 @@ export default function PartnerDashboardPage() {
 
           <div>
             <span className="text-gray-600">Name:</span>{" "}
-            <span className="font-medium">{app?.full_name || "—"}</span>
+            <span className="font-medium">{nameLine}</span>
           </div>
 
           <div>
             <span className="text-gray-600">Company:</span>{" "}
-            <span className="font-medium">{app?.company_name || "—"}</span>
+            <span className="font-medium">{companyLine}</span>
           </div>
 
           <div>
             <span className="text-gray-600">Address:</span>{" "}
-            <span className="font-medium">{app?.address || "—"}</span>
+            <span className="font-medium">{addressLine}</span>
           </div>
 
           <div>
