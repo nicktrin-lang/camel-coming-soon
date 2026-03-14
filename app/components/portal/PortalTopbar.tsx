@@ -1,32 +1,147 @@
 "use client";
 
-type Props = {
-  title: string;
-  subtitle?: string;
-  onMenuClick: () => void;
+import Image from "next/image";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
+
+type MeResponse = {
+  role?: "none" | "admin" | "super_admin";
 };
 
-export default function PortalTopbar({ title, subtitle, onMenuClick }: Props) {
+export default function PortalTopbar() {
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
+  const router = useRouter();
+
+  const [displayName, setDisplayName] = useState<string>("");
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadUserName() {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        const user = userData?.user;
+
+        if (!user) {
+          if (mounted) setDisplayName("");
+          return;
+        }
+
+        const email = String(user.email || "").toLowerCase().trim();
+
+        const { data: profile } = await supabase
+          .from("partner_profiles")
+          .select("contact_name,company_name")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (profile?.contact_name && mounted) {
+          setDisplayName(String(profile.contact_name));
+          return;
+        }
+
+        const { data: application } = await supabase
+          .from("partner_applications")
+          .select("full_name,company_name")
+          .eq("email", email)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (application?.full_name && mounted) {
+          setDisplayName(String(application.full_name));
+          return;
+        }
+
+        const meRes = await fetch("/api/admin/me", {
+          method: "GET",
+          cache: "no-store",
+          credentials: "include",
+        });
+
+        const meJson = (await meRes.json().catch(() => null)) as MeResponse | null;
+
+        if (
+          mounted &&
+          (meJson?.role === "admin" || meJson?.role === "super_admin")
+        ) {
+          const fallback =
+            user.user_metadata?.full_name ||
+            user.user_metadata?.name ||
+            user.email ||
+            "";
+
+          setDisplayName(String(fallback));
+          return;
+        }
+
+        if (mounted) {
+          setDisplayName(
+            String(user.user_metadata?.full_name || user.user_metadata?.name || user.email || "")
+          );
+        }
+      } catch {
+        if (mounted) setDisplayName("");
+      }
+    }
+
+    loadUserName();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      loadUserName();
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    window.location.replace("/partner/login?reason=signed_out");
+  }
+
   return (
-    <div className="sticky top-[105px] z-20 border-b border-black/5 bg-[#e3f4ff]/95 backdrop-blur md:top-[115px]">
-      <div className="flex items-center justify-between gap-4 px-4 py-4 md:px-8">
-        <div className="min-w-0">
-          <h1 className="truncate text-2xl font-semibold text-[#003768] md:text-3xl">
-            {title}
-          </h1>
-          {subtitle ? (
-            <p className="mt-1 text-sm text-slate-600 md:text-base">{subtitle}</p>
-          ) : null}
+    <header className="fixed inset-x-0 top-0 z-50 h-20 border-b border-black/10 bg-[#123d78] text-white shadow-[0_4px_12px_rgba(0,0,0,0.18)]">
+      <div className="flex h-full w-full items-center justify-between px-4 md:px-8">
+        <div className="flex items-center">
+          <Link href="/partner/dashboard" className="flex items-center">
+            <Image
+              src="/camel-logo.png"
+              alt="Camel Global logo"
+              width={180}
+              height={60}
+              priority
+              className="h-[52px] w-auto"
+            />
+          </Link>
         </div>
 
-        <button
-          type="button"
-          onClick={onMenuClick}
-          className="inline-flex items-center rounded-2xl border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[#003768] shadow-sm hover:bg-black/5 lg:hidden"
-        >
-          Menu
-        </button>
+        <div className="flex items-center gap-4 md:gap-6">
+          {displayName ? (
+            <div className="hidden text-sm font-medium text-white/90 md:block">
+              Welcome: <span className="font-semibold text-white">{displayName}</span>
+            </div>
+          ) : null}
+
+          <Link href="/" className="text-sm font-semibold text-white hover:opacity-90">
+            Home
+          </Link>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="rounded-full bg-[#f28a32] px-5 py-2 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+          >
+            Logout
+          </button>
+        </div>
       </div>
-    </div>
+    </header>
   );
 }

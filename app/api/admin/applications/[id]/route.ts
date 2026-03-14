@@ -75,11 +75,13 @@ export async function GET(
     }
 
     if (!profile && application.email) {
-      const { data: authUsers, error: authErr } = await db.auth.admin.listUsers();
+      const { data: authUsersData, error: authErr } = await db.auth.admin.listUsers();
 
       if (!authErr) {
-        const matchedUser = authUsers?.users?.find(
-          (u) => (u.email || "").toLowerCase().trim() === String(application.email).toLowerCase().trim()
+        const matchedUser = authUsersData?.users?.find(
+          (u) =>
+            (u.email || "").toLowerCase().trim() ===
+            String(application.email).toLowerCase().trim()
         );
 
         if (matchedUser?.id) {
