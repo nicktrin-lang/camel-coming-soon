@@ -17,17 +17,35 @@ export default function PortalTopbar({ onMenuClick }: PortalTopbarProps) {
     let mounted = true;
 
     async function loadUser() {
-      const { data } = await supabase.auth.getUser();
-      if (!mounted) return;
+      const { data, error } = await supabase.auth.getUser();
+      if (!mounted || error || !data?.user) return;
 
-      const user = data?.user;
-      const fullName =
-        String(user?.user_metadata?.full_name || "").trim() ||
-        String(user?.user_metadata?.name || "").trim() ||
-        String(user?.email || "").split("@")[0] ||
+      const user = data.user;
+
+      let nextName =
+        String(user.user_metadata?.full_name || "").trim() ||
+        String(user.user_metadata?.name || "").trim() ||
         "";
 
-      setDisplayName(fullName);
+      const { data: profile } = await supabase
+        .from("partner_profiles")
+        .select("contact_name")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!mounted) return;
+
+      const profileName = String(profile?.contact_name || "").trim();
+
+      if (profileName) {
+        nextName = profileName;
+      }
+
+      if (!nextName) {
+        nextName = String(user.email || "").split("@")[0] || "";
+      }
+
+      setDisplayName(nextName);
     }
 
     loadUser();
