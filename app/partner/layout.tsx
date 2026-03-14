@@ -71,10 +71,18 @@ export default function PartnerLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [, setAdminRole] = useState<AdminRole>("none");
 
+  const isAuthPage =
+    pathname === "/partner/login" || pathname === "/partner/signup";
+
   useEffect(() => {
     let mounted = true;
 
     async function guard() {
+      if (isAuthPage) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
 
       try {
@@ -105,11 +113,15 @@ export default function PartnerLayout({
     return () => {
       mounted = false;
     };
-  }, [router, supabase]);
+  }, [router, supabase, isAuthPage]);
 
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
+
+  if (isAuthPage) {
+    return <>{children}</>;
+  }
 
   const meta = getMeta(pathname || "");
 

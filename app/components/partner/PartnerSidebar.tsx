@@ -35,15 +35,16 @@ export default function PartnerSidebar({ open, onClose }: Props) {
 
       <aside
         className={[
-          "fixed left-0 top-0 z-40 h-screen w-[290px] border-r border-white/10",
+          "fixed left-0 z-40 w-[290px] border-r border-white/10",
           "bg-gradient-to-b from-[#003768] to-[#005b9f] text-white shadow-2xl",
           "transform transition-transform duration-300 ease-in-out",
+          "top-[105px] h-[calc(100vh-105px)] md:top-[115px] md:h-[calc(100vh-115px)]",
           open ? "translate-x-0" : "-translate-x-full",
           "lg:translate-x-0",
         ].join(" ")}
       >
-        <div className="flex h-full flex-col">
-          <div className="border-b border-white/10 px-6 pt-12 pb-6">
+        <div className="flex h-full flex-col overflow-y-auto">
+          <div className="border-b border-white/10 px-6 pt-8 pb-6">
             <Link href="/partner/dashboard" onClick={onClose} className="block">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">
                 Camel Global
