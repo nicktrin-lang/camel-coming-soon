@@ -150,11 +150,7 @@ export default function PartnerLayout({
       />
 
       <div className="lg:pl-[290px]">
-        <PortalTopbar
-          title={meta.title}
-          subtitle={meta.subtitle}
-          onMenuClick={() => setSidebarOpen(true)}
-        />
+        <PortalTopbar />
 
         <div className="px-4 py-5 md:px-8 md:py-8">{children}</div>
       </div>
