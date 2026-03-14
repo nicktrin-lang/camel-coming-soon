@@ -43,9 +43,7 @@ function PartnerLoginInner() {
         password,
       });
 
-      if (signInError) {
-        throw signInError;
-      }
+      if (signInError) throw signInError;
 
       const meRes = await fetch("/api/admin/me", {
         method: "GET",
@@ -87,7 +85,7 @@ function PartnerLoginInner() {
         </div>
       </header>
 
-      <div className="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 pb-10 pt-28">
+      <div className="mx-auto flex min-h-screen max-w-7xl justify-center px-4 pt-28 pb-10">
         <div className="w-full max-w-2xl rounded-3xl border border-black/5 bg-white p-10 shadow-[0_18px_45px_rgba(0,0,0,0.10)]">
           <h1 className="text-4xl font-semibold text-[#003768]">Partner Login</h1>
           <p className="mt-3 text-lg text-slate-600">
