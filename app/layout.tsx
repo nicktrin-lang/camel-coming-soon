@@ -55,12 +55,12 @@ export default function RootLayout({
   }
 
   const isHomepage = pathname === "/";
-const isPartnerAuthPage = pathname === "/partner/login";
-
+  const isPartnerLoginPage = pathname === "/partner/login";
   const isPortalAppPage =
-    pathname?.startsWith("/partner") || pathname?.startsWith("/admin");
+    (pathname?.startsWith("/partner") && pathname !== "/partner/signup") ||
+    pathname?.startsWith("/admin");
 
-  const showGlobalHeader = !isHomepage && !isPartnerAuthPage && !isPortalAppPage;
+  const showGlobalHeader = !isHomepage && !isPartnerLoginPage && !isPortalAppPage;
 
   return (
     <html lang="en">
