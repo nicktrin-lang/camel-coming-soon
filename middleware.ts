@@ -1,21 +1,56 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export function middleware(request: NextRequest) {
-  const host = request.headers.get("host") || "";
-  const url = request.nextUrl.clone();
+const MAIN_HOSTS = new Set(["camel-global.com", "www.camel-global.com"]);
+const PORTAL_HOST = "portal.camel-global.com";
 
-  // If user visits portal.camel-global.com
-  if (host.startsWith("portal.camel-global.com")) {
-    if (!url.pathname.startsWith("/partner") && !url.pathname.startsWith("/admin")) {
-      url.pathname = "/partner/dashboard";
-      return NextResponse.redirect(url);
-    }
+function isStaticAsset(pathname: string) {
+  return (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    pathname.startsWith("/robots.txt") ||
+    pathname.startsWith("/sitemap.xml") ||
+    pathname.startsWith("/vercel.svg") ||
+    pathname.startsWith("/camel-logo.png") ||
+    pathname.startsWith("/file.svg") ||
+    pathname.startsWith("/globe.svg") ||
+    pathname.match(/\.(png|jpg|jpeg|gif|webp|svg|ico|css|js|map|txt)$/i) !== null
+  );
+}
+
+export function middleware(req: NextRequest) {
+  const host = (req.headers.get("host") || "").split(":")[0];
+  const url = req.nextUrl.clone();
+  const pathname = url.pathname;
+
+  // Never redirect static assets
+  if (isStaticAsset(pathname)) {
+    return NextResponse.next();
+  }
+
+  const isPartnerOrAdminPath =
+    pathname.startsWith("/partner") || pathname.startsWith("/admin");
+
+  // Main website → portal for partner/admin routes
+  if (MAIN_HOSTS.has(host) && isPartnerOrAdminPath) {
+    const redirectUrl = new URL(req.url);
+    redirectUrl.protocol = "https:";
+    redirectUrl.hostname = PORTAL_HOST;
+    redirectUrl.pathname = pathname;
+    redirectUrl.search = url.search;
+    return NextResponse.redirect(redirectUrl, 308);
+  }
+
+  // Portal root → portal login
+  if (host === PORTAL_HOST && pathname === "/") {
+    return NextResponse.redirect(
+      new URL("https://portal.camel-global.com/partner/login"),
+      308
+    );
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: "/:path*",
+  matcher: ["/:path*"],
 };

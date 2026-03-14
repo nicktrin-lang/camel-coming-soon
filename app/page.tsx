@@ -583,12 +583,7 @@ export default function HomePage() {
               </a>
 
               {/* ✅ MOVED to END (requested change) */}
-              <a href="/partner/signup" onClick={closeMobileNavIfOpen}>
-                Partner Sign Up
-              </a>
-              <a href="/partner/login" onClick={closeMobileNavIfOpen}>
-                Partner Login
-              </a>
+              
             </nav>
           </div>
         </div>
@@ -620,9 +615,9 @@ export default function HomePage() {
 
             <div className="hero-cta">
               {/* ✅ CTA now goes to /partner/signup */}
-              <a className="btn btn-primary" href="/partner/signup">
-                Become a Partner
-              </a>
+              <a className="btn btn-primary" href="#join" onClick={closeMobileNavIfOpen}>
+  Join the System
+</a>
             </div>
           </div>
 
