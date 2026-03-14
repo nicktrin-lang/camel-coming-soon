@@ -61,7 +61,6 @@ export default function PortalSidebar({
   onClose,
 }: PortalSidebarProps) {
   const pathname = usePathname();
-
   const items = navItems.filter((item) => item.roles.includes(role));
 
   function isActive(href: string) {
@@ -70,53 +69,55 @@ export default function PortalSidebar({
 
   return (
     <>
-      <div
-        className={[
-          "fixed inset-0 z-40 bg-black/40 transition-opacity duration-200 lg:hidden",
-          open ? "opacity-100" : "pointer-events-none opacity-0",
-        ].join(" ")}
+      <button
+        type="button"
+        aria-label="Close menu overlay"
         onClick={onClose}
+        className={[
+          "fixed inset-0 z-[55] bg-black/40 transition-opacity duration-300 lg:hidden",
+          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
+        ].join(" ")}
       />
 
       <aside
         className={[
-          "fixed left-0 top-20 z-50 flex h-[calc(100vh-5rem)] w-[290px] flex-col border-r border-white/10 bg-[#123f79] text-white transition-transform duration-300",
+          "fixed left-0 top-20 z-[60] h-[calc(100vh-5rem)] w-[290px] border-r border-white/10 bg-[#123f79] text-white shadow-2xl transition-transform duration-300",
           open ? "translate-x-0" : "-translate-x-full",
           "lg:translate-x-0",
         ].join(" ")}
       >
-        <div className="border-b border-white/10 px-6 py-8">
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-white/70">
-            Camel Global
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold">Partner Portal</h2>
-          <p className="mt-4 text-sm text-white/80">
-            Operations dashboard
-          </p>
-        </div>
+        <div className="flex h-full flex-col">
+          <div className="border-b border-white/10 px-6 py-8">
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-white/70">
+              Camel Global
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold">Partner Portal</h2>
+            <p className="mt-4 text-sm text-white/80">Operations dashboard</p>
+          </div>
 
-        <div className="flex-1 overflow-y-auto px-2 py-4">
-          <p className="px-4 text-xs font-bold uppercase tracking-[0.25em] text-white/55">
-            Navigation
-          </p>
+          <div className="flex-1 overflow-y-auto px-2 py-4">
+            <p className="px-4 text-xs font-bold uppercase tracking-[0.25em] text-white/55">
+              Navigation
+            </p>
 
-          <nav className="mt-4 space-y-2">
-            {items.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onClose}
-                className={[
-                  "block rounded-2xl px-4 py-4 text-base font-semibold transition",
-                  isActive(item.href)
-                    ? "bg-white text-[#123f79]"
-                    : "text-white hover:bg-white/10",
-                ].join(" ")}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+            <nav className="mt-4 space-y-2">
+              {items.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onClose}
+                  className={[
+                    "block rounded-2xl px-4 py-4 text-base font-semibold transition",
+                    isActive(item.href)
+                      ? "bg-white text-[#123f79]"
+                      : "text-white hover:bg-white/10",
+                  ].join(" ")}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
         </div>
       </aside>
     </>
