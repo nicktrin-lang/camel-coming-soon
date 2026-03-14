@@ -6,10 +6,15 @@ import {
 
 export async function GET(
   _req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
-    const { id } = await params;
+    const params = await Promise.resolve(context.params);
+    const id = String(params?.id || "").trim();
+
+    if (!id) {
+      return NextResponse.json({ error: "Missing application id" }, { status: 400 });
+    }
 
     const authed = await createRouteHandlerSupabaseClient();
     const { data: userData, error: userErr } = await authed.auth.getUser();
@@ -48,16 +53,13 @@ export async function GET(
     }
 
     if (!application) {
-      return NextResponse.json(
-        { error: "Partner application not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Partner application not found" }, { status: 404 });
     }
 
-    let profile: any = null;
+    let profile = null;
 
     if (application.user_id) {
-      const { data: profileRow, error: profileErr } = await db
+      const { data: profileByUserId, error: profileErr } = await db
         .from("partner_profiles")
         .select(
           "id,user_id,company_name,contact_name,phone,address,address1,address2,province,postcode,country,website,service_radius_km,base_address,base_lat,base_lng"
@@ -69,7 +71,33 @@ export async function GET(
         return NextResponse.json({ error: profileErr.message }, { status: 400 });
       }
 
-      profile = profileRow || null;
+      profile = profileByUserId;
+    }
+
+    if (!profile && application.email) {
+      const { data: authUsers, error: authErr } = await db.auth.admin.listUsers();
+
+      if (!authErr) {
+        const matchedUser = authUsers?.users?.find(
+          (u) => (u.email || "").toLowerCase().trim() === String(application.email).toLowerCase().trim()
+        );
+
+        if (matchedUser?.id) {
+          const { data: profileByResolvedUserId, error: profileErr2 } = await db
+            .from("partner_profiles")
+            .select(
+              "id,user_id,company_name,contact_name,phone,address,address1,address2,province,postcode,country,website,service_radius_km,base_address,base_lat,base_lng"
+            )
+            .eq("user_id", matchedUser.id)
+            .maybeSingle();
+
+          if (profileErr2) {
+            return NextResponse.json({ error: profileErr2.message }, { status: 400 });
+          }
+
+          profile = profileByResolvedUserId;
+        }
+      }
     }
 
     return NextResponse.json(
