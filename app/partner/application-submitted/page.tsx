@@ -345,7 +345,7 @@ export default function PartnerSignupPage() {
       if (insertErr) throw insertErr;
 
       setOk("Account created. Your application is now pending approval.");
-router.replace("/partner/application-submitted");
+      router.replace("/partner/login?reason=created");
     } catch (e: any) {
       setError(e?.message || "Sign up failed.");
     } finally {
