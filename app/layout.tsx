@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
+import GoogleAnalytics from "@/app/components/GoogleAnalytics";
 
 export default function RootLayout({
   children,
@@ -56,12 +57,15 @@ export default function RootLayout({
 
   const isHomepage = pathname === "/";
   const isPartnerAuthPage =
-    pathname === "/partner/login" || pathname === "/partner/signup";
+    pathname === "/partner/login" ||
+    pathname === "/partner/signup" ||
+    pathname === "/partner/application-submitted";
 
   const isPortalAppPage =
     (pathname?.startsWith("/partner") &&
       pathname !== "/partner/login" &&
-      pathname !== "/partner/signup") ||
+      pathname !== "/partner/signup" &&
+      pathname !== "/partner/application-submitted") ||
     pathname?.startsWith("/admin");
 
   const showGlobalHeader = !isHomepage && !isPartnerAuthPage && !isPortalAppPage;
@@ -69,6 +73,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-[#e3f4ff]">
+        <GoogleAnalytics />
+
         {showGlobalHeader && (
           <>
             <header className="fixed left-0 top-0 z-50 w-full shadow-[0_4px_12px_rgba(0,0,0,0.25)]">

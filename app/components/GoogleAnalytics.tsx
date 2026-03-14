@@ -1,7 +1,7 @@
 "use client";
 
 import Script from "next/script";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 declare global {
@@ -11,34 +11,25 @@ declare global {
   }
 }
 
-const MAIN_GA_ID = "G-1Y758X38G4";
-const PORTAL_GA_ID = "G-YCZMDQJDM7";
-
-function getGaIdFromHost(hostname: string) {
-  if (hostname === "portal.camel-global.com") {
-    return PORTAL_GA_ID;
-  }
-  return MAIN_GA_ID;
-}
-
 export default function GoogleAnalytics() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [gaId, setGaId] = useState<string>("");
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setGaId(getGaIdFromHost(window.location.hostname));
+  const gaId = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return window.location.hostname === "portal.camel-global.com"
+      ? "G-YCZMDQJDM7"
+      : "G-1Y758X38G4";
   }, []);
 
   useEffect(() => {
     if (!gaId || typeof window === "undefined" || !window.gtag) return;
 
-    const url =
+    const page =
       pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : "");
 
     window.gtag("config", gaId, {
-      page_path: url,
+      page_path: page,
     });
   }, [gaId, pathname, searchParams]);
 
@@ -50,7 +41,7 @@ export default function GoogleAnalytics() {
         src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
         strategy="afterInteractive"
       />
-      <Script id={`gtag-init-${gaId}`} strategy="afterInteractive">
+      <Script id="google-analytics" strategy="afterInteractive">
         {`
           window.dataLayer = window.dataLayer || [];
           function gtag(){window.dataLayer.push(arguments);}
