@@ -127,15 +127,20 @@ export default function PartnerSignupPage() {
       }
 
       const payload = {
-  user_id: userId,
-  company_name: company,
-  full_name: name,
-  email: mail,
-  phone: ph,
-  address: combinedAddress,
-  website: normalizeWebsite(website),
-  status: "pending",
-};
+        user_id: userId,
+        company_name: company,
+        full_name: name,
+        email: mail,
+        phone: ph,
+        address: combinedAddress,
+        address1: address1.trim(),
+        address2: address2.trim(),
+        province: province.trim(),
+        postcode: postcode.trim(),
+        country: countryName,
+        website: normalizeWebsite(website),
+        status: "pending",
+      };
 
       const { error: insertErr } = await (supabase as any)
         .from("partner_applications")
