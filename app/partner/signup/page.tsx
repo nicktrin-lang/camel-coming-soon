@@ -344,7 +344,9 @@ export default function PartnerSignupPage() {
 
       if (insertErr) throw insertErr;
 
-      setOk("Account created. Your application is now pending approval.");
+      await supabase.auth.signOut();
+
+setOk("Account created. Your application is now pending approval.");
 router.replace("/partner/application-submitted");
     } catch (e: any) {
       setError(e?.message || "Sign up failed.");

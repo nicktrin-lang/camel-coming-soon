@@ -29,14 +29,16 @@ export default function PartnerLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [role, setRole] = useState<PortalRole>("partner");
 
-  const isAuthPage =
-    pathname === "/partner/login" || pathname === "/partner/signup";
+  const isPublicPartnerPage =
+    pathname === "/partner/login" ||
+    pathname === "/partner/signup" ||
+    pathname === "/partner/application-submitted";
 
   useEffect(() => {
     let mounted = true;
 
     async function guard() {
-      if (isAuthPage) {
+      if (isPublicPartnerPage) {
         setLoading(false);
         return;
       }
@@ -79,13 +81,13 @@ export default function PartnerLayout({
     return () => {
       mounted = false;
     };
-  }, [router, supabase, isAuthPage]);
+  }, [router, supabase, isPublicPartnerPage]);
 
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
 
-  if (isAuthPage) {
+  if (isPublicPartnerPage) {
     return <>{children}</>;
   }
 
