@@ -1,10 +1,34 @@
 "use client";
 
 import { ReactNode, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
+import AdminSidebar from "@/app/components/admin/AdminSidebar";
+import AdminTopbar from "@/app/components/admin/AdminTopbar";
+
+const pageMeta: Record<string, { title: string; subtitle: string }> = {
+  "/admin/approvals": {
+    title: "Admin Approvals",
+    subtitle: "Review partner applications and approve or reject them.",
+  },
+  "/admin/users": {
+    title: "Admin Users",
+    subtitle: "Manage administrative user accounts and permissions.",
+  },
+};
+
+function getMeta(pathname: string) {
+  for (const key of Object.keys(pageMeta)) {
+    if (pathname === key || pathname.startsWith(`${key}/`)) {
+      return pageMeta[key];
+    }
+  }
+
+  return {
+    title: "Admin Portal",
+    subtitle: "System administration",
+  };
+}
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
@@ -12,6 +36,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   const [checking, setChecking] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -67,67 +92,39 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     };
   }, [supabase]);
 
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    window.location.replace("/partner/login?reason=signed_out");
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
+
+  const meta = getMeta(pathname || "");
+
+  if (checking) {
+    return (
+      <div className="min-h-[calc(100vh-115px)] bg-[#e3f4ff] px-4 py-8 md:px-8">
+        <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+          <p className="text-slate-600">Checking admin access…</p>
+        </div>
+      </div>
+    );
   }
 
-  const isActive = (href: string) =>
-    pathname === href || (href !== "/" && pathname?.startsWith(href));
-
-  const linkClass = (href: string) =>
-    `rounded-full px-3 py-2 hover:bg-white/10 ${isActive(href) ? "bg-white/15" : ""}`;
-
-  const hideTopAdminApprovalsLink = pathname === "/admin/approvals";
+  if (!isAdmin) {
+    return null;
+  }
 
   return (
-    <div className="min-h-screen bg-[#e3f4ff]">
-      <header className="fixed left-0 top-0 z-50 w-full shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
-        <div className="bg-gradient-to-br from-[#003768] to-[#005b9f] text-white">
-          <div className="mx-auto flex max-w-7xl items-center gap-4 px-6 py-3">
-            <Link href="/" className="flex items-center">
-              <Image
-                src="/camel-logo.png"
-                alt="Camel Global Ltd logo"
-                width={220}
-                height={80}
-                priority
-                className="h-[64px] w-auto"
-              />
-            </Link>
+    <div className="min-h-[calc(100vh-115px)] bg-[#e3f4ff]">
+      <AdminSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-            <nav className="ml-auto flex items-center gap-3 text-sm">
-              <Link href="/" className={linkClass("/")}>
-                Home
-              </Link>
+      <div className="lg:pl-[290px]">
+        <AdminTopbar
+          title={meta.title}
+          subtitle={meta.subtitle}
+          onMenuClick={() => setSidebarOpen(true)}
+        />
 
-              {!hideTopAdminApprovalsLink && !checking && isAdmin ? (
-                <Link href="/admin/approvals" className={linkClass("/admin/approvals")}>
-                  Admin Approvals
-                </Link>
-              ) : null}
-
-              {!checking && isAdmin ? (
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="ml-2 rounded-full bg-[#ff7a00] px-4 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
-                >
-                  Logout
-                </button>
-              ) : null}
-            </nav>
-          </div>
-        </div>
-      </header>
-
-      <div className="h-[105px] md:h-[115px]" />
-
-      <main className="mx-auto max-w-7xl px-6 py-10">
-        <div className="rounded-2xl bg-white shadow-[0_18px_45px_rgba(0,0,0,0.10)] border border-black/5">
-          <div className="p-6 md:p-10">{children}</div>
-        </div>
-      </main>
+        <div className="px-4 py-5 md:px-8 md:py-8">{children}</div>
+      </div>
     </div>
   );
 }
