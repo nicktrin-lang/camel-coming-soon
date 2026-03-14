@@ -62,11 +62,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-[#e3f4ff]">
+
+        {/* GLOBAL HEADER (hidden on homepage) */}
         {!isHomepage && (
           <>
             <header className="fixed left-0 top-0 z-50 w-full shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
               <div className="bg-gradient-to-br from-[#003768] to-[#005b9f] text-white">
                 <div className="mx-auto flex max-w-7xl items-center gap-4 px-6 py-3">
+                  
                   <Link href="/" className="flex items-center">
                     <Image
                       src="/camel-logo.png"
@@ -79,29 +82,20 @@ export default function RootLayout({
                   </Link>
 
                   <nav className="ml-auto flex items-center gap-6 text-sm font-medium">
+                    
                     <Link href="/" className="hover:opacity-90">
                       Home
                     </Link>
 
-                    {isLoggedIn ? (
-                      <Link href="/partner/dashboard" className="hover:opacity-90">
-                        Dashboard
-                      </Link>
-                    ) : null}
+                    <Link href="/about" className="hover:opacity-90">
+                      About
+                    </Link>
 
-                    {!isLoggedIn && !isPartnerArea ? (
-                      <>
-                        <Link href="/partner/signup" className="hover:opacity-90">
-                          Partner Sign Up
-                        </Link>
+                    <Link href="/contact" className="hover:opacity-90">
+                      Contact
+                    </Link>
 
-                        <Link href="/partner/login" className="hover:opacity-90">
-                          Partner Login
-                        </Link>
-                      </>
-                    ) : null}
-
-                    {isLoggedIn ? (
+                    {isLoggedIn && isPartnerArea ? (
                       <button
                         type="button"
                         onClick={handleLogout}
@@ -110,6 +104,7 @@ export default function RootLayout({
                         Logout
                       </button>
                     ) : null}
+
                   </nav>
                 </div>
               </div>
@@ -120,6 +115,7 @@ export default function RootLayout({
         )}
 
         <main>{children}</main>
+
       </body>
     </html>
   );
