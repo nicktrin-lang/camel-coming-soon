@@ -1,12 +1,28 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
+const MapPicker = dynamic(() => import("../profile/MapPicker"), {
+  ssr: false,
+});
+
 type CountryOption = { code: string; name: string };
+
+type Suggestion = {
+  display_name: string;
+  lat: number | null;
+  lng: number | null;
+  address_line1?: string;
+  address_line2?: string;
+  province?: string;
+  postcode?: string;
+  country?: string;
+};
 
 const COUNTRIES: CountryOption[] = [
   { code: "ES", name: "Spain" },
@@ -50,6 +66,52 @@ function buildAddressString(opts: {
   return parts.join(", ");
 }
 
+function parseCoordinate(
+  value: string | number | null | undefined,
+  kind: "lat" | "lng"
+): number | null {
+  if (value === null || value === undefined) return null;
+
+  let raw = String(value).trim().toUpperCase();
+  if (!raw) return null;
+
+  let sign = 1;
+
+  if (kind === "lat") {
+    if (raw.includes("S")) sign = -1;
+    raw = raw.replace(/[NS]/g, "");
+  }
+
+  if (kind === "lng") {
+    if (raw.includes("W")) sign = -1;
+    raw = raw.replace(/[EW]/g, "");
+  }
+
+  raw = raw.replace(/,/g, ".").trim();
+
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return null;
+
+  return sign * num;
+}
+
+function countryCodeFromName(name: string) {
+  const match = COUNTRIES.find(
+    (c) => c.name.toLowerCase().trim() === String(name || "").toLowerCase().trim()
+  );
+  return match?.code || "ES";
+}
+
+async function safeJson(res: Response): Promise<any> {
+  const text = await res.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { _raw: text };
+  }
+}
+
 export default function PartnerSignupPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const router = useRouter();
@@ -65,12 +127,146 @@ export default function PartnerSignupPage() {
   const [postcode, setPostcode] = useState("");
   const [country, setCountry] = useState("ES");
 
+  const [searchAddress, setSearchAddress] = useState("");
+  const [baseAddress, setBaseAddress] = useState("");
+  const [baseLat, setBaseLat] = useState("");
+  const [baseLng, setBaseLng] = useState("");
+
   const [website, setWebsite] = useState("");
   const [password, setPassword] = useState("");
+
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
+
+  function applyAddressParts(item: Suggestion) {
+    setSearchAddress(item.display_name || "");
+    setBaseAddress(item.display_name || "");
+    setBaseLat(item.lat !== null ? String(item.lat) : "");
+    setBaseLng(item.lng !== null ? String(item.lng) : "");
+
+    if (item.address_line1) setAddress1(item.address_line1);
+    if (item.address_line2) setAddress2(item.address_line2);
+    if (item.province) setProvince(item.province);
+    if (item.postcode) setPostcode(item.postcode);
+    if (item.country) setCountry(countryCodeFromName(item.country));
+  }
+
+  function pickSuggestion(item: Suggestion) {
+    if (item.lat === null || item.lng === null) return;
+    applyAddressParts(item);
+    setSuggestions([]);
+    setShowSuggestions(false);
+  }
+
+  async function searchForAddress() {
+    setError(null);
+
+    const q = searchAddress.trim();
+    if (!q) {
+      setError("Enter an address to search.");
+      return;
+    }
+
+    setSearching(true);
+
+    try {
+      const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`, {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      const json = await safeJson(res);
+
+      if (!res.ok) {
+        throw new Error(json?.error || json?._raw || "Address search failed.");
+      }
+
+      const results = Array.isArray(json?.results) ? (json.results as Suggestion[]) : [];
+
+      if (!results.length) {
+        setSuggestions([]);
+        setShowSuggestions(false);
+        throw new Error("No address suggestions found.");
+      }
+
+      setSuggestions(results);
+      setShowSuggestions(true);
+
+      if (results.length === 1) {
+        pickSuggestion(results[0]);
+      }
+    } catch (e: any) {
+      setError(e?.message || "Address search failed.");
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function handleMapPick(lat: number, lng: number) {
+    setError(null);
+
+    setBaseLat(String(lat));
+    setBaseLng(String(lng));
+
+    try {
+      const res = await fetch(
+        `/api/geocode?lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(
+          String(lng)
+        )}`,
+        {
+          method: "GET",
+          cache: "no-store",
+        }
+      );
+
+      const json = await safeJson(res);
+
+      if (!res.ok) {
+        throw new Error(json?.error || json?._raw || "Failed to get address from map location.");
+      }
+
+      applyAddressParts({
+        display_name: String(json?.display_name || ""),
+        lat,
+        lng,
+        address_line1: String(json?.address_line1 || ""),
+        address_line2: String(json?.address_line2 || ""),
+        province: String(json?.province || ""),
+        postcode: String(json?.postcode || ""),
+        country: String(json?.country || ""),
+      });
+    } catch (e: any) {
+      setError(e?.message || "Failed to get address from map location.");
+    }
+  }
+
+  async function useCurrentLocation() {
+    setError(null);
+
+    if (!navigator.geolocation) {
+      setError("Geolocation is not supported on this device.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        await handleMapPick(pos.coords.latitude, pos.coords.longitude);
+      },
+      (err) => {
+        setError(err.message || "Could not get your current location.");
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -156,6 +352,9 @@ export default function PartnerSignupPage() {
       setLoading(false);
     }
   }
+
+  const lat = parseCoordinate(baseLat, "lat");
+  const lng = parseCoordinate(baseLng, "lng");
 
   return (
     <div className="min-h-screen bg-[#f7f9fc]">
@@ -246,6 +445,75 @@ export default function PartnerSignupPage() {
                 This is used for your application and initial profile setup.
               </p>
 
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={useCurrentLocation}
+                  className="rounded-full border border-black/10 bg-white px-5 py-2 font-semibold text-[#003768] hover:bg-black/5"
+                >
+                  Use my current location
+                </button>
+
+                <button
+                  type="button"
+                  onClick={searchForAddress}
+                  className="rounded-full bg-[#ff7a00] px-5 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+                >
+                  {searching ? "Searching..." : "Search"}
+                </button>
+              </div>
+
+              <div className="mt-5">
+                <label className="text-sm font-medium text-[#003768]">Search address</label>
+                <input
+                  type="text"
+                  className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
+                  value={searchAddress}
+                  onChange={(e) => {
+                    setSearchAddress(e.target.value);
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => {
+                    if (suggestions.length) setShowSuggestions(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      searchForAddress();
+                    }
+                  }}
+                  placeholder="Search for your business or fleet location"
+                />
+                <p className="mt-2 text-xs text-slate-500">
+                  Tip: click Search or press Enter, then choose a suggestion.
+                </p>
+
+                {showSuggestions && suggestions.length > 0 ? (
+                  <div className="mt-2 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-lg">
+                    {suggestions.map((item, idx) => (
+                      <button
+                        key={`${item.display_name}-${idx}`}
+                        type="button"
+                        onClick={() => pickSuggestion(item)}
+                        className="block w-full border-b border-black/5 px-4 py-3 text-left text-sm text-gray-800 hover:bg-[#f3f8ff] last:border-b-0"
+                      >
+                        {item.display_name}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="mt-5">
+                <label className="text-sm font-medium text-[#003768]">Car Fleet Address</label>
+                <input
+                  className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
+                  value={baseAddress}
+                  onChange={(e) => setBaseAddress(e.target.value)}
+                  placeholder="Selected map/search address"
+                />
+              </div>
+
               <div className="mt-6 space-y-6">
                 <div>
                   <label className="text-sm font-medium text-[#003768]">
@@ -312,6 +580,37 @@ export default function PartnerSignupPage() {
                       ))}
                     </select>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="text-sm font-medium text-[#003768]">
+                      Base latitude
+                    </label>
+                    <input
+                      className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
+                      value={baseLat}
+                      onChange={(e) => setBaseLat(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-[#003768]">
+                      Base longitude
+                    </label>
+                    <input
+                      className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
+                      value={baseLng}
+                      onChange={(e) => setBaseLng(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <MapPicker lat={lat} lng={lng} onPick={handleMapPick} />
+                  <p className="mt-2 text-xs text-slate-500">
+                    Click anywhere on the map to set the partner base location.
+                  </p>
                 </div>
               </div>
             </div>
