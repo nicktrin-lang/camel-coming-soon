@@ -1,130 +1,179 @@
 "use client";
 
-const mockRequests = [
-  {
-    id: "REQ-1001",
-    customer: "James Walker",
-    delivery: "Valencia Airport",
-    collect: "Valencia Airport",
-    created: "2026-03-14 10:10",
-    expires: "2026-03-15 10:10",
-    bids: 2,
-    status: "Open",
-  },
-  {
-    id: "REQ-1002",
-    customer: "Sophie Martin",
-    delivery: "Alicante Airport",
-    collect: "Benidorm Centre",
-    created: "2026-03-14 09:20",
-    expires: "2026-03-15 09:20",
-    bids: 1,
-    status: "Open",
-  },
-  {
-    id: "REQ-1003",
-    customer: "Daniel Evans",
-    delivery: "Malaga Airport",
-    collect: "Marbella",
-    created: "2026-03-13 17:45",
-    expires: "2026-03-14 17:45",
-    bids: 4,
-    status: "Expiring Soon",
-  },
-];
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
+type RequestRow = {
+  id: string;
+  match_status: string;
+  matched_fleet_id: string | null;
+  created_at: string;
+  customer_requests: {
+    id: string;
+    pickup_address: string;
+    dropoff_address: string | null;
+    pickup_at: string;
+    passengers: number;
+    suitcases: number;
+    hand_luggage: number;
+    vehicle_category_slug: string | null;
+    vehicle_category_name: string | null;
+    notes: string | null;
+    status: string;
+    created_at: string;
+    expires_at: string | null;
+  } | null;
+};
+
+function fmtDateTime(value?: string | null) {
+  if (!value) return "—";
+  try {
+    return new Date(value).toLocaleString();
+  } catch {
+    return value;
+  }
+}
 
 export default function PartnerRequestsPage() {
+  const [rows, setRows] = useState<RequestRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  async function loadRequests() {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/partner/requests", {
+        method: "GET",
+        cache: "no-store",
+        credentials: "include",
+      });
+
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(json?.error || "Failed to load requests.");
+      }
+
+      setRows((json?.data || []) as RequestRow[]);
+    } catch (e: any) {
+      setError(e?.message || "Failed to load requests.");
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadRequests();
+  }, []);
+
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-black/5 bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+      {error ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {error}
+        </div>
+      ) : null}
+
+      <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)] md:p-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <input
-              type="text"
-              placeholder="Search customer or request ID"
-              className="w-full rounded-2xl border border-black/10 bg-white p-3 text-black placeholder:text-gray-500"
-            />
-            <select className="w-full rounded-2xl border border-black/10 bg-white p-3 text-black">
-              <option>All statuses</option>
-              <option>Open</option>
-              <option>Expiring Soon</option>
-              <option>Closed</option>
-            </select>
-            <select className="w-full rounded-2xl border border-black/10 bg-white p-3 text-black">
-              <option>All locations</option>
-              <option>Valencia</option>
-              <option>Alicante</option>
-              <option>Malaga</option>
-            </select>
+          <div>
+            <h2 className="text-2xl font-semibold text-[#003768]">Booking Requests</h2>
+            <p className="mt-2 text-slate-600">
+              Open booking requests matched to your fleet and service area.
+            </p>
           </div>
 
           <button
             type="button"
-            className="rounded-full bg-[#ff7a00] px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(0,0,0,0.18)] hover:opacity-95"
+            onClick={loadRequests}
+            className="rounded-full bg-[#ff7a00] px-5 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
           >
-            Refresh Requests
+            Refresh
           </button>
         </div>
-      </div>
 
-      <div className="overflow-hidden rounded-3xl border border-black/5 bg-white shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-[#f3f8ff] text-[#003768]">
-              <tr>
-                <th className="px-5 py-4 font-semibold">Request ID</th>
-                <th className="px-5 py-4 font-semibold">Customer</th>
-                <th className="px-5 py-4 font-semibold">Delivery</th>
-                <th className="px-5 py-4 font-semibold">Collect</th>
-                <th className="px-5 py-4 font-semibold">Created</th>
-                <th className="px-5 py-4 font-semibold">Expires</th>
-                <th className="px-5 py-4 font-semibold">Bids</th>
-                <th className="px-5 py-4 font-semibold">Status</th>
-                <th className="px-5 py-4 font-semibold">Action</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-black/5">
-              {mockRequests.map((request) => (
-                <tr key={request.id} className="hover:bg-black/[0.02]">
-                  <td className="px-5 py-4 font-semibold text-[#003768]">
-                    {request.id}
-                  </td>
-                  <td className="px-5 py-4 text-slate-800">{request.customer}</td>
-                  <td className="px-5 py-4 text-slate-700">{request.delivery}</td>
-                  <td className="px-5 py-4 text-slate-700">{request.collect}</td>
-                  <td className="px-5 py-4 text-slate-700">{request.created}</td>
-                  <td className="px-5 py-4 text-slate-700">{request.expires}</td>
-                  <td className="px-5 py-4 text-slate-700">{request.bids}</td>
-                  <td className="px-5 py-4">
-                    <span
-                      className={[
-                        "inline-flex rounded-full px-3 py-1 text-xs font-semibold",
-                        request.status === "Open"
-                          ? "bg-green-50 text-green-700"
-                          : "bg-yellow-50 text-yellow-800",
-                      ].join(" ")}
-                    >
-                      {request.status}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4">
-                    <button
-                      type="button"
-                      className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-[#003768] hover:bg-black/5"
-                    >
-                      View Request
-                    </button>
-                  </td>
+        <div className="mt-6 overflow-hidden rounded-2xl border border-black/10">
+          <div className="overflow-x-auto">
+            <table className="min-w-[980px] w-full text-left text-sm">
+              <thead className="bg-[#f3f8ff] text-[#003768]">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Created</th>
+                  <th className="px-4 py-3 font-semibold">Pickup</th>
+                  <th className="px-4 py-3 font-semibold">Dropoff</th>
+                  <th className="px-4 py-3 font-semibold">When</th>
+                  <th className="px-4 py-3 font-semibold">Passengers</th>
+                  <th className="px-4 py-3 font-semibold">Bags</th>
+                  <th className="px-4 py-3 font-semibold">Vehicle</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              </thead>
 
-      <div className="rounded-3xl border border-dashed border-black/10 bg-white/70 p-6 text-sm text-slate-600">
-        Next step: we will connect this page to real booking requests and add the full bid form.
+              <tbody className="divide-y divide-black/5">
+                {loading ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-5 text-slate-600">
+                      Loading…
+                    </td>
+                  </tr>
+                ) : rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-5 text-slate-600">
+                      No open booking requests yet.
+                    </td>
+                  </tr>
+                ) : (
+                  rows.map((row) => {
+                    const req = row.customer_requests;
+                    if (!req) return null;
+
+                    return (
+                      <tr key={row.id} className="hover:bg-black/[0.02]">
+                        <td className="px-4 py-4 text-slate-700">
+                          {fmtDateTime(req.created_at)}
+                        </td>
+                        <td className="px-4 py-4 text-slate-900">{req.pickup_address}</td>
+                        <td className="px-4 py-4 text-slate-900">
+                          {req.dropoff_address || "—"}
+                        </td>
+                        <td className="px-4 py-4 text-slate-700">
+                          {fmtDateTime(req.pickup_at)}
+                        </td>
+                        <td className="px-4 py-4 text-slate-700">{req.passengers}</td>
+                        <td className="px-4 py-4 text-slate-700">
+                          {req.suitcases} suitcases / {req.hand_luggage} hand luggage
+                        </td>
+                        <td className="px-4 py-4 text-slate-700">
+                          {req.vehicle_category_name || "Any suitable vehicle"}
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+                            {row.match_status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <Link
+                            href={`/partner/requests/${req.id}`}
+                            className="rounded-full bg-[#ff7a00] px-4 py-2 text-xs font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+                          >
+                            View Request
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <p className="mt-4 text-xs text-slate-500">
+          Requests shown here should later be filtered by both your fleet capability and service radius.
+        </p>
       </div>
     </div>
   );
