@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 type RequestRow = {
   id: string;
+  request_id?: string;
   match_status: string;
   matched_fleet_id: string | null;
   created_at: string;
@@ -13,6 +14,8 @@ type RequestRow = {
     pickup_address: string;
     dropoff_address: string | null;
     pickup_at: string;
+    dropoff_at: string | null;
+    journey_duration_minutes: number | null;
     passengers: number;
     suitcases: number;
     hand_luggage: number;
@@ -32,6 +35,14 @@ function fmtDateTime(value?: string | null) {
   } catch {
     return value;
   }
+}
+
+function fmtDuration(minutes?: number | null) {
+  if (minutes === null || minutes === undefined || Number.isNaN(minutes)) return "—";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins ? `${hours}h ${mins}m` : `${hours}h`;
 }
 
 function labelMatchStatus(status: string) {
@@ -103,13 +114,15 @@ export default function PartnerRequestsPage() {
 
         <div className="mt-6 overflow-hidden rounded-2xl border border-black/10">
           <div className="overflow-x-auto">
-            <table className="min-w-[980px] w-full text-left text-sm">
+            <table className="min-w-[1320px] w-full text-left text-sm">
               <thead className="bg-[#f3f8ff] text-[#003768]">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Created</th>
                   <th className="px-4 py-3 font-semibold">Pickup</th>
                   <th className="px-4 py-3 font-semibold">Dropoff</th>
-                  <th className="px-4 py-3 font-semibold">When</th>
+                  <th className="px-4 py-3 font-semibold">Pickup Time</th>
+                  <th className="px-4 py-3 font-semibold">Dropoff Time</th>
+                  <th className="px-4 py-3 font-semibold">Duration</th>
                   <th className="px-4 py-3 font-semibold">Passengers</th>
                   <th className="px-4 py-3 font-semibold">Bags</th>
                   <th className="px-4 py-3 font-semibold">Vehicle</th>
@@ -121,13 +134,13 @@ export default function PartnerRequestsPage() {
               <tbody className="divide-y divide-black/5">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-5 text-slate-600">
+                    <td colSpan={11} className="px-4 py-5 text-slate-600">
                       Loading…
                     </td>
                   </tr>
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-5 text-slate-600">
+                    <td colSpan={11} className="px-4 py-5 text-slate-600">
                       No open booking requests yet.
                     </td>
                   </tr>
@@ -147,6 +160,12 @@ export default function PartnerRequestsPage() {
                         </td>
                         <td className="px-4 py-4 text-slate-700">
                           {fmtDateTime(req.pickup_at)}
+                        </td>
+                        <td className="px-4 py-4 text-slate-700">
+                          {fmtDateTime(req.dropoff_at)}
+                        </td>
+                        <td className="px-4 py-4 text-slate-700">
+                          {fmtDuration(req.journey_duration_minutes)}
                         </td>
                         <td className="px-4 py-4 text-slate-700">{req.passengers}</td>
                         <td className="px-4 py-4 text-slate-700">

@@ -4,115 +4,104 @@ import {
   createServiceRoleSupabaseClient,
 } from "@/lib/supabase/server";
 
-async function requireAdmin() {
-  const authed = await createRouteHandlerSupabaseClient();
-  const { data: userData, error: userErr } = await authed.auth.getUser();
-
-  const email = (userData?.user?.email || "").toLowerCase().trim();
-
-  if (userErr || !email) {
-    return { ok: false as const, status: 401, email: "" };
-  }
-
-  const db = createServiceRoleSupabaseClient();
-
-  const { data: adminRow, error: adminErr } = await db
-    .from("admins")
-    .select("role")
-    .eq("email", email)
-    .maybeSingle();
-
-  if (adminErr) {
-    return { ok: false as const, status: 400, email };
-  }
-
-  if (!adminRow) {
-    return { ok: false as const, status: 403, email };
-  }
-
-  return { ok: true as const, status: 200, email, db };
-}
-
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const gate = await requireAdmin();
 
-    if (!gate.ok) {
+    const authed = await createRouteHandlerSupabaseClient();
+    const { data: userData, error: userErr } = await authed.auth.getUser();
+
+    if (userErr || !userData?.user) {
+      return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+    }
+
+    const partnerUserId = userData.user.id;
+    const db = createServiceRoleSupabaseClient();
+
+    const { data: matchRows, error: matchErr } = await db
+      .from("request_partner_matches")
+      .select(`
+        id,
+        request_id,
+        match_status,
+        matched_fleet_id,
+        created_at,
+        customer_requests!inner (
+          id,
+          customer_name,
+          customer_email,
+          customer_phone,
+          pickup_address,
+          pickup_lat,
+          pickup_lng,
+          dropoff_address,
+          dropoff_lat,
+          dropoff_lng,
+          pickup_at,
+          dropoff_at,
+          journey_duration_minutes,
+          passengers,
+          suitcases,
+          hand_luggage,
+          vehicle_category_slug,
+          vehicle_category_name,
+          notes,
+          status,
+          created_at,
+          expires_at
+        )
+      `)
+      .eq("partner_user_id", partnerUserId)
+      .eq("request_id", id)
+      .limit(1);
+
+    if (matchErr) {
+      return NextResponse.json({ error: matchErr.message }, { status: 400 });
+    }
+
+    const matchRow = matchRows?.[0];
+
+    if (!matchRow) {
       return NextResponse.json(
-        { error: gate.status === 401 ? "Not signed in" : "Not authorized" },
-        { status: gate.status }
+        { error: "Request not found for this partner" },
+        { status: 404 }
       );
     }
 
-    const { db } = gate;
+    const { data: fleetRows, error: fleetErr } = await db
+      .from("partner_fleet")
+      .select(
+        "id, category_slug, category_name, max_passengers, max_suitcases, max_hand_luggage, service_level, is_active"
+      )
+      .eq("user_id", partnerUserId)
+      .eq("is_active", true)
+      .order("category_name", { ascending: true });
 
-    const { data: requestRow, error: requestErr } = await db
-      .from("customer_requests")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
-
-    if (requestErr) {
-      return NextResponse.json({ error: requestErr.message }, { status: 400 });
+    if (fleetErr) {
+      return NextResponse.json({ error: fleetErr.message }, { status: 400 });
     }
 
-    if (!requestRow) {
-      return NextResponse.json({ error: "Request not found" }, { status: 404 });
-    }
-
-    const { data: bids, error: bidsErr } = await db
+    const { data: existingBid, error: bidErr } = await db
       .from("partner_bids")
       .select(
-        "id, request_id, partner_user_id, fleet_id, vehicle_category_slug, vehicle_category_name, car_hire_price, fuel_price, total_price, full_insurance_included, full_tank_included, notes, status, created_at, updated_at"
+        "id, vehicle_category_name, car_hire_price, fuel_price, total_price, full_insurance_included, full_tank_included, notes, status, created_at"
       )
       .eq("request_id", id)
-      .order("created_at", { ascending: true });
+      .eq("partner_user_id", partnerUserId)
+      .maybeSingle();
 
-    if (bidsErr) {
-      return NextResponse.json({ error: bidsErr.message }, { status: 400 });
+    if (bidErr) {
+      return NextResponse.json({ error: bidErr.message }, { status: 400 });
     }
-
-    const partnerUserIds = Array.from(
-      new Set((bids || []).map((b: any) => String(b.partner_user_id || "")).filter(Boolean))
-    );
-
-    let profileMap = new Map<string, any>();
-
-    if (partnerUserIds.length) {
-      const { data: profiles, error: profilesErr } = await db
-        .from("partner_profiles")
-        .select("user_id, company_name, contact_name, phone, address")
-        .in("user_id", partnerUserIds);
-
-      if (profilesErr) {
-        return NextResponse.json({ error: profilesErr.message }, { status: 400 });
-      }
-
-      profileMap = new Map(
-        (profiles || []).map((p: any) => [String(p.user_id), p])
-      );
-    }
-
-    const bidRows = (bids || []).map((bid: any) => {
-      const profile = profileMap.get(String(bid.partner_user_id)) || null;
-
-      return {
-        ...bid,
-        partner_company_name: profile?.company_name || null,
-        partner_contact_name: profile?.contact_name || null,
-        partner_phone: profile?.phone || null,
-        partner_address: profile?.address || null,
-      };
-    });
 
     return NextResponse.json(
       {
-        request: requestRow,
-        bids: bidRows,
+        match: matchRow,
+        fleet: fleetRows || [],
+        bid: existingBid || null,
       },
       { status: 200 }
     );
