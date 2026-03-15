@@ -49,14 +49,13 @@ export async function GET(
         created_at,
         job_number
       `)
-      .eq("id", id)
-      .maybeSingle();
+      .eq("id", id);
 
     if (!adminMode) {
       bookingQuery = bookingQuery.eq("partner_user_id", userId);
     }
 
-    const { data: bookingRow, error: bookingErr } = await bookingQuery;
+    const { data: bookingRow, error: bookingErr } = await bookingQuery.maybeSingle();
 
     if (bookingErr) {
       return NextResponse.json({ error: bookingErr.message }, { status: 400 });
