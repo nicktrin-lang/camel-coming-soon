@@ -36,7 +36,6 @@ export async function GET(
 
     const db = createServiceRoleSupabaseClient();
 
-    // 1) Load request
     const { data: requestRow, error: requestErr } = await db
       .from("customer_requests")
       .select(`
@@ -74,7 +73,6 @@ export async function GET(
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
 
-    // 2) Load match row for this partner
     const { data: matchRow, error: matchErr } = await db
       .from("request_partner_matches")
       .select("id, request_id, partner_user_id, match_status, matched_fleet_id, created_at")
@@ -86,7 +84,6 @@ export async function GET(
       return NextResponse.json({ error: matchErr.message }, { status: 400 });
     }
 
-    // 3) Load existing bid
     const { data: existingBid, error: bidErr } = await db
       .from("partner_bids")
       .select(`
@@ -113,7 +110,6 @@ export async function GET(
       return NextResponse.json({ error: bidErr.message }, { status: 400 });
     }
 
-    // 4) Load existing booking
     const { data: existingBooking, error: bookingErr } = await db
       .from("partner_bookings")
       .select("id, request_id, partner_user_id, booking_status")
@@ -125,11 +121,6 @@ export async function GET(
       return NextResponse.json({ error: bookingErr.message }, { status: 400 });
     }
 
-    // 5) Access control:
-    // - admins can always open
-    // - matched partners can open
-    // - partners with an existing bid can open
-    // - partners with an existing booking can open
     if (!adminMode && !matchRow && !existingBid && !existingBooking) {
       return NextResponse.json(
         {
@@ -140,13 +131,11 @@ export async function GET(
       );
     }
 
-    // 6) Load active fleet for this partner
     const { data: fleetRows, error: fleetErr } = await db
       .from("partner_fleet")
       .select(`
         id,
         user_id,
-        vehicle_name,
         category_slug,
         category_name,
         max_passengers,
@@ -163,7 +152,6 @@ export async function GET(
       return NextResponse.json({ error: fleetErr.message }, { status: 400 });
     }
 
-    // 7) Compatible fleet list
     const compatibleFleet = (fleetRows || []).filter((fleet: any) => {
       const fitsCategory =
         String(fleet.category_slug || "") ===
@@ -184,16 +172,13 @@ export async function GET(
 
     const fleetOptions = compatibleFleet.map((fleet: any) => ({
       id: fleet.id,
-      vehicle_name: fleet.vehicle_name || null,
       category_slug: fleet.category_slug,
       category_name: fleet.category_name,
       max_passengers: fleet.max_passengers,
       max_suitcases: fleet.max_suitcases,
       max_hand_luggage: fleet.max_hand_luggage,
       service_level: fleet.service_level || null,
-      label:
-        fleet.vehicle_name ||
-        `${fleet.category_name} · ${fleet.max_passengers} pax · ${fleet.max_suitcases} suitcases`,
+      label: `${fleet.category_name} · ${fleet.max_passengers} pax · ${fleet.max_suitcases} suitcases`,
     }));
 
     return NextResponse.json(
