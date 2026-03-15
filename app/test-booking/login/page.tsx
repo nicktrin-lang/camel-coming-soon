@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
+import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
 
 export default function TestBookingLoginPage() {
-  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
+  const supabase = useMemo(() => createCustomerBrowserClient(), []);
   const router = useRouter();
 
   const [email, setEmail] = useState("");

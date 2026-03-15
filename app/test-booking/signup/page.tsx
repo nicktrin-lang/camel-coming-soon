@@ -3,11 +3,16 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
+import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
 
 export default function TestBookingSignupPage() {
-  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
+  const supabase = useMemo(() => createCustomerBrowserClient(), []);
   const router = useRouter();
+
+  const customerProjectHost =
+    typeof window !== "undefined" && process.env.NEXT_PUBLIC_CUSTOMER_SUPABASE_URL
+      ? new URL(process.env.NEXT_PUBLIC_CUSTOMER_SUPABASE_URL).host
+      : "";
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -23,8 +28,10 @@ export default function TestBookingSignupPage() {
     setError(null);
 
     try {
+      const cleanEmail = email.trim().toLowerCase();
+
       const { data, error: signUpErr } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
+        email: cleanEmail,
         password,
         options: {
           data: {
@@ -38,21 +45,22 @@ export default function TestBookingSignupPage() {
       if (signUpErr) throw signUpErr;
 
       const userId = data.user?.id;
-      if (!userId) throw new Error("Could not create account.");
+      if (!userId) {
+        throw new Error("Could not create customer account.");
+      }
 
-      const { error: profileErr } = await (supabase as any)
-        .from("customer_profiles")
-        .upsert({
-          user_id: userId,
-          full_name: fullName.trim() || null,
-          phone: phone.trim() || null,
-        });
+      const { error: profileErr } = await supabase.from("customer_profiles").upsert({
+        user_id: userId,
+        full_name: fullName.trim() || null,
+        phone: phone.trim() || null,
+      });
 
       if (profileErr) throw profileErr;
 
       router.push("/test-booking/requests");
+      router.refresh();
     } catch (e: any) {
-      setError(e?.message || "Failed to sign up.");
+      setError(e?.message || "Failed to create customer account.");
     } finally {
       setLoading(false);
     }
@@ -65,6 +73,10 @@ export default function TestBookingSignupPage() {
         <p className="mt-2 text-slate-600">
           Create a separate customer account for booking flow testing.
         </p>
+
+        <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+          Customer auth project: {customerProjectHost || "not loaded"}
+        </div>
 
         {error ? (
           <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
