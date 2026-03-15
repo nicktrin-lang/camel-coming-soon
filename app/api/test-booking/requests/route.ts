@@ -33,6 +33,7 @@ export async function GET(req: Request) {
       .from("customer_requests")
       .select(`
         id,
+        job_number,
         pickup_address,
         dropoff_address,
         pickup_at,
@@ -135,7 +136,7 @@ export async function POST(req: Request) {
         notes: notes || null,
         status: "open",
       })
-      .select("id, passengers, suitcases, hand_luggage, vehicle_category_slug")
+      .select("id, job_number, passengers, suitcases, hand_luggage, vehicle_category_slug")
       .single();
 
     if (insertErr) {
@@ -204,6 +205,7 @@ export async function POST(req: Request) {
         ok: true,
         data: {
           id: requestRow.id,
+          job_number: requestRow.job_number,
         },
       },
       { status: 200 }
