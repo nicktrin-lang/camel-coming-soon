@@ -187,7 +187,7 @@ export default function PartnerRequestsPage() {
                               href={`/partner/requests/${requestId}`}
                               className="rounded-full bg-[#ff7a00] px-4 py-2 text-xs font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
                             >
-                              View Request
+                              View
                             </Link>
                           ) : (
                             <span className="text-xs text-red-600">Missing request id</span>

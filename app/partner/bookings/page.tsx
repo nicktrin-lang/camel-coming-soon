@@ -6,6 +6,7 @@ type BookingRow = {
   id: string;
   booking_status: string;
   amount: number;
+  notes: string | null;
   created_at: string;
   request_id: string;
   winning_bid_id: string | null;
@@ -13,6 +14,8 @@ type BookingRow = {
     pickup_address: string;
     dropoff_address: string | null;
     pickup_at: string;
+    dropoff_at: string | null;
+    journey_duration_minutes: number | null;
     passengers: number;
     suitcases: number;
     hand_luggage: number;
@@ -28,6 +31,14 @@ function fmtDateTime(value?: string | null) {
   } catch {
     return value;
   }
+}
+
+function fmtDuration(minutes?: number | null) {
+  if (minutes === null || minutes === undefined || Number.isNaN(minutes)) return "—";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins ? `${hours}h ${mins}m` : `${hours}h`;
 }
 
 export default function PartnerBookingsPage() {
@@ -93,16 +104,19 @@ export default function PartnerBookingsPage() {
 
         <div className="mt-6 overflow-hidden rounded-2xl border border-black/10">
           <div className="overflow-x-auto">
-            <table className="min-w-[980px] w-full text-left text-sm">
+            <table className="min-w-[1380px] w-full text-left text-sm">
               <thead className="bg-[#f3f8ff] text-[#003768]">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Created</th>
                   <th className="px-4 py-3 font-semibold">Pickup</th>
                   <th className="px-4 py-3 font-semibold">Dropoff</th>
                   <th className="px-4 py-3 font-semibold">Pickup Time</th>
+                  <th className="px-4 py-3 font-semibold">Dropoff Time</th>
+                  <th className="px-4 py-3 font-semibold">Duration</th>
                   <th className="px-4 py-3 font-semibold">Passengers</th>
                   <th className="px-4 py-3 font-semibold">Vehicle</th>
                   <th className="px-4 py-3 font-semibold">Amount</th>
+                  <th className="px-4 py-3 font-semibold">Notes</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
                 </tr>
               </thead>
@@ -110,13 +124,13 @@ export default function PartnerBookingsPage() {
               <tbody className="divide-y divide-black/5">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-5 text-slate-600">
+                    <td colSpan={11} className="px-4 py-5 text-slate-600">
                       Loading…
                     </td>
                   </tr>
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-5 text-slate-600">
+                    <td colSpan={11} className="px-4 py-5 text-slate-600">
                       No bookings yet.
                     </td>
                   </tr>
@@ -139,12 +153,19 @@ export default function PartnerBookingsPage() {
                           {fmtDateTime(req?.pickup_at)}
                         </td>
                         <td className="px-4 py-4 text-slate-700">
+                          {fmtDateTime(req?.dropoff_at)}
+                        </td>
+                        <td className="px-4 py-4 text-slate-700">
+                          {fmtDuration(req?.journey_duration_minutes)}
+                        </td>
+                        <td className="px-4 py-4 text-slate-700">
                           {req?.passengers || 0}
                         </td>
                         <td className="px-4 py-4 text-slate-700">
                           {req?.vehicle_category_name || "—"}
                         </td>
                         <td className="px-4 py-4 text-slate-700">{row.amount}</td>
+                        <td className="px-4 py-4 text-slate-700">{row.notes || "—"}</td>
                         <td className="px-4 py-4">
                           <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
                             {row.booking_status}

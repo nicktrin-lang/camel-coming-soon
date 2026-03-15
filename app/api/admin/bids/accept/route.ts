@@ -78,6 +78,7 @@ export async function POST(req: Request) {
     const requestId = String((bidRow as any).request_id || "");
     const partnerUserId = String((bidRow as any).partner_user_id || "");
     const totalPrice = Number((bidRow as any).total_price || 0);
+    const bidNotes = String((bidRow as any).notes || "").trim() || null;
 
     const { error: acceptErr } = await db
       .from("partner_bids")
@@ -140,6 +141,7 @@ export async function POST(req: Request) {
         partner_user_id: partnerUserId,
         booking_status: "active",
         amount: totalPrice,
+        notes: bidNotes,
       });
 
       if (bookingErr) {
