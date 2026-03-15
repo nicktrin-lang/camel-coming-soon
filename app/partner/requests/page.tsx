@@ -34,6 +34,12 @@ function fmtDateTime(value?: string | null) {
   }
 }
 
+function labelMatchStatus(status: string) {
+  const s = String(status || "").trim().toLowerCase();
+  if (!s) return "Open";
+  return s.replace(/_/g, " ");
+}
+
 export default function PartnerRequestsPage() {
   const [rows, setRows] = useState<RequestRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -150,8 +156,8 @@ export default function PartnerRequestsPage() {
                           {req.vehicle_category_name || "Any suitable vehicle"}
                         </td>
                         <td className="px-4 py-4">
-                          <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-                            {row.match_status}
+                          <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold capitalize text-amber-700">
+                            {labelMatchStatus(row.match_status)}
                           </span>
                         </td>
                         <td className="px-4 py-4">
