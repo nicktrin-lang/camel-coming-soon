@@ -4,6 +4,18 @@ import {
   createServiceRoleSupabaseClient,
 } from "@/lib/supabase/server";
 
+function getAdminEmails() {
+  return String(process.env.CAMEL_ADMIN_EMAILS || "")
+    .split(",")
+    .map((v) => v.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function isAdminEmail(email?: string | null) {
+  if (!email) return false;
+  return getAdminEmails().includes(String(email).toLowerCase());
+}
+
 export async function GET() {
   try {
     const authed = await createRouteHandlerSupabaseClient();
@@ -13,20 +25,24 @@ export async function GET() {
       return NextResponse.json({ error: "Not signed in" }, { status: 401 });
     }
 
-    const userId = userData.user.id;
+    const user = userData.user;
+    const userId = user.id;
+    const adminMode = isAdminEmail(user.email);
+
     const db = createServiceRoleSupabaseClient();
 
-    const { data, error } = await db
+    let query = db
       .from("partner_bookings")
-      .select(
-        `
+      .select(`
         id,
+        request_id,
+        partner_user_id,
+        winning_bid_id,
         booking_status,
         amount,
         notes,
         created_at,
-        request_id,
-        winning_bid_id,
+        job_number,
         customer_requests (
           pickup_address,
           dropoff_address,
@@ -36,13 +52,16 @@ export async function GET() {
           passengers,
           suitcases,
           hand_luggage,
-          vehicle_category_name,
-          status
+          vehicle_category_name
         )
-      `
-      )
-      .eq("partner_user_id", userId)
+      `)
       .order("created_at", { ascending: false });
+
+    if (!adminMode) {
+      query = query.eq("partner_user_id", userId);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
