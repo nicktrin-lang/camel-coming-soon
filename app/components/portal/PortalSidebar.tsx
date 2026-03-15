@@ -38,6 +38,11 @@ const navItems: NavItem[] = [
     label: "Bookings",
     roles: ["partner", "admin", "super_admin"],
   },
+{
+  href: "/partner/fleet",
+  label: "Car Fleet",
+  roles: ["partner", "admin", "super_admin"],
+},
   {
     href: "/partner/account",
     label: "Account Management",

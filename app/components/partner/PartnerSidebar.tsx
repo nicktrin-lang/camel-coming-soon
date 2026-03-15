@@ -11,6 +11,10 @@ type Props = {
 const navItems = [
   { href: "/partner/requests", label: "Requests" },
   { href: "/partner/bookings", label: "Bookings" },
+
+  // NEW PAGE
+  { href: "/partner/fleet", label: "Car Fleet" },
+
   { href: "/partner/account", label: "Account Management" },
   { href: "/partner/reports", label: "Report Management" },
 ];
@@ -44,18 +48,25 @@ export default function PartnerSidebar({ open, onClose }: Props) {
         ].join(" ")}
       >
         <div className="flex h-full flex-col overflow-y-auto">
+
+          {/* HEADER */}
           <div className="border-b border-white/10 px-6 pt-8 pb-6">
             <Link href="/partner/dashboard" onClick={onClose} className="block">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">
                 Camel Global
               </div>
-              <div className="mt-2 text-2xl font-semibold">Partner Portal</div>
+
+              <div className="mt-2 text-2xl font-semibold">
+                Partner Portal
+              </div>
+
               <div className="mt-3 text-sm text-white/75">
                 Operations dashboard
               </div>
             </Link>
           </div>
 
+          {/* NAVIGATION */}
           <nav className="flex-1 px-4 py-5">
             <div className="mb-3 px-3 text-xs font-semibold uppercase tracking-[0.18em] text-white/55">
               Navigation
@@ -84,6 +95,7 @@ export default function PartnerSidebar({ open, onClose }: Props) {
             </div>
           </nav>
 
+          {/* FOOTER */}
           <div className="border-t border-white/10 px-5 py-5">
             <Link
               href="/partner/profile"
