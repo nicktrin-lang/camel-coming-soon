@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import { FLEET_CATEGORIES } from "@/app/components/portal/fleetCategories";
 
+type ServiceLevel = "standard" | "executive" | "luxury" | "minibus";
+
 type FleetRow = {
   id: string;
   category_slug: string;
@@ -11,7 +13,7 @@ type FleetRow = {
   max_passengers: number;
   max_suitcases: number;
   max_hand_luggage: number;
-  service_level: string;
+  service_level: ServiceLevel;
   notes: string | null;
   is_active: boolean;
   created_at: string;
@@ -42,8 +44,8 @@ export default function PartnerFleetPage() {
   const [maxHandLuggage, setMaxHandLuggage] = useState(
     FLEET_CATEGORIES[0].max_hand_luggage
   );
-  const [serviceLevel, setServiceLevel] = useState(
-    FLEET_CATEGORIES[0].service_level
+  const [serviceLevel, setServiceLevel] = useState<ServiceLevel>(
+    FLEET_CATEGORIES[0].service_level as ServiceLevel
   );
   const [notes, setNotes] = useState("");
   const [isActive, setIsActive] = useState(true);
@@ -51,11 +53,12 @@ export default function PartnerFleetPage() {
   function applyCategoryDefaults(slug: string) {
     const selected = FLEET_CATEGORIES.find((c) => c.slug === slug);
     if (!selected) return;
+
     setCategorySlug(selected.slug);
     setMaxPassengers(selected.max_passengers);
     setMaxSuitcases(selected.max_suitcases);
     setMaxHandLuggage(selected.max_hand_luggage);
-    setServiceLevel(selected.service_level);
+    setServiceLevel(selected.service_level as ServiceLevel);
   }
 
   async function loadFleet() {
@@ -78,7 +81,10 @@ export default function PartnerFleetPage() {
 
       if (error) throw error;
 
-      setRows((data || []) as FleetRow[]);
+      setRows(((data || []) as FleetRow[]).map((row) => ({
+        ...row,
+        service_level: row.service_level as ServiceLevel,
+      })));
     } catch (e: any) {
       setError(e?.message || "Failed to load fleet.");
     } finally {
@@ -162,6 +168,7 @@ export default function PartnerFleetPage() {
 
     try {
       const { error } = await supabase.from("partner_fleet").delete().eq("id", id);
+
       if (error) throw error;
 
       setRows((prev) => prev.filter((row) => row.id !== id));
@@ -261,7 +268,11 @@ export default function PartnerFleetPage() {
             </label>
             <select
               value={serviceLevel}
-              onChange={(e) => setServiceLevel(e.target.value)}
+              onChange={(e) =>
+                setServiceLevel(
+                  e.target.value as ServiceLevel
+                )
+              }
               className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-[#0f4f8a]"
             >
               <option value="standard">Standard</option>
