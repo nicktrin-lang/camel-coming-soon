@@ -1,34 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
 
-type Row = {
+type RequestRow = {
   id: string;
   pickup_address: string;
   dropoff_address: string | null;
   pickup_at: string;
-  dropoff_at: string | null;
-  journey_duration_minutes: number | null;
-  passengers: number;
-  suitcases: number;
-  hand_luggage: number;
   vehicle_category_name: string | null;
   status: string;
   created_at: string;
 };
 
-function fmtDateTime(value?: string | null) {
-  if (!value) return "—";
-  try {
-    return new Date(value).toLocaleString();
-  } catch {
-    return value;
-  }
-}
-
 export default function TestBookingRequestsPage() {
-  const [rows, setRows] = useState<Row[]>([]);
+  const supabase = useMemo(() => createCustomerBrowserClient(), []);
+  const [rows, setRows] = useState<RequestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,19 +25,32 @@ export default function TestBookingRequestsPage() {
     setError(null);
 
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const accessToken = session?.access_token;
+
+      if (!accessToken) {
+        throw new Error("Not signed in");
+      }
+
       const res = await fetch("/api/test-booking/requests", {
-        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
         cache: "no-store",
-        credentials: "include",
       });
 
-      const json = await res.json().catch(() => null);
+      const json = await res.json();
 
-      if (!res.ok) throw new Error(json?.error || "Failed to load requests.");
+      if (!res.ok) {
+        throw new Error(json?.error || "Failed to load requests");
+      }
 
-      setRows(json?.data || []);
+      setRows(json.data || []);
     } catch (e: any) {
-      setError(e?.message || "Failed to load requests.");
+      setError(e.message || "Failed to load requests");
     } finally {
       setLoading(false);
     }
@@ -61,74 +62,76 @@ export default function TestBookingRequestsPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
-      <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)] md:p-8">
+      <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold text-[#003768]">My Test Requests</h1>
-            <p className="mt-2 text-slate-600">Review requests and accept partner bids.</p>
-          </div>
+          <h1 className="text-3xl font-semibold text-[#003768]">
+            My Test Requests
+          </h1>
 
           <Link
-            href="/test-booking"
-            className="rounded-full bg-[#ff7a00] px-5 py-2 font-semibold text-white"
+            href="/test-booking/new"
+            className="rounded-full bg-[#ff7a00] px-5 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
           >
             New Test Request
           </Link>
         </div>
 
-        {error ? (
-          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        {error && (
+          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
             {error}
           </div>
-        ) : null}
+        )}
 
-        <div className="mt-6 overflow-hidden rounded-2xl border border-black/10">
-          <div className="overflow-x-auto">
-            <table className="min-w-[1200px] w-full text-left text-sm">
-              <thead className="bg-[#f3f8ff] text-[#003768]">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Created</th>
-                  <th className="px-4 py-3 font-semibold">Pickup</th>
-                  <th className="px-4 py-3 font-semibold">Dropoff</th>
-                  <th className="px-4 py-3 font-semibold">Pickup Time</th>
-                  <th className="px-4 py-3 font-semibold">Vehicle</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold">Action</th>
+        {loading ? (
+          <p className="mt-6 text-slate-600">Loading…</p>
+        ) : rows.length === 0 ? (
+          <p className="mt-6 text-slate-600">No requests yet.</p>
+        ) : (
+          <div className="mt-6 overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b text-left text-slate-700">
+                  <th className="py-3">Created</th>
+                  <th>Pickup</th>
+                  <th>Dropoff</th>
+                  <th>Pickup Time</th>
+                  <th>Vehicle</th>
+                  <th>Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-black/5">
-                {loading ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-5 text-slate-600">Loading…</td>
+
+              <tbody>
+                {rows.map((r) => (
+                  <tr
+                    key={r.id}
+                    className="border-b hover:bg-slate-50 cursor-pointer"
+                    onClick={() =>
+                      (window.location.href = `/test-booking/requests/${r.id}`)
+                    }
+                  >
+                    <td className="py-3">
+                      {new Date(r.created_at).toLocaleDateString()}
+                    </td>
+
+                    <td>{r.pickup_address}</td>
+
+                    <td>{r.dropoff_address || "—"}</td>
+
+                    <td>
+                      {r.pickup_at
+                        ? new Date(r.pickup_at).toLocaleString()
+                        : "—"}
+                    </td>
+
+                    <td>{r.vehicle_category_name || "—"}</td>
+
+                    <td className="capitalize">{r.status}</td>
                   </tr>
-                ) : rows.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-5 text-slate-600">No requests yet.</td>
-                  </tr>
-                ) : (
-                  rows.map((row) => (
-                    <tr key={row.id}>
-                      <td className="px-4 py-4">{fmtDateTime(row.created_at)}</td>
-                      <td className="px-4 py-4">{row.pickup_address}</td>
-                      <td className="px-4 py-4">{row.dropoff_address || "—"}</td>
-                      <td className="px-4 py-4">{fmtDateTime(row.pickup_at)}</td>
-                      <td className="px-4 py-4">{row.vehicle_category_name || "—"}</td>
-                      <td className="px-4 py-4">{row.status}</td>
-                      <td className="px-4 py-4">
-                        <Link
-                          href={`/test-booking/requests/${row.id}`}
-                          className="rounded-full bg-[#ff7a00] px-4 py-2 text-xs font-semibold text-white"
-                        >
-                          View
-                        </Link>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
