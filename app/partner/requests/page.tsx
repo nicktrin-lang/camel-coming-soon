@@ -114,7 +114,7 @@ export default function PartnerRequestsPage() {
 
         <div className="mt-6 overflow-hidden rounded-2xl border border-black/10">
           <div className="overflow-x-auto">
-            <table className="min-w-[1320px] w-full text-left text-sm">
+            <table className="min-w-[1400px] w-full text-left text-sm">
               <thead className="bg-[#f3f8ff] text-[#003768]">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Created</th>
@@ -149,6 +149,8 @@ export default function PartnerRequestsPage() {
                     const req = row.customer_requests;
                     if (!req) return null;
 
+                    const requestId = req.id || row.request_id || "";
+
                     return (
                       <tr key={row.id} className="hover:bg-black/[0.02]">
                         <td className="px-4 py-4 text-slate-700">
@@ -180,12 +182,16 @@ export default function PartnerRequestsPage() {
                           </span>
                         </td>
                         <td className="px-4 py-4">
-                          <Link
-                            href={`/partner/requests/${req.id}`}
-                            className="rounded-full bg-[#ff7a00] px-4 py-2 text-xs font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
-                          >
-                            View Request
-                          </Link>
+                          {requestId ? (
+                            <Link
+                              href={`/partner/requests/${requestId}`}
+                              className="rounded-full bg-[#ff7a00] px-4 py-2 text-xs font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+                            >
+                              View Request
+                            </Link>
+                          ) : (
+                            <span className="text-xs text-red-600">Missing request id</span>
+                          )}
                         </td>
                       </tr>
                     );

@@ -21,48 +21,17 @@ export async function GET(
     const partnerUserId = userData.user.id;
     const db = createServiceRoleSupabaseClient();
 
-    const { data: matchRows, error: matchErr } = await db
+    // 1) Confirm this partner is matched to this request
+    const { data: matchRow, error: matchErr } = await db
       .from("request_partner_matches")
-      .select(`
-        id,
-        request_id,
-        match_status,
-        matched_fleet_id,
-        created_at,
-        customer_requests!inner (
-          id,
-          customer_name,
-          customer_email,
-          customer_phone,
-          pickup_address,
-          pickup_lat,
-          pickup_lng,
-          dropoff_address,
-          dropoff_lat,
-          dropoff_lng,
-          pickup_at,
-          dropoff_at,
-          journey_duration_minutes,
-          passengers,
-          suitcases,
-          hand_luggage,
-          vehicle_category_slug,
-          vehicle_category_name,
-          notes,
-          status,
-          created_at,
-          expires_at
-        )
-      `)
+      .select("id, request_id, match_status, matched_fleet_id, created_at")
       .eq("partner_user_id", partnerUserId)
       .eq("request_id", id)
-      .limit(1);
+      .maybeSingle();
 
     if (matchErr) {
       return NextResponse.json({ error: matchErr.message }, { status: 400 });
     }
-
-    const matchRow = matchRows?.[0];
 
     if (!matchRow) {
       return NextResponse.json(
@@ -71,6 +40,45 @@ export async function GET(
       );
     }
 
+    // 2) Load request directly
+    const { data: requestRow, error: requestErr } = await db
+      .from("customer_requests")
+      .select(`
+        id,
+        customer_name,
+        customer_email,
+        customer_phone,
+        pickup_address,
+        pickup_lat,
+        pickup_lng,
+        dropoff_address,
+        dropoff_lat,
+        dropoff_lng,
+        pickup_at,
+        dropoff_at,
+        journey_duration_minutes,
+        passengers,
+        suitcases,
+        hand_luggage,
+        vehicle_category_slug,
+        vehicle_category_name,
+        notes,
+        status,
+        created_at,
+        expires_at
+      `)
+      .eq("id", id)
+      .maybeSingle();
+
+    if (requestErr) {
+      return NextResponse.json({ error: requestErr.message }, { status: 400 });
+    }
+
+    if (!requestRow) {
+      return NextResponse.json({ error: "Request not found" }, { status: 404 });
+    }
+
+    // 3) Load active fleet for this partner
     const { data: fleetRows, error: fleetErr } = await db
       .from("partner_fleet")
       .select(
@@ -84,6 +92,7 @@ export async function GET(
       return NextResponse.json({ error: fleetErr.message }, { status: 400 });
     }
 
+    // 4) Load existing bid if already submitted
     const { data: existingBid, error: bidErr } = await db
       .from("partner_bids")
       .select(
@@ -99,7 +108,10 @@ export async function GET(
 
     return NextResponse.json(
       {
-        match: matchRow,
+        match: {
+          ...matchRow,
+          customer_requests: requestRow,
+        },
         fleet: fleetRows || [],
         bid: existingBid || null,
       },
