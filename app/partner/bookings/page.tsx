@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type BookingRow = {
@@ -34,11 +35,33 @@ function fmtDateTime(value?: string | null) {
 }
 
 function fmtDuration(minutes?: number | null) {
-  if (minutes === null || minutes === undefined || Number.isNaN(minutes)) return "—";
+  if (minutes === null || minutes === undefined || Number.isNaN(minutes)) {
+    return "—";
+  }
   if (minutes < 60) return `${minutes} min`;
+
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
+
   return mins ? `${hours}h ${mins}m` : `${hours}h`;
+}
+
+function statusClasses(status?: string | null) {
+  const s = String(status || "").toLowerCase();
+
+  if (s === "completed") {
+    return "border-green-200 bg-green-50 text-green-700";
+  }
+
+  if (s === "cancelled") {
+    return "border-red-200 bg-red-50 text-red-700";
+  }
+
+  if (s === "confirmed") {
+    return "border-blue-200 bg-blue-50 text-blue-700";
+  }
+
+  return "border-amber-200 bg-amber-50 text-amber-700";
 }
 
 export default function PartnerBookingsPage() {
@@ -104,7 +127,7 @@ export default function PartnerBookingsPage() {
 
         <div className="mt-6 overflow-hidden rounded-2xl border border-black/10">
           <div className="overflow-x-auto">
-            <table className="min-w-[1380px] w-full text-left text-sm">
+            <table className="min-w-[1500px] w-full text-left text-sm">
               <thead className="bg-[#f3f8ff] text-[#003768]">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Created</th>
@@ -118,19 +141,20 @@ export default function PartnerBookingsPage() {
                   <th className="px-4 py-3 font-semibold">Amount</th>
                   <th className="px-4 py-3 font-semibold">Notes</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold">Action</th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-black/5">
                 {loading ? (
                   <tr>
-                    <td colSpan={11} className="px-4 py-5 text-slate-600">
+                    <td colSpan={12} className="px-4 py-5 text-slate-600">
                       Loading…
                     </td>
                   </tr>
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-4 py-5 text-slate-600">
+                    <td colSpan={12} className="px-4 py-5 text-slate-600">
                       No bookings yet.
                     </td>
                   </tr>
@@ -164,12 +188,29 @@ export default function PartnerBookingsPage() {
                         <td className="px-4 py-4 text-slate-700">
                           {req?.vehicle_category_name || "—"}
                         </td>
-                        <td className="px-4 py-4 text-slate-700">{row.amount}</td>
-                        <td className="px-4 py-4 text-slate-700">{row.notes || "—"}</td>
+                        <td className="px-4 py-4 text-slate-700">
+                          {row.amount}
+                        </td>
+                        <td className="px-4 py-4 text-slate-700">
+                          {row.notes || "—"}
+                        </td>
                         <td className="px-4 py-4">
-                          <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
+                          <span
+                            className={[
+                              "inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize",
+                              statusClasses(row.booking_status),
+                            ].join(" ")}
+                          >
                             {row.booking_status}
                           </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <Link
+                            href={`/partner/bookings/${row.id}`}
+                            className="rounded-full bg-[#ff7a00] px-4 py-2 text-xs font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+                          >
+                            View
+                          </Link>
                         </td>
                       </tr>
                     );
