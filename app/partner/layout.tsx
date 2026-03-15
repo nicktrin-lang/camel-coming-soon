@@ -66,8 +66,8 @@ export default function PartnerLayout({
           meJson?.role === "super_admin"
             ? "super_admin"
             : meJson?.role === "admin"
-            ? "admin"
-            : "partner";
+              ? "admin"
+              : "partner";
 
         setRole(nextRole);
       } finally {
@@ -105,7 +105,7 @@ export default function PartnerLayout({
 
   return (
     <div className="min-h-screen bg-[#e3f4ff]">
-      <PortalTopbar />
+      <PortalTopbar onMenuClick={() => setSidebarOpen(true)} />
 
       <PortalSidebar
         role={role}

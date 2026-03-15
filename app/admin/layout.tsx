@@ -40,8 +40,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           meJson?.role === "super_admin"
             ? "super_admin"
             : meJson?.role === "admin"
-            ? "admin"
-            : null;
+              ? "admin"
+              : null;
 
         if (!mounted) return;
 
@@ -85,7 +85,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[#e3f4ff]">
-      <PortalTopbar />
+      <PortalTopbar onMenuClick={() => setSidebarOpen(true)} />
 
       <PortalSidebar
         role={role}
