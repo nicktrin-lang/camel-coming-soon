@@ -1,33 +1,21 @@
 import { NextResponse } from "next/server";
-import {
-  createRouteHandlerSupabaseClient,
-  createServiceRoleSupabaseClient,
-} from "@/lib/supabase/server";
-
-function getAdminEmails() {
-  return String(process.env.CAMEL_ADMIN_EMAILS || "")
-    .split(",")
-    .map((v) => v.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-function isAdminEmail(email?: string | null) {
-  if (!email) return false;
-  return getAdminEmails().includes(String(email).toLowerCase());
-}
+import { createServiceRoleSupabaseClient } from "@/lib/supabase/server";
+import { getPortalUserRole } from "@/lib/portal/getPortalUserRole";
+import { isAdminRole } from "@/lib/portal/roles";
 
 export async function GET() {
   try {
-    const authed = await createRouteHandlerSupabaseClient();
-    const { data: userData, error: userErr } = await authed.auth.getUser();
+    const { user, role, error: authError } = await getPortalUserRole();
 
-    if (userErr || !userData?.user) {
-      return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+    if (!user) {
+      return NextResponse.json(
+        { error: authError || "Not signed in" },
+        { status: 401 }
+      );
     }
 
-    const user = userData.user;
     const userId = user.id;
-    const adminMode = isAdminEmail(user.email);
+    const adminMode = isAdminRole(role);
 
     const db = createServiceRoleSupabaseClient();
 
@@ -119,6 +107,7 @@ export async function GET() {
         customer_email: request?.customer_email || null,
         customer_phone: request?.customer_phone || null,
         request_notes: request?.notes || null,
+        role,
       };
     });
 

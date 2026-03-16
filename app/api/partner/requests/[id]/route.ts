@@ -1,20 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  createRouteHandlerSupabaseClient,
-  createServiceRoleSupabaseClient,
-} from "@/lib/supabase/server";
-
-function getAdminEmails() {
-  return String(process.env.CAMEL_ADMIN_EMAILS || "")
-    .split(",")
-    .map((v) => v.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-function isAdminEmail(email?: string | null) {
-  if (!email) return false;
-  return getAdminEmails().includes(String(email).toLowerCase());
-}
+import { createServiceRoleSupabaseClient } from "@/lib/supabase/server";
+import { getPortalUserRole } from "@/lib/portal/getPortalUserRole";
+import { isAdminRole } from "@/lib/portal/roles";
 
 export async function GET(
   _req: NextRequest,
@@ -23,16 +10,17 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const authed = await createRouteHandlerSupabaseClient();
-    const { data: userData, error: userErr } = await authed.auth.getUser();
+    const { user, role, error: authError } = await getPortalUserRole();
 
-    if (userErr || !userData?.user) {
-      return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+    if (!user) {
+      return NextResponse.json(
+        { error: authError || "Not signed in" },
+        { status: 401 }
+      );
     }
 
-    const user = userData.user;
     const partnerUserId = user.id;
-    const adminMode = isAdminEmail(user.email);
+    const adminMode = isAdminRole(role);
 
     const db = createServiceRoleSupabaseClient();
 
@@ -40,6 +28,7 @@ export async function GET(
       .from("customer_requests")
       .select(`
         id,
+        job_number,
         customer_name,
         customer_email,
         customer_phone,
@@ -112,7 +101,7 @@ export async function GET(
 
     const { data: existingBooking, error: bookingErr } = await db
       .from("partner_bookings")
-      .select("id, request_id, partner_user_id, booking_status")
+      .select("id, request_id, partner_user_id, booking_status, job_number")
       .eq("request_id", id)
       .eq("partner_user_id", partnerUserId)
       .maybeSingle();
@@ -191,6 +180,7 @@ export async function GET(
         existingBooking: existingBooking || null,
         fleetOptions,
         adminMode,
+        role,
       },
       { status: 200 }
     );

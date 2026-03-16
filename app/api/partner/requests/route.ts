@@ -1,33 +1,21 @@
 import { NextResponse } from "next/server";
-import {
-  createRouteHandlerSupabaseClient,
-  createServiceRoleSupabaseClient,
-} from "@/lib/supabase/server";
-
-function getAdminEmails() {
-  return String(process.env.CAMEL_ADMIN_EMAILS || "")
-    .split(",")
-    .map((v) => v.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-function isAdminEmail(email?: string | null) {
-  if (!email) return false;
-  return getAdminEmails().includes(String(email).toLowerCase());
-}
+import { createServiceRoleSupabaseClient } from "@/lib/supabase/server";
+import { getPortalUserRole } from "@/lib/portal/getPortalUserRole";
+import { isAdminRole } from "@/lib/portal/roles";
 
 export async function GET() {
   try {
-    const authed = await createRouteHandlerSupabaseClient();
-    const { data: userData, error: userErr } = await authed.auth.getUser();
+    const { user, role, error: authError } = await getPortalUserRole();
 
-    if (userErr || !userData?.user) {
-      return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+    if (!user) {
+      return NextResponse.json(
+        { error: authError || "Not signed in" },
+        { status: 401 }
+      );
     }
 
-    const user = userData.user;
     const userId = user.id;
-    const adminMode = isAdminEmail(user.email);
+    const adminMode = isAdminRole(role);
 
     const db = createServiceRoleSupabaseClient();
 
@@ -52,7 +40,7 @@ export async function GET() {
       );
 
       if (requestIds.length === 0) {
-        return NextResponse.json({ data: [] }, { status: 200 });
+        return NextResponse.json({ data: [], role }, { status: 200 });
       }
     }
 
@@ -93,7 +81,7 @@ export async function GET() {
     const ids = rows.map((row: any) => String(row.id));
 
     if (ids.length === 0) {
-      return NextResponse.json({ data: [] }, { status: 200 });
+      return NextResponse.json({ data: [], role }, { status: 200 });
     }
 
     const { data: myBids, error: bidsErr } = await db
@@ -129,10 +117,12 @@ export async function GET() {
       const myBid = myBidMap.get(requestId) || null;
       const myBooking = myBookingMap.get(requestId) || null;
 
-      if (myBooking) return false;
-      if (myBid?.status === "accepted") return false;
-      if (myBid?.status === "unsuccessful") return false;
-      if (myBid?.status === "rejected") return false;
+      if (!adminMode) {
+        if (myBooking) return false;
+        if (myBid?.status === "accepted") return false;
+        if (myBid?.status === "unsuccessful") return false;
+        if (myBid?.status === "rejected") return false;
+      }
 
       return true;
     });
@@ -164,13 +154,13 @@ export async function GET() {
         vehicle_category_name: row.vehicle_category_name,
         notes: row.notes,
         request_status: row.status,
-        status: partnerStatus,
+        status: adminMode ? row.status : partnerStatus,
         created_at: row.created_at,
         expires_at: row.expires_at,
       };
     });
 
-    return NextResponse.json({ data }, { status: 200 });
+    return NextResponse.json({ data, role }, { status: 200 });
   } catch (e: any) {
     return NextResponse.json(
       { error: e?.message || "Server error" },
