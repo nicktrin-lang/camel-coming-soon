@@ -19,6 +19,7 @@ type RequestData = {
   notes: string | null;
   status: string;
   created_at: string;
+  expires_at: string | null;
 };
 
 type BidRow = {
@@ -62,6 +63,32 @@ function fmtDuration(minutes?: number | null) {
   return m ? `${h}h ${m}m` : `${h}h`;
 }
 
+function formatGBP(value?: number | null) {
+  if (value === null || value === undefined || Number.isNaN(value)) return "—";
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: "GBP",
+  }).format(value);
+}
+
+function getTimeLeftLabel(expiresAt?: string | null) {
+  if (!expiresAt) return "—";
+
+  const diffMs = new Date(expiresAt).getTime() - Date.now();
+
+  if (diffMs <= 0) return "Expired";
+
+  const totalSeconds = Math.floor(diffMs / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+  return `${minutes}m ${seconds}s`;
+}
+
 export default function TestBookingRequestDetailPage({
   params,
 }: {
@@ -74,6 +101,7 @@ export default function TestBookingRequestDetailPage({
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [data, setData] = useState<ResponseShape | null>(null);
+  const [timeLeft, setTimeLeft] = useState("—");
 
   useEffect(() => {
     let mounted = true;
@@ -121,7 +149,9 @@ export default function TestBookingRequestDetailPage({
         throw new Error(json?.error || "Failed to load request.");
       }
 
-      setData(json as ResponseShape);
+      const nextData = json as ResponseShape;
+      setData(nextData);
+      setTimeLeft(getTimeLeftLabel(nextData.request?.expires_at));
     } catch (e: any) {
       setError(e?.message || "Failed to load request.");
       setData(null);
@@ -133,6 +163,16 @@ export default function TestBookingRequestDetailPage({
   useEffect(() => {
     load();
   }, [requestId]);
+
+  useEffect(() => {
+    if (!data?.request?.expires_at) return;
+
+    const timer = window.setInterval(() => {
+      setTimeLeft(getTimeLeftLabel(data.request.expires_at));
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [data?.request?.expires_at]);
 
   async function acceptBid(bidId: string) {
     setAcceptingId(bidId);
@@ -193,6 +233,8 @@ export default function TestBookingRequestDetailPage({
     );
   }
 
+  const expired = timeLeft === "Expired" || data.request.status === "expired";
+
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-10">
       {error ? (
@@ -221,6 +263,10 @@ export default function TestBookingRequestDetailPage({
         >
           Back to Requests
         </Link>
+      </div>
+
+      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
+        <span className="font-semibold">Time remaining:</span> {timeLeft}
       </div>
 
       <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
@@ -271,13 +317,21 @@ export default function TestBookingRequestDetailPage({
             <span className="font-semibold text-slate-900">Status:</span>{" "}
             <span className="capitalize">{data.request.status}</span>
           </p>
+          <p>
+            <span className="font-semibold text-slate-900">Expires at:</span>{" "}
+            {fmtDateTime(data.request.expires_at)}
+          </p>
         </div>
       </div>
 
       <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
         <h2 className="text-2xl font-semibold text-[#003768]">Partner Bids</h2>
 
-        {data.bids.length === 0 ? (
+        {expired ? (
+          <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700">
+            This request has expired and can no longer be accepted.
+          </div>
+        ) : data.bids.length === 0 ? (
           <p className="mt-4 text-slate-600">No bids submitted yet.</p>
         ) : (
           <div className="mt-6 space-y-4">
@@ -306,17 +360,17 @@ export default function TestBookingRequestDetailPage({
 
                     <p>
                       <span className="font-semibold text-slate-900">Car hire:</span>{" "}
-                      {bid.car_hire_price}
+                      {formatGBP(bid.car_hire_price)}
                     </p>
 
                     <p>
                       <span className="font-semibold text-slate-900">Fuel:</span>{" "}
-                      {bid.fuel_price}
+                      {formatGBP(bid.fuel_price)}
                     </p>
 
                     <p>
                       <span className="font-semibold text-slate-900">Total:</span>{" "}
-                      {bid.total_price}
+                      {formatGBP(bid.total_price)}
                     </p>
 
                     <p>
@@ -353,7 +407,7 @@ export default function TestBookingRequestDetailPage({
                       <button
                         type="button"
                         onClick={() => acceptBid(bid.id)}
-                        disabled={!!acceptingId}
+                        disabled={!!acceptingId || expired}
                         className="rounded-full bg-[#ff7a00] px-5 py-2 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60"
                       >
                         {acceptingId === bid.id ? "Accepting..." : "Accept Bid"}

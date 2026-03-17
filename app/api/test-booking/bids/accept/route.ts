@@ -26,6 +26,11 @@ async function safeJson(req: Request) {
   }
 }
 
+function isExpired(expiresAt?: string | null) {
+  if (!expiresAt) return false;
+  return new Date(expiresAt).getTime() <= Date.now();
+}
+
 export async function POST(req: Request) {
   try {
     const accessToken = getBearerToken(req);
@@ -65,7 +70,7 @@ export async function POST(req: Request) {
 
     const { data: requestRow, error: requestErr } = await partnerDb
       .from("customer_requests")
-      .select("id, customer_user_id, status, job_number")
+      .select("id, customer_user_id, status, job_number, expires_at")
       .eq("id", requestId)
       .eq("customer_user_id", customerUser.id)
       .maybeSingle();
@@ -78,6 +83,38 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "Request not found for this customer" },
         { status: 404 }
+      );
+    }
+
+    if (requestRow.status !== "open") {
+      return NextResponse.json(
+        { error: "This request is no longer open." },
+        { status: 400 }
+      );
+    }
+
+    if (isExpired(requestRow.expires_at)) {
+      await partnerDb
+        .from("customer_requests")
+        .update({ status: "expired" })
+        .eq("id", requestId)
+        .eq("status", "open");
+
+      await partnerDb
+        .from("request_partner_matches")
+        .update({ match_status: "expired" })
+        .eq("request_id", requestId)
+        .eq("match_status", "open");
+
+      await partnerDb
+        .from("partner_bids")
+        .update({ status: "expired" })
+        .eq("request_id", requestId)
+        .eq("status", "submitted");
+
+      return NextResponse.json(
+        { error: "This request has expired." },
+        { status: 400 }
       );
     }
 
@@ -131,22 +168,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: loserMatchErr.message }, { status: 400 });
     }
 
-    const { data: existingBooking } = await partnerDb
+    const { data: existingBooking, error: existingBookingErr } = await partnerDb
       .from("partner_bookings")
       .select("id")
       .eq("winning_bid_id", bidId)
       .maybeSingle();
 
+    if (existingBookingErr) {
+      return NextResponse.json({ error: existingBookingErr.message }, { status: 400 });
+    }
+
     if (!existingBooking?.id) {
-      const { error: bookingErr } = await partnerDb.from("partner_bookings").insert({
-        request_id: requestId,
-        winning_bid_id: bidId,
-        partner_user_id: partnerUserId,
-        booking_status: "active",
-        amount: totalPrice,
-        notes: bidNotes,
-        job_number: jobNumber,
-      });
+      const { error: bookingErr } = await partnerDb
+        .from("partner_bookings")
+        .insert({
+          request_id: requestId,
+          winning_bid_id: bidId,
+          partner_user_id: partnerUserId,
+          booking_status: "active",
+          amount: totalPrice,
+          notes: bidNotes,
+          job_number: jobNumber,
+        });
 
       if (bookingErr) {
         return NextResponse.json({ error: bookingErr.message }, { status: 400 });

@@ -43,6 +43,32 @@ function haversineKm(
   return R * c;
 }
 
+async function getBidWindowHours(db: ReturnType<typeof createServiceRoleSupabaseClient>) {
+  const { data, error } = await db
+    .from("portal_settings")
+    .select("value_number")
+    .eq("key", "request_bid_window_hours")
+    .maybeSingle();
+
+  if (error) {
+    return 24;
+  }
+
+  const raw = Number(data?.value_number ?? 24);
+
+  if (Number.isNaN(raw) || raw <= 0) {
+    return 24;
+  }
+
+  return raw;
+}
+
+function addHoursToNow(hours: number) {
+  const now = new Date();
+  now.setHours(now.getHours() + hours);
+  return now.toISOString();
+}
+
 export async function GET(req: Request) {
   try {
     const accessToken = getBearerToken(req);
@@ -71,7 +97,8 @@ export async function GET(req: Request) {
         vehicle_category_name,
         notes,
         status,
-        created_at
+        created_at,
+        expires_at
       `)
       .eq("customer_user_id", customerUser.id)
       .order("created_at", { ascending: false });
@@ -112,11 +139,15 @@ export async function POST(req: Request) {
 
     const dropoff_address = String(body?.dropoff_address || "").trim();
     const dropoff_lat =
-      body?.dropoff_lat === null || body?.dropoff_lat === undefined || body?.dropoff_lat === ""
+      body?.dropoff_lat === null ||
+      body?.dropoff_lat === undefined ||
+      body?.dropoff_lat === ""
         ? null
         : Number(body.dropoff_lat);
     const dropoff_lng =
-      body?.dropoff_lng === null || body?.dropoff_lng === undefined || body?.dropoff_lng === ""
+      body?.dropoff_lng === null ||
+      body?.dropoff_lng === undefined ||
+      body?.dropoff_lng === ""
         ? null
         : Number(body.dropoff_lng);
 
@@ -179,6 +210,9 @@ export async function POST(req: Request) {
 
     const partnerDb = createServiceRoleSupabaseClient();
 
+    const bidWindowHours = await getBidWindowHours(partnerDb);
+    const expires_at = addHoursToNow(bidWindowHours);
+
     const customer_name =
       String(customerUser.user_metadata?.full_name || "").trim() ||
       String(customerUser.email || "").trim() ||
@@ -210,8 +244,11 @@ export async function POST(req: Request) {
         vehicle_category_name,
         notes: notes || null,
         status: "open",
+        expires_at,
       })
-      .select("id, job_number, passengers, suitcases, hand_luggage, vehicle_category_slug, pickup_lat, pickup_lng")
+      .select(
+        "id, job_number, passengers, suitcases, hand_luggage, vehicle_category_slug, pickup_lat, pickup_lng, expires_at"
+      )
       .single();
 
     if (insertErr) {
@@ -230,7 +267,11 @@ export async function POST(req: Request) {
     }
 
     const partnerUserIds = Array.from(
-      new Set((fleetRows || []).map((fleet: any) => String(fleet.user_id || "")).filter(Boolean))
+      new Set(
+        (fleetRows || [])
+          .map((fleet: any) => String(fleet.user_id || ""))
+          .filter(Boolean)
+      )
     );
 
     let partnerProfileMap = new Map<string, any>();
@@ -348,7 +389,9 @@ export async function POST(req: Request) {
         data: {
           id: requestRow.id,
           job_number: requestRow.job_number,
+          expires_at: requestRow.expires_at,
           matched_partners_count: matchRows.length,
+          bid_window_hours: bidWindowHours,
         },
       },
       { status: 200 }

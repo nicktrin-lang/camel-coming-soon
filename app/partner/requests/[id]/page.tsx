@@ -56,6 +56,7 @@ type RequestRow = {
   notes: string | null;
   status: string;
   created_at: string;
+  expires_at: string | null;
   matched_status: string | null;
 };
 
@@ -65,6 +66,7 @@ type ApiResponse = {
   existingBooking: ExistingBooking | null;
   fleetOptions: FleetOption[];
   adminMode: boolean;
+  role: string;
 };
 
 function fmtDateTime(value?: string | null) {
@@ -86,6 +88,32 @@ function fmtDuration(minutes?: number | null) {
   return m ? `${h}h ${m}m` : `${h}h`;
 }
 
+function formatGBP(value?: number | null) {
+  if (value === null || value === undefined || Number.isNaN(value)) return "—";
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: "GBP",
+  }).format(value);
+}
+
+function getTimeLeftLabel(expiresAt?: string | null) {
+  if (!expiresAt) return "—";
+
+  const diffMs = new Date(expiresAt).getTime() - Date.now();
+
+  if (diffMs <= 0) return "Expired";
+
+  const totalSeconds = Math.floor(diffMs / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+  return `${minutes}m ${seconds}s`;
+}
+
 export default function PartnerRequestDetailPage({
   params,
 }: {
@@ -99,6 +127,7 @@ export default function PartnerRequestDetailPage({
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [data, setData] = useState<ApiResponse | null>(null);
+  const [timeLeft, setTimeLeft] = useState("—");
 
   const [fleetId, setFleetId] = useState("");
   const [carHirePrice, setCarHirePrice] = useState("");
@@ -144,6 +173,7 @@ export default function PartnerRequestDetailPage({
 
       const nextData = json as ApiResponse;
       setData(nextData);
+      setTimeLeft(getTimeLeftLabel(nextData.request?.expires_at));
 
       if (nextData.existingBid) {
         setFleetId(nextData.existingBid.fleet_id || "");
@@ -173,6 +203,16 @@ export default function PartnerRequestDetailPage({
     load();
   }, [requestId, supabase]);
 
+  useEffect(() => {
+    if (!data?.request?.expires_at) return;
+
+    const timer = window.setInterval(() => {
+      setTimeLeft(getTimeLeftLabel(data.request.expires_at));
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [data?.request?.expires_at]);
+
   async function submitBid(e: React.FormEvent) {
     e.preventDefault();
 
@@ -190,6 +230,7 @@ export default function PartnerRequestDetailPage({
 
       const carHire = Number(carHirePrice || 0);
       const fuel = Number(fuelPrice || 0);
+      const total = carHire + fuel;
 
       if (Number.isNaN(carHire) || carHire < 0) {
         throw new Error("Please enter a valid car hire price.");
@@ -212,6 +253,7 @@ export default function PartnerRequestDetailPage({
           vehicle_category_name: selectedFleet.category_name,
           car_hire_price: carHire,
           fuel_price: fuel,
+          total_price: total,
           full_insurance_included: fullInsuranceIncluded,
           full_tank_included: fullTankIncluded,
           notes,
@@ -257,9 +299,13 @@ export default function PartnerRequestDetailPage({
   const existingBid = data.existingBid;
   const existingBooking = data.existingBooking;
 
+  const expired = timeLeft === "Expired";
+
   const formDisabled =
+    expired ||
     !!existingBooking ||
     request.status === "confirmed" ||
+    request.status === "expired" ||
     existingBid?.status === "accepted";
 
   return (
@@ -292,6 +338,10 @@ export default function PartnerRequestDetailPage({
         </Link>
       </div>
 
+      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
+        <span className="font-semibold">Time remaining:</span> {timeLeft}
+      </div>
+
       <div className="grid gap-6 xl:grid-cols-2">
         <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
           <h2 className="text-2xl font-semibold text-[#003768]">
@@ -300,7 +350,7 @@ export default function PartnerRequestDetailPage({
 
           <div className="mt-6 space-y-4 text-slate-700">
             <p>
-              <span className="font-semibold text-slate-900">Job number:</span>{" "}
+              <span className="font-semibold text-slate-900">Job No.:</span>{" "}
               {request.job_number ?? "—"}
             </p>
             <p>
@@ -360,6 +410,10 @@ export default function PartnerRequestDetailPage({
               <span className="capitalize">{request.status}</span>
             </p>
             <p>
+              <span className="font-semibold text-slate-900">Expires at:</span>{" "}
+              {fmtDateTime(request.expires_at)}
+            </p>
+            <p>
               <span className="font-semibold text-slate-900">Matched status:</span>{" "}
               <span className="capitalize">{request.matched_status || "—"}</span>
             </p>
@@ -369,7 +423,11 @@ export default function PartnerRequestDetailPage({
         <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
           <h2 className="text-2xl font-semibold text-[#003768]">Submit Bid</h2>
 
-          {existingBooking ? (
+          {expired || request.status === "expired" ? (
+            <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700">
+              This request has expired and is no longer available for bidding.
+            </div>
+          ) : existingBooking ? (
             <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5 text-green-700">
               This request has been accepted and is now a booking.
             </div>
@@ -440,6 +498,11 @@ export default function PartnerRequestDetailPage({
                 />
               </div>
 
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                <span className="font-semibold">Current total:</span>{" "}
+                {formatGBP((Number(carHirePrice || 0) || 0) + (Number(fuelPrice || 0) || 0))}
+              </div>
+
               <div className="flex flex-wrap gap-6">
                 <label className="flex items-center gap-3 text-sm text-slate-700">
                   <input
@@ -479,11 +542,7 @@ export default function PartnerRequestDetailPage({
                 disabled={saving || formDisabled}
                 className="rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60"
               >
-                {saving
-                  ? "Saving..."
-                  : existingBid
-                    ? "Update Bid"
-                    : "Submit Bid"}
+                {saving ? "Saving..." : existingBid ? "Update Bid" : "Submit Bid"}
               </button>
             </form>
           )}
