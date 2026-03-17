@@ -5,7 +5,7 @@ import "leaflet/dist/leaflet.css";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import L from "leaflet";
+
 import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
 import { FLEET_CATEGORIES } from "@/app/components/portal/fleetCategories";
 
@@ -49,14 +49,7 @@ type SearchResult = {
 
 const DEFAULT_CENTER: [number, number] = [38.3452, -0.481];
 
-const markerIcon = L.icon({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-});
+
 
 async function reverseLookup(lat: number, lng: number) {
   const res = await fetch(
@@ -413,13 +406,13 @@ export default function TestBookingNewPage() {
                 <MapEventsDynamic mode={mapMode} onPick={handleMapPick} />
 
                 {pickupLat !== null && pickupLng !== null ? (
-                  <Marker position={[pickupLat, pickupLng]} icon={markerIcon}>
+                  <Marker position={[pickupLat, pickupLng]}>
                     <Popup>Pickup</Popup>
                   </Marker>
                 ) : null}
 
                 {dropoffLat !== null && dropoffLng !== null ? (
-                  <Marker position={[dropoffLat, dropoffLng]} icon={markerIcon}>
+                  <Marker position={[dropoffLat, dropoffLng]}>
                     <Popup>Dropoff</Popup>
                   </Marker>
                 ) : null}
