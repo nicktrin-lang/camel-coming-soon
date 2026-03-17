@@ -23,7 +23,7 @@ const Marker = dynamic(async () => (await import("react-leaflet")).Marker, {
 const Popup = dynamic(async () => (await import("react-leaflet")).Popup, {
   ssr: false,
 });
-const useMapEventsDynamic = dynamic(
+const MapEventsDynamic = dynamic(
   async () => {
     const mod = await import("react-leaflet");
     return function ClickHandler(props: {
@@ -410,7 +410,7 @@ export default function TestBookingNewPage() {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
 
-                <useMapEventsDynamic mode={mapMode} onPick={handleMapPick} />
+                <MapEventsDynamic mode={mapMode} onPick={handleMapPick} />
 
                 {pickupLat !== null && pickupLng !== null ? (
                   <Marker position={[pickupLat, pickupLng]} icon={markerIcon}>
