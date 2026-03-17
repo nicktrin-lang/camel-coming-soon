@@ -53,18 +53,6 @@ export default function AdminApprovalsPage() {
     setError(null);
 
     try {
-      const adminRes = await fetch("/api/admin/is-admin", {
-        method: "GET",
-        cache: "no-store",
-        credentials: "include",
-      });
-
-      const adminJson = await adminRes.json().catch(() => null);
-
-      if (!adminRes.ok || !adminJson?.ok) {
-        throw new Error("Not authorized");
-      }
-
       const res = await fetch("/api/admin/applications", {
         method: "GET",
         cache: "no-store",
