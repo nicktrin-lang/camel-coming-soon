@@ -24,6 +24,7 @@ type RequestData = {
 
 type BidRow = {
   id: string;
+  partner_user_id: string;
   partner_company_name: string | null;
   partner_contact_name: string | null;
   partner_phone: string | null;
@@ -39,9 +40,29 @@ type BidRow = {
   created_at: string;
 };
 
+type BookingData = {
+  id: string;
+  request_id: string;
+  partner_user_id: string;
+  winning_bid_id: string;
+  booking_status: string;
+  amount: number | null;
+  notes: string | null;
+  created_at: string;
+  job_number: number | null;
+  company_name: string | null;
+  company_phone: string | null;
+  driver_name: string | null;
+  driver_phone: string | null;
+  driver_vehicle: string | null;
+  driver_notes: string | null;
+  driver_assigned_at: string | null;
+};
+
 type ResponseShape = {
   request: RequestData;
   bids: BidRow[];
+  booking: BookingData | null;
 };
 
 function fmtDateTime(value?: string | null) {
@@ -267,6 +288,8 @@ export default function TestBookingRequestDetailPage({
     );
   }
 
+  const acceptedBooking = data.booking;
+
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-10">
       {error ? (
@@ -325,6 +348,27 @@ export default function TestBookingRequestDetailPage({
           <p><span className="font-semibold text-slate-900">Expires at:</span> {fmtDateTime(data.request.expires_at)}</p>
         </div>
       </div>
+
+      {acceptedBooking ? (
+        <div className="rounded-3xl border border-green-200 bg-green-50 p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+          <h2 className="text-2xl font-semibold text-[#003768]">
+            Accepted Booking
+          </h2>
+
+          <div className="mt-6 space-y-4 text-slate-700">
+            <p><span className="font-semibold text-slate-900">Booking status:</span> <span className="capitalize">{String(acceptedBooking.booking_status || "—").replaceAll("_", " ")}</span></p>
+            <p><span className="font-semibold text-slate-900">Car hire company:</span> {acceptedBooking.company_name || "—"}</p>
+            <p><span className="font-semibold text-slate-900">Company phone:</span> {acceptedBooking.company_phone || "—"}</p>
+            <p><span className="font-semibold text-slate-900">Accepted price:</span> {formatGBP(acceptedBooking.amount)}</p>
+            <p><span className="font-semibold text-slate-900">Booking notes:</span> {acceptedBooking.notes || "—"}</p>
+            <p><span className="font-semibold text-slate-900">Driver name:</span> {acceptedBooking.driver_name || "—"}</p>
+            <p><span className="font-semibold text-slate-900">Driver phone:</span> {acceptedBooking.driver_phone || "—"}</p>
+            <p><span className="font-semibold text-slate-900">Driver vehicle:</span> {acceptedBooking.driver_vehicle || "—"}</p>
+            <p><span className="font-semibold text-slate-900">Driver notes:</span> {acceptedBooking.driver_notes || "—"}</p>
+            <p><span className="font-semibold text-slate-900">Driver assigned at:</span> {fmtDateTime(acceptedBooking.driver_assigned_at)}</p>
+          </div>
+        </div>
+      ) : null}
 
       <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
         <h2 className="text-2xl font-semibold text-[#003768]">Partner Bids</h2>

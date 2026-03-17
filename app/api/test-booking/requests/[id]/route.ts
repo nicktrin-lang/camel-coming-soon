@@ -88,7 +88,11 @@ export async function GET(
     }
 
     const partnerIds = Array.from(
-      new Set((bidRows || []).map((row: any) => String(row.partner_user_id || "")).filter(Boolean))
+      new Set(
+        (bidRows || [])
+          .map((row: any) => String(row.partner_user_id || ""))
+          .filter(Boolean)
+      )
     );
 
     let profileMap = new Map<string, any>();
@@ -117,6 +121,7 @@ export async function GET(
 
       return {
         id: bid.id,
+        partner_user_id: bid.partner_user_id,
         partner_company_name: profile?.company_name || "Car Hire Company",
         partner_contact_name: null,
         partner_phone: profile?.phone || null,
@@ -133,10 +138,66 @@ export async function GET(
       };
     });
 
+    const acceptedBid = bids.find((bid: any) => bid.status === "accepted") || null;
+
+    let booking: any = null;
+
+    if (acceptedBid) {
+      const { data: bookingRow, error: bookingErr } = await db
+        .from("partner_bookings")
+        .select(`
+          id,
+          request_id,
+          partner_user_id,
+          winning_bid_id,
+          booking_status,
+          amount,
+          notes,
+          created_at,
+          job_number,
+          driver_name,
+          driver_phone,
+          driver_vehicle,
+          driver_notes,
+          driver_assigned_at
+        `)
+        .eq("request_id", id)
+        .maybeSingle();
+
+      if (bookingErr) {
+        return NextResponse.json({ error: bookingErr.message }, { status: 400 });
+      }
+
+      if (bookingRow) {
+        const winnerProfile =
+          profileMap.get(String(bookingRow.partner_user_id || "")) || null;
+
+        booking = {
+          id: bookingRow.id,
+          request_id: bookingRow.request_id,
+          partner_user_id: bookingRow.partner_user_id,
+          winning_bid_id: bookingRow.winning_bid_id,
+          booking_status: bookingRow.booking_status,
+          amount: bookingRow.amount,
+          notes: bookingRow.notes,
+          created_at: bookingRow.created_at,
+          job_number: bookingRow.job_number,
+          company_name: winnerProfile?.company_name || acceptedBid.partner_company_name || "Car Hire Company",
+          company_phone: winnerProfile?.phone || acceptedBid.partner_phone || null,
+          driver_name: bookingRow.driver_name || null,
+          driver_phone: bookingRow.driver_phone || null,
+          driver_vehicle: bookingRow.driver_vehicle || null,
+          driver_notes: bookingRow.driver_notes || null,
+          driver_assigned_at: bookingRow.driver_assigned_at || null,
+        };
+      }
+    }
+
     return NextResponse.json(
       {
         request: requestRow,
         bids,
+        booking,
       },
       { status: 200 }
     );
