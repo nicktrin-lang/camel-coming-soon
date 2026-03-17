@@ -1,70 +1,68 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
+import { useEffect, useState } from "react";
 
-type AppStatus = "pending" | "approved" | "rejected";
-
-type PartnerApplicationRow = {
+type ApprovalRow = {
   id: string;
-  email: string | null;
-  company_name: string | null;
-  full_name: string | null;
-  status: AppStatus;
-  created_at: string | null;
+  email: string;
+  company_name: string;
+  full_name: string;
+  phone: string;
+  address: string;
+  role: string;
+  status: string;
+  created_at: string;
+  user_id: string | null;
+  has_profile: boolean;
 };
 
-function fmtDateTime(iso?: string | null) {
-  if (!iso) return "—";
+function formatDateTime(value?: string | null) {
+  if (!value) return "—";
   try {
-    return new Date(iso).toLocaleString();
+    return new Date(value).toLocaleString();
   } catch {
-    return iso ?? "—";
+    return value;
   }
 }
 
-async function safeJson(res: Response): Promise<any> {
-  const text = await res.text();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { _raw: text };
+function formatLabel(value?: string | null) {
+  return String(value || "—").replaceAll("_", " ");
+}
+
+function statusPillClasses(status?: string | null) {
+  switch (status) {
+    case "approved":
+      return "border-green-200 bg-green-50 text-green-700";
+    case "pending":
+      return "border-amber-200 bg-amber-50 text-amber-700";
+    case "rejected":
+      return "border-red-200 bg-red-50 text-red-700";
+    default:
+      return "border-black/10 bg-white text-slate-700";
   }
 }
 
 export default function AdminApprovalsPage() {
-  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
-  const router = useRouter();
-
+  const [rows, setRows] = useState<ApprovalRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [rows, setRows] = useState<PartnerApplicationRow[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [savingId, setSavingId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
     setError(null);
 
     try {
-      const { data: userData, error: userErr } = await supabase.auth.getUser();
-      if (userErr || !userData?.user) {
-        router.replace("/partner/login?reason=not_authorized");
-        return;
-      }
-
       const adminRes = await fetch("/api/admin/is-admin", {
         method: "GET",
         cache: "no-store",
         credentials: "include",
       });
-      const adminJson = await safeJson(adminRes);
 
-      if (!adminJson?.isAdmin) {
-        router.replace("/partner/login?reason=not_authorized");
-        return;
+      const adminJson = await adminRes.json().catch(() => null);
+
+      if (!adminRes.ok || !adminJson?.ok) {
+        throw new Error("Not authorized");
       }
 
       const res = await fetch("/api/admin/applications", {
@@ -73,13 +71,13 @@ export default function AdminApprovalsPage() {
         credentials: "include",
       });
 
-      const json = await safeJson(res);
+      const json = await res.json().catch(() => null);
 
       if (!res.ok) {
-        throw new Error(json?.error || json?._raw || "Failed to load applications.");
+        throw new Error(json?.error || "Failed to load applications.");
       }
 
-      setRows(Array.isArray(json?.data) ? json.data : []);
+      setRows(json?.data || []);
     } catch (e: any) {
       setError(e?.message || "Failed to load applications.");
       setRows([]);
@@ -88,164 +86,108 @@ export default function AdminApprovalsPage() {
     }
   }
 
-  async function setStatus(id: string, status: AppStatus) {
-    setSavingId(id);
-    setError(null);
-
-    try {
-      const res = await fetch("/api/admin/applications/update-status", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ id, status }),
-      });
-
-      const json = await safeJson(res);
-
-      if (!res.ok) {
-        throw new Error(json?.error || json?._raw || "Failed to update status.");
-      }
-
-      await load();
-    } catch (e: any) {
-      setError(e?.message || "Failed to update status.");
-    } finally {
-      setSavingId(null);
-    }
-  }
-
   useEffect(() => {
     load();
   }, []);
 
-  const pendingCount = rows.filter((r) => r.status === "pending").length;
-  const approvedCount = rows.filter((r) => r.status === "approved").length;
-  const rejectedCount = rows.filter((r) => r.status === "rejected").length;
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 py-8 md:px-8">
       {error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
         </div>
       ) : null}
 
-      <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+        <div className="flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-semibold text-[#003768]">Admin Approvals</h2>
+            <h2 className="text-2xl font-semibold text-[#003768]">
+              Admin Approvals
+            </h2>
             <p className="mt-2 text-slate-600">
-              Review partner applications and approve/reject them.
-            </p>
-            <p className="mt-4 text-sm text-slate-600">
-              Pending: {pendingCount} • Approved: {approvedCount} • Rejected: {rejectedCount}
+              Review partner applications and current live profile details.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={load}
-              disabled={loading}
-              className="rounded-full bg-[#ff7a00] px-4 py-2 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60"
-            >
-              {loading ? "Refreshing..." : "Refresh"}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={load}
+            className="rounded-full bg-[#ff7a00] px-5 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+          >
+            Refresh
+          </button>
         </div>
 
-        <div className="mt-6 overflow-hidden rounded-2xl border border-black/10">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-[#f3f8ff] text-[#003768]">
+        {loading ? (
+          <p className="mt-6 text-slate-600">Loading applications…</p>
+        ) : rows.length === 0 ? (
+          <p className="mt-6 text-slate-600">No applications found.</p>
+        ) : (
+          <div className="mt-6 overflow-x-auto rounded-3xl border border-black/10">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-left text-[#003768]">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Created</th>
+                  <th className="px-4 py-3 font-semibold">Company Name</th>
+                  <th className="px-4 py-3 font-semibold">Contact Name</th>
                   <th className="px-4 py-3 font-semibold">Email</th>
-                  <th className="px-4 py-3 font-semibold">Name</th>
-                  <th className="px-4 py-3 font-semibold">Company</th>
+                  <th className="px-4 py-3 font-semibold">Phone</th>
+                  <th className="px-4 py-3 font-semibold">Address</th>
+                  <th className="px-4 py-3 font-semibold">Role</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold">Actions</th>
+                  <th className="px-4 py-3 font-semibold">Live Profile</th>
+                  <th className="px-4 py-3 font-semibold">Action</th>
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-black/5">
-                {loading ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-5 text-slate-600">
-                      Loading...
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id} className="border-t border-black/5 align-top">
+                    <td className="px-4 py-4">{formatDateTime(row.created_at)}</td>
+                    <td className="px-4 py-4 font-medium text-slate-900">
+                      {row.company_name || "—"}
                     </td>
-                  </tr>
-                ) : rows.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-5 text-slate-600">
-                      No partner applications found.
+                    <td className="px-4 py-4">{row.full_name || "—"}</td>
+                    <td className="px-4 py-4">{row.email || "—"}</td>
+                    <td className="px-4 py-4">{row.phone || "—"}</td>
+                    <td className="px-4 py-4">{row.address || "—"}</td>
+                    <td className="px-4 py-4">
+                      <span className="capitalize">{formatLabel(row.role)}</span>
                     </td>
-                  </tr>
-                ) : (
-                  rows.map((r) => (
-                    <tr key={r.id} className="hover:bg-black/[0.02]">
-                      <td className="px-4 py-4 text-slate-700">{fmtDateTime(r.created_at)}</td>
-                      <td className="px-4 py-4 text-slate-900">{r.email || "—"}</td>
-                      <td className="px-4 py-4 text-[#003768]">{r.full_name || "—"}</td>
-                      <td className="px-4 py-4 text-[#003768]">{r.company_name || "—"}</td>
-                      <td className="px-4 py-4">
-                        <span
-                          className={[
-                            "inline-flex rounded-full border px-3 py-1 text-xs font-semibold",
-                            r.status === "approved"
-                              ? "border-green-200 bg-green-50 text-green-700"
-                              : r.status === "rejected"
-                              ? "border-red-200 bg-red-50 text-red-700"
-                              : "border-yellow-200 bg-yellow-50 text-yellow-800",
-                          ].join(" ")}
-                        >
-                          {r.status}
+                    <td className="px-4 py-4">
+                      <span
+                        className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${statusPillClasses(
+                          row.status
+                        )}`}
+                      >
+                        {formatLabel(row.status)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      {row.has_profile ? (
+                        <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
+                          Yes
                         </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            disabled={savingId === r.id}
-                            onClick={() => setStatus(r.id, "approved")}
-                            className="rounded-full bg-[#ff7a00] px-4 py-2 text-xs font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60"
-                          >
-                            Approve
-                          </button>
-
-                          <button
-                            type="button"
-                            disabled={savingId === r.id}
-                            onClick={() => setStatus(r.id, "rejected")}
-                            className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-[#003768] hover:bg-black/5 disabled:opacity-60"
-                          >
-                            Reject
-                          </button>
-
-                          <button
-                            type="button"
-                            disabled={savingId === r.id}
-                            onClick={() => setStatus(r.id, "pending")}
-                            className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-[#003768] hover:bg-black/5 disabled:opacity-60"
-                          >
-                            Pause
-                          </button>
-
-                          <Link
-                            href={`/admin/approvals/${r.id}`}
-                            className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-[#003768] hover:bg-black/5"
-                          >
-                            View
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                      ) : (
+                        <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                          No
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4">
+                      <Link
+                        href={`/admin/approvals/${row.id}`}
+                        className="inline-flex rounded-full bg-[#ff7a00] px-4 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+                      >
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
