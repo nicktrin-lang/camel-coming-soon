@@ -16,12 +16,12 @@ export async function GET(req: Request) {
     const url =
       `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(
         lat
-      )}&lon=${encodeURIComponent(lng)}`;
+      )}&lon=${encodeURIComponent(lng)}&zoom=18&addressdetails=1`;
 
     const res = await fetch(url, {
       method: "GET",
       headers: {
-        "Accept": "application/json",
+        Accept: "application/json",
         "User-Agent": "Camel Global Portal",
       },
       cache: "no-store",
@@ -29,18 +29,38 @@ export async function GET(req: Request) {
 
     if (!res.ok) {
       return NextResponse.json(
-        { error: "Reverse lookup failed." },
-        { status: 400 }
+        {
+          data: {
+            display_name: `${lat}, ${lng}`,
+          },
+        },
+        { status: 200 }
       );
     }
 
-    const data = await res.json();
+    const data = await res.json().catch(() => null);
 
-    return NextResponse.json({ data }, { status: 200 });
-  } catch (e: any) {
     return NextResponse.json(
-      { error: e?.message || "Reverse lookup failed" },
-      { status: 500 }
+      {
+        data: {
+          display_name:
+            String(data?.display_name || "").trim() || `${lat}, ${lng}`,
+        },
+      },
+      { status: 200 }
+    );
+  } catch {
+    const { searchParams } = new URL(req.url);
+    const lat = String(searchParams.get("lat") || "").trim();
+    const lng = String(searchParams.get("lng") || "").trim();
+
+    return NextResponse.json(
+      {
+        data: {
+          display_name: lat && lng ? `${lat}, ${lng}` : "",
+        },
+      },
+      { status: 200 }
     );
   }
 }

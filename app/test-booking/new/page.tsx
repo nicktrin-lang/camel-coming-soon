@@ -49,25 +49,27 @@ type SearchResult = {
 const DEFAULT_CENTER: [number, number] = [38.3452, -0.481];
 
 async function reverseLookup(lat: number, lng: number) {
-  const res = await fetch(
-    `/api/maps/reverse?lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(
-      String(lng)
-    )}`,
-    {
-      method: "GET",
-      cache: "no-store",
-    }
-  );
+  try {
+    const res = await fetch(
+      `/api/maps/reverse?lat=${encodeURIComponent(
+        String(lat)
+      )}&lng=${encodeURIComponent(String(lng))}`,
+      {
+        method: "GET",
+        cache: "no-store",
+      }
+    );
 
-  const json = await res.json().catch(() => null);
+    const json = await res.json().catch(() => null);
 
-  if (!res.ok) {
-    throw new Error(json?.error || "Reverse lookup failed.");
+    return (
+      String(json?.data?.display_name || "").trim() ||
+      `${lat.toFixed(6)}, ${lng.toFixed(6)}`
+    );
+  } catch {
+    return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
   }
-
-  return String(json?.data?.display_name || "").trim();
 }
-
 function calculateWholeDayDurationMinutes(
   pickupAt: string,
   dropoffAt: string
