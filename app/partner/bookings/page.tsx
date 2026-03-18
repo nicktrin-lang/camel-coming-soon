@@ -103,7 +103,7 @@ function formatStatusLabel(value?: string | null) {
 function bookingStatusPillClasses(status?: string | null) {
   switch (status) {
     case "confirmed":
-      return "border-blue-200 bg-blue-50 text-blue-700";
+      return "border-green-200 bg-green-50 text-green-700";
     case "driver_assigned":
       return "border-amber-200 bg-amber-50 text-amber-700";
     case "en_route":
@@ -255,81 +255,86 @@ export default function PartnerBookingsPage() {
               </thead>
 
               <tbody>
-                {filteredRows.map((row) => (
-                  <tr key={row.id} className="border-t border-black/5 align-top">
-                    <td className="px-4 py-4">
-                      <Link
-                        href={`/partner/bookings/${row.id}`}
-                        className="inline-flex rounded-full bg-[#ff7a00] px-4 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
-                      >
-                        View
-                      </Link>
-                    </td>
+                {filteredRows.map((row) => {
+                  const effectiveRequestStatus =
+                    row.request_status ?? (row.booking_status === "confirmed" ? "confirmed" : null);
 
-                    <td className="px-4 py-4 font-semibold text-[#003768]">
-                      {row.job_number ?? "—"}
-                    </td>
+                  return (
+                    <tr key={row.id} className="border-t border-black/5 align-top">
+                      <td className="px-4 py-4">
+                        <Link
+                          href={`/partner/bookings/${row.id}`}
+                          className="inline-flex rounded-full bg-[#ff7a00] px-4 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+                        >
+                          View
+                        </Link>
+                      </td>
 
-                    {adminMode ? (
+                      <td className="px-4 py-4 font-semibold text-[#003768]">
+                        {row.job_number ?? "—"}
+                      </td>
+
+                      {adminMode ? (
+                        <td className="px-4 py-4">
+                          <div className="font-medium text-slate-900">
+                            {row.partner_company_name || "—"}
+                          </div>
+                          <div className="text-slate-500">
+                            {row.partner_company_phone || "—"}
+                          </div>
+                        </td>
+                      ) : null}
+
                       <td className="px-4 py-4">
                         <div className="font-medium text-slate-900">
-                          {row.partner_company_name || "—"}
+                          {row.customer_name || "—"}
                         </div>
                         <div className="text-slate-500">
-                          {row.partner_company_phone || "—"}
+                          {row.customer_phone || row.customer_email || "—"}
                         </div>
                       </td>
-                    ) : null}
 
-                    <td className="px-4 py-4">
-                      <div className="font-medium text-slate-900">
-                        {row.customer_name || "—"}
-                      </div>
-                      <div className="text-slate-500">
-                        {row.customer_phone || row.customer_email || "—"}
-                      </div>
-                    </td>
+                      <td className="px-4 py-4">
+                        <span
+                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${bookingStatusPillClasses(
+                            row.booking_status
+                          )}`}
+                        >
+                          {formatStatusLabel(row.booking_status)}
+                        </span>
+                      </td>
 
-                    <td className="px-4 py-4">
-                      <span
-                        className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${bookingStatusPillClasses(
-                          row.booking_status
-                        )}`}
-                      >
-                        {formatStatusLabel(row.booking_status)}
-                      </span>
-                    </td>
+                      <td className="px-4 py-4">
+                        <span
+                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${requestStatusPillClasses(
+                            effectiveRequestStatus
+                          )}`}
+                        >
+                          {formatStatusLabel(effectiveRequestStatus)}
+                        </span>
+                      </td>
 
-                    <td className="px-4 py-4">
-                      <span
-                        className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${requestStatusPillClasses(
-                          row.request_status
-                        )}`}
-                      >
-                        {formatStatusLabel(row.request_status)}
-                      </span>
-                    </td>
+                      <td className="px-4 py-4">
+                        <div className="font-medium text-slate-900">
+                          {row.driver_name || "—"}
+                        </div>
+                        <div className="text-slate-500">
+                          {row.driver_vehicle || row.driver_phone || "—"}
+                        </div>
+                      </td>
 
-                    <td className="px-4 py-4">
-                      <div className="font-medium text-slate-900">
-                        {row.driver_name || "—"}
-                      </div>
-                      <div className="text-slate-500">
-                        {row.driver_vehicle || row.driver_phone || "—"}
-                      </div>
-                    </td>
-
-                    <td className="px-4 py-4">{row.pickup_address || "—"}</td>
-                    <td className="px-4 py-4">{row.dropoff_address || "—"}</td>
-                    <td className="px-4 py-4">{formatDateTime(row.pickup_at)}</td>
-                    <td className="px-4 py-4">
-                      {formatDuration(row.journey_duration_minutes)}
-                    </td>
-                    <td className="px-4 py-4">{row.vehicle_category_name || "—"}</td>
-                    <td className="px-4 py-4">{formatGBP(row.amount)}</td>
-                    <td className="px-4 py-4">{formatDateTime(row.created_at)}</td>
-                  </tr>
-                ))}
+                      <td className="px-4 py-4">{row.pickup_address || "—"}</td>
+                      <td className="px-4 py-4">{row.dropoff_address || "—"}</td>
+                      <td className="px-4 py-4">{formatDateTime(row.pickup_at)}</td>
+                      <td className="px-4 py-4">
+                        {formatDuration(row.journey_duration_minutes)}
+                      </td>
+                      <td className="px-4 py-4">{row.vehicle_category_name || "—"}</td>
+                      <td className="px-4 py-4">{formatGBP(row.amount)}</td>
+                      <td className="px-4 py-4">{formatDateTime(row.created_at)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

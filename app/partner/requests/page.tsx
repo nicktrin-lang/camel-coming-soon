@@ -80,6 +80,8 @@ function partnerStatusPillClasses(status?: string | null) {
       return "border-red-200 bg-red-50 text-red-700";
     case "expired":
       return "border-slate-200 bg-slate-50 text-slate-600";
+    case "confirmed":
+      return "border-green-200 bg-green-50 text-green-700";
     default:
       return "border-black/10 bg-white text-slate-700";
   }
