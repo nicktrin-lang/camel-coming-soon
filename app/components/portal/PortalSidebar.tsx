@@ -45,23 +45,25 @@ function getFooterLabel(role: PortalRole) {
 }
 
 function getNavItems(role: PortalRole): NavItem[] {
-  const adminItems: NavItem[] =
-    role === "partner"
-      ? []
-      : [
-          { href: "/admin/approvals", label: "Partner Approvals" },
-          { href: "/admin/users", label: "Admin Users" },
-        ];
+  const items: NavItem[] = [];
 
-  const sharedItems: NavItem[] = [
+  if (role === "admin" || role === "super_admin") {
+    items.push({ href: "/admin/approvals", label: "Partner Approvals" });
+  }
+
+  if (role === "super_admin") {
+    items.push({ href: "/admin/users", label: "Admin Users" });
+  }
+
+  items.push(
     { href: "/partner/requests", label: "Requests" },
     { href: "/partner/bookings", label: "Bookings" },
     { href: "/partner/fleet", label: "Car Fleet" },
     { href: getAccountHref(role), label: "Account Management" },
-    { href: "/partner/reports", label: "Report Management" },
-  ];
+    { href: "/partner/reports", label: "Report Management" }
+  );
 
-  return [...adminItems, ...sharedItems];
+  return items;
 }
 
 export default function PortalSidebar({ role, open, onClose }: Props) {
