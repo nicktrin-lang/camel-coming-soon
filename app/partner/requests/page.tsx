@@ -203,6 +203,8 @@ export default function PartnerRequestsPage() {
                 <tr>
                   <th className="px-4 py-3 font-semibold">View</th>
                   <th className="px-4 py-3 font-semibold">Job No.</th>
+                  <th className="px-4 py-3 font-semibold">Partner Status</th>
+                  <th className="px-4 py-3 font-semibold">Request Status</th>
                   <th className="px-4 py-3 font-semibold">Pickup</th>
                   <th className="px-4 py-3 font-semibold">Dropoff</th>
                   <th className="px-4 py-3 font-semibold">Pickup Time</th>
@@ -211,8 +213,6 @@ export default function PartnerRequestsPage() {
                   <th className="px-4 py-3 font-semibold">Passengers</th>
                   <th className="px-4 py-3 font-semibold">Bags</th>
                   <th className="px-4 py-3 font-semibold">Vehicle</th>
-                  <th className="px-4 py-3 font-semibold">Partner Status</th>
-                  <th className="px-4 py-3 font-semibold">Request Status</th>
                   <th className="px-4 py-3 font-semibold">Created</th>
                 </tr>
               </thead>
@@ -232,19 +232,6 @@ export default function PartnerRequestsPage() {
                     <td className="px-4 py-4 font-semibold text-[#003768]">
                       {row.job_number ?? "—"}
                     </td>
-
-                    <td className="px-4 py-4">{row.pickup_address || "—"}</td>
-                    <td className="px-4 py-4">{row.dropoff_address || "—"}</td>
-                    <td className="px-4 py-4">{formatDateTime(row.pickup_at)}</td>
-                    <td className="px-4 py-4">{formatDateTime(row.dropoff_at)}</td>
-                    <td className="px-4 py-4">
-                      {formatDuration(row.journey_duration_minutes)}
-                    </td>
-                    <td className="px-4 py-4">{row.passengers}</td>
-                    <td className="px-4 py-4">
-                      {row.suitcases} suitcases / {row.hand_luggage} hand luggage
-                    </td>
-                    <td className="px-4 py-4">{row.vehicle_category_name || "—"}</td>
 
                     <td className="px-4 py-4">
                       <span
@@ -266,15 +253,23 @@ export default function PartnerRequestsPage() {
                       </span>
                     </td>
 
+                    <td className="px-4 py-4">{row.pickup_address || "—"}</td>
+                    <td className="px-4 py-4">{row.dropoff_address || "—"}</td>
+                    <td className="px-4 py-4">{formatDateTime(row.pickup_at)}</td>
+                    <td className="px-4 py-4">{formatDateTime(row.dropoff_at)}</td>
+                    <td className="px-4 py-4">
+                      {formatDuration(row.journey_duration_minutes)}
+                    </td>
+                    <td className="px-4 py-4">{row.passengers}</td>
+                    <td className="px-4 py-4">
+                      {row.suitcases} suitcases / {row.hand_luggage} hand luggage
+                    </td>
+                    <td className="px-4 py-4">{row.vehicle_category_name || "—"}</td>
                     <td className="px-4 py-4">{formatDateTime(row.created_at)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-
-            <div className="border-t border-black/5 px-4 py-4 text-sm text-slate-500">
-              Requests remain visible as history for partners and admins, including unsuccessful and expired outcomes.
-            </div>
           </div>
         )}
       </div>

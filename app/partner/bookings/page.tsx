@@ -241,15 +241,15 @@ export default function PartnerBookingsPage() {
                     <th className="px-4 py-3 font-semibold">Partner</th>
                   ) : null}
                   <th className="px-4 py-3 font-semibold">Customer</th>
+                  <th className="px-4 py-3 font-semibold">Booking Status</th>
+                  <th className="px-4 py-3 font-semibold">Request Status</th>
+                  <th className="px-4 py-3 font-semibold">Driver</th>
                   <th className="px-4 py-3 font-semibold">Pickup</th>
                   <th className="px-4 py-3 font-semibold">Dropoff</th>
                   <th className="px-4 py-3 font-semibold">Pickup Time</th>
                   <th className="px-4 py-3 font-semibold">Duration</th>
                   <th className="px-4 py-3 font-semibold">Vehicle</th>
                   <th className="px-4 py-3 font-semibold">Amount</th>
-                  <th className="px-4 py-3 font-semibold">Booking Status</th>
-                  <th className="px-4 py-3 font-semibold">Request Status</th>
-                  <th className="px-4 py-3 font-semibold">Driver</th>
                   <th className="px-4 py-3 font-semibold">Created</th>
                 </tr>
               </thead>
@@ -290,15 +290,6 @@ export default function PartnerBookingsPage() {
                       </div>
                     </td>
 
-                    <td className="px-4 py-4">{row.pickup_address || "—"}</td>
-                    <td className="px-4 py-4">{row.dropoff_address || "—"}</td>
-                    <td className="px-4 py-4">{formatDateTime(row.pickup_at)}</td>
-                    <td className="px-4 py-4">
-                      {formatDuration(row.journey_duration_minutes)}
-                    </td>
-                    <td className="px-4 py-4">{row.vehicle_category_name || "—"}</td>
-                    <td className="px-4 py-4">{formatGBP(row.amount)}</td>
-
                     <td className="px-4 py-4">
                       <span
                         className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${bookingStatusPillClasses(
@@ -328,15 +319,19 @@ export default function PartnerBookingsPage() {
                       </div>
                     </td>
 
+                    <td className="px-4 py-4">{row.pickup_address || "—"}</td>
+                    <td className="px-4 py-4">{row.dropoff_address || "—"}</td>
+                    <td className="px-4 py-4">{formatDateTime(row.pickup_at)}</td>
+                    <td className="px-4 py-4">
+                      {formatDuration(row.journey_duration_minutes)}
+                    </td>
+                    <td className="px-4 py-4">{row.vehicle_category_name || "—"}</td>
+                    <td className="px-4 py-4">{formatGBP(row.amount)}</td>
                     <td className="px-4 py-4">{formatDateTime(row.created_at)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-
-            <div className="border-t border-black/5 px-4 py-4 text-sm text-slate-500">
-              Admin and super admin see all bookings. Partners only see their own booking history.
-            </div>
           </div>
         )}
       </div>
