@@ -100,7 +100,7 @@ function formatStatusLabel(value?: string | null) {
   return String(value || "—").replaceAll("_", " ");
 }
 
-function statusPillClasses(status?: string | null) {
+function bookingStatusPillClasses(status?: string | null) {
   switch (status) {
     case "confirmed":
       return "border-blue-200 bg-blue-50 text-blue-700";
@@ -112,6 +112,21 @@ function statusPillClasses(status?: string | null) {
       return "border-purple-200 bg-purple-50 text-purple-700";
     case "completed":
       return "border-green-200 bg-green-50 text-green-700";
+    case "cancelled":
+      return "border-red-200 bg-red-50 text-red-700";
+    default:
+      return "border-black/10 bg-white text-slate-700";
+  }
+}
+
+function requestStatusPillClasses(status?: string | null) {
+  switch (status) {
+    case "open":
+      return "border-blue-200 bg-blue-50 text-blue-700";
+    case "confirmed":
+      return "border-green-200 bg-green-50 text-green-700";
+    case "expired":
+      return "border-slate-200 bg-slate-50 text-slate-600";
     case "cancelled":
       return "border-red-200 bg-red-50 text-red-700";
     default:
@@ -286,7 +301,7 @@ export default function PartnerBookingsPage() {
 
                     <td className="px-4 py-4">
                       <span
-                        className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${statusPillClasses(
+                        className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${bookingStatusPillClasses(
                           row.booking_status
                         )}`}
                       >
@@ -295,7 +310,11 @@ export default function PartnerBookingsPage() {
                     </td>
 
                     <td className="px-4 py-4">
-                      <span className="capitalize text-slate-700">
+                      <span
+                        className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${requestStatusPillClasses(
+                          row.request_status
+                        )}`}
+                      >
                         {formatStatusLabel(row.request_status)}
                       </span>
                     </td>
@@ -314,6 +333,10 @@ export default function PartnerBookingsPage() {
                 ))}
               </tbody>
             </table>
+
+            <div className="border-t border-black/5 px-4 py-4 text-sm text-slate-500">
+              Admin and super admin see all bookings. Partners only see their own booking history.
+            </div>
           </div>
         )}
       </div>
