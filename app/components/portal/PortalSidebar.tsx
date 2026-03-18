@@ -14,51 +14,7 @@ type Props = {
 type NavItem = {
   href: string;
   label: string;
-  roles: PortalRole[];
 };
-
-const navItems: NavItem[] = [
-  {
-    href: "/admin/approvals",
-    label: "Partner Approvals",
-    roles: ["admin", "super_admin"],
-  },
-  {
-    href: "/admin/users",
-    label: "Admin Users",
-    roles: ["admin", "super_admin"],
-  },
-  {
-    href: "/admin/accounts",
-    label: "Account Management",
-    roles: ["admin", "super_admin"],
-  },
-  {
-    href: "/partner/requests",
-    label: "Requests",
-    roles: ["partner", "admin", "super_admin"],
-  },
-  {
-    href: "/partner/bookings",
-    label: "Bookings",
-    roles: ["partner", "admin", "super_admin"],
-  },
-  {
-    href: "/partner/fleet",
-    label: "Car Fleet",
-    roles: ["partner", "admin", "super_admin"],
-  },
-  {
-    href: "/partner/account",
-    label: "Account Management",
-    roles: ["partner"],
-  },
-  {
-    href: "/partner/reports",
-    label: "Report Management",
-    roles: ["partner", "admin", "super_admin"],
-  },
-];
 
 function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -76,18 +32,41 @@ function getPortalSubtitle(role: PortalRole) {
   return role === "partner" ? "Operations dashboard" : "System administration";
 }
 
-function getProfileHref(role: PortalRole) {
+function getAccountHref(role: PortalRole) {
+  return role === "partner" ? "/partner/account" : "/admin/accounts";
+}
+
+function getFooterHref(role: PortalRole) {
   return role === "partner" ? "/partner/profile" : "/admin/accounts";
 }
 
-function getFooterButtonLabel(role: PortalRole) {
+function getFooterLabel(role: PortalRole) {
   return role === "partner" ? "Edit Profile" : "Manage Accounts";
+}
+
+function getNavItems(role: PortalRole): NavItem[] {
+  const adminItems: NavItem[] =
+    role === "partner"
+      ? []
+      : [
+          { href: "/admin/approvals", label: "Partner Approvals" },
+          { href: "/admin/users", label: "Admin Users" },
+        ];
+
+  const sharedItems: NavItem[] = [
+    { href: "/partner/requests", label: "Requests" },
+    { href: "/partner/bookings", label: "Bookings" },
+    { href: "/partner/fleet", label: "Car Fleet" },
+    { href: getAccountHref(role), label: "Account Management" },
+    { href: "/partner/reports", label: "Report Management" },
+  ];
+
+  return [...adminItems, ...sharedItems];
 }
 
 export default function PortalSidebar({ role, open, onClose }: Props) {
   const pathname = usePathname();
-
-  const visibleItems = navItems.filter((item) => item.roles.includes(role));
+  const visibleItems = getNavItems(role);
 
   return (
     <>
@@ -153,11 +132,11 @@ export default function PortalSidebar({ role, open, onClose }: Props) {
 
           <div className="border-t border-white/10 px-5 py-5">
             <Link
-              href={getProfileHref(role)}
+              href={getFooterHref(role)}
               onClick={onClose}
               className="block rounded-2xl bg-[#ff7a00] px-4 py-3 text-center text-sm font-semibold text-white shadow-[0_12px_24px_rgba(0,0,0,0.18)] hover:opacity-95"
             >
-              {getFooterButtonLabel(role)}
+              {getFooterLabel(role)}
             </Link>
           </div>
         </div>
