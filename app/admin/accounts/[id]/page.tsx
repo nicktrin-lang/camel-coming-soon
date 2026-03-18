@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
+type AppStatus = "pending" | "approved" | "rejected";
+
 type AccountApplication = {
   id: string;
   user_id: string | null;
@@ -90,7 +92,9 @@ export default function AdminAccountDetailPage() {
   const params = useParams<{ id: string }>();
 
   const [loading, setLoading] = useState(true);
+  const [savingStatus, setSavingStatus] = useState<AppStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [application, setApplication] = useState<AccountApplication | null>(null);
   const [profile, setProfile] = useState<AccountProfile | null>(null);
 
@@ -144,6 +148,44 @@ export default function AdminAccountDetailPage() {
       setProfile(null);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function setStatus(status: AppStatus) {
+    if (!application?.id) return;
+
+    setSavingStatus(status);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const res = await fetch("/api/admin/applications/update-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          id: application.id,
+          status,
+        }),
+      });
+
+      const json = await safeJson(res);
+
+      if (!res.ok) {
+        throw new Error(json?.error || json?._raw || "Failed to update application status.");
+      }
+
+      setApplication((prev) => (prev ? { ...prev, status } : prev));
+
+      if (json?.warning) {
+        setNotice(String(json.warning));
+      } else {
+        setNotice(`Application status updated to ${status}.`);
+      }
+    } catch (e: any) {
+      setError(e?.message || "Failed to update application status.");
+    } finally {
+      setSavingStatus(null);
     }
   }
 
@@ -205,6 +247,12 @@ export default function AdminAccountDetailPage() {
       {error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {error}
+        </div>
+      ) : null}
+
+      {notice ? (
+        <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+          {notice}
         </div>
       ) : null}
 
@@ -339,6 +387,39 @@ export default function AdminAccountDetailPage() {
 
         <div className="space-y-6">
           <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+            <h2 className="text-xl font-semibold text-[#003768]">Admin Controls</h2>
+
+            <div className="mt-5 space-y-3">
+              <button
+                type="button"
+                disabled={savingStatus !== null}
+                onClick={() => setStatus("approved")}
+                className="w-full rounded-full bg-[#ff7a00] px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60"
+              >
+                {savingStatus === "approved" ? "Saving..." : "Approve"}
+              </button>
+
+              <button
+                type="button"
+                disabled={savingStatus !== null}
+                onClick={() => setStatus("rejected")}
+                className="w-full rounded-full border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
+              >
+                {savingStatus === "rejected" ? "Saving..." : "Reject"}
+              </button>
+
+              <button
+                type="button"
+                disabled={savingStatus !== null}
+                onClick={() => setStatus("pending")}
+                className="w-full rounded-full border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-[#003768] hover:bg-black/5 disabled:opacity-60"
+              >
+                {savingStatus === "pending" ? "Saving..." : "Set Pending"}
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
             <h2 className="text-xl font-semibold text-[#003768]">Application</h2>
 
             <div className="mt-4 space-y-3 text-sm text-slate-700">
@@ -359,6 +440,15 @@ export default function AdminAccountDetailPage() {
                 <span className="text-slate-500">Created</span>
                 <p className="font-medium text-slate-800">{fmtDateTime(application.created_at)}</p>
               </div>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+            <h2 className="text-xl font-semibold text-[#003768]">Next Step</h2>
+
+            <div className="mt-4 text-sm text-slate-700">
+              Live Profile enable/disable should be added next, once you confirm the exact data
+              model you want to use for it.
             </div>
           </div>
         </div>
