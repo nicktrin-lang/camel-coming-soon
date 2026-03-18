@@ -97,6 +97,9 @@ export default function AdminAccountDetailPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [application, setApplication] = useState<AccountApplication | null>(null);
   const [profile, setProfile] = useState<AccountProfile | null>(null);
+  const [fleetCount, setFleetCount] = useState(0);
+  const [isLiveProfile, setIsLiveProfile] = useState(false);
+  const [liveProfileReason, setLiveProfileReason] = useState("");
 
   async function load() {
     setLoading(true);
@@ -142,10 +145,16 @@ export default function AdminAccountDetailPage() {
 
       setApplication((json?.application || null) as AccountApplication | null);
       setProfile((json?.profile || null) as AccountProfile | null);
+      setFleetCount(Number(json?.fleet_count || 0));
+      setIsLiveProfile(!!json?.is_live_profile);
+      setLiveProfileReason(String(json?.live_profile_reason || ""));
     } catch (e: any) {
       setError(e?.message || "Failed to load partner account.");
       setApplication(null);
       setProfile(null);
+      setFleetCount(0);
+      setIsLiveProfile(false);
+      setLiveProfileReason("");
     } finally {
       setLoading(false);
     }
@@ -256,7 +265,7 @@ export default function AdminAccountDetailPage() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div className="rounded-3xl bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
           <p className="text-sm text-slate-500">Company</p>
           <p className="mt-1 text-xl font-semibold text-[#003768]">{fmtValue(displayCompany)}</p>
@@ -276,10 +285,23 @@ export default function AdminAccountDetailPage() {
         </div>
 
         <div className="rounded-3xl bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-          <p className="text-sm text-slate-500">Service Radius</p>
-          <p className="mt-1 text-xl font-semibold text-[#003768]">
-            {profile?.service_radius_km ? `${profile.service_radius_km} km` : "—"}
-          </p>
+          <p className="text-sm text-slate-500">Live Profile</p>
+          <div className="mt-2">
+            {isLiveProfile ? (
+              <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
+                Yes
+              </span>
+            ) : (
+              <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                No
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-3xl bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+          <p className="text-sm text-slate-500">Fleet Categories</p>
+          <p className="mt-1 text-xl font-semibold text-[#003768]">{fleetCount}</p>
         </div>
       </div>
 
@@ -317,8 +339,10 @@ export default function AdminAccountDetailPage() {
               </div>
 
               <div>
-                <span className="text-slate-500">Live Profile</span>
-                <p className="font-medium text-slate-800">{profile ? "Yes" : "No"}</p>
+                <span className="text-slate-500">Service Radius</span>
+                <p className="font-medium text-slate-800">
+                  {profile?.service_radius_km ? `${profile.service_radius_km} km` : "—"}
+                </p>
               </div>
             </div>
           </div>
@@ -420,6 +444,46 @@ export default function AdminAccountDetailPage() {
           </div>
 
           <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+            <h2 className="text-xl font-semibold text-[#003768]">Live Profile Check</h2>
+
+            <div className="mt-4 space-y-4 text-sm text-slate-700">
+              <div>
+                <span className="text-slate-500">Fleet address present</span>
+                <p className="font-medium text-slate-800">
+                  {String(profile?.base_address || "").trim() ? "Yes" : "No"}
+                </p>
+              </div>
+
+              <div>
+                <span className="text-slate-500">Fleet categories added</span>
+                <p className="font-medium text-slate-800">{fleetCount > 0 ? "Yes" : "No"}</p>
+              </div>
+
+              <div>
+                <span className="text-slate-500">Live profile status</span>
+                <div className="mt-1">
+                  {isLiveProfile ? (
+                    <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
+                      Yes
+                    </span>
+                  ) : (
+                    <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                      No
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {!isLiveProfile ? (
+                <div>
+                  <span className="text-slate-500">Reason</span>
+                  <p className="font-medium text-slate-800">{fmtValue(liveProfileReason)}</p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
             <h2 className="text-xl font-semibold text-[#003768]">Application</h2>
 
             <div className="mt-4 space-y-3 text-sm text-slate-700">
@@ -440,15 +504,6 @@ export default function AdminAccountDetailPage() {
                 <span className="text-slate-500">Created</span>
                 <p className="font-medium text-slate-800">{fmtDateTime(application.created_at)}</p>
               </div>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-            <h2 className="text-xl font-semibold text-[#003768]">Next Step</h2>
-
-            <div className="mt-4 text-sm text-slate-700">
-              Live Profile enable/disable should be added next, once you confirm the exact data
-              model you want to use for it.
             </div>
           </div>
         </div>

@@ -82,6 +82,7 @@ export async function GET(
     }
 
     let profile = null;
+    let fleetCount = 0;
 
     if (resolvedUserId) {
       const { data: profileRow, error: profileErr } = await db
@@ -97,12 +98,38 @@ export async function GET(
       }
 
       profile = profileRow;
+
+      const { count, error: fleetErr } = await db
+        .from("partner_fleet")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", resolvedUserId);
+
+      if (fleetErr) {
+        return NextResponse.json({ error: fleetErr.message }, { status: 400 });
+      }
+
+      fleetCount = count || 0;
     }
+
+    const hasFleetAddress = !!String((profile as any)?.base_address || "").trim();
+    const hasFleet = fleetCount > 0;
+    const isLiveProfile = hasFleetAddress && hasFleet;
+
+    const liveProfileReason = isLiveProfile
+      ? ""
+      : !hasFleetAddress && !hasFleet
+      ? "Missing fleet address and no fleet added"
+      : !hasFleetAddress
+      ? "Missing fleet address"
+      : "No fleet added";
 
     return NextResponse.json(
       {
         application,
         profile,
+        fleet_count: fleetCount,
+        is_live_profile: isLiveProfile,
+        live_profile_reason: liveProfileReason,
       },
       { status: 200 }
     );

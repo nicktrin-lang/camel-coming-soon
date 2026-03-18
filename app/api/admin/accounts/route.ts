@@ -101,12 +101,46 @@ export async function GET() {
       );
     }
 
+    let fleetCountMap = new Map<string, number>();
+
+    if (profileUserIds.length > 0) {
+      const { data: fleetRows, error: fleetErr } = await db
+        .from("partner_fleet")
+        .select("user_id")
+        .in("user_id", profileUserIds);
+
+      if (fleetErr) {
+        return NextResponse.json({ error: fleetErr.message }, { status: 400 });
+      }
+
+      fleetCountMap = new Map<string, number>();
+
+      for (const row of fleetRows || []) {
+        const userId = String((row as any)?.user_id || "").trim();
+        if (!userId) continue;
+        fleetCountMap.set(userId, (fleetCountMap.get(userId) || 0) + 1);
+      }
+    }
+
     const data = applicationRows.map((row: any) => {
       const normalizedEmail = String(row.email || "").toLowerCase().trim();
       const resolvedUserId =
         String(row.user_id || "").trim() || emailToUserId.get(normalizedEmail) || null;
 
       const profile = resolvedUserId ? profileMap.get(resolvedUserId) || null : null;
+      const fleetCount = resolvedUserId ? fleetCountMap.get(resolvedUserId) || 0 : 0;
+
+      const hasFleetAddress = !!String(profile?.base_address || "").trim();
+      const hasFleet = fleetCount > 0;
+      const isLiveProfile = hasFleetAddress && hasFleet;
+
+      const liveProfileReason = isLiveProfile
+        ? ""
+        : !hasFleetAddress && !hasFleet
+        ? "Missing fleet address and no fleet added"
+        : !hasFleetAddress
+        ? "Missing fleet address"
+        : "No fleet added";
 
       return {
         id: row.id,
@@ -129,6 +163,9 @@ export async function GET() {
         has_profile: !!profile,
         service_radius_km: profile?.service_radius_km ?? null,
         base_address: profile?.base_address || "",
+        fleet_count: fleetCount,
+        is_live_profile: isLiveProfile,
+        live_profile_reason: liveProfileReason,
       };
     });
 
