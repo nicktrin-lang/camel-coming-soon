@@ -106,6 +106,29 @@ function matchesDateRange(value: string | null | undefined, from: string, to: st
   return true;
 }
 
+function csvEscape(value: unknown) {
+  const str = String(value ?? "");
+  const escaped = str.replace(/"/g, '""');
+  return `"${escaped}"`;
+}
+
+function downloadCsv(filename: string, headers: string[], rows: Array<Array<unknown>>) {
+  const csv = [
+    headers.map(csvEscape).join(","),
+    ...rows.map((row) => row.map(csvEscape).join(",")),
+  ].join("\n");
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 export default function AdminReportsPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const router = useRouter();
@@ -268,6 +291,64 @@ export default function AdminReportsPage() {
     })
     .slice(0, 5);
 
+  function exportRequestsCsv() {
+    const headers = [
+      "Job Number",
+      "Pickup Address",
+      "Dropoff Address",
+      "Pickup At",
+      "Dropoff At",
+      "Vehicle Category",
+      "Request Status",
+      "System Status",
+      "Created At",
+      "Expires At",
+    ];
+
+    const rows = filteredRequests.map((row) => [
+      row.job_number || "",
+      row.pickup_address || "",
+      row.dropoff_address || "",
+      row.pickup_at || "",
+      row.dropoff_at || "",
+      row.vehicle_category_name || "",
+      row.request_status || "",
+      row.status || "",
+      row.created_at || "",
+      row.expires_at || "",
+    ]);
+
+    downloadCsv("admin-requests-report.csv", headers, rows);
+  }
+
+  function exportBookingsCsv() {
+    const headers = [
+      "Job Number",
+      "Partner",
+      "Pickup Address",
+      "Dropoff Address",
+      "Pickup At",
+      "Vehicle Category",
+      "Booking Status",
+      "Amount",
+      "Created At",
+    ];
+
+    const rows = filteredBookings.map((row) => [
+      row.job_number || "",
+      row.partner_company_name || "",
+      row.pickup_address || "",
+      row.dropoff_address || "",
+      row.pickup_at || "",
+      row.vehicle_category_name || "",
+      row.booking_status || "",
+      row.amount || "",
+      row.created_at || "",
+    ]);
+
+    downloadCsv("admin-bookings-report.csv", headers, rows);
+  }
+
   if (loading) {
     return (
       <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
@@ -314,6 +395,24 @@ export default function AdminReportsPage() {
               />
             </div>
           </div>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={exportRequestsCsv}
+            className="rounded-full border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-[#003768] hover:bg-black/5"
+          >
+            Export Requests CSV
+          </button>
+
+          <button
+            type="button"
+            onClick={exportBookingsCsv}
+            className="rounded-full bg-[#ff7a00] px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+          >
+            Export Bookings CSV
+          </button>
         </div>
       </div>
 
