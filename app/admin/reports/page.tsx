@@ -87,6 +87,25 @@ function formatStatusLabel(value?: string | null) {
   return String(value || "—").replaceAll("_", " ");
 }
 
+function matchesDateRange(value: string | null | undefined, from: string, to: string) {
+  if (!value) return false;
+
+  const itemDate = new Date(value);
+  if (Number.isNaN(itemDate.getTime())) return false;
+
+  if (from) {
+    const fromDate = new Date(`${from}T00:00:00`);
+    if (itemDate < fromDate) return false;
+  }
+
+  if (to) {
+    const toDate = new Date(`${to}T23:59:59.999`);
+    if (itemDate > toDate) return false;
+  }
+
+  return true;
+}
+
 export default function AdminReportsPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const router = useRouter();
@@ -95,6 +114,8 @@ export default function AdminReportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   async function load() {
     setLoading(true);
@@ -164,23 +185,31 @@ export default function AdminReportsPage() {
     load();
   }, []);
 
-  const totalRequests = requests.length;
-  const totalBookings = bookings.length;
-  const completedBookings = bookings.filter(
+  const filteredRequests = requests.filter((row) =>
+    matchesDateRange(row.created_at, dateFrom, dateTo)
+  );
+
+  const filteredBookings = bookings.filter((row) =>
+    matchesDateRange(row.created_at, dateFrom, dateTo)
+  );
+
+  const totalRequests = filteredRequests.length;
+  const totalBookings = filteredBookings.length;
+  const completedBookings = filteredBookings.filter(
     (row) => String(row.booking_status || "").toLowerCase() === "completed"
   ).length;
-  const totalRevenue = bookings.reduce((sum, row) => {
+  const totalRevenue = filteredBookings.reduce((sum, row) => {
     const amount = Number(row.amount || 0);
     return Number.isFinite(amount) ? sum + amount : sum;
   }, 0);
 
-  const openRequests = requests.filter(
+  const openRequests = filteredRequests.filter(
     (row) => String(row.status || "").toLowerCase() === "open"
   ).length;
-  const expiredRequests = requests.filter(
+  const expiredRequests = filteredRequests.filter(
     (row) => String(row.status || "").toLowerCase() === "expired"
   ).length;
-  const confirmedBookings = bookings.filter(
+  const confirmedBookings = filteredBookings.filter(
     (row) => String(row.booking_status || "").toLowerCase() === "confirmed"
   ).length;
 
@@ -192,7 +221,7 @@ export default function AdminReportsPage() {
     { name: string; bookings: number; revenue: number; completed: number }
   >();
 
-  for (const booking of bookings) {
+  for (const booking of filteredBookings) {
     const partnerId = String(booking.partner_user_id || "unknown");
     const partnerName = String(booking.partner_company_name || "Unknown Partner");
     const amount = Number(booking.amount || 0);
@@ -223,7 +252,7 @@ export default function AdminReportsPage() {
     }))
     .sort((a, b) => b.revenue - a.revenue);
 
-  const recentBookings = [...bookings]
+  const recentBookings = [...filteredBookings]
     .sort((a, b) => {
       const aTime = new Date(a.created_at || 0).getTime();
       const bTime = new Date(b.created_at || 0).getTime();
@@ -231,7 +260,7 @@ export default function AdminReportsPage() {
     })
     .slice(0, 5);
 
-  const recentRequests = [...requests]
+  const recentRequests = [...filteredRequests]
     .sort((a, b) => {
       const aTime = new Date(a.created_at || 0).getTime();
       const bTime = new Date(b.created_at || 0).getTime();
@@ -254,6 +283,39 @@ export default function AdminReportsPage() {
           {error}
         </div>
       ) : null}
+
+      <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold text-[#003768]">Report Filters</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Filter global reporting totals by created date.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:min-w-[420px]">
+            <div>
+              <label className="text-sm font-medium text-[#003768]">Date from</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-black/10 p-3 text-black"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-[#003768]">Date to</label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-black/10 p-3 text-black"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
@@ -376,7 +438,7 @@ export default function AdminReportsPage() {
                 {partnerBreakdown.length === 0 ? (
                   <tr>
                     <td className="px-4 py-4 text-slate-600" colSpan={5}>
-                      No partner booking data available yet.
+                      No partner booking data available for this period.
                     </td>
                   </tr>
                 ) : (
@@ -405,7 +467,7 @@ export default function AdminReportsPage() {
           <h2 className="text-xl font-semibold text-[#003768]">Recent Requests</h2>
 
           {recentRequests.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-600">No requests available yet.</p>
+            <p className="mt-4 text-sm text-slate-600">No requests available for this period.</p>
           ) : (
             <div className="mt-4 space-y-4">
               {recentRequests.map((row) => (
@@ -444,7 +506,7 @@ export default function AdminReportsPage() {
           <h2 className="text-xl font-semibold text-[#003768]">Recent Bookings</h2>
 
           {recentBookings.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-600">No bookings available yet.</p>
+            <p className="mt-4 text-sm text-slate-600">No bookings available for this period.</p>
           ) : (
             <div className="mt-4 space-y-4">
               {recentBookings.map((row) => (
