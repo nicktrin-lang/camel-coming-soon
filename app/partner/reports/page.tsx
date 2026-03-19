@@ -213,6 +213,11 @@ export default function PartnerReportsPage() {
     load();
   }, []);
 
+  function clearFilters() {
+    setDateFrom("");
+    setDateTo("");
+  }
+
   const filteredRequests = requests.filter((row) =>
     matchesDateRange(row.created_at, dateFrom, dateTo)
   );
@@ -437,6 +442,14 @@ export default function PartnerReportsPage() {
         </div>
 
         <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="rounded-full border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-[#003768] hover:bg-black/5"
+          >
+            Clear Filters
+          </button>
+
           <button
             type="button"
             onClick={exportRequestsCsv}
