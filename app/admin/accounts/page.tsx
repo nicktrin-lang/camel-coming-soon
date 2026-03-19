@@ -20,6 +20,9 @@ type AccountRow = {
   has_profile: boolean;
   service_radius_km: number | null;
   base_address: string;
+  fleet_count: number;
+  is_live_profile: boolean;
+  live_profile_reason: string;
 };
 
 function formatDateTime(value?: string | null) {
@@ -130,6 +133,7 @@ export default function AdminAccountsPage() {
       row.website,
       row.status,
       row.base_address,
+      row.live_profile_reason,
     ]
       .join(" ")
       .toLowerCase()
@@ -149,7 +153,8 @@ export default function AdminAccountsPage() {
           <div>
             <h2 className="text-2xl font-semibold text-[#003768]">Account Management</h2>
             <p className="mt-2 text-slate-600">
-              View partner account details, live profile status, and key account information.
+              View partner account details, application status, live profile readiness,
+              and key account information.
             </p>
           </div>
 
@@ -204,18 +209,23 @@ export default function AdminAccountsPage() {
                   </tr>
                 ) : (
                   filteredRows.map((row) => (
-                    <tr key={row.id} className="hover:bg-black/[0.02]">
+                    <tr key={row.id} className="hover:bg-black/[0.02] align-top">
                       <td className="px-4 py-4 text-slate-700">
                         {formatDateTime(row.created_at)}
                       </td>
+
                       <td className="px-4 py-4 font-medium text-slate-900">
                         {row.company_name || "—"}
                       </td>
+
                       <td className="px-4 py-4 text-slate-700">
                         {row.contact_name || "—"}
                       </td>
+
                       <td className="px-4 py-4 text-slate-700">{row.email || "—"}</td>
+
                       <td className="px-4 py-4 text-slate-700">{row.phone || "—"}</td>
+
                       <td className="px-4 py-4">
                         <span
                           className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${statusPillClasses(
@@ -225,17 +235,26 @@ export default function AdminAccountsPage() {
                           {formatLabel(row.status)}
                         </span>
                       </td>
+
                       <td className="px-4 py-4">
-                        {row.has_profile ? (
-                          <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
-                            Yes
-                          </span>
-                        ) : (
-                          <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
-                            No
-                          </span>
-                        )}
+                        <div className="space-y-2">
+                          {row.is_live_profile ? (
+                            <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
+                              Yes
+                            </span>
+                          ) : (
+                            <>
+                              <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                                No
+                              </span>
+                              <div className="text-xs text-slate-500">
+                                {row.live_profile_reason || "Requirements not met"}
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </td>
+
                       <td className="px-4 py-4">
                         <Link
                           href={`/admin/accounts/${row.id}`}
