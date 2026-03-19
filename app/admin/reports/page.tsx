@@ -129,6 +129,26 @@ function downloadCsv(filename: string, headers: string[], rows: Array<Array<unkn
   URL.revokeObjectURL(url);
 }
 
+function getMonthKey(value: string | null | undefined) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function getCurrentMonthKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getPreviousMonthKey() {
+  const now = new Date();
+  now.setMonth(now.getMonth() - 1);
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
 export default function AdminReportsPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const router = useRouter();
@@ -238,6 +258,33 @@ export default function AdminReportsPage() {
 
   const conversionRate =
     totalRequests > 0 ? Math.round((totalBookings / totalRequests) * 100) : 0;
+
+  const currentMonthKey = getCurrentMonthKey();
+  const previousMonthKey = getPreviousMonthKey();
+
+  const currentMonthRequests = filteredRequests.filter(
+    (row) => getMonthKey(row.created_at) === currentMonthKey
+  ).length;
+
+  const previousMonthRequests = filteredRequests.filter(
+    (row) => getMonthKey(row.created_at) === previousMonthKey
+  ).length;
+
+  const currentMonthBookings = filteredBookings.filter(
+    (row) => getMonthKey(row.created_at) === currentMonthKey
+  ).length;
+
+  const previousMonthBookings = filteredBookings.filter(
+    (row) => getMonthKey(row.created_at) === previousMonthKey
+  ).length;
+
+  const currentMonthRevenue = filteredBookings
+    .filter((row) => getMonthKey(row.created_at) === currentMonthKey)
+    .reduce((sum, row) => sum + (Number(row.amount || 0) || 0), 0);
+
+  const previousMonthRevenue = filteredBookings
+    .filter((row) => getMonthKey(row.created_at) === previousMonthKey)
+    .reduce((sum, row) => sum + (Number(row.amount || 0) || 0), 0);
 
   const partnerMap = new Map<
     string,
@@ -413,6 +460,30 @@ export default function AdminReportsPage() {
           >
             Export Bookings CSV
           </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="rounded-3xl border border-black/5 bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+          <div className="text-sm font-medium text-slate-500">This Month Requests</div>
+          <div className="mt-2 text-2xl font-semibold text-[#003768]">{currentMonthRequests}</div>
+          <div className="mt-2 text-xs text-slate-500">Previous month: {previousMonthRequests}</div>
+        </div>
+
+        <div className="rounded-3xl border border-black/5 bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+          <div className="text-sm font-medium text-slate-500">This Month Bookings</div>
+          <div className="mt-2 text-2xl font-semibold text-[#003768]">{currentMonthBookings}</div>
+          <div className="mt-2 text-xs text-slate-500">Previous month: {previousMonthBookings}</div>
+        </div>
+
+        <div className="rounded-3xl border border-black/5 bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+          <div className="text-sm font-medium text-slate-500">This Month Revenue</div>
+          <div className="mt-2 text-2xl font-semibold text-[#003768]">
+            {formatCurrency(currentMonthRevenue)}
+          </div>
+          <div className="mt-2 text-xs text-slate-500">
+            Previous month: {formatCurrency(previousMonthRevenue)}
+          </div>
         </div>
       </div>
 
