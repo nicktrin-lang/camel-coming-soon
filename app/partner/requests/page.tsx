@@ -102,10 +102,15 @@ function requestStatusPillClasses(status?: string | null) {
   }
 }
 
+function normalizeSearchValue(value: unknown) {
+  return String(value || "").toLowerCase().trim();
+}
+
 export default function PartnerRequestsPage() {
   const [rows, setRows] = useState<RequestRow[]>([]);
   const [adminMode, setAdminMode] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -141,10 +146,34 @@ export default function PartnerRequestsPage() {
     load();
   }, []);
 
+  const searchValue = normalizeSearchValue(search);
+
   const filteredRows = useMemo(() => {
-    if (selectedFilter === "all") return rows;
-    return rows.filter((row) => row.status === selectedFilter);
-  }, [rows, selectedFilter]);
+    let nextRows = rows;
+
+    if (selectedFilter !== "all") {
+      nextRows = nextRows.filter((row) => row.status === selectedFilter);
+    }
+
+    if (!searchValue) return nextRows;
+
+    return nextRows.filter((row) => {
+      const haystack = [
+        row.job_number,
+        row.pickup_address,
+        row.dropoff_address,
+        row.vehicle_category_name,
+        row.status,
+        row.request_status,
+        row.pickup_at,
+        row.dropoff_at,
+      ]
+        .map(normalizeSearchValue)
+        .join(" ");
+
+      return haystack.includes(searchValue);
+    });
+  }, [rows, selectedFilter, searchValue]);
 
   return (
     <div className="space-y-6 px-4 py-8 md:px-8">
@@ -165,33 +194,67 @@ export default function PartnerRequestsPage() {
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <select
-              value={selectedFilter}
-              onChange={(e) => setSelectedFilter(e.target.value)}
-              className="rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none focus:border-[#0f4f8a]"
-            >
-              {REQUEST_FILTERS.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
+          <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[520px]">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search job no, pickup, dropoff, vehicle..."
+                className="rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none focus:border-[#0f4f8a]"
+              />
 
-            <button
-              type="button"
-              onClick={load}
-              className="rounded-full bg-[#ff7a00] px-5 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
-            >
-              Refresh
-            </button>
+              <select
+                value={selectedFilter}
+                onChange={(e) => setSelectedFilter(e.target.value)}
+                className="rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none focus:border-[#0f4f8a]"
+              >
+                {REQUEST_FILTERS.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setSelectedFilter("all");
+                }}
+                className="rounded-full border border-black/10 bg-white px-5 py-3 font-semibold text-[#003768] hover:bg-black/5"
+              >
+                Clear Filters
+              </button>
+
+              <button
+                type="button"
+                onClick={load}
+                className="rounded-full bg-[#ff7a00] px-5 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+              >
+                Refresh
+              </button>
+            </div>
           </div>
         </div>
+
+        {searchValue ? (
+          <div className="mt-4 rounded-2xl border border-[#cfe2f7] bg-[#f3f8ff] px-4 py-3 text-sm text-[#003768]">
+            Showing filtered request results for:{" "}
+            <span className="font-semibold">{search}</span>
+          </div>
+        ) : null}
 
         {loading ? (
           <p className="mt-6 text-slate-600">Loading requests…</p>
         ) : filteredRows.length === 0 ? (
-          <p className="mt-6 text-slate-600">No requests found for this filter.</p>
+          <p className="mt-6 text-slate-600">
+            {searchValue || selectedFilter !== "all"
+              ? "No requests found for this filter."
+              : "No requests found."}
+          </p>
         ) : (
           <div className="mt-6 overflow-x-auto rounded-3xl border border-black/10">
             <table className="min-w-full text-sm">
