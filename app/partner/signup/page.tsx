@@ -117,7 +117,7 @@ export default function PartnerSignupPage() {
   const router = useRouter();
 
   const [companyName, setCompanyName] = useState("");
-  const [fullName, setFullName] = useState("");
+  const [contactName, setContactName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
 
@@ -126,8 +126,9 @@ export default function PartnerSignupPage() {
   const [province, setProvince] = useState("");
   const [postcode, setPostcode] = useState("");
   const [country, setCountry] = useState("ES");
+  const [businessAddressSearch, setBusinessAddressSearch] = useState("");
 
-  const [searchAddress, setSearchAddress] = useState("");
+  const [fleetAddressSearch, setFleetAddressSearch] = useState("");
   const [baseAddress, setBaseAddress] = useState("");
   const [baseLat, setBaseLat] = useState("");
   const [baseLng, setBaseLng] = useState("");
@@ -136,6 +137,7 @@ export default function PartnerSignupPage() {
   const [password, setPassword] = useState("");
 
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [searchTarget, setSearchTarget] = useState<"business" | "fleet">("business");
   const [searching, setSearching] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -143,30 +145,55 @@ export default function PartnerSignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
 
-  function applyAddressParts(item: Suggestion) {
-    setSearchAddress(item.display_name || "");
-    setBaseAddress(item.display_name || "");
-    setBaseLat(item.lat !== null ? String(item.lat) : "");
-    setBaseLng(item.lng !== null ? String(item.lng) : "");
+  function setSearchValueByTarget(value: string, target: "business" | "fleet") {
+    if (target === "business") {
+      setBusinessAddressSearch(value);
+      return;
+    }
+    setFleetAddressSearch(value);
+  }
 
+  function getSearchValueByTarget(target: "business" | "fleet") {
+    return target === "business" ? businessAddressSearch : fleetAddressSearch;
+  }
+
+  function applyBusinessAddressParts(item: Suggestion) {
     if (item.address_line1) setAddress1(item.address_line1);
     if (item.address_line2) setAddress2(item.address_line2);
     if (item.province) setProvince(item.province);
     if (item.postcode) setPostcode(item.postcode);
     if (item.country) setCountry(countryCodeFromName(item.country));
+    setBusinessAddressSearch(item.display_name || "");
+  }
+
+  function applyFleetAddressParts(item: Suggestion) {
+    setFleetAddressSearch(item.display_name || "");
+    setBaseAddress(item.display_name || "");
+    setBaseLat(item.lat !== null ? String(item.lat) : "");
+    setBaseLng(item.lng !== null ? String(item.lng) : "");
   }
 
   function pickSuggestion(item: Suggestion) {
-    if (item.lat === null || item.lng === null) return;
-    applyAddressParts(item);
+    if (searchTarget === "business") {
+      applyBusinessAddressParts(item);
+    } else {
+      applyFleetAddressParts(item);
+    }
+
+    if (item.lat !== null && item.lng !== null && searchTarget === "fleet") {
+      setBaseLat(String(item.lat));
+      setBaseLng(String(item.lng));
+    }
+
     setSuggestions([]);
     setShowSuggestions(false);
   }
 
-  async function searchForAddress() {
+  async function searchForAddress(target: "business" | "fleet") {
     setError(null);
+    setSearchTarget(target);
 
-    const q = searchAddress.trim();
+    const q = getSearchValueByTarget(target).trim();
     if (!q) {
       setError("Enter an address to search.");
       return;
@@ -230,7 +257,7 @@ export default function PartnerSignupPage() {
         throw new Error(json?.error || json?._raw || "Failed to get address from map location.");
       }
 
-      applyAddressParts({
+      const item: Suggestion = {
         display_name: String(json?.display_name || ""),
         lat,
         lng,
@@ -239,14 +266,17 @@ export default function PartnerSignupPage() {
         province: String(json?.province || ""),
         postcode: String(json?.postcode || ""),
         country: String(json?.country || ""),
-      });
+      };
+
+      applyFleetAddressParts(item);
     } catch (e: any) {
       setError(e?.message || "Failed to get address from map location.");
     }
   }
 
-  async function useCurrentLocation() {
+  async function useCurrentLocation(target: "business" | "fleet") {
     setError(null);
+    setSearchTarget(target);
 
     if (!navigator.geolocation) {
       setError("Geolocation is not supported on this device.");
@@ -255,7 +285,47 @@ export default function PartnerSignupPage() {
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        await handleMapPick(pos.coords.latitude, pos.coords.longitude);
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+
+        try {
+          const res = await fetch(
+            `/api/geocode?lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(
+              String(lng)
+            )}`,
+            {
+              method: "GET",
+              cache: "no-store",
+            }
+          );
+
+          const json = await safeJson(res);
+
+          if (!res.ok) {
+            throw new Error(
+              json?.error || json?._raw || "Failed to get address from current location."
+            );
+          }
+
+          const item: Suggestion = {
+            display_name: String(json?.display_name || ""),
+            lat,
+            lng,
+            address_line1: String(json?.address_line1 || ""),
+            address_line2: String(json?.address_line2 || ""),
+            province: String(json?.province || ""),
+            postcode: String(json?.postcode || ""),
+            country: String(json?.country || ""),
+          };
+
+          if (target === "business") {
+            applyBusinessAddressParts(item);
+          } else {
+            applyFleetAddressParts(item);
+          }
+        } catch (e: any) {
+          setError(e?.message || "Could not get your current location.");
+        }
       },
       (err) => {
         setError(err.message || "Could not get your current location.");
@@ -274,22 +344,30 @@ export default function PartnerSignupPage() {
     setOk(null);
 
     const company = companyName.trim();
-    const name = fullName.trim();
+    const name = contactName.trim();
     const mail = email.trim().toLowerCase();
     const ph = phone.trim();
 
     if (!company) return setError("Company name is required.");
-    if (!name) return setError("Full name is required.");
+    if (!name) return setError("Contact name is required.");
     if (!mail) return setError("Email is required.");
     if (!ph) return setError("Phone is required.");
     if (!password || password.length < 8) {
       return setError("Password must be at least 8 characters.");
     }
 
-    if (!address1.trim()) return setError("Address line 1 is required.");
+    if (!address1.trim()) return setError("Business address line 1 is required.");
     if (!province.trim()) return setError("Province / State is required.");
     if (!postcode.trim()) return setError("Postcode is required.");
     if (!country) return setError("Country is required.");
+    if (!baseAddress.trim()) return setError("Car fleet address is required.");
+
+    const lat = parseCoordinate(baseLat, "lat");
+    const lng = parseCoordinate(baseLng, "lng");
+
+    if (lat === null || lng === null) {
+      return setError("Car fleet latitude and longitude must be valid numbers.");
+    }
 
     const countryName = COUNTRIES.find((c) => c.code === country)?.name || country;
 
@@ -346,8 +424,8 @@ export default function PartnerSignupPage() {
 
       await supabase.auth.signOut();
 
-setOk("Account created. Your application is now pending approval.");
-router.replace("/partner/application-submitted");
+      setOk("Account created. Your application is now pending approval.");
+      router.replace("/partner/application-submitted");
     } catch (e: any) {
       setError(e?.message || "Sign up failed.");
     } finally {
@@ -383,114 +461,143 @@ router.replace("/partner/application-submitted");
       </header>
 
       <div className="mx-auto max-w-7xl px-4 pb-10 pt-28">
-        <div className="mx-auto w-full max-w-4xl rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.10)] md:p-10">
+        <div className="mx-auto w-full max-w-5xl rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.10)] md:p-10">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="text-2xl font-semibold text-[#003768] md:text-4xl">
                 Partner Sign Up
               </h1>
-              <p className="mt-3 text-base text-slate-600 md:text-lg">
+              <p className="mt-3 max-w-3xl text-base text-slate-600 md:text-lg">
                 Create your partner account. We review and approve partners before going live.
+                Please provide both your registered business address and your vehicle base address.
               </p>
             </div>
           </div>
 
-          <form onSubmit={onSubmit} className="mt-8 space-y-6">
-            <div>
-              <label className="text-sm font-medium text-[#003768]">
-                Company name <span className="text-red-500">*</span>
-              </label>
-              <input
-                className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-[#003768]">
-                Full name <span className="text-red-500">*</span>
-              </label>
-              <input
-                className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-[#003768]">
-                Email <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="email"
-                className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-[#003768]">
-                Phone <span className="text-red-500">*</span>
-              </label>
-              <input
-                className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
-            </div>
-
-            <div className="rounded-3xl border border-black/10 bg-white p-4 md:p-6">
-              <h2 className="text-xl font-semibold text-[#003768] md:text-2xl">Address</h2>
+          <form onSubmit={onSubmit} className="mt-8 space-y-8">
+            <div className="rounded-3xl border border-black/10 bg-white p-5 md:p-7">
+              <h2 className="text-xl font-semibold text-[#003768] md:text-2xl">
+                Business Details
+              </h2>
               <p className="mt-2 text-slate-600">
-                This is used for your application and initial profile setup.
+                Enter the main company and contact details for your account.
+              </p>
+
+              <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div>
+                  <label className="text-sm font-medium text-[#003768]">
+                    Company name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-[#003768]">
+                    Contact name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-[#003768]">
+                    Email <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-[#003768]">
+                    Phone <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="text-sm font-medium text-[#003768]">Website</label>
+                  <input
+                    className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    placeholder="https://..."
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-black/10 bg-white p-5 md:p-7">
+              <h2 className="text-xl font-semibold text-[#003768] md:text-2xl">
+                1. Business Address required
+              </h2>
+              <p className="mt-2 text-slate-600">
+                This is your registered business address. You can search for it, use your current
+                location, or enter it manually.
               </p>
 
               <div className="mt-5 flex flex-wrap gap-3">
                 <button
                   type="button"
-                  onClick={useCurrentLocation}
+                  onClick={() => useCurrentLocation("business")}
                   className="rounded-full border border-black/10 bg-white px-5 py-2 font-semibold text-[#003768] hover:bg-black/5"
                 >
-                  Use my current location
+                  Use current location
                 </button>
 
                 <button
                   type="button"
-                  onClick={searchForAddress}
+                  onClick={() => searchForAddress("business")}
                   className="rounded-full bg-[#ff7a00] px-5 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
                 >
-                  {searching ? "Searching..." : "Search"}
+                  {searching && searchTarget === "business" ? "Searching..." : "Search"}
                 </button>
               </div>
 
               <div className="mt-5">
-                <label className="text-sm font-medium text-[#003768]">Search address</label>
+                <label className="text-sm font-medium text-[#003768]">Search business address</label>
                 <input
                   type="text"
                   className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
-                  value={searchAddress}
+                  value={businessAddressSearch}
                   onChange={(e) => {
-                    setSearchAddress(e.target.value);
+                    setBusinessAddressSearch(e.target.value);
+                    setSearchTarget("business");
                     setShowSuggestions(true);
                   }}
                   onFocus={() => {
+                    setSearchTarget("business");
                     if (suggestions.length) setShowSuggestions(true);
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
-                      searchForAddress();
+                      searchForAddress("business");
                     }
                   }}
-                  placeholder="Search for your business or fleet location"
+                  placeholder="Search for your registered business address"
                 />
                 <p className="mt-2 text-xs text-slate-500">
-                  Tip: click Search or press Enter, then choose a suggestion.
+                  Search, use your current location, or enter the fields below manually.
                 </p>
 
-                {showSuggestions && suggestions.length > 0 ? (
+                {showSuggestions &&
+                suggestions.length > 0 &&
+                searchTarget === "business" ? (
                   <div className="mt-2 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-lg">
                     {suggestions.map((item, idx) => (
                       <button
@@ -506,20 +613,10 @@ router.replace("/partner/application-submitted");
                 ) : null}
               </div>
 
-              <div className="mt-5">
-                <label className="text-sm font-medium text-[#003768]">Car Fleet Address</label>
-                <input
-                  className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
-                  value={baseAddress}
-                  onChange={(e) => setBaseAddress(e.target.value)}
-                  placeholder="Selected map/search address"
-                />
-              </div>
-
-              <div className="mt-6 space-y-6">
+              <div className="mt-6 grid grid-cols-1 gap-5">
                 <div>
                   <label className="text-sm font-medium text-[#003768]">
-                    Address line 1 <span className="text-red-500">*</span>
+                    Business address line 1 <span className="text-red-500">*</span>
                   </label>
                   <input
                     className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
@@ -531,7 +628,7 @@ router.replace("/partner/application-submitted");
 
                 <div>
                   <label className="text-sm font-medium text-[#003768]">
-                    Business Address line 2
+                    Business address line 2
                   </label>
                   <input
                     className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
@@ -583,61 +680,145 @@ router.replace("/partner/application-submitted");
                     </select>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="text-sm font-medium text-[#003768]">
-                      Base latitude
-                    </label>
-                    <input
-                      className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
-                      value={baseLat}
-                      onChange={(e) => setBaseLat(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-[#003768]">
-                      Base longitude
-                    </label>
-                    <input
-                      className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
-                      value={baseLng}
-                      onChange={(e) => setBaseLng(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-6">
-                  <MapPicker lat={lat} lng={lng} onPick={handleMapPick} />
-                  <p className="mt-2 text-xs text-slate-500">
-                    Click anywhere on the map to set the partner base location.
-                  </p>
-                </div>
               </div>
             </div>
 
-            <div>
-              <label className="text-sm font-medium text-[#003768]">Website</label>
-              <input
-                className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                placeholder="https://..."
-              />
+            <div className="rounded-3xl border border-black/10 bg-white p-5 md:p-7">
+              <h2 className="text-xl font-semibold text-[#003768] md:text-2xl">
+                2. Car Fleet Address required
+              </h2>
+              <p className="mt-2 text-slate-600">
+                This is where your vehicles are based for service coverage. You can search for it,
+                use your current location, enter it manually, or click on the map.
+              </p>
+
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => useCurrentLocation("fleet")}
+                  className="rounded-full border border-black/10 bg-white px-5 py-2 font-semibold text-[#003768] hover:bg-black/5"
+                >
+                  Use current location
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => searchForAddress("fleet")}
+                  className="rounded-full bg-[#ff7a00] px-5 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+                >
+                  {searching && searchTarget === "fleet" ? "Searching..." : "Search"}
+                </button>
+              </div>
+
+              <div className="mt-5">
+                <label className="text-sm font-medium text-[#003768]">Search car fleet address</label>
+                <input
+                  type="text"
+                  className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
+                  value={fleetAddressSearch}
+                  onChange={(e) => {
+                    setFleetAddressSearch(e.target.value);
+                    setSearchTarget("fleet");
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => {
+                    setSearchTarget("fleet");
+                    if (suggestions.length) setShowSuggestions(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      searchForAddress("fleet");
+                    }
+                  }}
+                  placeholder="Search for your vehicle base address"
+                />
+                <p className="mt-2 text-xs text-slate-500">
+                  Search, use your current location, type directly below, or click the map.
+                </p>
+
+                {showSuggestions &&
+                suggestions.length > 0 &&
+                searchTarget === "fleet" ? (
+                  <div className="mt-2 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-lg">
+                    {suggestions.map((item, idx) => (
+                      <button
+                        key={`${item.display_name}-${idx}`}
+                        type="button"
+                        onClick={() => pickSuggestion(item)}
+                        className="block w-full border-b border-black/5 px-4 py-3 text-left text-sm text-gray-800 hover:bg-[#f3f8ff] last:border-b-0"
+                      >
+                        {item.display_name}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="mt-5">
+                <label className="text-sm font-medium text-[#003768]">
+                  Car fleet address <span className="text-red-500">*</span>
+                </label>
+                <input
+                  className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
+                  value={baseAddress}
+                  onChange={(e) => setBaseAddress(e.target.value)}
+                  placeholder="Selected map, search, or manually entered fleet address"
+                />
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className="text-sm font-medium text-[#003768]">
+                    Base latitude <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
+                    value={baseLat}
+                    onChange={(e) => setBaseLat(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-[#003768]">
+                    Base longitude <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
+                    value={baseLng}
+                    onChange={(e) => setBaseLng(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <MapPicker lat={lat} lng={lng} onPick={handleMapPick} />
+                <p className="mt-2 text-xs text-slate-500">
+                  Click anywhere on the map to set the partner base location.
+                </p>
+              </div>
             </div>
 
-            <div>
-              <label className="text-sm font-medium text-[#003768]">
-                Password <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="password"
-                className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <p className="mt-2 text-xs text-slate-500">Minimum 8 characters.</p>
+            <div className="rounded-3xl border border-black/10 bg-white p-5 md:p-7">
+              <h2 className="text-xl font-semibold text-[#003768] md:text-2xl">
+                Account Security
+              </h2>
+              <p className="mt-2 text-slate-600">
+                Set the password you will use to sign in to the partner portal.
+              </p>
+
+              <div className="mt-6">
+                <label className="text-sm font-medium text-[#003768]">
+                  Password <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <p className="mt-2 text-xs text-slate-500">Minimum 8 characters.</p>
+              </div>
             </div>
 
             {error ? (
