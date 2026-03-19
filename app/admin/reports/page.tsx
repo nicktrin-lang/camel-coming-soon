@@ -335,6 +335,19 @@ export default function AdminReportsPage() {
     .map(([, value]) => value)
     .sort((a, b) => b.revenue - a.revenue);
 
+  const vehicleBreakdown = Array.from(
+    filteredBookings.reduce((map, row) => {
+      const key = String(row.vehicle_category_name || "Unknown").trim() || "Unknown";
+      const current = map.get(key) || { category: key, count: 0, revenue: 0 };
+      current.count += 1;
+      current.revenue += Number(row.amount || 0) || 0;
+      map.set(key, current);
+      return map;
+    }, new Map<string, { category: string; count: number; revenue: number }>())
+  )
+    .map(([, value]) => value)
+    .sort((a, b) => b.revenue - a.revenue);
+
   const recentBookings = [...filteredBookings]
     .sort((a, b) => {
       const aTime = new Date(a.created_at || 0).getTime();
@@ -541,53 +554,98 @@ export default function AdminReportsPage() {
         </div>
       </div>
 
-      <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-[#003768]">Booking Status Revenue Breakdown</h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Booking volume and revenue grouped by booking status.
-            </p>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-[#003768]">Booking Status Revenue Breakdown</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Booking volume and revenue grouped by booking status.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 overflow-hidden rounded-2xl border border-black/10">
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-[#f3f8ff] text-[#003768]">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-semibold">Status</th>
+                    <th className="px-4 py-3 text-left font-semibold">Bookings</th>
+                    <th className="px-4 py-3 text-left font-semibold">Revenue</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-black/5">
+                  {bookingStatusBreakdown.length === 0 ? (
+                    <tr>
+                      <td className="px-4 py-4 text-slate-600" colSpan={3}>
+                        No booking data available for this period.
+                      </td>
+                    </tr>
+                  ) : (
+                    bookingStatusBreakdown.map((row) => (
+                      <tr key={row.status} className="hover:bg-black/[0.02]">
+                        <td className="px-4 py-4">
+                          <span
+                            className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${statusPillClasses(
+                              row.status
+                            )}`}
+                          >
+                            {formatStatusLabel(row.status)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-slate-700">{row.count}</td>
+                        <td className="px-4 py-4 text-slate-700">{formatCurrency(row.revenue)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        <div className="mt-6 overflow-hidden rounded-2xl border border-black/10">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-[#f3f8ff] text-[#003768]">
-                <tr>
-                  <th className="px-4 py-3 text-left font-semibold">Status</th>
-                  <th className="px-4 py-3 text-left font-semibold">Bookings</th>
-                  <th className="px-4 py-3 text-left font-semibold">Revenue</th>
-                </tr>
-              </thead>
+        <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-[#003768]">Vehicle Category Breakdown</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Booking volume and revenue grouped by vehicle category.
+              </p>
+            </div>
+          </div>
 
-              <tbody className="divide-y divide-black/5">
-                {bookingStatusBreakdown.length === 0 ? (
+          <div className="mt-6 overflow-hidden rounded-2xl border border-black/10">
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-[#f3f8ff] text-[#003768]">
                   <tr>
-                    <td className="px-4 py-4 text-slate-600" colSpan={3}>
-                      No booking data available for this period.
-                    </td>
+                    <th className="px-4 py-3 text-left font-semibold">Vehicle Category</th>
+                    <th className="px-4 py-3 text-left font-semibold">Bookings</th>
+                    <th className="px-4 py-3 text-left font-semibold">Revenue</th>
                   </tr>
-                ) : (
-                  bookingStatusBreakdown.map((row) => (
-                    <tr key={row.status} className="hover:bg-black/[0.02]">
-                      <td className="px-4 py-4">
-                        <span
-                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${statusPillClasses(
-                            row.status
-                          )}`}
-                        >
-                          {formatStatusLabel(row.status)}
-                        </span>
+                </thead>
+
+                <tbody className="divide-y divide-black/5">
+                  {vehicleBreakdown.length === 0 ? (
+                    <tr>
+                      <td className="px-4 py-4 text-slate-600" colSpan={3}>
+                        No vehicle data available for this period.
                       </td>
-                      <td className="px-4 py-4 text-slate-700">{row.count}</td>
-                      <td className="px-4 py-4 text-slate-700">{formatCurrency(row.revenue)}</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    vehicleBreakdown.map((row) => (
+                      <tr key={row.category} className="hover:bg-black/[0.02]">
+                        <td className="px-4 py-4 font-medium text-slate-900">{row.category}</td>
+                        <td className="px-4 py-4 text-slate-700">{row.count}</td>
+                        <td className="px-4 py-4 text-slate-700">{formatCurrency(row.revenue)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
