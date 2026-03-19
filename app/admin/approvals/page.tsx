@@ -51,7 +51,10 @@ export default function AdminApprovalsPage() {
   const [rows, setRows] = useState<ApprovalRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [liveProfileFilter, setLiveProfileFilter] = useState("all");
 
   async function load() {
     setLoading(true);
@@ -86,9 +89,21 @@ export default function AdminApprovalsPage() {
   const searchValue = normalizeSearchValue(search);
 
   const filteredRows = useMemo(() => {
-    if (!searchValue) return rows;
-
     return rows.filter((row) => {
+      if (statusFilter !== "all" && String(row.status || "").toLowerCase() !== statusFilter) {
+        return false;
+      }
+
+      if (liveProfileFilter === "yes" && !row.has_profile) {
+        return false;
+      }
+
+      if (liveProfileFilter === "no" && row.has_profile) {
+        return false;
+      }
+
+      if (!searchValue) return true;
+
       const haystack = [
         row.company_name,
         row.full_name,
@@ -104,7 +119,7 @@ export default function AdminApprovalsPage() {
 
       return haystack.includes(searchValue);
     });
-  }, [rows, searchValue]);
+  }, [rows, searchValue, statusFilter, liveProfileFilter]);
 
   return (
     <div className="space-y-6 px-4 py-8 md:px-8">
@@ -125,22 +140,58 @@ export default function AdminApprovalsPage() {
             </p>
           </div>
 
-          <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[520px]">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search company, contact, email, phone..."
-              className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-black outline-none focus:border-[#0f4f8a]"
-            />
+          <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[760px]">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="md:col-span-1">
+                <label className="text-sm font-medium text-[#003768]">Search</label>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search company, contact, email..."
+                  className="mt-1 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-black outline-none focus:border-[#0f4f8a]"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-[#003768]">Status</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="mt-1 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none focus:border-[#0f4f8a]"
+                >
+                  <option value="all">All statuses</option>
+                  <option value="approved">Approved</option>
+                  <option value="pending">Pending</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-[#003768]">Live Profile</label>
+                <select
+                  value={liveProfileFilter}
+                  onChange={(e) => setLiveProfileFilter(e.target.value)}
+                  className="mt-1 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none focus:border-[#0f4f8a]"
+                >
+                  <option value="all">All</option>
+                  <option value="yes">Live only</option>
+                  <option value="no">Not live only</option>
+                </select>
+              </div>
+            </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
               <button
                 type="button"
-                onClick={() => setSearch("")}
+                onClick={() => {
+                  setSearch("");
+                  setStatusFilter("all");
+                  setLiveProfileFilter("all");
+                }}
                 className="rounded-full border border-black/10 bg-white px-5 py-3 font-semibold text-[#003768] hover:bg-black/5"
               >
-                Clear Search
+                Clear Filters
               </button>
 
               <button
@@ -154,10 +205,9 @@ export default function AdminApprovalsPage() {
           </div>
         </div>
 
-        {searchValue ? (
+        {searchValue || statusFilter !== "all" || liveProfileFilter !== "all" ? (
           <div className="mt-4 rounded-2xl border border-[#cfe2f7] bg-[#f3f8ff] px-4 py-3 text-sm text-[#003768]">
-            Showing filtered approval results for:{" "}
-            <span className="font-semibold">{search}</span>
+            Showing filtered approval results.
           </div>
         ) : null}
 
@@ -165,9 +215,7 @@ export default function AdminApprovalsPage() {
           <p className="mt-6 text-slate-600">Loading applications…</p>
         ) : filteredRows.length === 0 ? (
           <p className="mt-6 text-slate-600">
-            {searchValue
-              ? "No applications found for this search."
-              : "No applications found."}
+            No applications found for the selected filters.
           </p>
         ) : (
           <div className="mt-6 overflow-x-auto rounded-3xl border border-black/10">
