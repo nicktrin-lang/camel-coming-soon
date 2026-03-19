@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type ApprovalRow = {
   id: string;
@@ -30,6 +30,10 @@ function formatLabel(value?: string | null) {
   return String(value || "—").replaceAll("_", " ");
 }
 
+function normalizeSearchValue(value: unknown) {
+  return String(value || "").toLowerCase().trim();
+}
+
 function statusPillClasses(status?: string | null) {
   switch (status) {
     case "approved":
@@ -47,6 +51,7 @@ export default function AdminApprovalsPage() {
   const [rows, setRows] = useState<ApprovalRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   async function load() {
     setLoading(true);
@@ -78,6 +83,29 @@ export default function AdminApprovalsPage() {
     load();
   }, []);
 
+  const searchValue = normalizeSearchValue(search);
+
+  const filteredRows = useMemo(() => {
+    if (!searchValue) return rows;
+
+    return rows.filter((row) => {
+      const haystack = [
+        row.company_name,
+        row.full_name,
+        row.email,
+        row.phone,
+        row.address,
+        row.role,
+        row.status,
+        row.has_profile ? "yes live profile true" : "no live profile false",
+      ]
+        .map(normalizeSearchValue)
+        .join(" ");
+
+      return haystack.includes(searchValue);
+    });
+  }, [rows, searchValue]);
+
   return (
     <div className="space-y-6 px-4 py-8 md:px-8">
       {error ? (
@@ -87,7 +115,7 @@ export default function AdminApprovalsPage() {
       ) : null}
 
       <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h2 className="text-2xl font-semibold text-[#003768]">
               Admin Approvals
@@ -97,19 +125,50 @@ export default function AdminApprovalsPage() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={load}
-            className="rounded-full bg-[#ff7a00] px-5 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
-          >
-            Refresh
-          </button>
+          <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[520px]">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search company, contact, email, phone..."
+              className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-black outline-none focus:border-[#0f4f8a]"
+            />
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="rounded-full border border-black/10 bg-white px-5 py-3 font-semibold text-[#003768] hover:bg-black/5"
+              >
+                Clear Search
+              </button>
+
+              <button
+                type="button"
+                onClick={load}
+                className="rounded-full bg-[#ff7a00] px-5 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
         </div>
+
+        {searchValue ? (
+          <div className="mt-4 rounded-2xl border border-[#cfe2f7] bg-[#f3f8ff] px-4 py-3 text-sm text-[#003768]">
+            Showing filtered approval results for:{" "}
+            <span className="font-semibold">{search}</span>
+          </div>
+        ) : null}
 
         {loading ? (
           <p className="mt-6 text-slate-600">Loading applications…</p>
-        ) : rows.length === 0 ? (
-          <p className="mt-6 text-slate-600">No applications found.</p>
+        ) : filteredRows.length === 0 ? (
+          <p className="mt-6 text-slate-600">
+            {searchValue
+              ? "No applications found for this search."
+              : "No applications found."}
+          </p>
         ) : (
           <div className="mt-6 overflow-x-auto rounded-3xl border border-black/10">
             <table className="min-w-full text-sm">
@@ -129,7 +188,7 @@ export default function AdminApprovalsPage() {
               </thead>
 
               <tbody>
-                {rows.map((row) => (
+                {filteredRows.map((row) => (
                   <tr key={row.id} className="border-t border-black/5 align-top">
                     <td className="px-4 py-4">{formatDateTime(row.created_at)}</td>
                     <td className="px-4 py-4 font-medium text-slate-900">
