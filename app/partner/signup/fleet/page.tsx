@@ -332,6 +332,8 @@ export default function PartnerSignupFleetPage() {
       const mail = step1Data.email.trim().toLowerCase();
       const ph = step1Data.phone.trim();
 
+      console.log("🚀 Partner signup submitting application for:", mail);
+
       const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
         email: mail,
         password: step1Data.password,
