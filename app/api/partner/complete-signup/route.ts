@@ -72,6 +72,28 @@ function parseCoordinate(
   return sign * num;
 }
 
+async function safeDeleteApplication(
+  db: ReturnType<typeof createServiceRoleSupabaseClient>,
+  userId: string
+) {
+  try {
+    await db.from("partner_applications").delete().eq("user_id", userId);
+  } catch (e) {
+    console.error("⚠️ Failed cleanup delete partner_applications for user:", userId, e);
+  }
+}
+
+async function safeDeleteAuthUser(
+  db: ReturnType<typeof createServiceRoleSupabaseClient>,
+  userId: string
+) {
+  try {
+    await db.auth.admin.deleteUser(userId);
+  } catch (e) {
+    console.error("⚠️ Failed cleanup delete auth user:", userId, e);
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json().catch(() => null)) as Body | null;
@@ -208,7 +230,7 @@ export async function POST(req: Request) {
 
     if (applicationErr) {
       console.error("❌ applicationErr:", applicationErr.message);
-      await db.auth.admin.deleteUser(userId).catch(() => null);
+      await safeDeleteAuthUser(db, userId);
       return NextResponse.json({ error: applicationErr.message }, { status: 400 });
     }
 
@@ -239,13 +261,12 @@ export async function POST(req: Request) {
 
     if (profileErr) {
       console.error("❌ profileErr:", profileErr.message);
-      await db.from("partner_applications").delete().eq("user_id", userId).catch(() => null);
-      await db.auth.admin.deleteUser(userId).catch(() => null);
+      await safeDeleteApplication(db, userId);
+      await safeDeleteAuthUser(db, userId);
       return NextResponse.json({ error: profileErr.message }, { status: 400 });
     }
 
     console.log("✅ Partner profile upserted");
-
     console.log("📧 Sending application received email to:", email);
 
     try {
@@ -253,7 +274,6 @@ export async function POST(req: Request) {
       console.log("✅ Application received email sent:", emailResult);
     } catch (emailErr: any) {
       console.error("❌ Application received email failed:", emailErr?.message || emailErr);
-
       return NextResponse.json(
         {
           error:
