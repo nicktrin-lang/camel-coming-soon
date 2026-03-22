@@ -248,8 +248,7 @@ export async function POST(req: Request) {
         status: "open",
         expires_at,
       })
-      .select(
-        `
+      .select(`
         id,
         job_number,
         passengers,
@@ -259,8 +258,7 @@ export async function POST(req: Request) {
         pickup_lat,
         pickup_lng,
         expires_at
-      `
-      )
+      `)
       .single();
 
     if (insertErr) {
@@ -269,8 +267,7 @@ export async function POST(req: Request) {
 
     const { data: fleetRows, error: fleetErr } = await partnerDb
       .from("partner_fleet")
-      .select(
-        `
+      .select(`
         id,
         user_id,
         category_slug,
@@ -278,8 +275,7 @@ export async function POST(req: Request) {
         max_suitcases,
         max_hand_luggage,
         is_active
-      `
-      )
+      `)
       .eq("is_active", true);
 
     if (fleetErr) {
@@ -350,7 +346,6 @@ export async function POST(req: Request) {
 
       const role = String(profile.role || "partner").trim();
 
-      // Admin and super admin can see everything, but should not receive live matches
       if (role === "admin" || role === "super_admin") {
         continue;
       }

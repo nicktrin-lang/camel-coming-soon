@@ -112,9 +112,9 @@ export default function TestBookingRequestsPage() {
                   <tr
                     key={r.id}
                     className="cursor-pointer border-t hover:bg-slate-50"
-                    onClick={() =>
-                      (window.location.href = `/test-booking/requests/${r.id}`)
-                    }
+                    onClick={() => {
+                      window.location.href = `/test-booking/requests/${r.id}`;
+                    }}
                   >
                     <td className="px-4 py-4 font-semibold text-[#003768]">
                       {r.job_number ?? "—"}
