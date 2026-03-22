@@ -159,7 +159,23 @@ export async function GET(
           driver_phone,
           driver_vehicle,
           driver_notes,
-          driver_assigned_at
+          driver_assigned_at,
+          collection_confirmed_by_partner,
+          collection_confirmed_by_partner_at,
+          collection_fuel_level_partner,
+          collection_partner_notes,
+          return_confirmed_by_partner,
+          return_confirmed_by_partner_at,
+          return_fuel_level_partner,
+          return_partner_notes,
+          collection_confirmed_by_customer,
+          collection_confirmed_by_customer_at,
+          collection_fuel_level_customer,
+          collection_customer_notes,
+          return_confirmed_by_customer,
+          return_confirmed_by_customer_at,
+          return_fuel_level_customer,
+          return_customer_notes
         `)
         .eq("winning_bid_id", acceptedBid.id)
         .order("created_at", { ascending: false })
@@ -196,6 +212,33 @@ export async function GET(
           driver_vehicle: bookingRow.driver_vehicle || null,
           driver_notes: bookingRow.driver_notes || null,
           driver_assigned_at: bookingRow.driver_assigned_at || null,
+
+          collection_confirmed_by_partner: !!bookingRow.collection_confirmed_by_partner,
+          collection_confirmed_by_partner_at:
+            bookingRow.collection_confirmed_by_partner_at || null,
+          collection_fuel_level_partner:
+            bookingRow.collection_fuel_level_partner || null,
+          collection_partner_notes: bookingRow.collection_partner_notes || null,
+
+          return_confirmed_by_partner: !!bookingRow.return_confirmed_by_partner,
+          return_confirmed_by_partner_at:
+            bookingRow.return_confirmed_by_partner_at || null,
+          return_fuel_level_partner: bookingRow.return_fuel_level_partner || null,
+          return_partner_notes: bookingRow.return_partner_notes || null,
+
+          collection_confirmed_by_customer: !!bookingRow.collection_confirmed_by_customer,
+          collection_confirmed_by_customer_at:
+            bookingRow.collection_confirmed_by_customer_at || null,
+          collection_fuel_level_customer:
+            bookingRow.collection_fuel_level_customer || null,
+          collection_customer_notes:
+            bookingRow.collection_customer_notes || null,
+
+          return_confirmed_by_customer: !!bookingRow.return_confirmed_by_customer,
+          return_confirmed_by_customer_at:
+            bookingRow.return_confirmed_by_customer_at || null,
+          return_fuel_level_customer: bookingRow.return_fuel_level_customer || null,
+          return_customer_notes: bookingRow.return_customer_notes || null,
         };
       }
     }

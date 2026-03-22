@@ -57,6 +57,26 @@ type BookingData = {
   driver_vehicle: string | null;
   driver_notes: string | null;
   driver_assigned_at: string | null;
+
+  collection_confirmed_by_partner: boolean;
+  collection_confirmed_by_partner_at: string | null;
+  collection_fuel_level_partner: string | null;
+  collection_partner_notes: string | null;
+
+  return_confirmed_by_partner: boolean;
+  return_confirmed_by_partner_at: string | null;
+  return_fuel_level_partner: string | null;
+  return_partner_notes: string | null;
+
+  collection_confirmed_by_customer: boolean;
+  collection_confirmed_by_customer_at: string | null;
+  collection_fuel_level_customer: string | null;
+  collection_customer_notes: string | null;
+
+  return_confirmed_by_customer: boolean;
+  return_confirmed_by_customer_at: string | null;
+  return_fuel_level_customer: string | null;
+  return_customer_notes: string | null;
 };
 
 type ResponseShape = {
@@ -64,6 +84,9 @@ type ResponseShape = {
   bids: BidRow[];
   booking: BookingData | null;
 };
+
+type ConfirmSection = "collection" | "return";
+type FuelLevel = "empty" | "quarter" | "half" | "three_quarter" | "full";
 
 function fmtDateTime(value?: string | null) {
   if (!value) return "—";
@@ -134,6 +157,23 @@ function getTimeRemaining(expiresAt?: string | null) {
   };
 }
 
+function fuelLabel(value?: string | null) {
+  switch (String(value || "")) {
+    case "empty":
+      return "Empty";
+    case "quarter":
+      return "Quarter";
+    case "half":
+      return "Half";
+    case "three_quarter":
+      return "Three quarter";
+    case "full":
+      return "Full";
+    default:
+      return "—";
+  }
+}
+
 export default function TestBookingRequestDetailPage({
   params,
 }: {
@@ -143,11 +183,20 @@ export default function TestBookingRequestDetailPage({
   const [requestId, setRequestId] = useState("");
   const [loading, setLoading] = useState(true);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [savingConfirm, setSavingConfirm] = useState<ConfirmSection | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [data, setData] = useState<ResponseShape | null>(null);
   const [timeLabel, setTimeLabel] = useState<string>("—");
   const [expired, setExpired] = useState(false);
+
+  const [collectionFuel, setCollectionFuel] = useState<FuelLevel>("full");
+  const [collectionConfirmed, setCollectionConfirmed] = useState(false);
+  const [collectionNotes, setCollectionNotes] = useState("");
+
+  const [returnFuel, setReturnFuel] = useState<FuelLevel>("full");
+  const [returnConfirmed, setReturnConfirmed] = useState(false);
+  const [returnNotes, setReturnNotes] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -195,7 +244,22 @@ export default function TestBookingRequestDetailPage({
         throw new Error(json?.error || "Failed to load request.");
       }
 
-      setData(json as ResponseShape);
+      const nextData = json as ResponseShape;
+      setData(nextData);
+
+      if (nextData.booking) {
+        setCollectionFuel(
+          (nextData.booking.collection_fuel_level_customer as FuelLevel) || "full"
+        );
+        setCollectionConfirmed(!!nextData.booking.collection_confirmed_by_customer);
+        setCollectionNotes(nextData.booking.collection_customer_notes || "");
+
+        setReturnFuel(
+          (nextData.booking.return_fuel_level_customer as FuelLevel) || "full"
+        );
+        setReturnConfirmed(!!nextData.booking.return_confirmed_by_customer);
+        setReturnNotes(nextData.booking.return_customer_notes || "");
+      }
     } catch (e: any) {
       setError(e?.message || "Failed to load request.");
       setData(null);
@@ -265,6 +329,70 @@ export default function TestBookingRequestDetailPage({
       setError(e?.message || "Failed to accept bid.");
     } finally {
       setAcceptingId(null);
+    }
+  }
+
+  async function saveCustomerConfirmation(section: ConfirmSection) {
+    if (!data?.booking?.id) return;
+
+    setSavingConfirm(section);
+    setError(null);
+    setOk(null);
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const accessToken = session?.access_token;
+      if (!accessToken) {
+        throw new Error("Not signed in");
+      }
+
+      const payload =
+        section === "collection"
+          ? {
+              section: "collection",
+              confirmed: collectionConfirmed,
+              fuel_level: collectionFuel,
+              notes: collectionNotes,
+            }
+          : {
+              section: "return",
+              confirmed: returnConfirmed,
+              fuel_level: returnFuel,
+              notes: returnNotes,
+            };
+
+      const res = await fetch(
+        `/api/test-booking/bookings/${data.booking.id}/update`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(json?.error || "Failed to save confirmation.");
+      }
+
+      setOk(
+        section === "collection"
+          ? "Collection confirmation saved."
+          : "Return confirmation saved."
+      );
+
+      await load();
+    } catch (e: any) {
+      setError(e?.message || "Failed to save confirmation.");
+    } finally {
+      setSavingConfirm(null);
     }
   }
 
@@ -350,24 +478,160 @@ export default function TestBookingRequestDetailPage({
       </div>
 
       {acceptedBooking ? (
-        <div className="rounded-3xl border border-green-200 bg-green-50 p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-          <h2 className="text-2xl font-semibold text-[#003768]">
-            Accepted Booking
-          </h2>
+        <>
+          <div className="rounded-3xl border border-green-200 bg-green-50 p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+            <h2 className="text-2xl font-semibold text-[#003768]">
+              Accepted Booking
+            </h2>
 
-          <div className="mt-6 space-y-4 text-slate-700">
-            <p><span className="font-semibold text-slate-900">Booking status:</span> <span className="capitalize">{String(acceptedBooking.booking_status || "—").replaceAll("_", " ")}</span></p>
-            <p><span className="font-semibold text-slate-900">Car hire company:</span> {acceptedBooking.company_name || "—"}</p>
-            <p><span className="font-semibold text-slate-900">Company phone:</span> {acceptedBooking.company_phone || "—"}</p>
-            <p><span className="font-semibold text-slate-900">Accepted price:</span> {formatGBP(acceptedBooking.amount)}</p>
-            <p><span className="font-semibold text-slate-900">Booking notes:</span> {acceptedBooking.notes || "—"}</p>
-            <p><span className="font-semibold text-slate-900">Driver name:</span> {acceptedBooking.driver_name || "—"}</p>
-            <p><span className="font-semibold text-slate-900">Driver phone:</span> {acceptedBooking.driver_phone || "—"}</p>
-            <p><span className="font-semibold text-slate-900">Driver vehicle:</span> {acceptedBooking.driver_vehicle || "—"}</p>
-            <p><span className="font-semibold text-slate-900">Driver notes:</span> {acceptedBooking.driver_notes || "—"}</p>
-            <p><span className="font-semibold text-slate-900">Driver assigned at:</span> {fmtDateTime(acceptedBooking.driver_assigned_at)}</p>
+            <div className="mt-6 space-y-4 text-slate-700">
+              <p><span className="font-semibold text-slate-900">Booking status:</span> <span className="capitalize">{String(acceptedBooking.booking_status || "—").replaceAll("_", " ")}</span></p>
+              <p><span className="font-semibold text-slate-900">Car hire company:</span> {acceptedBooking.company_name || "—"}</p>
+              <p><span className="font-semibold text-slate-900">Company phone:</span> {acceptedBooking.company_phone || "—"}</p>
+              <p><span className="font-semibold text-slate-900">Accepted price:</span> {formatGBP(acceptedBooking.amount)}</p>
+              <p><span className="font-semibold text-slate-900">Booking notes:</span> {acceptedBooking.notes || "—"}</p>
+              <p><span className="font-semibold text-slate-900">Driver name:</span> {acceptedBooking.driver_name || "—"}</p>
+              <p><span className="font-semibold text-slate-900">Driver phone:</span> {acceptedBooking.driver_phone || "—"}</p>
+              <p><span className="font-semibold text-slate-900">Driver vehicle:</span> {acceptedBooking.driver_vehicle || "—"}</p>
+              <p><span className="font-semibold text-slate-900">Driver notes:</span> {acceptedBooking.driver_notes || "—"}</p>
+              <p><span className="font-semibold text-slate-900">Driver assigned at:</span> {fmtDateTime(acceptedBooking.driver_assigned_at)}</p>
+            </div>
           </div>
-        </div>
+
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+              <h2 className="text-2xl font-semibold text-[#003768]">Collection</h2>
+
+              <div className="mt-6 space-y-4">
+                <div className="rounded-2xl border border-black/10 bg-slate-50 p-4 text-sm text-slate-700">
+                  <p><span className="font-semibold text-slate-900">Partner confirmed:</span> {acceptedBooking.collection_confirmed_by_partner ? "Yes" : "No"}</p>
+                  <p><span className="font-semibold text-slate-900">Partner fuel:</span> {fuelLabel(acceptedBooking.collection_fuel_level_partner)}</p>
+                  <p><span className="font-semibold text-slate-900">Partner notes:</span> {acceptedBooking.collection_partner_notes || "—"}</p>
+                  <p><span className="font-semibold text-slate-900">Confirmed at:</span> {fmtDateTime(acceptedBooking.collection_confirmed_by_partner_at)}</p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-[#003768]">
+                    Fuel level at collection
+                  </label>
+                  <select
+                    value={collectionFuel}
+                    onChange={(e) => setCollectionFuel(e.target.value as FuelLevel)}
+                    className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4"
+                  >
+                    <option value="empty">empty</option>
+                    <option value="quarter">quarter</option>
+                    <option value="half">half</option>
+                    <option value="three_quarter">three_quarter</option>
+                    <option value="full">full</option>
+                  </select>
+                </div>
+
+                <label className="inline-flex items-center gap-3 text-sm font-medium text-[#003768]">
+                  <input
+                    type="checkbox"
+                    checked={collectionConfirmed}
+                    onChange={(e) => setCollectionConfirmed(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  Customer confirms collection completed
+                </label>
+
+                <div>
+                  <label className="text-sm font-medium text-[#003768]">
+                    Collection notes
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={collectionNotes}
+                    onChange={(e) => setCollectionNotes(e.target.value)}
+                    className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4"
+                    placeholder="Collection notes, issues, condition notes, etc."
+                  />
+                </div>
+
+                <p className="text-sm text-slate-500">
+                  Saved fuel level: <strong>{fuelLabel(acceptedBooking.collection_fuel_level_customer)}</strong>
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => saveCustomerConfirmation("collection")}
+                  disabled={savingConfirm === "collection"}
+                  className="rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60"
+                >
+                  {savingConfirm === "collection" ? "Saving..." : "Save Collection Update"}
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+              <h2 className="text-2xl font-semibold text-[#003768]">Return</h2>
+
+              <div className="mt-6 space-y-4">
+                <div className="rounded-2xl border border-black/10 bg-slate-50 p-4 text-sm text-slate-700">
+                  <p><span className="font-semibold text-slate-900">Partner confirmed:</span> {acceptedBooking.return_confirmed_by_partner ? "Yes" : "No"}</p>
+                  <p><span className="font-semibold text-slate-900">Partner fuel:</span> {fuelLabel(acceptedBooking.return_fuel_level_partner)}</p>
+                  <p><span className="font-semibold text-slate-900">Partner notes:</span> {acceptedBooking.return_partner_notes || "—"}</p>
+                  <p><span className="font-semibold text-slate-900">Confirmed at:</span> {fmtDateTime(acceptedBooking.return_confirmed_by_partner_at)}</p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-[#003768]">
+                    Fuel level at return
+                  </label>
+                  <select
+                    value={returnFuel}
+                    onChange={(e) => setReturnFuel(e.target.value as FuelLevel)}
+                    className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4"
+                  >
+                    <option value="empty">empty</option>
+                    <option value="quarter">quarter</option>
+                    <option value="half">half</option>
+                    <option value="three_quarter">three_quarter</option>
+                    <option value="full">full</option>
+                  </select>
+                </div>
+
+                <label className="inline-flex items-center gap-3 text-sm font-medium text-[#003768]">
+                  <input
+                    type="checkbox"
+                    checked={returnConfirmed}
+                    onChange={(e) => setReturnConfirmed(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  Customer confirms return completed
+                </label>
+
+                <div>
+                  <label className="text-sm font-medium text-[#003768]">
+                    Return notes
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={returnNotes}
+                    onChange={(e) => setReturnNotes(e.target.value)}
+                    className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4"
+                    placeholder="Return notes, damage notes, fuel comments, etc."
+                  />
+                </div>
+
+                <p className="text-sm text-slate-500">
+                  Saved fuel level: <strong>{fuelLabel(acceptedBooking.return_fuel_level_customer)}</strong>
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => saveCustomerConfirmation("return")}
+                  disabled={savingConfirm === "return"}
+                  className="rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60"
+                >
+                  {savingConfirm === "return" ? "Saving..." : "Save Return Update"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
       ) : null}
 
       <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
