@@ -8,6 +8,14 @@ function isAllowed(role?: string | null) {
   return role === "admin" || role === "super_admin";
 }
 
+function hasText(value: unknown) {
+  return String(value || "").trim().length > 0;
+}
+
+function hasValidNumber(value: unknown) {
+  return value !== null && value !== undefined && !Number.isNaN(Number(value));
+}
+
 export async function GET() {
   try {
     const authed = await createRouteHandlerSupabaseClient();
@@ -94,7 +102,10 @@ export async function GET() {
           phone,
           address,
           role,
-          base_address
+          base_address,
+          base_lat,
+          base_lng,
+          service_radius_km
         `)
         .in("user_id", profileUserIds);
 
@@ -134,22 +145,40 @@ export async function GET() {
       const profile = matchedUserId ? profileMap.get(matchedUserId) || null : null;
       const fleetCount = matchedUserId ? fleetCountMap.get(matchedUserId) || 0 : 0;
 
-      const hasFleetAddress = !!String(profile?.base_address || "").trim();
+      const hasFleetAddress = hasText(profile?.base_address);
+      const hasBaseLat = hasValidNumber(profile?.base_lat);
+      const hasBaseLng = hasValidNumber(profile?.base_lng);
+      const hasRadius =
+        profile?.service_radius_km !== null &&
+        profile?.service_radius_km !== undefined &&
+        Number(profile.service_radius_km) > 0;
       const hasFleet = fleetCount > 0;
-      const isLiveProfile = hasFleetAddress && hasFleet;
+
+      const isLiveProfile =
+        hasFleetAddress &&
+        hasBaseLat &&
+        hasBaseLng &&
+        hasRadius &&
+        hasFleet;
 
       return {
         id: row.id,
         email: row.email || "",
         company_name: profile?.company_name || row.company_name || "",
-        full_name: profile?.contact_name || row.full_name || "",
+        contact_name: profile?.contact_name || row.full_name || "",
         phone: profile?.phone || row.phone || "",
         address: profile?.address || row.address || "",
         role: profile?.role || "partner",
         status: row.status || "pending",
         created_at: row.created_at,
         user_id: matchedUserId,
-        has_profile: isLiveProfile,
+        is_live_profile: isLiveProfile,
+        live_profile: isLiveProfile,
+        fleet_count: fleetCount,
+        service_radius_km: profile?.service_radius_km ?? null,
+        base_address: profile?.base_address || "",
+        base_lat: profile?.base_lat ?? null,
+        base_lng: profile?.base_lng ?? null,
       };
     });
 
