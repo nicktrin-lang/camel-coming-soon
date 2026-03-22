@@ -95,10 +95,10 @@ export async function POST(
     );
 
     const collection_partner_notes =
-      String(body?.collection_partner_notes ?? body?.collection_notes || "").trim() || null;
-    const return_partner_notes =
-      String(body?.return_partner_notes ?? body?.return_notes || "").trim() || null;
+  String((body?.collection_partner_notes ?? body?.collection_notes) || "").trim() || null;
 
+const return_partner_notes =
+  String((body?.return_partner_notes ?? body?.return_notes) || "").trim() || null;
     const collection_confirmed_by_partner = !!body?.collection_confirmed_by_partner;
     const return_confirmed_by_partner = !!body?.return_confirmed_by_partner;
 
