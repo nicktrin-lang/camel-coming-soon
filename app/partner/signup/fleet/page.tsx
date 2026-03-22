@@ -3,9 +3,8 @@
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
 const MapPicker = dynamic(() => import("../../profile/MapPicker"), {
   ssr: false,
@@ -61,30 +60,6 @@ const COUNTRIES: CountryOption[] = [
   { code: "US", name: "United States" },
 ];
 
-function normalizeWebsite(v: string) {
-  const s = (v || "").trim();
-  if (!s) return "";
-  if (s.startsWith("http://") || s.startsWith("https://")) return s;
-  return `https://${s}`;
-}
-
-function buildAddressString(opts: {
-  line1: string;
-  line2: string;
-  province: string;
-  postcode: string;
-  countryName: string;
-}) {
-  const parts = [
-    opts.line1.trim(),
-    opts.line2.trim(),
-    [opts.province.trim(), opts.postcode.trim()].filter(Boolean).join(" "),
-    opts.countryName.trim(),
-  ].filter(Boolean);
-
-  return parts.join(", ");
-}
-
 function parseCoordinate(
   value: string | number | null | undefined,
   kind: "lat" | "lng"
@@ -126,7 +101,6 @@ async function safeJson(res: Response): Promise<any> {
 }
 
 export default function PartnerSignupFleetPage() {
-  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const router = useRouter();
 
   const [step1Data, setStep1Data] = useState<SignupStep1Data | null>(null);
@@ -316,107 +290,45 @@ export default function PartnerSignupFleetPage() {
     setLoading(true);
 
     try {
-      const countryName =
-        COUNTRIES.find((c) => c.code === step1Data.country)?.name || step1Data.country;
-
-      const combinedAddress = buildAddressString({
-        line1: step1Data.address1,
-        line2: step1Data.address2,
-        province: step1Data.province,
-        postcode: step1Data.postcode,
-        countryName,
-      });
-
-      const company = step1Data.companyName.trim();
-      const name = step1Data.contactName.trim();
-      const mail = step1Data.email.trim().toLowerCase();
-      const ph = step1Data.phone.trim();
-
-      console.log("🚀 Partner signup submitting application for:", mail);
-
-      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-        email: mail,
+      const payload = {
+        companyName: step1Data.companyName.trim(),
+        contactName: step1Data.contactName.trim(),
+        email: step1Data.email.trim().toLowerCase(),
+        phone: step1Data.phone.trim(),
+        website: step1Data.website.trim(),
         password: step1Data.password,
-        options: {
-          data: {
-            full_name: name,
-            company_name: company,
-          },
-        },
-      });
 
-      if (signUpErr) throw signUpErr;
-
-      const userId = signUpData.user?.id;
-      if (!userId) {
-        throw new Error("Could not create user account.");
-      }
-
-      const applicationPayload = {
-        user_id: userId,
-        company_name: company,
-        full_name: name,
-        email: mail,
-        phone: ph,
-        address: combinedAddress,
         address1: step1Data.address1.trim(),
         address2: step1Data.address2.trim(),
         province: step1Data.province.trim(),
         postcode: step1Data.postcode.trim(),
-        country: countryName,
-        website: normalizeWebsite(step1Data.website),
-        status: "pending",
+        country:
+          COUNTRIES.find((c) => c.code === step1Data.country)?.name || step1Data.country,
+
+        baseAddress: baseAddress.trim(),
+        baseLat: lat,
+        baseLng: lng,
       };
 
-      const { error: insertErr } = await (supabase as any)
-        .from("partner_applications")
-        .insert(applicationPayload);
-
-      if (insertErr) throw insertErr;
-
-      const profilePayload = {
-        user_id: userId,
-        company_name: company,
-        contact_name: name,
-        phone: ph,
-        address: combinedAddress,
-        address1: step1Data.address1.trim(),
-        address2: step1Data.address2.trim(),
-        province: step1Data.province.trim(),
-        postcode: step1Data.postcode.trim(),
-        country: countryName,
-        website: normalizeWebsite(step1Data.website),
-        service_radius_km: 30,
-        base_address: baseAddress.trim(),
-        base_lat: lat,
-        base_lng: lng,
-        role: "partner",
-      };
-
-      const { error: profileErr } = await (supabase as any)
-        .from("partner_profiles")
-        .upsert(profilePayload, { onConflict: "user_id" });
-
-      if (profileErr) throw profileErr;
-
-      const emailRes = await fetch("/api/partner/application-received", {
+      const res = await fetch("/api/partner/complete-signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email: mail }),
+        body: JSON.stringify(payload),
       });
 
-      const emailJson = await emailRes.json().catch(() => null);
+      const json = await safeJson(res);
 
-      if (!emailRes.ok) {
-        console.error("❌ Application received email failed:", emailJson);
-      } else {
-        console.log("✅ Application received email response:", emailJson);
+      if (!res.ok) {
+        throw new Error(json?.error || json?._raw || "Sign up failed.");
+      }
+
+      if (json?.warning) {
+        console.warn("⚠️ Signup completed with warning:", json.warning);
       }
 
       sessionStorage.removeItem(STORAGE_KEY);
-      await supabase.auth.signOut();
       router.replace("/partner/application-submitted");
     } catch (e: any) {
       setError(e?.message || "Sign up failed.");
