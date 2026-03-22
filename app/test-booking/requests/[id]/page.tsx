@@ -167,8 +167,6 @@ function fuelLabel(value?: string | null) {
       return "Half";
     case "three_quarter":
       return "Three quarter";
-    case "3/4":
-      return "Three quarter";
     case "full":
       return "Full";
     default:
@@ -176,10 +174,40 @@ function fuelLabel(value?: string | null) {
   }
 }
 
-function prettyStatus(value?: string | null) {
-  const clean = String(value || "").replaceAll("_", " ").trim();
-  if (!clean) return "—";
-  return clean.charAt(0).toUpperCase() + clean.slice(1);
+function normalizeFuel(value?: string | null) {
+  const clean = String(value || "").trim().toLowerCase();
+  if (
+    clean === "empty" ||
+    clean === "quarter" ||
+    clean === "half" ||
+    clean === "three_quarter" ||
+    clean === "full"
+  ) {
+    return clean;
+  }
+  return "";
+}
+
+function normalizeNotes(value?: string | null) {
+  return String(value || "").trim();
+}
+
+function isMatchedAndLocked(opts: {
+  partnerConfirmed: boolean;
+  customerConfirmed: boolean;
+  partnerFuel?: string | null;
+  customerFuel?: string | null;
+  partnerNotes?: string | null;
+  customerNotes?: string | null;
+}) {
+  if (!opts.partnerConfirmed || !opts.customerConfirmed) {
+    return false;
+  }
+
+  return (
+    normalizeFuel(opts.partnerFuel) === normalizeFuel(opts.customerFuel) &&
+    normalizeNotes(opts.partnerNotes) === normalizeNotes(opts.customerNotes)
+  );
 }
 
 export default function TestBookingRequestDetailPage({
@@ -426,6 +454,28 @@ export default function TestBookingRequestDetailPage({
 
   const acceptedBooking = data.booking;
 
+  const collectionLocked = acceptedBooking
+    ? isMatchedAndLocked({
+        partnerConfirmed: !!acceptedBooking.collection_confirmed_by_partner,
+        customerConfirmed: !!acceptedBooking.collection_confirmed_by_customer,
+        partnerFuel: acceptedBooking.collection_fuel_level_partner,
+        customerFuel: acceptedBooking.collection_fuel_level_customer,
+        partnerNotes: acceptedBooking.collection_partner_notes,
+        customerNotes: acceptedBooking.collection_customer_notes,
+      })
+    : false;
+
+  const returnLocked = acceptedBooking
+    ? isMatchedAndLocked({
+        partnerConfirmed: !!acceptedBooking.return_confirmed_by_partner,
+        customerConfirmed: !!acceptedBooking.return_confirmed_by_customer,
+        partnerFuel: acceptedBooking.return_fuel_level_partner,
+        customerFuel: acceptedBooking.return_fuel_level_customer,
+        partnerNotes: acceptedBooking.return_partner_notes,
+        customerNotes: acceptedBooking.return_customer_notes,
+      })
+    : false;
+
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-10">
       {error ? (
@@ -480,7 +530,7 @@ export default function TestBookingRequestDetailPage({
           <p><span className="font-semibold text-slate-900">Bags:</span> {data.request.suitcases} suitcases / {data.request.hand_luggage} hand luggage</p>
           <p><span className="font-semibold text-slate-900">Vehicle:</span> {data.request.vehicle_category_name || "—"}</p>
           <p><span className="font-semibold text-slate-900">Notes:</span> {data.request.notes || "—"}</p>
-          <p><span className="font-semibold text-slate-900">Status:</span> {prettyStatus(data.request.status)}</p>
+          <p><span className="font-semibold text-slate-900">Status:</span> <span className="capitalize">{data.request.status}</span></p>
           <p><span className="font-semibold text-slate-900">Expires at:</span> {fmtDateTime(data.request.expires_at)}</p>
         </div>
       </div>
@@ -493,7 +543,7 @@ export default function TestBookingRequestDetailPage({
             </h2>
 
             <div className="mt-6 space-y-4 text-slate-700">
-              <p><span className="font-semibold text-slate-900">Booking status:</span> {prettyStatus(acceptedBooking.booking_status)}</p>
+              <p><span className="font-semibold text-slate-900">Booking status:</span> <span className="capitalize">{String(acceptedBooking.booking_status || "—").replaceAll("_", " ")}</span></p>
               <p><span className="font-semibold text-slate-900">Car hire company:</span> {acceptedBooking.company_name || "—"}</p>
               <p><span className="font-semibold text-slate-900">Company phone:</span> {acceptedBooking.company_phone || "—"}</p>
               <p><span className="font-semibold text-slate-900">Accepted price:</span> {formatGBP(acceptedBooking.amount)}</p>
@@ -518,6 +568,12 @@ export default function TestBookingRequestDetailPage({
                   <p><span className="font-semibold text-slate-900">Confirmed at:</span> {fmtDateTime(acceptedBooking.collection_confirmed_by_partner_at)}</p>
                 </div>
 
+                {collectionLocked ? (
+                  <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+                    Collection is locked because both customer and partner entries match.
+                  </div>
+                ) : null}
+
                 <div>
                   <label className="text-sm font-medium text-[#003768]">
                     Fuel level at collection
@@ -525,7 +581,8 @@ export default function TestBookingRequestDetailPage({
                   <select
                     value={collectionFuel}
                     onChange={(e) => setCollectionFuel(e.target.value as FuelLevel)}
-                    className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4"
+                    disabled={collectionLocked}
+                    className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 disabled:opacity-60"
                   >
                     <option value="empty">empty</option>
                     <option value="quarter">quarter</option>
@@ -540,6 +597,7 @@ export default function TestBookingRequestDetailPage({
                     type="checkbox"
                     checked={collectionConfirmed}
                     onChange={(e) => setCollectionConfirmed(e.target.checked)}
+                    disabled={collectionLocked}
                     className="h-4 w-4"
                   />
                   Customer confirms collection completed
@@ -553,7 +611,8 @@ export default function TestBookingRequestDetailPage({
                     rows={4}
                     value={collectionNotes}
                     onChange={(e) => setCollectionNotes(e.target.value)}
-                    className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4"
+                    disabled={collectionLocked}
+                    className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 disabled:opacity-60"
                     placeholder="Collection notes, issues, condition notes, etc."
                   />
                 </div>
@@ -565,7 +624,7 @@ export default function TestBookingRequestDetailPage({
                 <button
                   type="button"
                   onClick={() => saveCustomerConfirmation("collection")}
-                  disabled={savingConfirm === "collection"}
+                  disabled={savingConfirm === "collection" || collectionLocked}
                   className="rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60"
                 >
                   {savingConfirm === "collection" ? "Saving..." : "Save Collection Update"}
@@ -584,6 +643,12 @@ export default function TestBookingRequestDetailPage({
                   <p><span className="font-semibold text-slate-900">Confirmed at:</span> {fmtDateTime(acceptedBooking.return_confirmed_by_partner_at)}</p>
                 </div>
 
+                {returnLocked ? (
+                  <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+                    Return is locked because both customer and partner entries match.
+                  </div>
+                ) : null}
+
                 <div>
                   <label className="text-sm font-medium text-[#003768]">
                     Fuel level at return
@@ -591,7 +656,8 @@ export default function TestBookingRequestDetailPage({
                   <select
                     value={returnFuel}
                     onChange={(e) => setReturnFuel(e.target.value as FuelLevel)}
-                    className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4"
+                    disabled={returnLocked}
+                    className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 disabled:opacity-60"
                   >
                     <option value="empty">empty</option>
                     <option value="quarter">quarter</option>
@@ -606,6 +672,7 @@ export default function TestBookingRequestDetailPage({
                     type="checkbox"
                     checked={returnConfirmed}
                     onChange={(e) => setReturnConfirmed(e.target.checked)}
+                    disabled={returnLocked}
                     className="h-4 w-4"
                   />
                   Customer confirms return completed
@@ -619,7 +686,8 @@ export default function TestBookingRequestDetailPage({
                     rows={4}
                     value={returnNotes}
                     onChange={(e) => setReturnNotes(e.target.value)}
-                    className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4"
+                    disabled={returnLocked}
+                    className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 disabled:opacity-60"
                     placeholder="Return notes, damage notes, fuel comments, etc."
                   />
                 </div>
@@ -631,7 +699,7 @@ export default function TestBookingRequestDetailPage({
                 <button
                   type="button"
                   onClick={() => saveCustomerConfirmation("return")}
-                  disabled={savingConfirm === "return"}
+                  disabled={savingConfirm === "return" || returnLocked}
                   className="rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60"
                 >
                   {savingConfirm === "return" ? "Saving..." : "Save Return Update"}
@@ -670,7 +738,7 @@ export default function TestBookingRequestDetailPage({
                     <p><span className="font-semibold text-slate-900">Insurance included:</span> {bid.full_insurance_included ? "Yes" : "No"}</p>
                     <p><span className="font-semibold text-slate-900">Full tank included:</span> {bid.full_tank_included ? "Yes" : "No"}</p>
                     <p><span className="font-semibold text-slate-900">Notes:</span> {bid.notes || "—"}</p>
-                    <p><span className="font-semibold text-slate-900">Status:</span> {prettyStatus(bid.status)}</p>
+                    <p><span className="font-semibold text-slate-900">Status:</span> <span className="capitalize">{bid.status}</span></p>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
@@ -678,14 +746,7 @@ export default function TestBookingRequestDetailPage({
                       <span className="rounded-full border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700">
                         Accepted
                       </span>
-                    ) : data.request.status === "confirmed" ||
-                      data.request.status === "driver_assigned" ||
-                      data.request.status === "en_route" ||
-                      data.request.status === "arrived" ||
-                      data.request.status === "collected" ||
-                      data.request.status === "in_progress" ||
-                      data.request.status === "returned" ||
-                      data.request.status === "completed" ? (
+                    ) : data.request.status === "confirmed" ? (
                       <span className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-slate-500">
                         Closed
                       </span>
