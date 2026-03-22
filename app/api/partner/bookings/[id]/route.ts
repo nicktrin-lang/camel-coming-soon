@@ -41,14 +41,26 @@ export async function GET(
         driver_vehicle,
         driver_notes,
         driver_assigned_at,
-        collection_fuel_level,
-        return_fuel_level,
+
         collection_confirmed_by_partner,
+        collection_confirmed_by_partner_at,
+        collection_fuel_level_partner,
+        collection_partner_notes,
+
         return_confirmed_by_partner,
-        collected_at,
-        returned_at,
-        collection_notes,
-        return_notes
+        return_confirmed_by_partner_at,
+        return_fuel_level_partner,
+        return_partner_notes,
+
+        collection_confirmed_by_customer,
+        collection_confirmed_by_customer_at,
+        collection_fuel_level_customer,
+        collection_customer_notes,
+
+        return_confirmed_by_customer,
+        return_confirmed_by_customer_at,
+        return_fuel_level_customer,
+        return_customer_notes
       `)
       .eq("id", id);
 

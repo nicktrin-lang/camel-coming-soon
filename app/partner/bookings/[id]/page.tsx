@@ -122,6 +122,33 @@ function fuelLabel(value?: string | null) {
   }
 }
 
+function sameFuel(a?: string | null, b?: string | null) {
+  return String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+}
+
+function bookingStatusLabel(status?: string | null) {
+  switch (String(status || "").toLowerCase()) {
+    case "confirmed":
+      return "Awaiting delivery";
+    case "driver_assigned":
+      return "Awaiting delivery";
+    case "en_route":
+      return "Awaiting delivery";
+    case "arrived":
+      return "Awaiting delivery";
+    case "collected":
+      return "Out on hire";
+    case "returned":
+      return "Out on hire";
+    case "completed":
+      return "Completed";
+    case "cancelled":
+      return "Cancelled";
+    default:
+      return String(status || "—").replaceAll("_", " ");
+  }
+}
+
 export default function PartnerBookingDetailPage() {
   const params = useParams<{ id: string }>();
   const bookingId = String(params?.id || "");
@@ -273,11 +300,18 @@ export default function PartnerBookingDetailPage() {
   const role = data.role || "partner";
   const adminMode = role === "admin" || role === "super_admin";
 
-  const collectionLocked =
-    !!booking.collection_confirmed_by_partner && !!booking.collection_confirmed_by_customer;
+  const collectionMatched =
+    !!booking.collection_confirmed_by_partner &&
+    !!booking.collection_confirmed_by_customer &&
+    sameFuel(booking.collection_fuel_level_partner, booking.collection_fuel_level_customer);
 
-  const returnLocked =
-    !!booking.return_confirmed_by_partner && !!booking.return_confirmed_by_customer;
+  const returnMatched =
+    !!booking.return_confirmed_by_partner &&
+    !!booking.return_confirmed_by_customer &&
+    sameFuel(booking.return_fuel_level_partner, booking.return_fuel_level_customer);
+
+  const collectionLocked = collectionMatched;
+  const returnLocked = returnMatched;
 
   return (
     <div className="space-y-6 px-4 py-8 md:px-8">
@@ -328,9 +362,7 @@ export default function PartnerBookingDetailPage() {
             </p>
             <p>
               <span className="font-semibold text-slate-900">Booking status:</span>{" "}
-              <span className="capitalize">
-                {String(booking.booking_status || "—").replaceAll("_", " ")}
-              </span>
+              {bookingStatusLabel(booking.booking_status)}
             </p>
             <p>
               <span className="font-semibold text-slate-900">Amount:</span>{" "}
@@ -430,14 +462,14 @@ export default function PartnerBookingDetailPage() {
               onChange={(e) => setBookingStatus(e.target.value)}
               className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-[#0f4f8a]"
             >
-              <option value="confirmed">confirmed</option>
-              <option value="driver_assigned">driver_assigned</option>
-              <option value="en_route">en route</option>
-              <option value="arrived">arrived</option>
-              <option value="collected">collected</option>
-              <option value="returned">returned</option>
-              <option value="completed">completed</option>
-              <option value="cancelled">cancelled</option>
+              <option value="confirmed">Awaiting delivery</option>
+              <option value="driver_assigned">Awaiting delivery</option>
+              <option value="en_route">Awaiting delivery</option>
+              <option value="arrived">Awaiting delivery</option>
+              <option value="collected">Out on hire</option>
+              <option value="returned">Out on hire</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
             </select>
           </div>
 
@@ -498,27 +530,19 @@ export default function PartnerBookingDetailPage() {
 
               <div className="mt-6 space-y-4">
                 <div className="rounded-2xl border border-black/10 bg-slate-50 p-4 text-sm text-slate-700">
-                  <p>
-                    <span className="font-semibold text-slate-900">Customer confirmed:</span>{" "}
-                    {booking.collection_confirmed_by_customer ? "Yes" : "No"}
-                  </p>
-                  <p>
-                    <span className="font-semibold text-slate-900">Customer fuel:</span>{" "}
-                    {fuelLabel(booking.collection_fuel_level_customer)}
-                  </p>
-                  <p>
-                    <span className="font-semibold text-slate-900">Customer notes:</span>{" "}
-                    {booking.collection_customer_notes || "—"}
-                  </p>
-                  <p>
-                    <span className="font-semibold text-slate-900">Customer confirmed at:</span>{" "}
-                    {formatDateTime(booking.collection_confirmed_by_customer_at)}
-                  </p>
+                  <p><span className="font-semibold text-slate-900">Customer confirmed:</span> {booking.collection_confirmed_by_customer ? "Yes" : "No"}</p>
+                  <p><span className="font-semibold text-slate-900">Customer fuel:</span> {fuelLabel(booking.collection_fuel_level_customer)}</p>
+                  <p><span className="font-semibold text-slate-900">Customer notes:</span> {booking.collection_customer_notes || "—"}</p>
+                  <p><span className="font-semibold text-slate-900">Customer confirmed at:</span> {formatDateTime(booking.collection_confirmed_by_customer_at)}</p>
                 </div>
 
                 {collectionLocked ? (
                   <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
-                    Collection is locked because both partner and customer have confirmed it.
+                    Collection is locked because both sides agreed and confirmed the same fuel level.
+                  </div>
+                ) : booking.collection_confirmed_by_partner && booking.collection_confirmed_by_customer ? (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+                    Collection is not locked because the customer and partner values do not yet match.
                   </div>
                 ) : null}
 
@@ -529,9 +553,7 @@ export default function PartnerBookingDetailPage() {
                   <select
                     value={collectionFuelLevel}
                     disabled={collectionLocked}
-                    onChange={(e) =>
-                      setCollectionFuelLevel(e.target.value as FuelLevel)
-                    }
+                    onChange={(e) => setCollectionFuelLevel(e.target.value as FuelLevel)}
                     className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-[#0f4f8a] disabled:opacity-60"
                   >
                     <option value="full">full</option>
@@ -547,9 +569,7 @@ export default function PartnerBookingDetailPage() {
                     type="checkbox"
                     checked={collectionConfirmedByPartner}
                     disabled={collectionLocked}
-                    onChange={(e) =>
-                      setCollectionConfirmedByPartner(e.target.checked)
-                    }
+                    onChange={(e) => setCollectionConfirmedByPartner(e.target.checked)}
                     className="h-4 w-4"
                   />
                   Partner confirms collection completed
@@ -570,8 +590,13 @@ export default function PartnerBookingDetailPage() {
                 </div>
 
                 <p className="text-sm text-slate-500">
-                  Saved fuel level:{" "}
-                  <strong>{fuelLabel(booking.collection_fuel_level_partner)}</strong>
+                  Saved fuel level: <strong>{fuelLabel(booking.collection_fuel_level_partner)}</strong>
+                </p>
+                <p className="text-sm text-slate-500">
+                  Saved notes: <strong>{booking.collection_partner_notes || "—"}</strong>
+                </p>
+                <p className="text-sm text-slate-500">
+                  Saved confirmed at: <strong>{formatDateTime(booking.collection_confirmed_by_partner_at)}</strong>
                 </p>
               </div>
             </div>
@@ -581,27 +606,19 @@ export default function PartnerBookingDetailPage() {
 
               <div className="mt-6 space-y-4">
                 <div className="rounded-2xl border border-black/10 bg-slate-50 p-4 text-sm text-slate-700">
-                  <p>
-                    <span className="font-semibold text-slate-900">Customer confirmed:</span>{" "}
-                    {booking.return_confirmed_by_customer ? "Yes" : "No"}
-                  </p>
-                  <p>
-                    <span className="font-semibold text-slate-900">Customer fuel:</span>{" "}
-                    {fuelLabel(booking.return_fuel_level_customer)}
-                  </p>
-                  <p>
-                    <span className="font-semibold text-slate-900">Customer notes:</span>{" "}
-                    {booking.return_customer_notes || "—"}
-                  </p>
-                  <p>
-                    <span className="font-semibold text-slate-900">Customer confirmed at:</span>{" "}
-                    {formatDateTime(booking.return_confirmed_by_customer_at)}
-                  </p>
+                  <p><span className="font-semibold text-slate-900">Customer confirmed:</span> {booking.return_confirmed_by_customer ? "Yes" : "No"}</p>
+                  <p><span className="font-semibold text-slate-900">Customer fuel:</span> {fuelLabel(booking.return_fuel_level_customer)}</p>
+                  <p><span className="font-semibold text-slate-900">Customer notes:</span> {booking.return_customer_notes || "—"}</p>
+                  <p><span className="font-semibold text-slate-900">Customer confirmed at:</span> {formatDateTime(booking.return_confirmed_by_customer_at)}</p>
                 </div>
 
                 {returnLocked ? (
                   <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
-                    Return is locked because both partner and customer have confirmed it.
+                    Return is locked because both sides agreed and confirmed the same fuel level.
+                  </div>
+                ) : booking.return_confirmed_by_partner && booking.return_confirmed_by_customer ? (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+                    Return is not locked because the customer and partner values do not yet match.
                   </div>
                 ) : null}
 
@@ -628,9 +645,7 @@ export default function PartnerBookingDetailPage() {
                     type="checkbox"
                     checked={returnConfirmedByPartner}
                     disabled={returnLocked}
-                    onChange={(e) =>
-                      setReturnConfirmedByPartner(e.target.checked)
-                    }
+                    onChange={(e) => setReturnConfirmedByPartner(e.target.checked)}
                     className="h-4 w-4"
                   />
                   Partner confirms return completed
@@ -651,8 +666,13 @@ export default function PartnerBookingDetailPage() {
                 </div>
 
                 <p className="text-sm text-slate-500">
-                  Saved fuel level:{" "}
-                  <strong>{fuelLabel(booking.return_fuel_level_partner)}</strong>
+                  Saved fuel level: <strong>{fuelLabel(booking.return_fuel_level_partner)}</strong>
+                </p>
+                <p className="text-sm text-slate-500">
+                  Saved notes: <strong>{booking.return_partner_notes || "—"}</strong>
+                </p>
+                <p className="text-sm text-slate-500">
+                  Saved confirmed at: <strong>{formatDateTime(booking.return_confirmed_by_partner_at)}</strong>
                 </p>
               </div>
             </div>

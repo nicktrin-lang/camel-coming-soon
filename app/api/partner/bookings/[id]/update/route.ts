@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleSupabaseClient } from "@/lib/supabase/server";
 import { getPortalUserRole } from "@/lib/portal/getPortalUserRole";
 import { isAdminRole } from "@/lib/portal/roles";
-import { syncBookingStatuses } from "@/lib/portal/syncBookingStatuses";
 
 const ALLOWED_BOOKING_STATUSES = [
   "confirmed",
@@ -15,14 +14,7 @@ const ALLOWED_BOOKING_STATUSES = [
   "cancelled",
 ] as const;
 
-const ALLOWED_FUEL_LEVELS = [
-  "full",
-  "3/4",
-  "half",
-  "quarter",
-  "empty",
-  "three_quarter",
-] as const;
+const ALLOWED_FUEL_LEVELS = ["full", "3/4", "half", "quarter", "empty"] as const;
 
 type AllowedBookingStatus = (typeof ALLOWED_BOOKING_STATUSES)[number];
 type AllowedFuelLevel = (typeof ALLOWED_FUEL_LEVELS)[number];
@@ -45,19 +37,20 @@ function normalizeBookingStatus(value: unknown): AllowedBookingStatus {
 
 function normalizeFuelLevel(value: unknown): AllowedFuelLevel | null {
   const clean = String(value || "").trim().toLowerCase();
-
   if (
     clean === "full" ||
     clean === "3/4" ||
     clean === "half" ||
     clean === "quarter" ||
-    clean === "empty" ||
-    clean === "three_quarter"
+    clean === "empty"
   ) {
     return clean as AllowedFuelLevel;
   }
-
   return null;
+}
+
+function sameFuel(a: unknown, b: unknown) {
+  return String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
 }
 
 export async function POST(
@@ -88,17 +81,17 @@ export async function POST(
     const driver_notes = String(body?.driver_notes || "").trim() || null;
 
     const collection_fuel_level_partner = normalizeFuelLevel(
-      body?.collection_fuel_level_partner ?? body?.collection_fuel_level
+      body?.collection_fuel_level_partner
     );
     const return_fuel_level_partner = normalizeFuelLevel(
-      body?.return_fuel_level_partner ?? body?.return_fuel_level
+      body?.return_fuel_level_partner
     );
 
     const collection_partner_notes =
-  String((body?.collection_partner_notes ?? body?.collection_notes) || "").trim() || null;
+      String(body?.collection_partner_notes || "").trim() || null;
+    const return_partner_notes =
+      String(body?.return_partner_notes || "").trim() || null;
 
-const return_partner_notes =
-  String((body?.return_partner_notes ?? body?.return_notes) || "").trim() || null;
     const collection_confirmed_by_partner = !!body?.collection_confirmed_by_partner;
     const return_confirmed_by_partner = !!body?.return_confirmed_by_partner;
 
@@ -110,12 +103,26 @@ const return_partner_notes =
         id,
         partner_user_id,
         driver_assigned_at,
-        collected_at,
-        returned_at,
+
         collection_confirmed_by_partner,
-        return_confirmed_by_partner,
         collection_confirmed_by_partner_at,
-        return_confirmed_by_partner_at
+        collection_fuel_level_partner,
+        collection_partner_notes,
+
+        return_confirmed_by_partner,
+        return_confirmed_by_partner_at,
+        return_fuel_level_partner,
+        return_partner_notes,
+
+        collection_confirmed_by_customer,
+        collection_confirmed_by_customer_at,
+        collection_fuel_level_customer,
+        collection_customer_notes,
+
+        return_confirmed_by_customer,
+        return_confirmed_by_customer_at,
+        return_fuel_level_customer,
+        return_customer_notes
       `)
       .eq("id", id);
 
@@ -133,13 +140,18 @@ const return_partner_notes =
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    const nowIso = new Date().toISOString();
-
     const driverAssigned =
-      !!driver_name ||
-      !!driver_phone ||
-      !!driver_vehicle ||
-      booking_status === "driver_assigned";
+      !!driver_name || !!driver_phone || !!driver_vehicle || booking_status === "driver_assigned";
+
+    const collectionMatched =
+      collection_confirmed_by_partner &&
+      !!bookingRow.collection_confirmed_by_customer &&
+      sameFuel(collection_fuel_level_partner, bookingRow.collection_fuel_level_customer);
+
+    const returnMatched =
+      return_confirmed_by_partner &&
+      !!bookingRow.return_confirmed_by_customer &&
+      sameFuel(return_fuel_level_partner, bookingRow.return_fuel_level_customer);
 
     const updatePayload: Record<string, any> = {
       booking_status,
@@ -147,37 +159,30 @@ const return_partner_notes =
       driver_phone,
       driver_vehicle,
       driver_notes,
-
       driver_assigned_at: driverAssigned
-        ? bookingRow.driver_assigned_at || nowIso
+        ? bookingRow.driver_assigned_at || new Date().toISOString()
         : null,
 
       collection_fuel_level_partner,
-      return_fuel_level_partner,
       collection_partner_notes,
-      return_partner_notes,
-
       collection_confirmed_by_partner,
-      return_confirmed_by_partner,
-
       collection_confirmed_by_partner_at: collection_confirmed_by_partner
-        ? bookingRow.collection_confirmed_by_partner_at || nowIso
+        ? bookingRow.collection_confirmed_by_partner_at || new Date().toISOString()
         : null,
 
+      return_fuel_level_partner,
+      return_partner_notes,
+      return_confirmed_by_partner,
       return_confirmed_by_partner_at: return_confirmed_by_partner
-        ? bookingRow.return_confirmed_by_partner_at || nowIso
+        ? bookingRow.return_confirmed_by_partner_at || new Date().toISOString()
         : null,
-
-      collected_at:
-        booking_status === "collected"
-          ? bookingRow.collected_at || nowIso
-          : bookingRow.collected_at,
-
-      returned_at:
-        booking_status === "returned" || booking_status === "completed"
-          ? bookingRow.returned_at || nowIso
-          : bookingRow.returned_at,
     };
+
+    if (collectionMatched && returnMatched) {
+      updatePayload.booking_status = "completed";
+    } else if (collectionMatched) {
+      updatePayload.booking_status = "collected";
+    }
 
     const { error: updateErr } = await db
       .from("partner_bookings")
@@ -188,12 +193,11 @@ const return_partner_notes =
       return NextResponse.json({ error: updateErr.message }, { status: 400 });
     }
 
-    const syncResult = await syncBookingStatuses(id);
-
     return NextResponse.json(
       {
         ok: true,
-        sync: syncResult,
+        collection_locked: collectionMatched,
+        return_locked: returnMatched,
       },
       { status: 200 }
     );
