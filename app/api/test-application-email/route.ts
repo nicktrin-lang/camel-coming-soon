@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
 import { sendApplicationReceivedEmail } from "@/lib/email";
 
+function normalizeQueryEmail(value: string) {
+  return String(value || "").trim().replace(/\s/g, "+").toLowerCase();
+}
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const email = String(searchParams.get("email") || "").trim().toLowerCase();
+    const rawEmail = String(searchParams.get("email") || "");
+    const email = normalizeQueryEmail(rawEmail);
 
-    console.log("🧪 test-application-email route called for:", email);
+    console.log("🧪 test-application-email route called for raw:", rawEmail);
+    console.log("🧪 test-application-email normalized email:", email);
 
     if (!email) {
       return NextResponse.json(
