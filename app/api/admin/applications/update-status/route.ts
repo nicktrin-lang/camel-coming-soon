@@ -3,7 +3,7 @@ import {
   createRouteHandlerSupabaseClient,
   createServiceRoleSupabaseClient,
 } from "@/lib/supabase/server";
-import { sendApprovalEmail } from "@/lib/email";
+import { sendApprovalEmail, sendRejectionEmail } from "@/lib/email";
 
 type StatusValue = "pending" | "approved" | "rejected";
 
@@ -77,14 +77,35 @@ export async function POST(req: Request) {
 
     const updatedStatus = String(updated?.status || "").toLowerCase() as StatusValue;
     const toEmail = updated?.email || current?.email || null;
+
     const becameApproved = prevStatus !== "approved" && updatedStatus === "approved";
+    const becameRejected = prevStatus !== "rejected" && updatedStatus === "rejected";
 
     if (becameApproved && toEmail) {
       try {
         await sendApprovalEmail(toEmail);
       } catch (emailErr: any) {
         return NextResponse.json(
-          { ok: true, data: updated, warning: emailErr?.message || "Approved but email failed" },
+          {
+            ok: true,
+            data: updated,
+            warning: emailErr?.message || "Approved but approval email failed",
+          },
+          { status: 200 }
+        );
+      }
+    }
+
+    if (becameRejected && toEmail) {
+      try {
+        await sendRejectionEmail(toEmail);
+      } catch (emailErr: any) {
+        return NextResponse.json(
+          {
+            ok: true,
+            data: updated,
+            warning: emailErr?.message || "Rejected but rejection email failed",
+          },
           { status: 200 }
         );
       }
