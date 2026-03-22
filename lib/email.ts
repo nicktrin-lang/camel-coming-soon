@@ -1,3 +1,7 @@
+function cleanEmail(email: string) {
+  return String(email || "").trim().toLowerCase().replace(/\s+/g, "");
+}
+
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -14,10 +18,11 @@ export async function sendEmail({
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM;
 
-  const cleanTo = String(to || "").trim().toLowerCase();
+  const cleanTo = cleanEmail(to);
 
   console.log("📧 Raw email input:", to);
   console.log("📧 Clean email:", cleanTo);
+  console.log("📧 Subject:", subject);
 
   if (!cleanTo || !isValidEmail(cleanTo)) {
     console.error("❌ Invalid email detected:", cleanTo);
@@ -65,6 +70,8 @@ export async function sendEmail({
 export async function sendApplicationReceivedEmail(to: string) {
   const baseUrl = process.env.PORTAL_BASE_URL || "http://localhost:3000";
 
+  console.log("📨 sendApplicationReceivedEmail ->", to);
+
   return sendEmail({
     to,
     subject: "Your Camel Global partner application has been received",
@@ -85,6 +92,8 @@ export async function sendApplicationReceivedEmail(to: string) {
 
 export async function sendApprovalEmail(to: string) {
   const baseUrl = process.env.PORTAL_BASE_URL || "http://localhost:3000";
+
+  console.log("📨 sendApprovalEmail ->", to);
 
   return sendEmail({
     to,
@@ -112,6 +121,8 @@ export async function sendApprovalEmail(to: string) {
 export async function sendAccountLiveEmail(to: string) {
   const baseUrl = process.env.PORTAL_BASE_URL || "http://localhost:3000";
 
+  console.log("📨 sendAccountLiveEmail ->", to);
+
   return sendEmail({
     to,
     subject: "Your Camel Global account is now live 🚀",
@@ -126,7 +137,7 @@ export async function sendAccountLiveEmail(to: string) {
           <li>Your contact details are current</li>
         </ul>
         <p>
-          <a href="${baseUrl}/partner/dashboard">Go to dashboard</a>
+          <a href="${baseUrl}/partner/account">Go to partner account</a>
         </p>
         <p style="margin-top:24px;">Best Regards,<br />The Camel Global Team</p>
       </div>
