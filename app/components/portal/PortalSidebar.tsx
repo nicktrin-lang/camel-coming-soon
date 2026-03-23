@@ -3,12 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+export type PortalRole = "partner" | "admin" | "super_admin";
+
 type Props = {
   open: boolean;
   onClose: () => void;
+  role?: PortalRole;
 };
 
-const navItems = [
+const partnerNavItems = [
   { href: "/partner/account", label: "Account Management" },
   { href: "/partner/bookings", label: "Bookings" },
   { href: "/partner/drivers", label: "Drivers" },
@@ -17,12 +20,28 @@ const navItems = [
   { href: "/partner/requests", label: "Requests" },
 ];
 
+const adminNavItems = [
+  { href: "/admin/dashboard", label: "Dashboard" },
+  { href: "/admin/accounts", label: "Account Management" },
+  { href: "/admin/applications", label: "Applications" },
+  { href: "/admin/requests", label: "Requests" },
+  { href: "/admin/bookings", label: "Bookings" },
+  { href: "/admin/reports", label: "Report Management" },
+];
+
 function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export default function PortalSidebar({ open, onClose }: Props) {
+export default function PortalSidebar({
+  open,
+  onClose,
+  role = "partner",
+}: Props) {
   const pathname = usePathname();
+  const navItems = role === "partner" ? partnerNavItems : adminNavItems;
+  const homeHref = role === "partner" ? "/partner/dashboard" : "/admin/dashboard";
+  const editProfileHref = role === "partner" ? "/partner/profile" : "/admin/accounts";
 
   return (
     <>
@@ -47,12 +66,14 @@ export default function PortalSidebar({ open, onClose }: Props) {
       >
         <div className="flex h-full flex-col overflow-y-auto">
           <div className="border-b border-white/10 px-6 pb-6 pt-8">
-            <Link href="/partner/dashboard" onClick={onClose} className="block">
+            <Link href={homeHref} onClick={onClose} className="block">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">
                 Camel Global
               </div>
 
-              <div className="mt-2 text-2xl font-semibold">Partner Portal</div>
+              <div className="mt-2 text-2xl font-semibold">
+                {role === "partner" ? "Partner Portal" : "Admin Portal"}
+              </div>
 
               <div className="mt-3 text-sm text-white/75">
                 Operations dashboard
@@ -90,11 +111,11 @@ export default function PortalSidebar({ open, onClose }: Props) {
 
           <div className="border-t border-white/10 px-5 py-5">
             <Link
-              href="/partner/profile"
+              href={editProfileHref}
               onClick={onClose}
               className="block rounded-2xl bg-[#ff7a00] px-4 py-3 text-center text-sm font-semibold text-white shadow-[0_12px_24px_rgba(0,0,0,0.18)] hover:opacity-95"
             >
-              Edit Profile
+              {role === "partner" ? "Edit Profile" : "Manage Accounts"}
             </Link>
           </div>
         </div>
