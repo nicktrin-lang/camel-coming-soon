@@ -149,3 +149,46 @@ export async function sendAccountLiveEmail(to: string) {
     `,
   });
 }
+
+export async function sendCustomerBidReceivedEmail(to: string, jobNumber?: number | null) {
+  const baseUrl = process.env.PORTAL_BASE_URL || "http://localhost:3000";
+
+  return sendEmail({
+    to,
+    subject: `A new partner bid has been received${jobNumber ? ` for booking ${jobNumber}` : ""}`,
+    html: `
+      <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#222; line-height:1.6;">
+        <h2>New partner bid received</h2>
+        <p>A partner has submitted a bid for your booking request${jobNumber ? ` <strong>${jobNumber}</strong>` : ""}.</p>
+        <p>You can now log in and review the bid details.</p>
+        <p>
+          <a href="${baseUrl}/test-booking/requests">View your requests</a>
+        </p>
+        <p style="margin-top:24px;">Best Regards,<br />The Camel Global Team</p>
+      </div>
+    `,
+  });
+}
+
+export async function sendCustomerBookingCompletedEmail(
+  to: string,
+  jobNumber?: number | null
+) {
+  const baseUrl = process.env.PORTAL_BASE_URL || "http://localhost:3000";
+
+  return sendEmail({
+    to,
+    subject: `Your Camel Global booking is now completed${jobNumber ? ` - ${jobNumber}` : ""}`,
+    html: `
+      <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#222; line-height:1.6;">
+        <h2>Booking completed</h2>
+        <p>Your booking${jobNumber ? ` <strong>${jobNumber}</strong>` : ""} has now been marked as completed.</p>
+        <p>The vehicle return has been confirmed.</p>
+        <p>
+          <a href="${baseUrl}/test-booking/requests">View booking details</a>
+        </p>
+        <p style="margin-top:24px;">Best Regards,<br />The Camel Global Team</p>
+      </div>
+    `,
+  });
+}
