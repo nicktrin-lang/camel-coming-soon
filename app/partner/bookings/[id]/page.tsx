@@ -4,6 +4,16 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
+type DriverOption = {
+  id: string;
+  partner_user_id: string;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  is_active: boolean;
+  created_at: string;
+};
+
 type BookingRow = {
   id: string;
   request_id: string;
@@ -14,6 +24,7 @@ type BookingRow = {
   notes: string | null;
   created_at: string;
   job_number: number | null;
+  driver_id?: string | null;
   driver_name: string | null;
   driver_phone: string | null;
   driver_vehicle: string | null;
@@ -65,6 +76,7 @@ type ApiResponse = {
   booking: BookingRow;
   request: RequestRow | null;
   role: string | null;
+  available_drivers?: DriverOption[];
 };
 
 type FuelLevel = "full" | "3/4" | "half" | "quarter" | "empty";
@@ -160,6 +172,7 @@ export default function PartnerBookingDetailPage() {
   const [data, setData] = useState<ApiResponse | null>(null);
 
   const [bookingStatus, setBookingStatus] = useState("confirmed");
+  const [driverId, setDriverId] = useState("");
   const [driverName, setDriverName] = useState("");
   const [driverPhone, setDriverPhone] = useState("");
   const [driverVehicle, setDriverVehicle] = useState("");
@@ -200,6 +213,7 @@ export default function PartnerBookingDetailPage() {
       setData(nextData);
 
       setBookingStatus(nextData.booking.booking_status || "confirmed");
+      setDriverId(nextData.booking.driver_id || "");
       setDriverName(nextData.booking.driver_name || "");
       setDriverPhone(nextData.booking.driver_phone || "");
       setDriverVehicle(nextData.booking.driver_vehicle || "");
@@ -228,6 +242,23 @@ export default function PartnerBookingDetailPage() {
     load();
   }, [bookingId]);
 
+  function handleDriverChange(nextDriverId: string) {
+    setDriverId(nextDriverId);
+
+    const selectedDriver = (data?.available_drivers || []).find(
+      (driver) => driver.id === nextDriverId
+    );
+
+    if (!selectedDriver) {
+      setDriverName("");
+      setDriverPhone("");
+      return;
+    }
+
+    setDriverName(selectedDriver.full_name || "");
+    setDriverPhone(selectedDriver.phone || "");
+  }
+
   async function saveBookingOps(e: React.FormEvent) {
     e.preventDefault();
     if (!bookingId) return;
@@ -245,6 +276,7 @@ export default function PartnerBookingDetailPage() {
         },
         body: JSON.stringify({
           booking_status: bookingStatus,
+          driver_id: driverId || null,
           driver_name: driverName,
           driver_phone: driverPhone,
           driver_vehicle: driverVehicle,
@@ -470,6 +502,26 @@ export default function PartnerBookingDetailPage() {
               <option value="returned">On Hire</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-[#003768]">
+              Assign saved driver
+            </label>
+            <select
+              value={driverId}
+              onChange={(e) => handleDriverChange(e.target.value)}
+              className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-[#0f4f8a]"
+            >
+              <option value="">No saved driver selected</option>
+              {(data.available_drivers || [])
+                .filter((driver) => driver.is_active)
+                .map((driver) => (
+                  <option key={driver.id} value={driver.id}>
+                    {driver.full_name} {driver.phone ? `(${driver.phone})` : ""}
+                  </option>
+                ))}
             </select>
           </div>
 

@@ -36,6 +36,7 @@ export async function GET(
         notes,
         created_at,
         job_number,
+        assigned_driver_id,
         driver_name,
         driver_phone,
         driver_vehicle,
@@ -106,10 +107,33 @@ export async function GET(
       return NextResponse.json({ error: requestErr.message }, { status: 400 });
     }
 
+    let driversQuery = db
+      .from("partner_drivers")
+      .select(`
+        id,
+        partner_user_id,
+        auth_user_id,
+        full_name,
+        email,
+        phone,
+        is_active,
+        created_at,
+        updated_at
+      `)
+      .eq("partner_user_id", bookingRow.partner_user_id)
+      .order("full_name", { ascending: true });
+
+    const { data: drivers, error: driversErr } = await driversQuery;
+
+    if (driversErr) {
+      return NextResponse.json({ error: driversErr.message }, { status: 400 });
+    }
+
     return NextResponse.json(
       {
         booking: bookingRow,
         request: requestRow || null,
+        drivers: drivers || [],
         role,
       },
       { status: 200 }
