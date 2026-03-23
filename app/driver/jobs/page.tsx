@@ -39,6 +39,8 @@ type ApiResponse = {
   jobs: DriverJob[];
 };
 
+type FuelLevel = "full" | "3/4" | "half" | "quarter" | "empty";
+
 function formatDateTime(value?: string | null) {
   if (!value) return "—";
   try {
@@ -71,9 +73,12 @@ function bucketLabel(status?: string | null) {
 
 export default function DriverJobsPage() {
   const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
   const [driver, setDriver] = useState<DriverInfo | null>(null);
   const [jobs, setJobs] = useState<DriverJob[]>([]);
+  const [fuelInputs, setFuelInputs] = useState<Record<string, FuelLevel>>({});
 
   async function load() {
     setLoading(true);
@@ -95,6 +100,12 @@ export default function DriverJobsPage() {
       const next = json as ApiResponse;
       setDriver(next.driver || null);
       setJobs(next.jobs || []);
+
+      const nextFuelInputs: Record<string, FuelLevel> = {};
+      for (const job of next.jobs || []) {
+        nextFuelInputs[job.booking_id] = "full";
+      }
+      setFuelInputs(nextFuelInputs);
     } catch (e: any) {
       setError(e?.message || "Failed to load driver jobs.");
       setDriver(null);
@@ -122,11 +133,138 @@ export default function DriverJobsPage() {
     return { awaiting, onHire, completed };
   }, [jobs]);
 
+  async function confirmStage(
+    bookingId: string,
+    stage: "collection" | "return"
+  ) {
+    setSavingId(bookingId);
+    setError(null);
+    setOk(null);
+
+    try {
+      const res = await fetch(`/api/driver/bookings/${bookingId}/confirm`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          stage,
+          fuel_level: fuelInputs[bookingId] || "full",
+        }),
+      });
+
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(json?.error || "Failed to save driver confirmation.");
+      }
+
+      setOk(
+        stage === "collection"
+          ? "Collection confirmed."
+          : "Return confirmed."
+      );
+
+      await load();
+    } catch (e: any) {
+      setError(e?.message || "Failed to save driver confirmation.");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  function renderJobCard(job: DriverJob, mode: "collection" | "return" | "readonly") {
+    return (
+      <div
+        key={job.booking_id}
+        className="rounded-2xl border border-black/10 p-5"
+      >
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <p><span className="font-semibold text-slate-900">Job No.:</span> {job.job_number ?? "—"}</p>
+          <p><span className="font-semibold text-slate-900">Status:</span> {job.booking_status_label}</p>
+          <p><span className="font-semibold text-slate-900">Amount:</span> {formatGBP(job.amount)}</p>
+
+          <p><span className="font-semibold text-slate-900">Customer:</span> {job.customer_name || "—"}</p>
+          <p><span className="font-semibold text-slate-900">Customer phone:</span> {job.customer_phone || "—"}</p>
+          <p><span className="font-semibold text-slate-900">Vehicle:</span> {job.vehicle_category_name || "—"}</p>
+
+          <p><span className="font-semibold text-slate-900">Pickup:</span> {job.pickup_address || "—"}</p>
+          <p><span className="font-semibold text-slate-900">Dropoff:</span> {job.dropoff_address || "—"}</p>
+          <p><span className="font-semibold text-slate-900">Pickup time:</span> {formatDateTime(job.pickup_at)}</p>
+
+          <p><span className="font-semibold text-slate-900">Dropoff time:</span> {formatDateTime(job.dropoff_at)}</p>
+          <p><span className="font-semibold text-slate-900">Driver vehicle:</span> {job.driver_vehicle || "—"}</p>
+          <p><span className="font-semibold text-slate-900">Assigned at:</span> {formatDateTime(job.driver_assigned_at)}</p>
+        </div>
+
+        {mode !== "readonly" ? (
+          <div className="mt-6 rounded-2xl border border-black/10 bg-slate-50 p-4">
+            <div className="max-w-sm">
+              <label className="text-sm font-medium text-[#003768]">
+                Fuel level
+              </label>
+              <select
+                value={fuelInputs[job.booking_id] || "full"}
+                onChange={(e) =>
+                  setFuelInputs((prev) => ({
+                    ...prev,
+                    [job.booking_id]: e.target.value as FuelLevel,
+                  }))
+                }
+                className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none focus:border-[#0f4f8a]"
+                disabled={savingId === job.booking_id}
+              >
+                <option value="full">full</option>
+                <option value="3/4">3/4</option>
+                <option value="half">half</option>
+                <option value="quarter">quarter</option>
+                <option value="empty">empty</option>
+              </select>
+            </div>
+
+            <div className="mt-4">
+              {mode === "collection" ? (
+                <button
+                  type="button"
+                  onClick={() => confirmStage(job.booking_id, "collection")}
+                  disabled={savingId === job.booking_id}
+                  className="rounded-full bg-[#ff7a00] px-5 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60"
+                >
+                  {savingId === job.booking_id
+                    ? "Saving..."
+                    : "Confirm Collection"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => confirmStage(job.booking_id, "return")}
+                  disabled={savingId === job.booking_id}
+                  className="rounded-full bg-[#ff7a00] px-5 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60"
+                >
+                  {savingId === job.booking_id
+                    ? "Saving..."
+                    : "Confirm Return"}
+                </button>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-10">
       {error ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
+        </div>
+      ) : null}
+
+      {ok ? (
+        <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+          {ok}
         </div>
       ) : null}
 
@@ -166,24 +304,7 @@ export default function DriverJobsPage() {
               <p className="mt-4 text-slate-600">No awaiting delivery jobs.</p>
             ) : (
               <div className="mt-6 space-y-4">
-                {grouped.awaiting.map((job) => (
-                  <div key={job.booking_id} className="rounded-2xl border border-black/10 p-5">
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                      <p><span className="font-semibold text-slate-900">Job No.:</span> {job.job_number ?? "—"}</p>
-                      <p><span className="font-semibold text-slate-900">Status:</span> {job.booking_status_label}</p>
-                      <p><span className="font-semibold text-slate-900">Amount:</span> {formatGBP(job.amount)}</p>
-                      <p><span className="font-semibold text-slate-900">Customer:</span> {job.customer_name || "—"}</p>
-                      <p><span className="font-semibold text-slate-900">Customer phone:</span> {job.customer_phone || "—"}</p>
-                      <p><span className="font-semibold text-slate-900">Vehicle:</span> {job.vehicle_category_name || "—"}</p>
-                      <p><span className="font-semibold text-slate-900">Pickup:</span> {job.pickup_address || "—"}</p>
-                      <p><span className="font-semibold text-slate-900">Dropoff:</span> {job.dropoff_address || "—"}</p>
-                      <p><span className="font-semibold text-slate-900">Pickup time:</span> {formatDateTime(job.pickup_at)}</p>
-                      <p><span className="font-semibold text-slate-900">Driver vehicle:</span> {job.driver_vehicle || "—"}</p>
-                      <p><span className="font-semibold text-slate-900">Assigned at:</span> {formatDateTime(job.driver_assigned_at)}</p>
-                      <p><span className="font-semibold text-slate-900">Created:</span> {formatDateTime(job.created_at)}</p>
-                    </div>
-                  </div>
-                ))}
+                {grouped.awaiting.map((job) => renderJobCard(job, "collection"))}
               </div>
             )}
           </section>
@@ -195,24 +316,7 @@ export default function DriverJobsPage() {
               <p className="mt-4 text-slate-600">No on hire jobs.</p>
             ) : (
               <div className="mt-6 space-y-4">
-                {grouped.onHire.map((job) => (
-                  <div key={job.booking_id} className="rounded-2xl border border-black/10 p-5">
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                      <p><span className="font-semibold text-slate-900">Job No.:</span> {job.job_number ?? "—"}</p>
-                      <p><span className="font-semibold text-slate-900">Status:</span> {job.booking_status_label}</p>
-                      <p><span className="font-semibold text-slate-900">Amount:</span> {formatGBP(job.amount)}</p>
-                      <p><span className="font-semibold text-slate-900">Customer:</span> {job.customer_name || "—"}</p>
-                      <p><span className="font-semibold text-slate-900">Customer phone:</span> {job.customer_phone || "—"}</p>
-                      <p><span className="font-semibold text-slate-900">Vehicle:</span> {job.vehicle_category_name || "—"}</p>
-                      <p><span className="font-semibold text-slate-900">Pickup:</span> {job.pickup_address || "—"}</p>
-                      <p><span className="font-semibold text-slate-900">Dropoff:</span> {job.dropoff_address || "—"}</p>
-                      <p><span className="font-semibold text-slate-900">Pickup time:</span> {formatDateTime(job.pickup_at)}</p>
-                      <p><span className="font-semibold text-slate-900">Dropoff time:</span> {formatDateTime(job.dropoff_at)}</p>
-                      <p><span className="font-semibold text-slate-900">Driver vehicle:</span> {job.driver_vehicle || "—"}</p>
-                      <p><span className="font-semibold text-slate-900">Assigned at:</span> {formatDateTime(job.driver_assigned_at)}</p>
-                    </div>
-                  </div>
-                ))}
+                {grouped.onHire.map((job) => renderJobCard(job, "return"))}
               </div>
             )}
           </section>
@@ -224,21 +328,7 @@ export default function DriverJobsPage() {
               <p className="mt-4 text-slate-600">No completed jobs.</p>
             ) : (
               <div className="mt-6 space-y-4">
-                {grouped.completed.map((job) => (
-                  <div key={job.booking_id} className="rounded-2xl border border-black/10 p-5">
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                      <p><span className="font-semibold text-slate-900">Job No.:</span> {job.job_number ?? "—"}</p>
-                      <p><span className="font-semibold text-slate-900">Status:</span> {job.booking_status_label}</p>
-                      <p><span className="font-semibold text-slate-900">Amount:</span> {formatGBP(job.amount)}</p>
-                      <p><span className="font-semibold text-slate-900">Customer:</span> {job.customer_name || "—"}</p>
-                      <p><span className="font-semibold text-slate-900">Pickup:</span> {job.pickup_address || "—"}</p>
-                      <p><span className="font-semibold text-slate-900">Dropoff:</span> {job.dropoff_address || "—"}</p>
-                      <p><span className="font-semibold text-slate-900">Pickup time:</span> {formatDateTime(job.pickup_at)}</p>
-                      <p><span className="font-semibold text-slate-900">Dropoff time:</span> {formatDateTime(job.dropoff_at)}</p>
-                      <p><span className="font-semibold text-slate-900">Driver vehicle:</span> {job.driver_vehicle || "—"}</p>
-                    </div>
-                  </div>
-                ))}
+                {grouped.completed.map((job) => renderJobCard(job, "readonly"))}
               </div>
             )}
           </section>
