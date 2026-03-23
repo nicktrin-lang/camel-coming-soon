@@ -108,7 +108,17 @@ export async function GET(
 
     return NextResponse.json(
       {
-        booking: bookingRow,
+        booking: {
+          ...bookingRow,
+          collection_fuel_level:
+            bookingRow.collection_fuel_level_partner ??
+            bookingRow.collection_fuel_level_customer ??
+            null,
+          return_fuel_level:
+            bookingRow.return_fuel_level_partner ??
+            bookingRow.return_fuel_level_customer ??
+            null,
+        },
         request: requestRow || null,
         role,
       },
