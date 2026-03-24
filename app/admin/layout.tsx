@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode, useEffect, useMemo, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import PortalSidebar, { PortalRole } from "@/app/components/portal/PortalSidebar";
 import PortalTopbar from "@/app/components/portal/PortalTopbar";
@@ -9,6 +9,7 @@ import PortalTopbar from "@/app/components/portal/PortalTopbar";
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const pathname = usePathname();
+  const router = useRouter();
 
   const [checking, setChecking] = useState(true);
   const [role, setRole] = useState<PortalRole>("admin");
@@ -25,7 +26,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       if (userErr || !userData?.user) {
         if (!mounted) return;
         setChecking(false);
-        window.location.replace("/partner/login?reason=not_authorized");
+        router.replace("/partner/login?reason=not_authorized");
         return;
       }
 
@@ -49,7 +50,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
         if (!nextRole) {
           setChecking(false);
-          window.location.replace("/partner/login?reason=not_authorized");
+          router.replace("/partner/login?reason=not_authorized");
           return;
         }
 
@@ -58,7 +59,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       } catch {
         if (!mounted) return;
         setChecking(false);
-        window.location.replace("/partner/login?reason=not_authorized");
+        router.replace("/partner/login?reason=not_authorized");
       }
     }
 
@@ -67,7 +68,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, [supabase]);
+  }, [supabase, router]);
 
   useEffect(() => {
     setSidebarOpen(false);
