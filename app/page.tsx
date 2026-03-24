@@ -578,9 +578,7 @@ export default function HomePage() {
               <a href="#apps" data-i18n="nav_apps" onClick={closeMobileNavIfOpen}>
                 Apps & Screens
               </a>
-              <a href="#join" data-i18n="nav_join" onClick={closeMobileNavIfOpen}>
-                Join the System
-              </a>
+              
 
               {/* ✅ MOVED to END (requested change) */}
               
@@ -614,11 +612,14 @@ export default function HomePage() {
             </div>
 
             <div className="hero-cta">
-              {/* ✅ CTA now goes to /partner/signup */}
-              <a className="btn btn-primary" href="#join" onClick={closeMobileNavIfOpen}>
-  Join the System
-</a>
-            </div>
+  <a
+    className="btn btn-primary"
+    href="/partner/login"
+    onClick={closeMobileNavIfOpen}
+  >
+    Join the System
+  </a>
+</div>
           </div>
 
           <aside className="hero-card">
