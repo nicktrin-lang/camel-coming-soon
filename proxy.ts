@@ -26,23 +26,8 @@ export function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  if (host === TEST_HOST && pathname === "/") {
-    const redirectUrl = req.nextUrl.clone();
-    redirectUrl.pathname = "/test-booking";
-    redirectUrl.search = "";
-    return NextResponse.redirect(redirectUrl, 307);
-  }
-
-  if (
-    host === TEST_HOST &&
-    (pathname.startsWith("/partner") || pathname.startsWith("/admin"))
-  ) {
-    const redirectUrl = req.nextUrl.clone();
-    redirectUrl.pathname = "/test-booking";
-    redirectUrl.search = "";
-    return NextResponse.redirect(redirectUrl, 307);
-  }
-
+  // MAIN DOMAIN:
+  // partner/admin paths should live on the portal subdomain
   const isPartnerOrAdminPath =
     pathname.startsWith("/partner") || pathname.startsWith("/admin");
 
@@ -53,6 +38,23 @@ export function proxy(req: NextRequest) {
     redirectUrl.pathname = pathname;
     redirectUrl.search = url.search;
     return NextResponse.redirect(redirectUrl, 308);
+  }
+
+  // TEST DOMAIN:
+  // DO NOT redirect "/" anymore.
+  // We want test.camel-global.com to show the new customer homepage from app/page.tsx
+
+  // Optional safety:
+  // if someone tries partner/admin routes on the test domain,
+  // send them into the customer staging area instead
+  if (
+    host === TEST_HOST &&
+    (pathname.startsWith("/partner") || pathname.startsWith("/admin"))
+  ) {
+    const redirectUrl = req.nextUrl.clone();
+    redirectUrl.pathname = "/test-booking";
+    redirectUrl.search = "";
+    return NextResponse.redirect(redirectUrl, 307);
   }
 
   return NextResponse.next();
