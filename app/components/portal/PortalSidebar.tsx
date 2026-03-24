@@ -22,7 +22,6 @@ const partnerNavItems = [
 ];
 
 const adminNavItems = [
-  { href: "/admin", label: "Dashboard" },
   { href: "/admin/accounts", label: "Account Management" },
   { href: "/admin/approvals", label: "Partner Approvals" },
   { href: "/admin/requests", label: "Requests" },
