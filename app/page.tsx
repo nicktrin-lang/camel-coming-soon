@@ -1568,3 +1568,17 @@ function PartnerMarketingHome() {
     </>
   );
 }
+
+export default function Page() {
+  const [host, setHost] = useState("");
+
+  useEffect(() => {
+    setHost(window.location.hostname);
+  }, []);
+
+  if (host === "test.camel-global.com") {
+    return <CustomerMapHome />;
+  }
+
+  return <PartnerMarketingHome />;
+}
