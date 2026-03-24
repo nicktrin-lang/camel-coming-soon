@@ -80,356 +80,302 @@ function CustomerMapHome() {
           --camel-blue: #005b9f;
           --camel-blue-dark: #003768;
           --camel-orange: #ff7a00;
-          --camel-light: #e3f4ff;
-          --camel-grey: #f5f7fa;
-          --text-main: #1a1a1a;
         }
 
         * { box-sizing: border-box; }
 
-        body {
+        html, body {
           margin: 0;
+          padding: 0;
           font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-          color: var(--text-main);
-          background: var(--camel-light);
-          line-height: 1.6;
-          padding-top: 104px;
         }
 
-        img {
-          max-width: 100%;
-          height: auto;
-          display: block;
+        body {
+          background: #fff;
         }
 
-        a { text-decoration: none; }
+        a {
+          text-decoration: none;
+        }
 
-        .site-header {
-          background: linear-gradient(135deg, var(--camel-blue-dark), var(--camel-blue));
-          color: #fff;
-          padding: 0.7rem 1.2rem;
+        .customer-page {
+          position: relative;
           width: 100%;
-          position: fixed;
-          top: 0;
-          left: 0;
-          z-index: 9999;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+          height: 100vh;
+          overflow: hidden;
+          background: #dbeafe;
         }
 
-        .header-inner {
-          max-width: 1240px;
-          margin: 0 auto;
+        .customer-map {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+        }
+
+        .customer-map iframe {
+          display: block;
+          width: 100%;
+          height: 100%;
+          border: 0;
+        }
+
+        .customer-overlay {
+          position: absolute;
+          inset: 0;
+          z-index: 2;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          padding: 1.25rem;
+          background: linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, 0.42) 0%,
+            rgba(0, 0, 0, 0.15) 35%,
+            rgba(0, 0, 0, 0.55) 100%
+          );
+          color: #fff;
+        }
+
+        .customer-header {
           display: flex;
           align-items: center;
+          justify-content: space-between;
           gap: 1rem;
         }
 
-        .header-logo img {
-          height: 72px;
+        .customer-logo img {
+          height: 64px;
           width: auto;
+          display: block;
         }
 
-        .header-actions {
-          margin-left: auto;
+        .customer-header-actions {
           display: flex;
-          gap: 0.75rem;
           align-items: center;
+          gap: 0.65rem;
           flex-wrap: wrap;
         }
 
-        .header-link {
+        .customer-header-link {
           color: #fff;
-          border: 1px solid rgba(255,255,255,0.22);
+          border: 1px solid rgba(255, 255, 255, 0.32);
           border-radius: 999px;
           padding: 0.65rem 1rem;
-          font-size: 0.92rem;
+          font-size: 0.9rem;
           font-weight: 600;
+          backdrop-filter: blur(4px);
+          background: rgba(255, 255, 255, 0.08);
         }
 
-        .header-link-primary {
+        .customer-header-link-primary {
           background: var(--camel-orange);
           border-color: transparent;
           box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
         }
 
-        .hero {
-          padding: 2rem 1.25rem 3rem;
-          background: linear-gradient(
-            135deg,
-            rgba(0, 91, 159, 0.96),
-            rgba(0, 118, 210, 0.92)
-          );
+        .customer-content {
+          width: 100%;
+          max-width: 560px;
+          margin-bottom: 2rem;
         }
 
-        .hero-inner {
-          max-width: 1240px;
-          margin: 0 auto;
-          display: grid;
-          grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.3fr);
-          gap: 1.5rem;
-          align-items: stretch;
-        }
-
-        .hero-copy,
-        .hero-panel {
-          border-radius: 1.5rem;
-          overflow: hidden;
-          box-shadow: 0 18px 45px rgba(0, 0, 0, 0.16);
-        }
-
-        .hero-copy {
-          background: rgba(255,255,255,0.97);
-          padding: 2rem;
-        }
-
-        .eyebrow {
-          color: var(--camel-blue);
+        .customer-kicker {
+          display: inline-block;
+          margin-bottom: 0.7rem;
           font-size: 0.82rem;
           font-weight: 700;
           letter-spacing: 0.16em;
           text-transform: uppercase;
+          color: rgba(255, 255, 255, 0.9);
         }
 
-        h1 {
-          margin: 0.75rem 0 0;
-          font-size: clamp(2rem, 4vw, 3rem);
-          line-height: 1.1;
-          color: var(--camel-blue-dark);
-        }
-
-        .hero-copy p {
-          margin: 1rem 0 0;
-          color: #475569;
-          font-size: 1rem;
-        }
-
-        .hero-pills {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.6rem;
-          margin-top: 1.2rem;
-        }
-
-        .pill {
-          border-radius: 999px;
-          padding: 0.4rem 0.85rem;
-          background: #eef6ff;
-          border: 1px solid rgba(0,0,0,0.06);
-          color: var(--camel-blue-dark);
-          font-size: 0.84rem;
-          font-weight: 600;
-        }
-
-        .hero-panel {
-          background: #fff;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .map-wrap {
-          min-height: 440px;
-          background: #dbeafe;
-          border-bottom: 1px solid rgba(0,0,0,0.06);
-        }
-
-        .map-wrap iframe {
-          display: block;
-          width: 100%;
-          height: 100%;
-          min-height: 440px;
-          border: 0;
-        }
-
-        .panel-controls {
-          padding: 1.25rem;
-        }
-
-        .panel-title {
+        .customer-title {
           margin: 0;
-          color: var(--camel-blue-dark);
-          font-size: 1.2rem;
-          font-weight: 700;
+          font-size: clamp(2.1rem, 5vw, 3.8rem);
+          line-height: 1.02;
+          font-weight: 800;
+          color: #fff;
+          text-shadow: 0 2px 18px rgba(0, 0, 0, 0.35);
         }
 
-        .panel-subtitle {
-          margin: 0.45rem 0 0;
-          color: #64748b;
-          font-size: 0.95rem;
+        .customer-subtext {
+          margin-top: 0.9rem;
+          font-size: 1rem;
+          line-height: 1.55;
+          color: rgba(255, 255, 255, 0.95);
+          max-width: 520px;
+          text-shadow: 0 2px 14px rgba(0, 0, 0, 0.24);
         }
 
-        .location-chip {
+        .customer-location {
           margin-top: 1rem;
           display: inline-flex;
           align-items: center;
           gap: 0.5rem;
           border-radius: 999px;
-          background: #f8fafc;
-          border: 1px solid rgba(0,0,0,0.08);
-          padding: 0.65rem 0.95rem;
-          font-size: 0.92rem;
-          color: #334155;
+          background: rgba(255, 255, 255, 0.14);
+          border: 1px solid rgba(255, 255, 255, 0.22);
+          padding: 0.7rem 1rem;
+          color: #fff;
+          font-size: 0.95rem;
           font-weight: 600;
+          backdrop-filter: blur(6px);
         }
 
-        .button-row {
+        .customer-actions {
           margin-top: 1rem;
           display: flex;
           flex-wrap: wrap;
           gap: 0.75rem;
         }
 
-        .btn {
+        .customer-btn {
           appearance: none;
           border: none;
           border-radius: 999px;
-          padding: 0.9rem 1.25rem;
+          padding: 0.95rem 1.3rem;
           font-size: 0.95rem;
           font-weight: 700;
           cursor: pointer;
+          transition: transform 0.15s ease, opacity 0.15s ease;
         }
 
-        .btn-primary {
+        .customer-btn:hover {
+          transform: translateY(-1px);
+        }
+
+        .customer-btn:disabled {
+          opacity: 0.75;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .customer-btn-primary {
           background: var(--camel-orange);
           color: #fff;
-          box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+          box-shadow: 0 10px 22px rgba(0, 0, 0, 0.22);
         }
 
-        .btn-secondary {
-          background: #fff;
+        .customer-btn-secondary {
+          background: rgba(255, 255, 255, 0.94);
           color: var(--camel-blue-dark);
-          border: 1px solid rgba(0,0,0,0.1);
+          border: 1px solid rgba(0, 0, 0, 0.08);
         }
 
-        .preset-row {
+        .customer-presets {
           margin-top: 1rem;
           display: flex;
           flex-wrap: wrap;
-          gap: 0.6rem;
+          gap: 0.55rem;
         }
 
-        .preset {
+        .customer-preset {
           border-radius: 999px;
-          background: #eef6ff;
-          color: var(--camel-blue-dark);
-          border: 1px solid rgba(0,0,0,0.06);
-          padding: 0.55rem 0.8rem;
+          background: rgba(255, 255, 255, 0.14);
+          color: #fff;
+          border: 1px solid rgba(255, 255, 255, 0.22);
+          padding: 0.55rem 0.85rem;
           font-size: 0.84rem;
           font-weight: 600;
           cursor: pointer;
+          backdrop-filter: blur(6px);
         }
 
-        .info-strip {
-          max-width: 1240px;
-          margin: 1.2rem auto 0;
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 1rem;
-          padding: 0 1.25rem;
-        }
-
-        .info-card {
-          border-radius: 1.2rem;
-          background: #fff;
-          padding: 1.15rem;
-          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
-        }
-
-        .info-card h3 {
-          margin: 0;
-          color: var(--camel-blue-dark);
-          font-size: 1rem;
-        }
-
-        .info-card p {
-          margin: 0.45rem 0 0;
-          color: #64748b;
-          font-size: 0.92rem;
-        }
-
-        @media (max-width: 980px) {
-          .hero-inner {
-            grid-template-columns: minmax(0, 1fr);
-          }
-
-          .info-strip {
-            grid-template-columns: minmax(0, 1fr);
-          }
-
-          .header-actions {
-            gap: 0.5rem;
+        @media (max-width: 900px) {
+          .customer-content {
+            max-width: 100%;
           }
         }
 
         @media (max-width: 640px) {
-          body {
-            padding-top: 96px;
+          .customer-overlay {
+            padding: 1rem;
           }
 
-          .header-logo img {
-            height: 62px;
+          .customer-header {
+            align-items: flex-start;
+            flex-direction: column;
           }
 
-          .header-actions {
-            display: none;
+          .customer-logo img {
+            height: 58px;
           }
 
-          .hero-copy,
-          .hero-panel {
-            border-radius: 1.15rem;
+          .customer-header-actions {
+            width: 100%;
           }
 
-          .hero-copy {
-            padding: 1.4rem;
+          .customer-title {
+            font-size: 2rem;
+          }
+
+          .customer-subtext {
+            font-size: 0.95rem;
+          }
+
+          .customer-content {
+            margin-bottom: 1rem;
           }
         }
       `}</style>
 
-      <header className="site-header">
-        <div className="header-inner">
-          <Link href="/" className="header-logo">
-            <img src="/camel-logo.png" alt="Camel Global Ltd logo" />
-          </Link>
-
-          <div className="header-actions">
-            <Link href="/test-booking/login" className="header-link">
-              Customer Login
-            </Link>
-            <Link href="/test-booking/signup" className="header-link header-link-primary">
-              Create Account
-            </Link>
-          </div>
+      <div className="customer-page">
+        <div className="customer-map">
+          <iframe
+            title="Pickup location map"
+            src={mapSrc}
+            loading="lazy"
+          />
         </div>
-      </header>
 
-      <section className="hero">
-        <div className="hero-inner">
-          <div className="hero-copy">
-            <div className="eyebrow">Camel Global Customer Staging</div>
-            <h1>Choose your pickup point and start your booking.</h1>
-            <p>
-              Start your request before creating an account. Choose a location on the map,
-              continue into the booking details, and only sign in or create an account when
-              you are ready to submit.
-            </p>
+        <div className="customer-overlay">
+          <div className="customer-header">
+            <Link href="/" className="customer-logo">
+              <img src="/camel-logo.png" alt="Camel Global Ltd logo" />
+            </Link>
 
-            <div className="hero-pills">
-              <div className="pill">Map-first booking flow</div>
-              <div className="pill">OpenStreetMap</div>
-              <div className="pill">Customer auth separated from portal</div>
+            <div className="customer-header-actions">
+              <Link href="/test-booking/login" className="customer-header-link">
+                Customer Login
+              </Link>
+              <Link
+                href="/test-booking/signup"
+                className="customer-header-link customer-header-link-primary"
+              >
+                Create Account
+              </Link>
+            </div>
+          </div>
+
+          <div className="customer-content">
+            <div className="customer-kicker">Camel Global Customer Staging</div>
+
+            <h1 className="customer-title">
+              Start your booking on the map.
+            </h1>
+
+            <div className="customer-subtext">
+              Choose your pickup location and continue into the booking details.
+              Customers can begin the booking flow first, then sign in or create
+              an account before final processing.
             </div>
 
-            <div className="location-chip">
+            <div className="customer-location">
               Selected pickup: {locationLabel}
             </div>
 
-            <div className="button-row">
-              <button type="button" className="btn btn-primary" onClick={continueToBooking}>
+            <div className="customer-actions">
+              <button
+                type="button"
+                className="customer-btn customer-btn-primary"
+                onClick={continueToBooking}
+              >
                 Continue to booking details
               </button>
 
               <button
                 type="button"
-                className="btn btn-secondary"
+                className="customer-btn customer-btn-secondary"
                 onClick={useCurrentLocation}
                 disabled={isLocating}
               >
@@ -437,81 +383,37 @@ function CustomerMapHome() {
               </button>
             </div>
 
-            <div className="preset-row">
+            <div className="customer-presets">
               <button
                 type="button"
-                className="preset"
+                className="customer-preset"
                 onClick={() => setPresetLocation("Central London", 51.5074, -0.1278)}
               >
                 London
               </button>
               <button
                 type="button"
-                className="preset"
+                className="customer-preset"
                 onClick={() => setPresetLocation("Manchester City Centre", 53.4808, -2.2426)}
               >
                 Manchester
               </button>
               <button
                 type="button"
-                className="preset"
+                className="customer-preset"
                 onClick={() => setPresetLocation("Birmingham City Centre", 52.4862, -1.8904)}
               >
                 Birmingham
               </button>
               <button
                 type="button"
-                className="preset"
+                className="customer-preset"
                 onClick={() => setPresetLocation("Gatwick Airport", 51.1537, -0.1821)}
               >
                 Gatwick
               </button>
             </div>
           </div>
-
-          <div className="hero-panel">
-            <div className="map-wrap">
-              <iframe
-                title="Pickup location map"
-                src={mapSrc}
-                loading="lazy"
-              />
-            </div>
-
-            <div className="panel-controls">
-              <h2 className="panel-title">Select your starting location</h2>
-              <p className="panel-subtitle">
-                This is the first stage of the customer journey. Booking details can be entered
-                before account creation, with login/signup required before final processing.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div className="info-strip">
-        <div className="info-card">
-          <h3>Start before signing up</h3>
-          <p>
-            Customers can begin entering booking details first, then create an account or sign in
-            when ready to submit.
-          </p>
-        </div>
-
-        <div className="info-card">
-          <h3>Separated customer auth</h3>
-          <p>
-            Customer accounts are isolated from partner and admin accounts, so the same email can
-            exist safely in both systems.
-          </p>
-        </div>
-
-        <div className="info-card">
-          <h3>Built for the future live site</h3>
-          <p>
-            This homepage is designed as the foundation for the future customer experience on the
-            main Camel Global domain.
-          </p>
         </div>
       </div>
     </>
@@ -578,8 +480,7 @@ function PartnerMarketingHome() {
 
         body {
           margin: 0;
-          font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-            Roboto, sans-serif;
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
           color: var(--text-main);
           background: var(--camel-light);
           line-height: 1.6;
@@ -596,11 +497,7 @@ function PartnerMarketingHome() {
         a:hover { text-decoration: underline; }
 
         header {
-          background: linear-gradient(
-            135deg,
-            var(--camel-blue-dark),
-            var(--camel-blue)
-          );
+          background: linear-gradient(135deg, var(--camel-blue-dark), var(--camel-blue));
           color: #fff;
           padding: 0.6rem 1.2rem;
           width: 100%;
@@ -699,11 +596,7 @@ function PartnerMarketingHome() {
         }
 
         .hero {
-          background: linear-gradient(
-            135deg,
-            rgba(0, 91, 159, 0.95),
-            rgba(0, 118, 210, 0.95)
-          );
+          background: linear-gradient(135deg, rgba(0, 91, 159, 0.95), rgba(0, 118, 210, 0.95));
           color: #fff;
           padding: 3.3rem 1.5rem 3rem;
         }
@@ -717,7 +610,7 @@ function PartnerMarketingHome() {
           align-items: center;
         }
 
-        .hero h1 {
+        .partner-title {
           font-size: clamp(2rem, 4vw, 2.8rem);
           margin: 0 0 1rem;
         }
@@ -760,7 +653,7 @@ function PartnerMarketingHome() {
           align-items: center;
         }
 
-        .btn {
+        .partner-btn {
           display: inline-block;
           padding: 0.8rem 1.4rem;
           border-radius: 999px;
@@ -771,7 +664,7 @@ function PartnerMarketingHome() {
           text-align: center;
         }
 
-        .btn-primary {
+        .partner-btn-primary {
           background: var(--camel-orange);
           color: #fff;
           box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
@@ -996,11 +889,7 @@ function PartnerMarketingHome() {
             top: 100%;
             left: 0;
             right: 0;
-            background: linear-gradient(
-              135deg,
-              var(--camel-blue-dark),
-              var(--camel-blue)
-            );
+            background: linear-gradient(135deg, var(--camel-blue-dark), var(--camel-blue));
             display: none;
             flex-direction: column;
             gap: 0.4rem;
@@ -1053,12 +942,7 @@ function PartnerMarketingHome() {
                 </select>
               </div>
 
-              <button
-                className="nav-toggle"
-                aria-label="Toggle navigation"
-                aria-expanded="false"
-                onClick={toggleMobileNav}
-              >
+              <button className="nav-toggle" aria-label="Toggle navigation" aria-expanded="false" onClick={toggleMobileNav}>
                 <span className="nav-toggle-box">
                   <span className="nav-toggle-line"></span>
                   <span className="nav-toggle-line"></span>
@@ -1068,24 +952,12 @@ function PartnerMarketingHome() {
             </div>
 
             <nav className="nav-links">
-              <a href="#intro" data-i18n="nav_about" onClick={closeMobileNavIfOpen}>
-                About
-              </a>
-              <a href="#concept" data-i18n="nav_concept" onClick={closeMobileNavIfOpen}>
-                The Concept
-              </a>
-              <a href="#customer" data-i18n="nav_customer" onClick={closeMobileNavIfOpen}>
-                Customer Journey
-              </a>
-              <a href="#partner" data-i18n="nav_partner" onClick={closeMobileNavIfOpen}>
-                Partner Platform
-              </a>
-              <a href="#payment" data-i18n="nav_payment" onClick={closeMobileNavIfOpen}>
-                Payment & Reporting
-              </a>
-              <a href="#apps" data-i18n="nav_apps" onClick={closeMobileNavIfOpen}>
-                Apps & Screens
-              </a>
+              <a href="#intro" data-i18n="nav_about" onClick={closeMobileNavIfOpen}>About</a>
+              <a href="#concept" data-i18n="nav_concept" onClick={closeMobileNavIfOpen}>The Concept</a>
+              <a href="#customer" data-i18n="nav_customer" onClick={closeMobileNavIfOpen}>Customer Journey</a>
+              <a href="#partner" data-i18n="nav_partner" onClick={closeMobileNavIfOpen}>Partner Platform</a>
+              <a href="#payment" data-i18n="nav_payment" onClick={closeMobileNavIfOpen}>Payment & Reporting</a>
+              <a href="#apps" data-i18n="nav_apps" onClick={closeMobileNavIfOpen}>Apps & Screens</a>
             </nav>
           </div>
         </div>
@@ -1097,7 +969,7 @@ function PartnerMarketingHome() {
             <div className="hero-highlight" data-i18n="hero_tagline">
               Meet & Greet Car Hire – Built for the UK Market
             </div>
-            <h1 data-i18n="hero_title">NO PAPERWORK. NO QUEUING. NO HIDDEN COSTS.</h1>
+            <h1 className="partner-title" data-i18n="hero_title">NO PAPERWORK. NO QUEUING. NO HIDDEN COSTS.</h1>
             <p data-i18n="hero_p1">
               Camel Global Ltd is a UK company formed as a result of real car-hire experiences in Spain.
               We are an online meet-and-greet car hire platform built solely for customers and partners,
@@ -1115,11 +987,7 @@ function PartnerMarketingHome() {
             </div>
 
             <div className="hero-cta">
-              <a
-                className="btn btn-primary"
-                href="/partner/login"
-                onClick={closeMobileNavIfOpen}
-              >
+              <a className="partner-btn partner-btn-primary" href="/partner/login" onClick={closeMobileNavIfOpen}>
                 Join the System
               </a>
             </div>
@@ -1146,9 +1014,7 @@ function PartnerMarketingHome() {
         <section id="intro">
           <div className="section-inner">
             <h2 className="section-title" data-i18n="intro_title">Introduction</h2>
-            <p className="section-subtitle" data-i18n="intro_subtitle">
-              Camel Global &amp; the UK meet-and-greet opportunity
-            </p>
+            <p className="section-subtitle" data-i18n="intro_subtitle">Camel Global &amp; the UK meet-and-greet opportunity</p>
 
             <div className="two-col">
               <div>
@@ -1170,9 +1036,7 @@ function PartnerMarketingHome() {
               </div>
 
               <div>
-                <p data-i18n="intro_defs_title">
-                  <strong>Key definitions used throughout this site:</strong>
-                </p>
+                <p data-i18n="intro_defs_title"><strong>Key definitions used throughout this site:</strong></p>
                 <ul>
                   <li data-i18n="intro_def_partners"><strong>Partners</strong> – Car hire companies.</li>
                   <li data-i18n="intro_def_agents"><strong>Agents</strong> – Partner delivery / collection drivers.</li>
@@ -1194,9 +1058,7 @@ function PartnerMarketingHome() {
         <section id="concept" style={{ background: "var(--camel-grey)" }}>
           <div className="section-inner">
             <h2 className="section-title" data-i18n="concept_title">The Concept</h2>
-            <p className="section-subtitle" data-i18n="concept_subtitle">
-              Meet &amp; greet car hire with everything included
-            </p>
+            <p className="section-subtitle" data-i18n="concept_subtitle">Meet &amp; greet car hire with everything included</p>
 
             <div className="two-col">
               <div>
@@ -1237,9 +1099,7 @@ function PartnerMarketingHome() {
         <section id="customer">
           <div className="section-inner">
             <h2 className="section-title" data-i18n="customer_title">Customer Journey</h2>
-            <p className="section-subtitle" data-i18n="customer_subtitle">
-              From booking to feedback – all in the Camel Global app
-            </p>
+            <p className="section-subtitle" data-i18n="customer_subtitle">From booking to feedback – all in the Camel Global app</p>
 
             <div className="two-col">
               <div>
@@ -1279,9 +1139,7 @@ function PartnerMarketingHome() {
               <div>
                 <div className="card">
                   <h3 data-i18n="customer_card_title">The Customer</h3>
-                  <p data-i18n="customer_card_p1">
-                    The app keeps the customer fully informed at every step:
-                  </p>
+                  <p data-i18n="customer_card_p1">The app keeps the customer fully informed at every step:</p>
                   <ul>
                     <li data-i18n="customer_card_li1">All meet-and-greet requests and offers in one place.</li>
                     <li data-i18n="customer_card_li2">Clear breakdown of car hire cost and fuel cost.</li>
@@ -1295,19 +1153,13 @@ function PartnerMarketingHome() {
 
             <div className="screens-grid" style={{ marginTop: "2rem" }}>
               <figure>
-                <img
-                  src="/Screenshot 2025-12-11 at 11.50.34.png"
-                  alt="Customer app booking and fuel confirmation screens"
-                />
+                <img src="/Screenshot 2025-12-11 at 11.50.34.png" alt="Customer app booking and fuel confirmation screens" />
                 <figcaption data-i18n="customer_fig1">
                   Customer App – Confirm car collection, fuel level at collection and return, and overall booking status.
                 </figcaption>
               </figure>
               <figure>
-                <img
-                  src="/Screenshot 2025-12-11 at 11.50.47.png"
-                  alt="Customer app main journey screens"
-                />
+                <img src="/Screenshot 2025-12-11 at 11.50.47.png" alt="Customer app main journey screens" />
                 <figcaption data-i18n="customer_fig2">
                   Customer App – Booking flow from pending request through to arrival countdown.
                 </figcaption>
@@ -1319,9 +1171,7 @@ function PartnerMarketingHome() {
         <section id="partner" style={{ background: "var(--camel-grey)" }}>
           <div className="section-inner">
             <h2 className="section-title" data-i18n="partner_title">The Partner</h2>
-            <p className="section-subtitle" data-i18n="partner_subtitle">
-              Web admin portal + partner app for agents
-            </p>
+            <p className="section-subtitle" data-i18n="partner_subtitle">Web admin portal + partner app for agents</p>
 
             <div className="two-col">
               <div>
@@ -1368,19 +1218,13 @@ function PartnerMarketingHome() {
 
             <div className="screens-grid" style={{ marginTop: "2rem" }}>
               <figure>
-                <img
-                  src="/Screenshot 2025-12-11 at 11.50.54.png"
-                  alt="Partner app menu and status screens"
-                />
+                <img src="/Screenshot 2025-12-11 at 11.50.54.png" alt="Partner app menu and status screens" />
                 <figcaption data-i18n="partner_fig1">
                   Partner App – Cars Manager with Today / Week / All views for Deliver, On Hire and Collect.
                 </figcaption>
               </figure>
               <figure>
-                <img
-                  src="/Screenshot 2025-12-11 at 11.51.02.png"
-                  alt="Partner app confirmation and feedback screens"
-                />
+                <img src="/Screenshot 2025-12-11 at 11.51.02.png" alt="Partner app confirmation and feedback screens" />
                 <figcaption data-i18n="partner_fig2">
                   Partner App – Collect car confirmation, fuel level confirmation and customer feedback screens.
                 </figcaption>
@@ -1392,9 +1236,7 @@ function PartnerMarketingHome() {
         <section id="payment">
           <div className="section-inner">
             <h2 className="section-title" data-i18n="payment_title">Payment</h2>
-            <p className="section-subtitle" data-i18n="payment_subtitle">
-              Secure, transparent and compliant with European Law
-            </p>
+            <p className="section-subtitle" data-i18n="payment_subtitle">Secure, transparent and compliant with European Law</p>
 
             <div className="info-grid">
               <div className="card">
@@ -1406,45 +1248,23 @@ function PartnerMarketingHome() {
                 </p>
                 <p data-i18n="payment_flow_p2">Payments will be calculated as follows:</p>
                 <ul>
-                  <li data-i18n="payment_flow_li1">
-                    Car hire cost minus Camel Global commission (tbc) = cost transferred to partner.
-                  </li>
-                  <li data-i18n="payment_flow_li2">
-                    Fuel cost minus fuel left in tank = cost transferred to partner.
-                  </li>
+                  <li data-i18n="payment_flow_li1">Car hire cost minus Camel Global commission (tbc) = cost transferred to partner.</li>
+                  <li data-i18n="payment_flow_li2">Fuel cost minus fuel left in tank = cost transferred to partner.</li>
                 </ul>
               </div>
 
               <div className="card">
                 <h3 data-i18n="payment_ops_title">Operational Notes</h3>
                 <ul>
-                  <li data-i18n="payment_ops_li1">
-                    The customer requests and books the meet and greet service through the app.
-                  </li>
-                  <li data-i18n="payment_ops_li2">
-                    The partner has a web-based administration panel to fully manage all bookings and reporting.
-                  </li>
-                  <li data-i18n="payment_ops_li3">
-                    The partner has an app so that each agent (delivery/pickup driver) can see what cars are due out,
-                    on hire, or to be collected.
-                  </li>
+                  <li data-i18n="payment_ops_li1">The customer requests and books the meet and greet service through the app.</li>
+                  <li data-i18n="payment_ops_li2">The partner has a web-based administration panel to fully manage all bookings and reporting.</li>
+                  <li data-i18n="payment_ops_li3">The partner has an app so that each agent (delivery/pickup driver) can see what cars are due out, on hire, or to be collected.</li>
                   <li data-i18n="payment_ops_li4">The apps are available on both Android and iOS.</li>
-                  <li data-i18n="payment_ops_li5">
-                    When submitting prices, ensure your cost includes full car hire, including delivery and pick up,
-                    full insurance with zero excess, and a full tank of fuel.
-                  </li>
-                  <li data-i18n="payment_ops_li6">
-                    The price you enter is your choice, so ensure your costs are covered.
-                  </li>
-                  <li data-i18n="payment_ops_li7">
-                    All terms and conditions and contracts are between the customer and the partner and are accepted
-                    by the customer at the time of booking.
-                  </li>
+                  <li data-i18n="payment_ops_li5">When submitting prices, ensure your cost includes full car hire, including delivery and pick up, full insurance with zero excess, and a full tank of fuel.</li>
+                  <li data-i18n="payment_ops_li6">The price you enter is your choice, so ensure your costs are covered.</li>
+                  <li data-i18n="payment_ops_li7">All terms and conditions and contracts are between the customer and the partner and are accepted by the customer at the time of booking.</li>
                   <li data-i18n="payment_ops_li8">The customer's driving licence is uploaded at the time of booking.</li>
-                  <li data-i18n="payment_ops_li9">
-                    All payments are held in a client account and controlled by Camel Global Ltd, and are released
-                    once the car hire service is confirmed as complete.
-                  </li>
+                  <li data-i18n="payment_ops_li9">All payments are held in a client account and controlled by Camel Global Ltd, and are released once the car hire service is confirmed as complete.</li>
                 </ul>
               </div>
 
@@ -1490,9 +1310,7 @@ function PartnerMarketingHome() {
         <section id="apps" style={{ background: "var(--camel-grey)" }}>
           <div className="section-inner">
             <h2 className="section-title" data-i18n="apps_title">Key Points</h2>
-            <p className="section-subtitle" data-i18n="apps_subtitle">
-              Why Camel Global matters to customers and partners
-            </p>
+            <p className="section-subtitle" data-i18n="apps_subtitle">Why Camel Global matters to customers and partners</p>
 
             <div className="kpis">
               <div className="kpi">
@@ -1533,13 +1351,7 @@ function PartnerMarketingHome() {
             </p>
 
             <div style={{ margin: "1.5rem 0" }}>
-              <a
-                className="btn btn-primary"
-                href="https://www.camel-global.com"
-                target="_blank"
-                rel="noreferrer"
-                data-i18n="join_button"
-              >
+              <a className="partner-btn partner-btn-primary" href="https://www.camel-global.com" target="_blank" rel="noreferrer" data-i18n="join_button">
                 Visit www.camel-global.com
               </a>
             </div>
