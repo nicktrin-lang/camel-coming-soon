@@ -50,7 +50,7 @@ export default function Home() {
 
         <p
           style={{
-            margin: 0,
+            margin: "0 0 28px",
             fontSize: "18px",
             lineHeight: 1.7,
             opacity: 0.9,
@@ -58,6 +58,22 @@ export default function Home() {
         >
           Customer platform coming soon.
         </p>
+
+        <a
+          href="https://portal.camel-global.com/partner/login"
+          style={{
+            display: "inline-block",
+            padding: "14px 28px",
+            borderRadius: "999px",
+            background: "#ff7a00",
+            color: "#ffffff",
+            fontWeight: 700,
+            textDecoration: "none",
+            boxShadow: "0 8px 18px rgba(0,0,0,0.18)",
+          }}
+        >
+          Partner Login
+        </a>
       </div>
     </main>
   );
