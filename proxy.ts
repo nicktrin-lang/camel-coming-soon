@@ -33,6 +33,16 @@ export function proxy(req: NextRequest) {
     return NextResponse.redirect(redirectUrl, 307);
   }
 
+  if (
+    host === TEST_HOST &&
+    (pathname.startsWith("/partner") || pathname.startsWith("/admin"))
+  ) {
+    const redirectUrl = req.nextUrl.clone();
+    redirectUrl.pathname = "/test-booking";
+    redirectUrl.search = "";
+    return NextResponse.redirect(redirectUrl, 307);
+  }
+
   const isPartnerOrAdminPath =
     pathname.startsWith("/partner") || pathname.startsWith("/admin");
 
