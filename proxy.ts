@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const MAIN_HOSTS = new Set(["camel-global.com", "www.camel-global.com"]);
 const PORTAL_HOST = "portal.camel-global.com";
+const TEST_HOST = "test.camel-global.com";
 
 function isStaticAsset(pathname: string) {
   return (
@@ -23,6 +24,13 @@ export function proxy(req: NextRequest) {
 
   if (isStaticAsset(pathname)) {
     return NextResponse.next();
+  }
+
+  if (host === TEST_HOST && pathname === "/") {
+    const redirectUrl = req.nextUrl.clone();
+    redirectUrl.pathname = "/test-booking";
+    redirectUrl.search = "";
+    return NextResponse.redirect(redirectUrl, 307);
   }
 
   const isPartnerOrAdminPath =
