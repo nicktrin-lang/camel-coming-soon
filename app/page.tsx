@@ -1,19 +1,529 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { translations } from "./marketing/translations";
 
 type Lang = keyof typeof translations;
 
-export default function HomePage() {
+type Coords = {
+  lat: number;
+  lng: number;
+};
+
+function CustomerMapHome() {
+  const router = useRouter();
+  const [pickupMode, setPickupMode] = useState<"map" | "current">("map");
+  const [coords, setCoords] = useState<Coords>({ lat: 51.5074, lng: -0.1278 });
+  const [locationLabel, setLocationLabel] = useState("Central London");
+  const [isLocating, setIsLocating] = useState(false);
+
+  const mapSrc = useMemo(() => {
+    const delta = 0.03;
+    const left = coords.lng - delta;
+    const right = coords.lng + delta;
+    const top = coords.lat + delta;
+    const bottom = coords.lat - delta;
+
+    return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik&marker=${coords.lat}%2C${coords.lng}`;
+  }, [coords]);
+
+  function continueToBooking() {
+    const params = new URLSearchParams({
+      pickupLat: String(coords.lat),
+      pickupLng: String(coords.lng),
+      pickupLabel: locationLabel,
+      pickupMode,
+    });
+
+    router.push(`/test-booking/new?${params.toString()}`);
+  }
+
+  function useCurrentLocation() {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported on this device.");
+      return;
+    }
+
+    setIsLocating(true);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const nextCoords = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+        setCoords(nextCoords);
+        setPickupMode("current");
+        setLocationLabel("Current location");
+        setIsLocating(false);
+      },
+      () => {
+        setIsLocating(false);
+        alert("We couldn’t get your current location.");
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+
+  function setPresetLocation(name: string, lat: number, lng: number) {
+    setPickupMode("map");
+    setCoords({ lat, lng });
+    setLocationLabel(name);
+  }
+
+  return (
+    <>
+      <style>{`
+        :root {
+          --camel-blue: #005b9f;
+          --camel-blue-dark: #003768;
+          --camel-orange: #ff7a00;
+          --camel-light: #e3f4ff;
+          --camel-grey: #f5f7fa;
+          --text-main: #1a1a1a;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+          margin: 0;
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          color: var(--text-main);
+          background: var(--camel-light);
+          line-height: 1.6;
+          padding-top: 104px;
+        }
+
+        img {
+          max-width: 100%;
+          height: auto;
+          display: block;
+        }
+
+        a { text-decoration: none; }
+
+        .site-header {
+          background: linear-gradient(135deg, var(--camel-blue-dark), var(--camel-blue));
+          color: #fff;
+          padding: 0.7rem 1.2rem;
+          width: 100%;
+          position: fixed;
+          top: 0;
+          left: 0;
+          z-index: 9999;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        }
+
+        .header-inner {
+          max-width: 1240px;
+          margin: 0 auto;
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .header-logo img {
+          height: 72px;
+          width: auto;
+        }
+
+        .header-actions {
+          margin-left: auto;
+          display: flex;
+          gap: 0.75rem;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+
+        .header-link {
+          color: #fff;
+          border: 1px solid rgba(255,255,255,0.22);
+          border-radius: 999px;
+          padding: 0.65rem 1rem;
+          font-size: 0.92rem;
+          font-weight: 600;
+        }
+
+        .header-link-primary {
+          background: var(--camel-orange);
+          border-color: transparent;
+          box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+        }
+
+        .hero {
+          padding: 2rem 1.25rem 3rem;
+          background: linear-gradient(
+            135deg,
+            rgba(0, 91, 159, 0.96),
+            rgba(0, 118, 210, 0.92)
+          );
+        }
+
+        .hero-inner {
+          max-width: 1240px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.3fr);
+          gap: 1.5rem;
+          align-items: stretch;
+        }
+
+        .hero-copy,
+        .hero-panel {
+          border-radius: 1.5rem;
+          overflow: hidden;
+          box-shadow: 0 18px 45px rgba(0, 0, 0, 0.16);
+        }
+
+        .hero-copy {
+          background: rgba(255,255,255,0.97);
+          padding: 2rem;
+        }
+
+        .eyebrow {
+          color: var(--camel-blue);
+          font-size: 0.82rem;
+          font-weight: 700;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+        }
+
+        h1 {
+          margin: 0.75rem 0 0;
+          font-size: clamp(2rem, 4vw, 3rem);
+          line-height: 1.1;
+          color: var(--camel-blue-dark);
+        }
+
+        .hero-copy p {
+          margin: 1rem 0 0;
+          color: #475569;
+          font-size: 1rem;
+        }
+
+        .hero-pills {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.6rem;
+          margin-top: 1.2rem;
+        }
+
+        .pill {
+          border-radius: 999px;
+          padding: 0.4rem 0.85rem;
+          background: #eef6ff;
+          border: 1px solid rgba(0,0,0,0.06);
+          color: var(--camel-blue-dark);
+          font-size: 0.84rem;
+          font-weight: 600;
+        }
+
+        .hero-panel {
+          background: #fff;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .map-wrap {
+          min-height: 440px;
+          background: #dbeafe;
+          border-bottom: 1px solid rgba(0,0,0,0.06);
+        }
+
+        .map-wrap iframe {
+          display: block;
+          width: 100%;
+          height: 100%;
+          min-height: 440px;
+          border: 0;
+        }
+
+        .panel-controls {
+          padding: 1.25rem;
+        }
+
+        .panel-title {
+          margin: 0;
+          color: var(--camel-blue-dark);
+          font-size: 1.2rem;
+          font-weight: 700;
+        }
+
+        .panel-subtitle {
+          margin: 0.45rem 0 0;
+          color: #64748b;
+          font-size: 0.95rem;
+        }
+
+        .location-chip {
+          margin-top: 1rem;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          border-radius: 999px;
+          background: #f8fafc;
+          border: 1px solid rgba(0,0,0,0.08);
+          padding: 0.65rem 0.95rem;
+          font-size: 0.92rem;
+          color: #334155;
+          font-weight: 600;
+        }
+
+        .button-row {
+          margin-top: 1rem;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.75rem;
+        }
+
+        .btn {
+          appearance: none;
+          border: none;
+          border-radius: 999px;
+          padding: 0.9rem 1.25rem;
+          font-size: 0.95rem;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .btn-primary {
+          background: var(--camel-orange);
+          color: #fff;
+          box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+        }
+
+        .btn-secondary {
+          background: #fff;
+          color: var(--camel-blue-dark);
+          border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .preset-row {
+          margin-top: 1rem;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.6rem;
+        }
+
+        .preset {
+          border-radius: 999px;
+          background: #eef6ff;
+          color: var(--camel-blue-dark);
+          border: 1px solid rgba(0,0,0,0.06);
+          padding: 0.55rem 0.8rem;
+          font-size: 0.84rem;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        .info-strip {
+          max-width: 1240px;
+          margin: 1.2rem auto 0;
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 1rem;
+          padding: 0 1.25rem;
+        }
+
+        .info-card {
+          border-radius: 1.2rem;
+          background: #fff;
+          padding: 1.15rem;
+          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+        }
+
+        .info-card h3 {
+          margin: 0;
+          color: var(--camel-blue-dark);
+          font-size: 1rem;
+        }
+
+        .info-card p {
+          margin: 0.45rem 0 0;
+          color: #64748b;
+          font-size: 0.92rem;
+        }
+
+        @media (max-width: 980px) {
+          .hero-inner {
+            grid-template-columns: minmax(0, 1fr);
+          }
+
+          .info-strip {
+            grid-template-columns: minmax(0, 1fr);
+          }
+
+          .header-actions {
+            gap: 0.5rem;
+          }
+        }
+
+        @media (max-width: 640px) {
+          body {
+            padding-top: 96px;
+          }
+
+          .header-logo img {
+            height: 62px;
+          }
+
+          .header-actions {
+            display: none;
+          }
+
+          .hero-copy,
+          .hero-panel {
+            border-radius: 1.15rem;
+          }
+
+          .hero-copy {
+            padding: 1.4rem;
+          }
+        }
+      `}</style>
+
+      <header className="site-header">
+        <div className="header-inner">
+          <Link href="/" className="header-logo">
+            <img src="/camel-logo.png" alt="Camel Global Ltd logo" />
+          </Link>
+
+          <div className="header-actions">
+            <Link href="/test-booking/login" className="header-link">
+              Customer Login
+            </Link>
+            <Link href="/test-booking/signup" className="header-link header-link-primary">
+              Create Account
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <section className="hero">
+        <div className="hero-inner">
+          <div className="hero-copy">
+            <div className="eyebrow">Camel Global Customer Staging</div>
+            <h1>Choose your pickup point and start your booking.</h1>
+            <p>
+              Start your request before creating an account. Choose a location on the map,
+              continue into the booking details, and only sign in or create an account when
+              you are ready to submit.
+            </p>
+
+            <div className="hero-pills">
+              <div className="pill">Map-first booking flow</div>
+              <div className="pill">OpenStreetMap</div>
+              <div className="pill">Customer auth separated from portal</div>
+            </div>
+
+            <div className="location-chip">
+              Selected pickup: {locationLabel}
+            </div>
+
+            <div className="button-row">
+              <button type="button" className="btn btn-primary" onClick={continueToBooking}>
+                Continue to booking details
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={useCurrentLocation}
+                disabled={isLocating}
+              >
+                {isLocating ? "Getting location..." : "Use current location"}
+              </button>
+            </div>
+
+            <div className="preset-row">
+              <button
+                type="button"
+                className="preset"
+                onClick={() => setPresetLocation("Central London", 51.5074, -0.1278)}
+              >
+                London
+              </button>
+              <button
+                type="button"
+                className="preset"
+                onClick={() => setPresetLocation("Manchester City Centre", 53.4808, -2.2426)}
+              >
+                Manchester
+              </button>
+              <button
+                type="button"
+                className="preset"
+                onClick={() => setPresetLocation("Birmingham City Centre", 52.4862, -1.8904)}
+              >
+                Birmingham
+              </button>
+              <button
+                type="button"
+                className="preset"
+                onClick={() => setPresetLocation("Gatwick Airport", 51.1537, -0.1821)}
+              >
+                Gatwick
+              </button>
+            </div>
+          </div>
+
+          <div className="hero-panel">
+            <div className="map-wrap">
+              <iframe
+                title="Pickup location map"
+                src={mapSrc}
+                loading="lazy"
+              />
+            </div>
+
+            <div className="panel-controls">
+              <h2 className="panel-title">Select your starting location</h2>
+              <p className="panel-subtitle">
+                This is the first stage of the customer journey. Booking details can be entered
+                before account creation, with login/signup required before final processing.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="info-strip">
+        <div className="info-card">
+          <h3>Start before signing up</h3>
+          <p>
+            Customers can begin entering booking details first, then create an account or sign in
+            when ready to submit.
+          </p>
+        </div>
+
+        <div className="info-card">
+          <h3>Separated customer auth</h3>
+          <p>
+            Customer accounts are isolated from partner and admin accounts, so the same email can
+            exist safely in both systems.
+          </p>
+        </div>
+
+        <div className="info-card">
+          <h3>Built for the future live site</h3>
+          <p>
+            This homepage is designed as the foundation for the future customer experience on the
+            main Camel Global domain.
+          </p>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function PartnerMarketingHome() {
   const [lang, setLang] = useState<Lang>("en");
 
   useEffect(() => {
-    // year
     const yearEl = document.getElementById("year");
     if (yearEl) yearEl.textContent = String(new Date().getFullYear());
-
-    // default language on load
     setLanguage("en");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -514,7 +1024,6 @@ export default function HomePage() {
 
       <div id="top"></div>
 
-      {/* HEADER */}
       <header>
         <div className="nav-wrapper">
           <div className="nav">
@@ -558,7 +1067,6 @@ export default function HomePage() {
               </button>
             </div>
 
-            {/* NAV LINKS */}
             <nav className="nav-links">
               <a href="#intro" data-i18n="nav_about" onClick={closeMobileNavIfOpen}>
                 About
@@ -578,16 +1086,11 @@ export default function HomePage() {
               <a href="#apps" data-i18n="nav_apps" onClick={closeMobileNavIfOpen}>
                 Apps & Screens
               </a>
-              
-
-              {/* ✅ MOVED to END (requested change) */}
-              
             </nav>
           </div>
         </div>
       </header>
 
-      {/* HERO */}
       <section className="hero">
         <div className="hero-inner">
           <div>
@@ -612,14 +1115,14 @@ export default function HomePage() {
             </div>
 
             <div className="hero-cta">
-  <a
-    className="btn btn-primary"
-    href="/partner/login"
-    onClick={closeMobileNavIfOpen}
-  >
-    Join the System
-  </a>
-</div>
+              <a
+                className="btn btn-primary"
+                href="/partner/login"
+                onClick={closeMobileNavIfOpen}
+              >
+                Join the System
+              </a>
+            </div>
           </div>
 
           <aside className="hero-card">
@@ -640,7 +1143,6 @@ export default function HomePage() {
       </section>
 
       <main>
-        {/* INTRO */}
         <section id="intro">
           <div className="section-inner">
             <h2 className="section-title" data-i18n="intro_title">Introduction</h2>
@@ -689,7 +1191,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* CONCEPT */}
         <section id="concept" style={{ background: "var(--camel-grey)" }}>
           <div className="section-inner">
             <h2 className="section-title" data-i18n="concept_title">The Concept</h2>
@@ -733,7 +1234,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* CUSTOMER */}
         <section id="customer">
           <div className="section-inner">
             <h2 className="section-title" data-i18n="customer_title">Customer Journey</h2>
@@ -816,7 +1316,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* PARTNER */}
         <section id="partner" style={{ background: "var(--camel-grey)" }}>
           <div className="section-inner">
             <h2 className="section-title" data-i18n="partner_title">The Partner</h2>
@@ -890,7 +1389,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* PAYMENT */}
         <section id="payment">
           <div className="section-inner">
             <h2 className="section-title" data-i18n="payment_title">Payment</h2>
@@ -989,7 +1487,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* KEY POINTS */}
         <section id="apps" style={{ background: "var(--camel-grey)" }}>
           <div className="section-inner">
             <h2 className="section-title" data-i18n="apps_title">Key Points</h2>
@@ -1023,7 +1520,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* JOIN */}
         <section id="join" className="cta">
           <div className="cta-inner">
             <h2 data-i18n="join_title">Summary &amp; Join the Camel Global System</h2>
