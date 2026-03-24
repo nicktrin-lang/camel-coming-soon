@@ -6,42 +6,40 @@ import { usePathname } from "next/navigation";
 export type PortalRole = "partner" | "admin" | "super_admin";
 
 type Props = {
+  role: PortalRole;
   open: boolean;
   onClose: () => void;
-  role?: PortalRole;
 };
 
 const partnerNavItems = [
+  { href: "/partner/dashboard", label: "Dashboard" },
   { href: "/partner/account", label: "Account Management" },
+  { href: "/partner/requests", label: "Requests" },
   { href: "/partner/bookings", label: "Bookings" },
+  { href: "/partner/reports", label: "Report Management" },
   { href: "/partner/drivers", label: "Drivers" },
   { href: "/partner/fleet", label: "Car Fleet" },
-  { href: "/partner/reports", label: "Report Management" },
-  { href: "/partner/requests", label: "Requests" },
 ];
 
 const adminNavItems = [
-  { href: "/admin/dashboard", label: "Dashboard" },
+  { href: "/admin", label: "Dashboard" },
   { href: "/admin/accounts", label: "Account Management" },
-  { href: "/admin/applications", label: "Applications" },
+  { href: "/admin/approvals", label: "Applications" },
   { href: "/admin/requests", label: "Requests" },
-  { href: "/admin/bookings", label: "Bookings" },
   { href: "/admin/reports", label: "Report Management" },
+  { href: "/admin/users", label: "Admin Users" },
 ];
 
 function isActive(pathname: string, href: string) {
+  if (href === "/admin") return pathname === "/admin";
+  if (href === "/partner/dashboard") return pathname === "/partner/dashboard";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export default function PortalSidebar({
-  open,
-  onClose,
-  role = "partner",
-}: Props) {
-  const pathname = usePathname();
-  const navItems = role === "partner" ? partnerNavItems : adminNavItems;
-  const homeHref = role === "partner" ? "/partner/dashboard" : "/admin/dashboard";
-  const editProfileHref = role === "partner" ? "/partner/profile" : "/admin/accounts";
+export default function PortalSidebar({ role, open, onClose }: Props) {
+  const pathname = usePathname() || "";
+  const isPartner = role === "partner";
+  const navItems = isPartner ? partnerNavItems : adminNavItems;
 
   return (
     <>
@@ -59,20 +57,24 @@ export default function PortalSidebar({
           "fixed left-0 z-40 w-[290px] border-r border-white/10",
           "bg-gradient-to-b from-[#003768] to-[#005b9f] text-white shadow-2xl",
           "transform transition-transform duration-300 ease-in-out",
-          "top-[105px] h-[calc(100vh-105px)] md:top-[115px] md:h-[calc(100vh-115px)]",
+          "top-[80px] h-[calc(100vh-80px)]",
           open ? "translate-x-0" : "-translate-x-full",
           "lg:translate-x-0",
         ].join(" ")}
       >
         <div className="flex h-full flex-col overflow-y-auto">
-          <div className="border-b border-white/10 px-6 pb-6 pt-8">
-            <Link href={homeHref} onClick={onClose} className="block">
+          <div className="border-b border-white/10 px-6 pt-8 pb-6">
+            <Link
+              href={isPartner ? "/partner/dashboard" : "/admin"}
+              onClick={onClose}
+              className="block"
+            >
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">
                 Camel Global
               </div>
 
               <div className="mt-2 text-2xl font-semibold">
-                {role === "partner" ? "Partner Portal" : "Admin Portal"}
+                {isPartner ? "Partner Portal" : "Admin Portal"}
               </div>
 
               <div className="mt-3 text-sm text-white/75">
@@ -88,7 +90,7 @@ export default function PortalSidebar({
 
             <div className="space-y-2">
               {navItems.map((item) => {
-                const active = isActive(pathname || "", item.href);
+                const active = isActive(pathname, item.href);
 
                 return (
                   <Link
@@ -108,16 +110,6 @@ export default function PortalSidebar({
               })}
             </div>
           </nav>
-
-          <div className="border-t border-white/10 px-5 py-5">
-            <Link
-              href={editProfileHref}
-              onClick={onClose}
-              className="block rounded-2xl bg-[#ff7a00] px-4 py-3 text-center text-sm font-semibold text-white shadow-[0_12px_24px_rgba(0,0,0,0.18)] hover:opacity-95"
-            >
-              {role === "partner" ? "Edit Profile" : "Manage Accounts"}
-            </Link>
-          </div>
         </div>
       </aside>
     </>
