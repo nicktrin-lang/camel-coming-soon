@@ -1,42 +1,20 @@
 export default function Home() {
   return (
-    <main
-      style={{
-        height: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexDirection: "column",
-        fontFamily: "system-ui",
-        background: "#003768",
-        color: "white",
-        textAlign: "center",
-        padding: "20px",
-      }}
-    >
-      <h1 style={{ fontSize: "42px", marginBottom: "20px" }}>
-        Camel Global
-      </h1>
+    <main className="flex min-h-screen items-center justify-center bg-[#1f3f6f] text-white">
+      <div className="text-center">
+        <h1 className="text-5xl font-semibold mb-4">
+          Camel Global
+        </h1>
 
-      <p style={{ fontSize: "20px", opacity: 0.9 }}>
-        Customer platform coming soon.
-      </p>
+        {/* NEW TEXT */}
+        <p className="text-xl mb-6 opacity-90">
+          Meet and Greet Car Hire
+        </p>
 
-      <a
-        href="https://portal.camel-global.com/partner/login"
-        style={{
-          marginTop: "24px",
-          display: "inline-block",
-          padding: "14px 28px",
-          borderRadius: "999px",
-          background: "#ff7a00",
-          color: "white",
-          fontWeight: 700,
-          textDecoration: "none",
-        }}
-      >
-        Partner Login
-      </a>
+        <p className="text-lg opacity-80">
+          Customer platform coming soon.
+        </p>
+      </div>
     </main>
   );
 }
