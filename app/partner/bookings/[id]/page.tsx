@@ -201,7 +201,7 @@ export default function PartnerBookingDetailPage() {
   const [returnConfirmedByPartner, setReturnConfirmedByPartner] = useState(false);
   const [returnPartnerNotes, setReturnPartnerNotes] = useState("");
 
-  async function loadBooking(showSpinner = false) {
+  async function loadBooking(showSpinner = false, hydrateForm = false) {
     if (!bookingId) {
       setLoading(false);
       setError("Missing booking ID.");
@@ -226,25 +226,27 @@ export default function PartnerBookingDetailPage() {
       const nextData = json as BookingApiResponse;
       setData(nextData);
 
-      setBookingStatus(nextData.booking.booking_status || "confirmed");
-      setDriverName(nextData.booking.driver_name || "");
-      setDriverPhone(nextData.booking.driver_phone || "");
-      setDriverVehicle(nextData.booking.driver_vehicle || "");
-      setDriverNotes(nextData.booking.driver_notes || "");
+      if (hydrateForm) {
+        setBookingStatus(nextData.booking.booking_status || "confirmed");
+        setDriverName(nextData.booking.driver_name || "");
+        setDriverPhone(nextData.booking.driver_phone || "");
+        setDriverVehicle(nextData.booking.driver_vehicle || "");
+        setDriverNotes(nextData.booking.driver_notes || "");
 
-      setCollectionFuelLevel(
-        (nextData.booking.collection_fuel_level_partner as FuelLevel) || "full"
-      );
-      setCollectionConfirmedByPartner(!!nextData.booking.collection_confirmed_by_partner);
-      setCollectionPartnerNotes(nextData.booking.collection_partner_notes || "");
+        setCollectionFuelLevel(
+          (nextData.booking.collection_fuel_level_partner as FuelLevel) || "full"
+        );
+        setCollectionConfirmedByPartner(!!nextData.booking.collection_confirmed_by_partner);
+        setCollectionPartnerNotes(nextData.booking.collection_partner_notes || "");
 
-      setReturnFuelLevel(
-        (nextData.booking.return_fuel_level_partner as FuelLevel) || "full"
-      );
-      setReturnConfirmedByPartner(!!nextData.booking.return_confirmed_by_partner);
-      setReturnPartnerNotes(nextData.booking.return_partner_notes || "");
+        setReturnFuelLevel(
+          (nextData.booking.return_fuel_level_partner as FuelLevel) || "full"
+        );
+        setReturnConfirmedByPartner(!!nextData.booking.return_confirmed_by_partner);
+        setReturnPartnerNotes(nextData.booking.return_partner_notes || "");
 
-      setSelectedSavedDriverId(nextData.booking.assigned_driver_id || "");
+        setSelectedSavedDriverId(nextData.booking.assigned_driver_id || "");
+      }
     } catch (e: any) {
       setError(e?.message || "Failed to load booking.");
       setData(null);
@@ -279,7 +281,7 @@ export default function PartnerBookingDetailPage() {
   }
 
   useEffect(() => {
-    loadBooking(true);
+    loadBooking(true, true);
   }, [bookingId]);
 
   useEffect(() => {
@@ -289,7 +291,7 @@ export default function PartnerBookingDetailPage() {
   useEffect(() => {
     if (!bookingId) return;
     const interval = setInterval(() => {
-      loadBooking(false);
+      loadBooking(false, false);
     }, 10000);
     return () => clearInterval(interval);
   }, [bookingId]);
@@ -346,7 +348,7 @@ export default function PartnerBookingDetailPage() {
       }
 
       setOk("Booking details updated.");
-      await loadBooking(false);
+      await loadBooking(false, true);
     } catch (e: any) {
       setError(e?.message || "Failed to update booking.");
     } finally {
