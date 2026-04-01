@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
-import { createRouteHandlerSupabaseClient } from "@/lib/supabase/server";
+import {
+  createRouteHandlerSupabaseClient,
+  createServiceRoleSupabaseClient,
+} from "@/lib/supabase/server";
 
 export async function GET() {
   try {
-    const db = await createRouteHandlerSupabaseClient();
+    const authDb = await createRouteHandlerSupabaseClient();
 
     const {
       data: { user },
       error: userErr,
-    } = await db.auth.getUser();
+    } = await authDb.auth.getUser();
 
     if (userErr || !user?.email) {
       return NextResponse.json({ role: "partner" }, { status: 200 });
@@ -16,13 +19,15 @@ export async function GET() {
 
     const normalizedEmail = user.email.toLowerCase().trim();
 
-    const { data: adminRow } = await db
+    const adminDb = createServiceRoleSupabaseClient();
+
+    const { data: adminRow, error: adminErr } = await adminDb
       .from("admin_users")
-      .select("role")
+      .select("email, role")
       .eq("email", normalizedEmail)
       .maybeSingle();
 
-    if (!adminRow) {
+    if (adminErr || !adminRow) {
       return NextResponse.json({ role: "partner" }, { status: 200 });
     }
 
