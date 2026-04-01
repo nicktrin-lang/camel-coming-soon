@@ -1,35 +1,41 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createRouteHandlerSupabaseClient } from "@/lib/supabase/server";
 
 export async function GET() {
   try {
-    const supabase = createServerSupabaseClient();
+    const db = await createRouteHandlerSupabaseClient();
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+      error: userErr,
+    } = await db.auth.getUser();
 
-    if (!user) {
-      return NextResponse.json({ role: "partner" });
+    if (userErr || !user?.email) {
+      return NextResponse.json({ role: "partner" }, { status: 200 });
     }
 
-    // Try to get admin record
-    const { data, error } = await supabase
+    const { data: adminRow } = await db
       .from("admins")
       .select("role")
       .eq("email", user.email)
       .maybeSingle();
 
-    // 🔑 KEY FIX: NEVER throw error to frontend
-    if (error || !data) {
-      return NextResponse.json({ role: "partner" });
+    if (!adminRow) {
+      return NextResponse.json({ role: "partner" }, { status: 200 });
     }
 
-    return NextResponse.json({
-      role: data.role || "admin",
-    });
+    return NextResponse.json(
+      {
+        role:
+          adminRow.role === "super_admin"
+            ? "super_admin"
+            : adminRow.role === "admin"
+              ? "admin"
+              : "partner",
+      },
+      { status: 200 }
+    );
   } catch {
-    // 🔑 ABSOLUTE SAFETY NET
-    return NextResponse.json({ role: "partner" });
+    return NextResponse.json({ role: "partner" }, { status: 200 });
   }
 }
