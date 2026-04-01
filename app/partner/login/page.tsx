@@ -45,21 +45,8 @@ function PartnerLoginInner() {
 
       if (signInError) throw signInError;
 
-      const meRes = await fetch("/api/admin/me", {
-        method: "GET",
-        cache: "no-store",
-        credentials: "include",
-      });
-
-      const meJson = await meRes.json().catch(() => null);
-      const role = meJson?.role || "none";
-
-      if (role === "admin" || role === "super_admin") {
-        router.replace("/admin/approvals");
-      } else {
-        router.replace("/partner/dashboard");
-      }
-
+      // ✅ Always go to partner area (NO admin logic)
+      router.replace("/partner/requests");
       router.refresh();
     } catch (e: any) {
       setError(e?.message || "Login failed.");
