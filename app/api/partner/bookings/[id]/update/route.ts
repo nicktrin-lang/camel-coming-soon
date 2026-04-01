@@ -74,7 +74,8 @@ export async function POST(
 
     const body = await req.json().catch(() => null);
 
-    const booking_status = normalizeBookingStatus(body?.booking_status);
+    let booking_status = normalizeBookingStatus(body?.booking_status);
+
     const assigned_driver_id =
       String(body?.assigned_driver_id || "").trim() || null;
 
@@ -105,6 +106,11 @@ export async function POST(
       .select(`
         id,
         partner_user_id,
+        assigned_driver_id,
+        driver_name,
+        driver_phone,
+        driver_vehicle,
+        driver_notes,
         driver_assigned_at,
 
         collection_confirmed_by_partner,
@@ -147,6 +153,8 @@ export async function POST(
         .select(`
           id,
           partner_user_id,
+          full_name,
+          phone,
           is_active
         `)
         .eq("id", assigned_driver_id)
@@ -171,10 +179,20 @@ export async function POST(
     }
 
     const driverAssigned =
+      !!assigned_driver_id ||
       !!driver_name ||
       !!driver_phone ||
       !!driver_vehicle ||
       booking_status === "driver_assigned";
+
+    // If a saved/manual driver is present and booking is still just "confirmed",
+    // move it into the operational assigned state automatically.
+    if (
+      driverAssigned &&
+      booking_status === "confirmed"
+    ) {
+      booking_status = "driver_assigned";
+    }
 
     const collectionMatched =
       collection_confirmed_by_partner &&
