@@ -14,10 +14,12 @@ export async function GET() {
       return NextResponse.json({ role: "partner" }, { status: 200 });
     }
 
+    const normalizedEmail = user.email.toLowerCase().trim();
+
     const { data: adminRow } = await db
-      .from("admins")
+      .from("admin_users")
       .select("role")
-      .eq("email", user.email)
+      .eq("email", normalizedEmail)
       .maybeSingle();
 
     if (!adminRow) {
