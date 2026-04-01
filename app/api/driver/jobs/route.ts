@@ -118,6 +118,14 @@ export async function GET(_req: NextRequest) {
         driver_notes,
         driver_assigned_at,
 
+        collection_confirmed_by_driver,
+        collection_confirmed_by_driver_at,
+        collection_fuel_level_driver,
+
+        return_confirmed_by_driver,
+        return_confirmed_by_driver_at,
+        return_fuel_level_driver,
+
         collection_confirmed_by_partner,
         collection_confirmed_by_partner_at,
         collection_fuel_level_partner,
@@ -211,6 +219,20 @@ export async function GET(_req: NextRequest) {
         customer_name: request?.customer_name || null,
         customer_phone: request?.customer_phone || null,
         vehicle_category_name: request?.vehicle_category_name || null,
+
+        collection_confirmed_by_driver:
+          booking.collection_confirmed_by_driver ?? null,
+        collection_confirmed_by_driver_at:
+          booking.collection_confirmed_by_driver_at || null,
+        collection_fuel_level_driver:
+          booking.collection_fuel_level_driver || null,
+
+        return_confirmed_by_driver:
+          booking.return_confirmed_by_driver ?? null,
+        return_confirmed_by_driver_at:
+          booking.return_confirmed_by_driver_at || null,
+        return_fuel_level_driver:
+          booking.return_fuel_level_driver || null,
       };
     });
 
