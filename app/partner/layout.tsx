@@ -55,28 +55,7 @@ export default function FleetLayout({
           return;
         }
 
-        let nextRole: PortalRole = "partner";
-
-try {
-  const meRes = await fetch("/api/admin/me", {
-    method: "GET",
-    cache: "no-store",
-    credentials: "include",
-  });
-
-  if (meRes.ok) {
-    const meJson = await safeJson(meRes);
-
-    nextRole =
-      meJson?.role === "super_admin"
-        ? "super_admin"
-        : meJson?.role === "admin"
-          ? "admin"
-          : "partner";
-  }
-} catch {
-  nextRole = "partner";
-}
+        const nextRole: PortalRole = "partner";
 
 if (!mounted) return;
 

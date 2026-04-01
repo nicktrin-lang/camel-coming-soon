@@ -4,17 +4,6 @@ import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
-async function safeJson(res: Response): Promise<any> {
-  const text = await res.text();
-  if (!text) return null;
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { _raw: text };
-  }
-}
-
 export default function PartnerIndexPage() {
   const router = useRouter();
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
@@ -32,21 +21,7 @@ export default function PartnerIndexPage() {
           return;
         }
 
-        const meRes = await fetch("/api/admin/me", {
-          method: "GET",
-          cache: "no-store",
-          credentials: "include",
-        });
-
-        const meJson = await safeJson(meRes);
-
-        if (!mounted) return;
-
-        if (meJson?.role === "admin" || meJson?.role === "super_admin") {
-          router.replace("/admin/approvals");
-          return;
-        }
-
+        // ✅ Always go to partner area (no admin logic)
         router.replace("/partner/requests");
       } catch {
         if (!mounted) return;
