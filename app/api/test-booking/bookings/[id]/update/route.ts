@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceRoleSupabaseClient } from "@/lib/supabase/server";
 import { createCustomerServiceRoleSupabaseClient } from "@/lib/supabase-customer/server";
 import { sendCustomerBookingCompletedEmail } from "@/lib/email";
+import { calculateFuelCharge } from "@/lib/portal/calculateFuelCharge";
 
 function getBearerToken(req: Request) {
   const auth = req.headers.get("authorization") || "";
@@ -74,6 +75,7 @@ export async function POST(
       .from("partner_bookings")
       .select(`
         id, request_id, booking_status, job_number,
+        fuel_price, car_hire_price,
         collection_confirmed_by_driver, collection_fuel_level_driver, collection_confirmed_by_driver_at,
         return_confirmed_by_driver, return_fuel_level_driver, return_confirmed_by_driver_at,
         collection_confirmed_by_customer, collection_confirmed_by_customer_at,
@@ -191,11 +193,30 @@ export async function POST(
         })
       : returnAlreadyLocked;
 
-    // Auto-advance booking status
+    // Auto-advance booking status + calculate fuel charge when both locked
     const wasCompleted = bookingRow.booking_status === "completed";
 
     if (nextCollectionLocked && nextReturnLocked) {
       updatePayload.booking_status = "completed";
+
+      // Calculate fuel charge using effective fuel levels
+      const collFuel = normalizeFuel(bookingRow.collection_fuel_level_partner) ||
+        normalizeFuel(bookingRow.collection_fuel_level_driver);
+      const retFuel = normalizeFuel(section === "return"
+        ? updatePayload.return_fuel_level_customer
+        : bookingRow.return_fuel_level_customer);
+
+      const calc = calculateFuelCharge({
+        collectionFuel: collFuel,
+        returnFuel: retFuel,
+        fullTankPrice: Number(bookingRow.fuel_price || 0),
+      });
+
+      if (calc) {
+        updatePayload.fuel_used_quarters = calc.used_quarters;
+        updatePayload.fuel_charge = calc.fuel_charge;
+        updatePayload.fuel_refund = calc.fuel_refund;
+      }
     } else if (nextCollectionLocked) {
       updatePayload.booking_status = "collected";
     }
