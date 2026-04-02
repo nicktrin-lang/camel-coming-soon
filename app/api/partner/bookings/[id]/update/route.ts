@@ -91,7 +91,9 @@ export async function POST(
         return_confirmed_by_customer, return_confirmed_by_customer_at,
         return_fuel_level_customer,
         collection_confirmed_by_driver, collection_confirmed_by_driver_at,
-        return_confirmed_by_driver, return_confirmed_by_driver_at
+        collection_fuel_level_driver,
+        return_confirmed_by_driver, return_confirmed_by_driver_at,
+        return_fuel_level_driver
       `)
       .eq("id", id);
 
