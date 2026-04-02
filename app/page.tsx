@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { translations } from "./marketing/translations";
+import { hostname } from "zod/v4/mini";
+import CustomerMapWrapper from "@/app/components/CustomerMapWrapper";
+import { MapContainer } from "react-leaflet";
 
 type Lang = keyof typeof translations;
 
@@ -15,19 +18,12 @@ type Coords = {
 function CustomerMapHome() {
   const router = useRouter();
   const [pickupMode, setPickupMode] = useState<"map" | "current">("map");
-  const [coords, setCoords] = useState<Coords>({ lat: 51.5074, lng: -0.1278 });
+  const [coords, setCoords] = useState({
+    lat: 51.5074,
+    lng: -0.1278,
+  });
   const [locationLabel, setLocationLabel] = useState("Central London");
   const [isLocating, setIsLocating] = useState(false);
-
-  const mapSrc = useMemo(() => {
-    const delta = 0.03;
-    const left = coords.lng - delta;
-    const right = coords.lng + delta;
-    const top = coords.lat + delta;
-    const bottom = coords.lat - delta;
-
-    return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik&marker=${coords.lat}%2C${coords.lng}`;
-  }, [coords]);
 
   function continueToBooking() {
     const params = new URLSearchParams({
@@ -41,32 +37,25 @@ function CustomerMapHome() {
   }
 
   function useCurrentLocation() {
-    if (!navigator.geolocation) {
-      alert("Geolocation is not supported on this device.");
-      return;
-    }
-
     setIsLocating(true);
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const nextCoords = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        };
-        setCoords(nextCoords);
-        setPickupMode("current");
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+
+        setCoords({ lat, lng }); // THIS is what moves map
         setLocationLabel("Current location");
+
         setIsLocating(false);
       },
       () => {
+        alert("Failed to get location");
         setIsLocating(false);
-        alert("We couldn’t get your current location.");
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
+      }
     );
   }
-
+  
   function setPresetLocation(name: string, lat: number, lng: number) {
     setPickupMode("map");
     setCoords({ lat, lng });
@@ -321,29 +310,45 @@ function CustomerMapHome() {
 
       <div className="customer-page">
         <div className="customer-map">
-          <iframe
-            title="Pickup location map"
-            src={mapSrc}
-            loading="lazy"
+          <CustomerMapWrapper
+            position={coords}
+            onSelect={(pos) => {
+              setCoords(pos);
+              setLocationLabel("Selected location");
+            }}
           />
         </div>
 
-        <div className="customer-overlay">
+        <div
+          className="customer-overlay"
+          style={{ pointerEvents: "none" }}
+        >
           <div className="customer-header">
-            <Link href="/" className="customer-logo">
+            <Link 
+              href="/" 
+              className="customer-logo"
+            >
               <img src="/camel-logo.png" alt="Camel Global Ltd logo" />
             </Link>
 
             <div className="customer-header-actions">
-              <Link href="/test-booking/login" className="customer-header-link">
+
+              <Link
+                href="/test-booking/login"
+                className="customer-header-link"
+                style={{ pointerEvents: "auto" }}
+              >
                 Customer Login
               </Link>
+
               <Link
                 href="/test-booking/signup"
                 className="customer-header-link customer-header-link-primary"
+                style={{ pointerEvents: "auto" }}
               >
                 Create Account
               </Link>
+
             </div>
           </div>
 
@@ -369,6 +374,7 @@ function CustomerMapHome() {
                 type="button"
                 className="customer-btn customer-btn-primary"
                 onClick={continueToBooking}
+                style={{ pointerEvents: "auto" }}
               >
                 Continue to booking details
               </button>
@@ -378,6 +384,7 @@ function CustomerMapHome() {
                 className="customer-btn customer-btn-secondary"
                 onClick={useCurrentLocation}
                 disabled={isLocating}
+                style={{ pointerEvents: "auto" }}
               >
                 {isLocating ? "Getting location..." : "Use current location"}
               </button>
@@ -388,6 +395,7 @@ function CustomerMapHome() {
                 type="button"
                 className="customer-preset"
                 onClick={() => setPresetLocation("Central London", 51.5074, -0.1278)}
+                style={{ pointerEvents: "auto" }}
               >
                 London
               </button>
@@ -395,6 +403,7 @@ function CustomerMapHome() {
                 type="button"
                 className="customer-preset"
                 onClick={() => setPresetLocation("Manchester City Centre", 53.4808, -2.2426)}
+                style={{ pointerEvents: "auto" }}
               >
                 Manchester
               </button>
@@ -402,6 +411,7 @@ function CustomerMapHome() {
                 type="button"
                 className="customer-preset"
                 onClick={() => setPresetLocation("Birmingham City Centre", 52.4862, -1.8904)}
+                style={{ pointerEvents: "auto" }}
               >
                 Birmingham
               </button>
@@ -409,6 +419,7 @@ function CustomerMapHome() {
                 type="button"
                 className="customer-preset"
                 onClick={() => setPresetLocation("Gatwick Airport", 51.1537, -0.1821)}
+                style={{ pointerEvents: "auto" }}
               >
                 Gatwick
               </button>
@@ -1388,8 +1399,8 @@ export default function Page() {
     setHost(window.location.hostname);
   }, []);
 
-  if (host === "test.camel-global.com") {
-    return <CustomerMapHome />;
+  if (host === "test.camel-global.com" || host.includes("localhost")) {
+    return <CustomerMapHome />
   }
 
   return <PartnerMarketingHome />;

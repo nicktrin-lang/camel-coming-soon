@@ -80,6 +80,16 @@ export default function AdminAccountsPage() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("created_desc");
 
+  const stats = useMemo(() => {
+    const total = rows.length;
+
+    const approved = rows.filter(r => r.application_status === "approved").length;
+    const pending = rows.filter(r => r.application_status === "pending").length;
+    const live = rows.filter(r => r.live_profile).length;
+
+    return { total, approved, pending, live };
+  }, [rows]);
+
   async function load() {
     setLoading(true);
     setError(null);
@@ -202,12 +212,10 @@ export default function AdminAccountsPage() {
       <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)] md:p-8">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-[#003768]">Account Management</h1>
-            <p className="mt-2 text-slate-600">
-              View partner account details, live profile status, and key account information.
-            </p>
+            <h1 className="text-2xl font-semibold text-[#003768]">
+              Account Management
+            </h1>
           </div>
-
           <div className="grid w-full grid-cols-1 gap-3 md:grid-cols-3 xl:max-w-[760px]">
             <div className="md:col-span-2">
               <label className="text-sm font-medium text-[#003768]">Search</label>

@@ -134,6 +134,7 @@ export default function ClientRootLayout({
                         type="button"
                         onClick={handlePartnerLogout}
                         className="rounded-full bg-[#ff7a00] px-5 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+                        style={{ pointerEvents: "auto" }}
                       >
                         Logout
                       </button>

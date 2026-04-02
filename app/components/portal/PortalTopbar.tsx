@@ -67,6 +67,7 @@ export default function PortalTopbar({ onMenuClick }: PortalTopbarProps) {
           <button
             type="button"
             onClick={onMenuClick}
+            style={{ pointerEvents: "auto" }}
             className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white hover:bg-white/15 lg:hidden"
             aria-label="Open menu"
           >
