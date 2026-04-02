@@ -137,15 +137,21 @@ export async function POST(
       booking_status = "driver_assigned";
     }
 
+    // Effective fuel = partner override if set, else driver reading
+    const effectiveCollectionFuel = collection_fuel_level_partner ||
+      normalizeFuel(bookingRow.collection_fuel_level_driver);
+    const effectiveReturnFuel = return_fuel_level_partner ||
+      normalizeFuel(bookingRow.return_fuel_level_driver);
+
     const collectionMatched =
-      collection_confirmed_by_partner &&
+      !!effectiveCollectionFuel &&
       !!bookingRow.collection_confirmed_by_customer &&
-      sameFuel(collection_fuel_level_partner, bookingRow.collection_fuel_level_customer);
+      sameFuel(effectiveCollectionFuel, bookingRow.collection_fuel_level_customer);
 
     const returnMatched =
-      return_confirmed_by_partner &&
+      !!effectiveReturnFuel &&
       !!bookingRow.return_confirmed_by_customer &&
-      sameFuel(return_fuel_level_partner, bookingRow.return_fuel_level_customer);
+      sameFuel(effectiveReturnFuel, bookingRow.return_fuel_level_customer);
 
     const updatePayload: Record<string, any> = {
       booking_status,
