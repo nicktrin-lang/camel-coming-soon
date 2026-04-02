@@ -18,6 +18,8 @@ type BookingRow = {
   created_at: string; job_number: number | null; assigned_driver_id?: string | null;
   driver_name: string | null; driver_phone: string | null;
   driver_vehicle: string | null; driver_notes: string | null; driver_assigned_at: string | null;
+  fuel_price: number | null; car_hire_price: number | null;
+  fuel_used_quarters: number | null; fuel_charge: number | null; fuel_refund: number | null;
   collection_confirmed_by_driver?: boolean | null;
   collection_confirmed_by_driver_at?: string | null;
   collection_fuel_level_driver?: string | null;
@@ -139,6 +141,83 @@ function isLocked(opts: {
     !!opts.driverOrPartnerFuel &&
     !!opts.customerConfirmed &&
     normalizeFuel(opts.customerFuel) === opts.driverOrPartnerFuel
+  );
+}
+
+const QUARTER_LABELS: Record<number, string> = {
+  0: "Empty", 1: "¼ Tank", 2: "½ Tank", 3: "¾ Tank", 4: "Full Tank",
+};
+
+function fmtEUR(v: number | null | undefined) {
+  if (v == null || isNaN(v)) return "—";
+  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(v);
+}
+
+function FuelSummaryCard({ booking }: { booking: BookingRow }) {
+  const collFuel = normalizeFuel(booking.collection_fuel_level_partner) ||
+    normalizeFuel(booking.collection_fuel_level_driver) ||
+    normalizeFuel(booking.collection_fuel_level_customer);
+  const retFuel = normalizeFuel(booking.return_fuel_level_partner) ||
+    normalizeFuel(booking.return_fuel_level_driver) ||
+    normalizeFuel(booking.return_fuel_level_customer);
+
+  const fullTankPrice = Number(booking.fuel_price || 0);
+  const pricePerQuarter = fullTankPrice / 4;
+  const usedQuarters = booking.fuel_used_quarters ?? null;
+  const fuelCharge = booking.fuel_charge ?? null;
+  const fuelRefund = booking.fuel_refund ?? null;
+
+  return (
+    <div className="rounded-3xl border border-[#003768]/20 bg-[#003768] p-8 text-white shadow-[0_18px_45px_rgba(0,0,0,0.18)]">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Fuel Cost Summary</h2>
+        <span className="rounded-full bg-green-400 px-3 py-1 text-xs font-bold text-green-900">Finalised</span>
+      </div>
+
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl bg-white/10 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Collection fuel</p>
+          <p className="mt-1 text-xl font-bold">{fuelLabel(collFuel)}</p>
+          <FuelBar level={collFuel} />
+        </div>
+        <div className="rounded-2xl bg-white/10 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Return fuel</p>
+          <p className="mt-1 text-xl font-bold">{fuelLabel(retFuel)}</p>
+          <FuelBar level={retFuel} />
+        </div>
+        <div className="rounded-2xl bg-white/10 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Fuel used</p>
+          <p className="mt-1 text-xl font-bold">
+            {usedQuarters !== null ? QUARTER_LABELS[usedQuarters] ?? `${usedQuarters}/4` : "—"}
+          </p>
+          <p className="mt-1 text-xs text-white/60">
+            {usedQuarters !== null ? `${usedQuarters} of 4 quarters` : ""}
+          </p>
+        </div>
+        <div className="rounded-2xl bg-white/10 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Price per quarter</p>
+          <p className="mt-1 text-xl font-bold">{fmtEUR(pricePerQuarter)}</p>
+          <p className="mt-1 text-xs text-white/60">Full tank: {fmtEUR(fullTankPrice)}</p>
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl bg-[#ff7a00]/20 p-5 border border-[#ff7a00]/40">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Fuel charge to customer</p>
+          <p className="mt-2 text-4xl font-black">{fmtEUR(fuelCharge)}</p>
+          <p className="mt-1 text-sm text-white/60">For {usedQuarters ?? "—"} quarter{usedQuarters !== 1 ? "s" : ""} used</p>
+        </div>
+        <div className="rounded-2xl bg-green-500/20 p-5 border border-green-400/40">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Refund to customer</p>
+          <p className="mt-2 text-4xl font-black">{fmtEUR(fuelRefund)}</p>
+          <p className="mt-1 text-sm text-white/60">Unused fuel portion returned</p>
+        </div>
+      </div>
+
+      <p className="mt-4 text-xs text-white/40">
+        Car hire: {fmtEUR(booking.car_hire_price)} · Full tank deposit: {fmtEUR(fullTankPrice)} · Total booking: {fmtGBP(booking.amount)}
+      </p>
+    </div>
   );
 }
 
@@ -610,6 +689,11 @@ export default function PartnerBookingDetailPage() {
           </button>
         </form>
       </div>
+
+      {/* Fuel summary — shown when both stages locked */}
+      {collectionLocked && returnLocked && (
+        <FuelSummaryCard booking={bk} />
+      )}
 
       {/* Fuel tracking */}
       <div>

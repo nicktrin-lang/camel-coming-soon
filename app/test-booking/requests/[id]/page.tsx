@@ -30,6 +30,8 @@ type BookingData = {
   company_name: string | null; company_phone: string | null;
   driver_name: string | null; driver_phone: string | null;
   driver_vehicle: string | null; driver_notes: string | null; driver_assigned_at: string | null;
+  fuel_price: number | null; car_hire_price: number | null;
+  fuel_used_quarters: number | null; fuel_charge: number | null; fuel_refund: number | null;
   collection_confirmed_by_driver: boolean; collection_confirmed_by_driver_at: string | null;
   collection_fuel_level_driver: string | null;
   return_confirmed_by_driver: boolean; return_confirmed_by_driver_at: string | null;
@@ -128,6 +130,74 @@ function bookingStatusLabel(s?: string | null) {
     case "cancelled": return "Cancelled";
     default: return String(s||"—").replaceAll("_"," ");
   }
+}
+
+const QUARTER_LABELS: Record<number, string> = {
+  0: "Empty", 1: "¼ Tank", 2: "½ Tank", 3: "¾ Tank", 4: "Full Tank",
+};
+
+function fmtEUR(v: number | null | undefined) {
+  if (v == null || isNaN(v)) return "—";
+  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(v);
+}
+
+function CustomerFuelSummary({ booking }: { booking: BookingData }) {
+  const fullTankPrice = Number(booking.fuel_price || 0);
+  const pricePerQuarter = fullTankPrice / 4;
+  const usedQuarters = booking.fuel_used_quarters ?? null;
+  const fuelCharge = booking.fuel_charge ?? null;
+  const fuelRefund = booking.fuel_refund ?? null;
+
+  const collFuel = normalizeFuel(booking.collection_fuel_level_driver) ||
+    normalizeFuel(booking.collection_fuel_level_partner);
+  const retFuel = normalizeFuel(booking.return_fuel_level_driver) ||
+    normalizeFuel(booking.return_fuel_level_partner);
+
+  return (
+    <div className="rounded-3xl border border-[#003768]/20 bg-[#003768] p-8 text-white shadow-[0_18px_45px_rgba(0,0,0,0.18)]">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Your Fuel Cost</h2>
+        <span className="rounded-full bg-green-400 px-3 py-1 text-xs font-bold text-green-900">Finalised</span>
+      </div>
+      <p className="mt-2 text-sm text-white/70">
+        You were charged a full tank deposit of {fmtEUR(fullTankPrice)} at booking.
+        Based on fuel used, here is your final breakdown.
+      </p>
+
+      <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl bg-white/10 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Collected at</p>
+          <p className="mt-1 text-lg font-bold">{fuelLabel(collFuel)}</p>
+          <FuelBar level={collFuel} />
+        </div>
+        <div className="rounded-2xl bg-white/10 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Returned at</p>
+          <p className="mt-1 text-lg font-bold">{fuelLabel(retFuel)}</p>
+          <FuelBar level={retFuel} />
+        </div>
+        <div className="rounded-2xl bg-white/10 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Fuel used</p>
+          <p className="mt-1 text-lg font-bold">
+            {usedQuarters !== null ? QUARTER_LABELS[usedQuarters] ?? `${usedQuarters}/4` : "—"}
+          </p>
+          <p className="mt-1 text-xs text-white/60">{fmtEUR(pricePerQuarter)} per quarter</p>
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl bg-[#ff7a00]/20 border border-[#ff7a00]/40 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/70">You pay for fuel</p>
+          <p className="mt-2 text-4xl font-black">{fmtEUR(fuelCharge)}</p>
+          <p className="mt-1 text-sm text-white/60">{usedQuarters ?? "—"} quarter{usedQuarters !== 1 ? "s" : ""} used</p>
+        </div>
+        <div className="rounded-2xl bg-green-500/20 border border-green-400/40 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Your refund</p>
+          <p className="mt-2 text-4xl font-black">{fmtEUR(fuelRefund)}</p>
+          <p className="mt-1 text-sm text-white/60">Unused fuel returned to you</p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── Fuel Confirmation Card ────────────────────────────────────────────────────
@@ -434,8 +504,13 @@ export default function TestBookingRequestDetailPage({
             </div>
           </div>
 
+          {/* Fuel summary — shown when booking is complete */}
+          {bk.booking_status === "completed" && bk.fuel_charge !== null && (
+            <CustomerFuelSummary booking={bk} />
+          )}
+
           {/* Fuel confirmation — only show once booking is active */}
-          {!["open","expired","cancelled"].includes(data.request.status) && (
+          {!["open","expired","cancelled","completed"].includes(data.request.status) && bk.booking_status !== "completed" && (
             <div className="grid gap-6 xl:grid-cols-2">
               <FuelConfirmCard
                 title="Collection Fuel"
