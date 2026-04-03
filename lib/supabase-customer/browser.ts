@@ -1,11 +1,16 @@
-import { createBrowserClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 
 export function createCustomerBrowserClient() {
-  return createBrowserClient(
+  return createClient(
     process.env.NEXT_PUBLIC_CUSTOMER_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_CUSTOMER_SUPABASE_ANON_KEY!,
     {
-      isSingleton: true,
+      auth: {
+        persistSession: true,
+        storageKey: "sb-customer-auth",
+        storage: typeof window !== "undefined" ? window.localStorage : undefined,
+        detectSessionInUrl: true,
+      },
     }
   );
 }
