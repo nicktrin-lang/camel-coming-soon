@@ -86,7 +86,7 @@ export default function PartnerBookingsPage() {
   async function load() {
     setLoading(true); setError(null);
     try {
-      const res = await fetch("/api/partner/bookings", { cache: "no-store", credentials: "include" });
+      const res = await fetch("/api/partner/requests", { cache: "no-store", credentials: "include" });
       const json = await res.json().catch(() => null) as ApiResponse | null;
       if (!res.ok) throw new Error((json as any)?.error || "Failed to load.");
       setRows(json?.data || []);
