@@ -5,82 +5,82 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
+import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
 import GoogleAnalytics from "@/app/components/GoogleAnalytics";
+import CurrencySelector from "@/app/components/CurrencySelector";
 
-export default function ClientRootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function ClientRootLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
   const isHomepage = pathname === "/";
-
   const isPartnerAuthPage =
     pathname === "/partner/login" ||
     pathname === "/partner/signup" ||
     pathname === "/partner/application-submitted";
-
   const isPortalAppPage =
-    (pathname?.startsWith("/partner") &&
-      pathname !== "/partner/login" &&
-      pathname !== "/partner/signup" &&
-      pathname !== "/partner/application-submitted") ||
+    (pathname?.startsWith("/partner") && !isPartnerAuthPage) ||
     pathname?.startsWith("/admin");
-
   const isTestBookingArea = pathname?.startsWith("/test-booking");
-
-  const showGlobalHeader =
-    !isHomepage && !isPartnerAuthPage && !isPortalAppPage;
+  const showGlobalHeader = !isHomepage && !isPartnerAuthPage && !isPortalAppPage;
 
   const partnerSupabase = useMemo(() => {
     if (isTestBookingArea) return null;
     return createBrowserSupabaseClient();
   }, [isTestBookingArea]);
 
+  const customerSupabase = useMemo(() => {
+    if (!isTestBookingArea) return null;
+    return createCustomerBrowserClient();
+  }, [isTestBookingArea]);
+
   const [isPartnerLoggedIn, setIsPartnerLoggedIn] = useState(false);
+  const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState(false);
+  const [customerName, setCustomerName] = useState("");
 
   useEffect(() => {
-    if (!partnerSupabase) {
-      setIsPartnerLoggedIn(false);
-      return;
-    }
-
+    if (!partnerSupabase) { setIsPartnerLoggedIn(false); return; }
     let mounted = true;
-
-    async function refreshUser() {
-      const { data } = await partnerSupabase.auth.getUser();
+    async function refresh() {
+      const { data } = await partnerSupabase!.auth.getUser();
       if (!mounted) return;
       setIsPartnerLoggedIn(!!data?.user);
     }
-
-    refreshUser();
-
-    const {
-      data: { subscription },
-    } = partnerSupabase.auth.onAuthStateChange(() => {
-      refreshUser();
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    refresh();
+    const { data: { subscription } } = partnerSupabase.auth.onAuthStateChange(() => refresh());
+    return () => { mounted = false; subscription.unsubscribe(); };
   }, [partnerSupabase]);
+
+  useEffect(() => {
+    if (!customerSupabase) { setIsCustomerLoggedIn(false); setCustomerName(""); return; }
+    let mounted = true;
+    async function refresh() {
+      const { data } = await customerSupabase!.auth.getUser();
+      if (!mounted) return;
+      setIsCustomerLoggedIn(!!data?.user);
+      setCustomerName(
+        String(data?.user?.user_metadata?.full_name || "").trim() ||
+        String(data?.user?.email || "").split("@")[0] || ""
+      );
+    }
+    refresh();
+    const { data: { subscription } } = customerSupabase.auth.onAuthStateChange(() => refresh());
+    return () => { mounted = false; subscription.unsubscribe(); };
+  }, [customerSupabase]);
 
   async function handlePartnerLogout() {
     if (!partnerSupabase) return;
-
     await partnerSupabase.auth.signOut();
     setIsPartnerLoggedIn(false);
-
     router.replace("/partner/login?reason=signed_out");
-    router.refresh();
+    setTimeout(() => { window.location.href = "/partner/login?reason=signed_out"; }, 50);
+  }
 
-    setTimeout(() => {
-      window.location.href = "/partner/login?reason=signed_out";
-    }, 50);
+  async function handleCustomerLogout() {
+    if (!customerSupabase) return;
+    await customerSupabase.auth.signOut();
+    setIsCustomerLoggedIn(false);
+    router.replace("/test-booking/login?reason=signed_out");
   }
 
   return (
@@ -104,37 +104,57 @@ export default function ClientRootLayout({
                     />
                   </Link>
 
-                  <nav className="ml-auto flex items-center gap-6 text-sm font-medium">
-                    <Link href="/" className="hover:opacity-90">
-                      Home
-                    </Link>
+                  <nav className="ml-auto flex items-center gap-4 text-sm font-medium">
+                    <Link href="/" className="hover:opacity-90">Home</Link>
 
                     {isTestBookingArea ? (
                       <>
-                        <Link href="/test-booking/signup" className="hover:opacity-90">
-                          Customer Sign Up
-                        </Link>
+                        {/* Currency selector — always visible on customer site */}
+                        <CurrencySelector />
 
-                        <Link href="/test-booking/login" className="hover:opacity-90">
-                          Customer Login
-                        </Link>
+                        {isCustomerLoggedIn ? (
+                          <>
+                            <Link href="/test-booking/new"
+                              className="rounded-full bg-[#ff7a00] px-4 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 text-xs">
+                              New Booking
+                            </Link>
+                            <Link href="/test-booking/requests" className="hover:opacity-90 text-xs">
+                              My Bookings
+                            </Link>
+                            {customerName && (
+                              <span className="hidden text-xs text-white/70 md:block">
+                                Welcome: {customerName}
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={handleCustomerLogout}
+                              className="rounded-full border border-white/20 px-4 py-2 text-xs font-semibold text-white hover:bg-white/10"
+                            >
+                              Logout
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <Link href="/test-booking/signup" className="hover:opacity-90">
+                              Customer Sign Up
+                            </Link>
+                            <Link href="/test-booking/login" className="hover:opacity-90">
+                              Customer Login
+                            </Link>
+                          </>
+                        )}
                       </>
                     ) : !isPartnerLoggedIn ? (
                       <>
-                        <Link href="/partner/signup" className="hover:opacity-90">
-                          Partner Sign Up
-                        </Link>
-
-                        <Link href="/partner/login" className="hover:opacity-90">
-                          Partner Login
-                        </Link>
+                        <Link href="/partner/signup" className="hover:opacity-90">Partner Sign Up</Link>
+                        <Link href="/partner/login" className="hover:opacity-90">Partner Login</Link>
                       </>
                     ) : (
                       <button
                         type="button"
                         onClick={handlePartnerLogout}
                         className="rounded-full bg-[#ff7a00] px-5 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
-                        style={{ pointerEvents: "auto" }}
                       >
                         Logout
                       </button>
@@ -143,7 +163,6 @@ export default function ClientRootLayout({
                 </div>
               </div>
             </header>
-
             <div className="h-[105px] md:h-[115px]" />
           </>
         )}

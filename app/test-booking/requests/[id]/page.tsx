@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
 
+import { useCurrency } from "@/lib/useCurrency";
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 type RequestData = {
@@ -141,7 +143,7 @@ function fmtEUR(v: number | null | undefined) {
   return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(v);
 }
 
-function CustomerFuelSummary({ booking }: { booking: BookingData }) {
+function CustomerFuelSummary({ booking, fmt }: { booking: BookingData; fmt: (v: number | null | undefined) => string }) {
   const fullTankPrice = Number(booking.fuel_price || 0);
   const pricePerQuarter = fullTankPrice / 4;
   const usedQuarters = booking.fuel_used_quarters ?? null;
@@ -180,19 +182,19 @@ function CustomerFuelSummary({ booking }: { booking: BookingData }) {
           <p className="mt-1 text-lg font-bold">
             {usedQuarters !== null ? QUARTER_LABELS[usedQuarters] ?? `${usedQuarters}/4` : "—"}
           </p>
-          <p className="mt-1 text-xs text-white/60">{fmtEUR(pricePerQuarter)} per quarter</p>
+          <p className="mt-1 text-xs text-white/60">{fmt(pricePerQuarter)} per quarter</p>
         </div>
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl bg-[#ff7a00]/20 border border-[#ff7a00]/40 p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/70">You pay for fuel</p>
-          <p className="mt-2 text-4xl font-black">{fmtEUR(fuelCharge)}</p>
+          <p className="mt-2 text-4xl font-black">{fmt(fuelCharge)}</p>
           <p className="mt-1 text-sm text-white/60">{usedQuarters ?? "—"} quarter{usedQuarters !== 1 ? "s" : ""} used</p>
         </div>
         <div className="rounded-2xl bg-green-500/20 border border-green-400/40 p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Your refund</p>
-          <p className="mt-2 text-4xl font-black">{fmtEUR(fuelRefund)}</p>
+          <p className="mt-2 text-4xl font-black">{fmt(fuelRefund)}</p>
           <p className="mt-1 text-sm text-white/60">Unused fuel returned to you</p>
         </div>
       </div>
@@ -312,6 +314,7 @@ export default function TestBookingRequestDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const supabase = useMemo(() => createCustomerBrowserClient(), []);
+  const { fmt, currency, rate } = useCurrency();
   const [requestId, setRequestId] = useState("");
   const [loading, setLoading] = useState(true);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
@@ -493,7 +496,7 @@ export default function TestBookingRequestDetailPage({
                 ["Status", bookingStatusLabel(bk.booking_status)],
                 ["Car hire company", bk.company_name || "—"],
                 ["Company phone", bk.company_phone || "—"],
-                ["Price", formatGBP(bk.amount)],
+                ["Price", fmt(bk.amount)],
                 ["Driver", bk.driver_name || "—"],
                 ["Driver phone", bk.driver_phone || "—"],
                 ["Driver vehicle", bk.driver_vehicle || "—"],
@@ -548,6 +551,11 @@ export default function TestBookingRequestDetailPage({
       {/* Bids */}
       <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
         <h2 className="text-2xl font-semibold text-[#003768]">Partner Bids</h2>
+        {rate && (
+          <p className="mt-1 text-xs text-slate-400">
+            All prices in {currency === "GBP" ? `GBP (1€ = £${rate.toFixed(4)})` : "EUR"}
+          </p>
+        )}
         {expired || data.request.status === "expired" ? (
           <p className="mt-4 text-red-700">This request has expired and can no longer be accepted.</p>
         ) : data.bids.length === 0 ? (
@@ -561,9 +569,9 @@ export default function TestBookingRequestDetailPage({
                     <h3 className="text-xl font-semibold text-[#003768]">{bid.partner_company_name || "Car Hire Company"}</h3>
                     <p><span className="font-semibold text-slate-900">Phone:</span> {bid.partner_phone || "—"}</p>
                     <p><span className="font-semibold text-slate-900">Vehicle:</span> {bid.vehicle_category_name}</p>
-                    <p><span className="font-semibold text-slate-900">Car hire:</span> {formatGBP(bid.car_hire_price)}</p>
-                    <p><span className="font-semibold text-slate-900">Fuel deposit:</span> {formatGBP(bid.fuel_price)}</p>
-                    <p><span className="font-semibold text-slate-900">Total:</span> {formatGBP(bid.total_price)}</p>
+                    <p><span className="font-semibold text-slate-900">Car hire:</span> {fmt(bid.car_hire_price)}</p>
+                    <p><span className="font-semibold text-slate-900">Fuel deposit:</span> {fmt(bid.fuel_price)}</p>
+                    <p><span className="font-semibold text-slate-900">Total:</span> {fmt(bid.total_price)}</p>
                     <p><span className="font-semibold text-slate-900">Insurance included:</span> {bid.full_insurance_included ? "Yes" : "No"}</p>
                     <p><span className="font-semibold text-slate-900">Full tank included:</span> {bid.full_tank_included ? "Yes" : "No"}</p>
                     {bid.notes && <p><span className="font-semibold text-slate-900">Notes:</span> {bid.notes}</p>}
