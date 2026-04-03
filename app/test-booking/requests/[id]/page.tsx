@@ -473,8 +473,8 @@ export default function TestBookingRequestDetailPage({
             ["Job No.", data.request.job_number ?? "—"],
             ["Pickup", data.request.pickup_address],
             ["Dropoff", data.request.dropoff_address || "—"],
-                          ["Pickup time", fmt2(data.request.pickup_at)],
-            ["Dropoff time", fmt2(data.request.dropoff_at)],
+                          ["Pickup time", new Date(data.request.pickup_at || "").toLocaleString()],
+            ["Dropoff time", new Date(data.request.dropoff_at || "").toLocaleString()],
             ["Duration", formatDuration(data.request.journey_duration_minutes)],
             ["Passengers", data.request.passengers],
             ["Bags", `${data.request.suitcases} suitcases / ${data.request.hand_luggage} hand luggage`],
@@ -500,7 +500,7 @@ export default function TestBookingRequestDetailPage({
                 ["Driver", bk.driver_name || "—"],
                 ["Driver phone", bk.driver_phone || "—"],
                 ["Driver vehicle", bk.driver_vehicle || "—"],
-                ["Driver assigned at", fmt2(bk.driver_assigned_at)],
+                ["Driver assigned at", new Date(bk.driver_assigned_at || "").toLocaleString()],
               ].map(([label, value]) => (
                 <p key={String(label)}><span className="font-semibold text-slate-900">{label}:</span> {String(value)}</p>
               ))}
