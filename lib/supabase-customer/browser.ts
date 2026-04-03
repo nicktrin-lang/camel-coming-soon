@@ -1,12 +1,9 @@
 import { createBrowserClient } from "@supabase/ssr";
 
-let client: any = null;
-
 export function createCustomerBrowserClient() {
-  if (client) return client;
-  client = createBrowserClient(
+  return createBrowserClient(
     process.env.NEXT_PUBLIC_CUSTOMER_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_CUSTOMER_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_CUSTOMER_SUPABASE_ANON_KEY!,
+    { cookieEncoding: "base64url" }
   );
-  return client;
 }
