@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
-
 import { useCurrency } from "@/lib/useCurrency";
+import { formatEUR } from "@/lib/currency";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -75,9 +75,7 @@ function fuelLabel(v: unknown): string {
   }
 }
 
-const FUEL_BARS: Record<string, number> = {
-  empty: 0, quarter: 1, half: 2, "3/4": 3, full: 4,
-};
+const FUEL_BARS: Record<string, number> = { empty: 0, quarter: 1, half: 2, "3/4": 3, full: 4 };
 
 function FuelBar({ level }: { level: string | null }) {
   const n = normalizeFuel(level);
@@ -109,11 +107,6 @@ function formatDuration(m?: number | null) {
   return mins ? `${h}h ${mins}m` : `${h}h`;
 }
 
-function formatGBP(v?: number | null) {
-  if (v == null || isNaN(v)) return "—";
-  return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(v);
-}
-
 function getTimeRemaining(expiresAt?: string | null) {
   if (!expiresAt) return null;
   const diff = new Date(expiresAt).getTime() - Date.now();
@@ -138,22 +131,57 @@ const QUARTER_LABELS: Record<number, string> = {
   0: "Empty", 1: "¼ Tank", 2: "½ Tank", 3: "¾ Tank", 4: "Full Tank",
 };
 
-function fmtEUR(v: number | null | undefined) {
-  if (v == null || isNaN(v)) return "—";
-  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(v);
+// ── Dual currency helpers (customer view: GBP primary, EUR secondary) ─────────
+// Bids store prices in EUR. booking.amount / fuel_charge / fuel_refund are in GBP.
+
+/** EUR amount stored → display as "£X.XX (Y,YY €)" */
+function DualFromEur({
+  amountEur, rate, className,
+}: { amountEur: number | null | undefined; rate: number; className?: string }) {
+  if (amountEur == null || isNaN(amountEur)) return <span className={className}>—</span>;
+  const gbp = Math.round(amountEur * rate * 100) / 100;
+  const gbpStr = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(gbp);
+  const eurStr = formatEUR(amountEur);
+  return (
+    <span className={className}>
+      {gbpStr}{" "}
+      <span className="opacity-60 text-[0.85em] font-normal">({eurStr})</span>
+    </span>
+  );
 }
 
-function CustomerFuelSummary({ booking, fmt }: { booking: BookingData; fmt: (v: number | null | undefined) => string }) {
-  const fullTankPrice = Number(booking.fuel_price || 0);
-  const pricePerQuarter = fullTankPrice / 4;
+/** GBP amount stored → display as "£X.XX (Y,YY €)" */
+function DualFromGbp({
+  amountGbp, rate, className,
+}: { amountGbp: number | null | undefined; rate: number; className?: string }) {
+  if (amountGbp == null || isNaN(amountGbp)) return <span className={className}>—</span>;
+  const eur = Math.round((amountGbp / rate) * 100) / 100;
+  const gbpStr = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(amountGbp);
+  const eurStr = formatEUR(eur);
+  return (
+    <span className={className}>
+      {gbpStr}{" "}
+      <span className="opacity-60 text-[0.85em] font-normal">({eurStr})</span>
+    </span>
+  );
+}
+
+// ── Customer Fuel Summary ─────────────────────────────────────────────────────
+
+function CustomerFuelSummary({ booking, rate }: { booking: BookingData; rate: number }) {
+  const fullTankEur = Number(booking.fuel_price || 0);
+  const pricePerQuarterEur = fullTankEur / 4;
   const usedQuarters = booking.fuel_used_quarters ?? null;
-  const fuelCharge = booking.fuel_charge ?? null;
-  const fuelRefund = booking.fuel_refund ?? null;
+  const fuelCharge = booking.fuel_charge ?? null;  // stored in GBP
+  const fuelRefund = booking.fuel_refund ?? null;  // stored in GBP
 
   const collFuel = normalizeFuel(booking.collection_fuel_level_driver) ||
     normalizeFuel(booking.collection_fuel_level_partner);
   const retFuel = normalizeFuel(booking.return_fuel_level_driver) ||
     normalizeFuel(booking.return_fuel_level_partner);
+
+  const fullTankGbp = Math.round(fullTankEur * rate * 100) / 100;
+  const fullTankGbpStr = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(fullTankGbp);
 
   return (
     <div className="rounded-3xl border border-[#003768]/20 bg-[#003768] p-8 text-white shadow-[0_18px_45px_rgba(0,0,0,0.18)]">
@@ -162,8 +190,10 @@ function CustomerFuelSummary({ booking, fmt }: { booking: BookingData; fmt: (v: 
         <span className="rounded-full bg-green-400 px-3 py-1 text-xs font-bold text-green-900">Finalised</span>
       </div>
       <p className="mt-2 text-sm text-white/70">
-        You were charged a full tank deposit of {fmtEUR(fullTankPrice)} at booking.
-        Based on fuel used, here is your final breakdown.
+        You were charged a full tank deposit of{" "}
+        <strong>{fullTankGbpStr}</strong>{" "}
+        <span className="opacity-60">({formatEUR(fullTankEur)})</span>{" "}
+        at booking. Based on fuel used, here is your final breakdown.
       </p>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
@@ -182,22 +212,32 @@ function CustomerFuelSummary({ booking, fmt }: { booking: BookingData; fmt: (v: 
           <p className="mt-1 text-lg font-bold">
             {usedQuarters !== null ? QUARTER_LABELS[usedQuarters] ?? `${usedQuarters}/4` : "—"}
           </p>
-          <p className="mt-1 text-xs text-white/60">{fmt(pricePerQuarter)} per quarter</p>
+          <p className="mt-1 text-xs text-white/60">
+            <DualFromEur amountEur={pricePerQuarterEur} rate={rate} /> per quarter
+          </p>
         </div>
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl bg-[#ff7a00]/20 border border-[#ff7a00]/40 p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/70">You pay for fuel</p>
-          <p className="mt-2 text-4xl font-black">{fmt(fuelCharge)}</p>
+          <p className="mt-2 text-4xl font-black">
+            <DualFromGbp amountGbp={fuelCharge} rate={rate} />
+          </p>
           <p className="mt-1 text-sm text-white/60">{usedQuarters ?? "—"} quarter{usedQuarters !== 1 ? "s" : ""} used</p>
         </div>
         <div className="rounded-2xl bg-green-500/20 border border-green-400/40 p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Your refund</p>
-          <p className="mt-2 text-4xl font-black">{fmt(fuelRefund)}</p>
+          <p className="mt-2 text-4xl font-black">
+            <DualFromGbp amountGbp={fuelRefund} rate={rate} />
+          </p>
           <p className="mt-1 text-sm text-white/60">Unused fuel returned to you</p>
         </div>
       </div>
+
+      <p className="mt-4 text-xs text-white/40">
+        Rate used: 1€ = {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(rate)}
+      </p>
     </div>
   );
 }
@@ -205,37 +245,20 @@ function CustomerFuelSummary({ booking, fmt }: { booking: BookingData; fmt: (v: 
 // ── Fuel Confirmation Card ────────────────────────────────────────────────────
 
 function FuelConfirmCard({
-  title,
-  driverConfirmed,
-  driverFuel,
-  driverConfirmedAt,
-  customerConfirmed,
-  customerConfirmedAt,
-  locked,
-  notes,
-  onNotesChange,
-  onConfirm,
-  onUnconfirm,
-  saving,
+  title, driverConfirmed, driverFuel, driverConfirmedAt,
+  customerConfirmed, customerConfirmedAt, locked, notes,
+  onNotesChange, onConfirm, onUnconfirm, saving,
 }: {
-  title: string;
-  driverConfirmed: boolean;
-  driverFuel: string | null;
-  driverConfirmedAt: string | null;
-  customerConfirmed: boolean;
-  customerConfirmedAt: string | null;
-  locked: boolean;
-  notes: string;
-  onNotesChange: (v: string) => void;
-  onConfirm: () => void;
-  onUnconfirm: () => void;
-  saving: boolean;
+  title: string; driverConfirmed: boolean; driverFuel: string | null;
+  driverConfirmedAt: string | null; customerConfirmed: boolean;
+  customerConfirmedAt: string | null; locked: boolean; notes: string;
+  onNotesChange: (v: string) => void; onConfirm: () => void;
+  onUnconfirm: () => void; saving: boolean;
 }) {
   return (
     <div className={`rounded-3xl border p-6 ${locked ? "border-green-200 bg-green-50" : "border-black/5 bg-white"} shadow-[0_18px_45px_rgba(0,0,0,0.08)]`}>
       <h2 className="text-2xl font-semibold text-[#003768]">{title}</h2>
 
-      {/* Driver reading */}
       <div className="mt-4 rounded-2xl border border-black/10 bg-slate-50 p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Driver recorded</p>
         {driverConfirmed && driverFuel ? (
@@ -260,41 +283,27 @@ function FuelConfirmCard({
               You confirmed this at {fmt(customerConfirmedAt)}
             </div>
           )}
-
           <div className="mt-4">
             <label className="text-sm font-medium text-[#003768]">Notes (optional)</label>
-            <textarea
-              rows={3}
-              value={notes}
-              onChange={e => onNotesChange(e.target.value)}
+            <textarea rows={3} value={notes} onChange={e => onNotesChange(e.target.value)}
               disabled={locked}
               className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-[#0f4f8a] disabled:opacity-60"
-              placeholder="Any notes about the fuel level or condition…"
-            />
+              placeholder="Any notes about the fuel level or condition…" />
           </div>
-
           <div className="mt-4 flex gap-3">
             {!customerConfirmed ? (
-              <button
-                type="button"
-                onClick={onConfirm}
+              <button type="button" onClick={onConfirm}
                 disabled={saving || !driverConfirmed}
-                className="flex-1 rounded-full bg-[#ff7a00] py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-50 active:scale-95 transition-transform"
-              >
+                className="flex-1 rounded-full bg-[#ff7a00] py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-50 active:scale-95 transition-transform">
                 {saving ? "Saving…" : !driverConfirmed ? "Waiting for driver…" : "✓ I agree with this fuel level"}
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={onUnconfirm}
-                disabled={saving}
-                className="flex-1 rounded-full border border-black/10 bg-white py-3 font-semibold text-slate-700 hover:bg-black/5 disabled:opacity-50"
-              >
+              <button type="button" onClick={onUnconfirm} disabled={saving}
+                className="flex-1 rounded-full border border-black/10 bg-white py-3 font-semibold text-slate-700 hover:bg-black/5 disabled:opacity-50">
                 {saving ? "Saving…" : "Dispute / Change"}
               </button>
             )}
           </div>
-
           {!driverConfirmed && (
             <p className="mt-2 text-xs text-slate-400">
               The confirm button will activate once the driver has recorded the fuel level.
@@ -314,7 +323,9 @@ export default function TestBookingRequestDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const supabase = useMemo(() => createCustomerBrowserClient(), []);
-  const { fmt, currency, rate } = useCurrency();
+  const { currency, rate } = useCurrency();
+  const liveRate = rate ?? 0.85;
+
   const [requestId, setRequestId] = useState("");
   const [loading, setLoading] = useState(true);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
@@ -324,13 +335,10 @@ export default function TestBookingRequestDetailPage({
   const [data, setData] = useState<ResponseShape | null>(null);
   const [timeLabel, setTimeLabel] = useState("—");
   const [expired, setExpired] = useState(false);
-
   const [collectionNotes, setCollectionNotes] = useState("");
   const [returnNotes, setReturnNotes] = useState("");
 
-  useEffect(() => {
-    params.then(r => setRequestId(r.id));
-  }, [params]);
+  useEffect(() => { params.then(r => setRequestId(r.id)); }, [params]);
 
   async function load(showSpinner = false) {
     if (!requestId) return;
@@ -339,24 +347,19 @@ export default function TestBookingRequestDetailPage({
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Not signed in");
-
       const res = await fetch(`/api/test-booking/requests/${requestId}`, {
         cache: "no-store",
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.error || "Failed to load request.");
-
       setData(json);
       if (json.booking) {
         setCollectionNotes(json.booking.collection_customer_notes || "");
         setReturnNotes(json.booking.return_customer_notes || "");
       }
-    } catch (e: any) {
-      setError(e?.message || "Failed to load request.");
-    } finally {
-      if (showSpinner) setLoading(false);
-    }
+    } catch (e: any) { setError(e?.message || "Failed to load request."); }
+    finally { if (showSpinner) setLoading(false); }
   }
 
   useEffect(() => { load(true); }, [requestId]);
@@ -406,11 +409,7 @@ export default function TestBookingRequestDetailPage({
       const res = await fetch(`/api/test-booking/bookings/${data.booking.id}/update`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({
-          section,
-          confirmed,
-          notes: section === "collection" ? collectionNotes : returnNotes,
-        }),
+        body: JSON.stringify({ section, confirmed, notes: section === "collection" ? collectionNotes : returnNotes }),
       });
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.error || "Failed to save.");
@@ -456,7 +455,8 @@ export default function TestBookingRequestDetailPage({
           <h1 className="text-3xl font-semibold text-[#003768]">Request Detail</h1>
           <p className="mt-2 text-slate-600">Review your request and any partner bids received.</p>
         </div>
-        <Link href="/test-booking/requests" className="rounded-full border border-black/10 bg-white px-5 py-2 font-semibold text-[#003768] hover:bg-black/5">
+        <Link href="/test-booking/requests"
+          className="rounded-full border border-black/10 bg-white px-5 py-2 font-semibold text-[#003768] hover:bg-black/5">
           Back to Requests
         </Link>
       </div>
@@ -473,7 +473,7 @@ export default function TestBookingRequestDetailPage({
             ["Job No.", data.request.job_number ?? "—"],
             ["Pickup", data.request.pickup_address],
             ["Dropoff", data.request.dropoff_address || "—"],
-                          ["Pickup time", new Date(data.request.pickup_at || "").toLocaleString()],
+            ["Pickup time", new Date(data.request.pickup_at || "").toLocaleString()],
             ["Dropoff time", new Date(data.request.dropoff_at || "").toLocaleString()],
             ["Duration", formatDuration(data.request.journey_duration_minutes)],
             ["Passengers", data.request.passengers],
@@ -492,27 +492,27 @@ export default function TestBookingRequestDetailPage({
           <div className="rounded-3xl border border-green-200 bg-green-50 p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
             <h2 className="text-2xl font-semibold text-[#003768]">Your Booking</h2>
             <div className="mt-6 grid gap-3 text-slate-700 sm:grid-cols-2">
-              {[
-                ["Status", bookingStatusLabel(bk.booking_status)],
-                ["Car hire company", bk.company_name || "—"],
-                ["Company phone", bk.company_phone || "—"],
-                ["Price", fmt(bk.amount)],
-                ["Driver", bk.driver_name || "—"],
-                ["Driver phone", bk.driver_phone || "—"],
-                ["Driver vehicle", bk.driver_vehicle || "—"],
-                ["Driver assigned at", new Date(bk.driver_assigned_at || "").toLocaleString()],
-              ].map(([label, value]) => (
-                <p key={String(label)}><span className="font-semibold text-slate-900">{label}:</span> {String(value)}</p>
-              ))}
+              <p><span className="font-semibold text-slate-900">Status:</span> {bookingStatusLabel(bk.booking_status)}</p>
+              <p><span className="font-semibold text-slate-900">Car hire company:</span> {bk.company_name || "—"}</p>
+              <p><span className="font-semibold text-slate-900">Company phone:</span> {bk.company_phone || "—"}</p>
+              <p>
+                <span className="font-semibold text-slate-900">Price:</span>{" "}
+                <DualFromGbp amountGbp={bk.amount} rate={liveRate} />
+              </p>
+              <p><span className="font-semibold text-slate-900">Driver:</span> {bk.driver_name || "—"}</p>
+              <p><span className="font-semibold text-slate-900">Driver phone:</span> {bk.driver_phone || "—"}</p>
+              <p><span className="font-semibold text-slate-900">Driver vehicle:</span> {bk.driver_vehicle || "—"}</p>
+              <p><span className="font-semibold text-slate-900">Driver assigned at:</span> {fmt(bk.driver_assigned_at)}</p>
             </div>
+            <p className="mt-4 text-xs text-slate-400">1€ = {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(liveRate)}</p>
           </div>
 
-          {/* Fuel summary — only show when both locked AND fuel charge calculated */}
+          {/* Fuel summary */}
           {collectionLocked && returnLocked && bk.fuel_charge !== null && (
-            <CustomerFuelSummary booking={bk} fmt={fmt} />
+            <CustomerFuelSummary booking={bk} rate={liveRate} />
           )}
 
-          {/* Fuel confirmation — show until both stages are locked */}
+          {/* Fuel confirmation */}
           {(!collectionLocked || !returnLocked) && (
             <div className="grid gap-6 xl:grid-cols-2">
               <FuelConfirmCard
@@ -522,8 +522,7 @@ export default function TestBookingRequestDetailPage({
                 driverConfirmedAt={bk.collection_confirmed_by_driver_at}
                 customerConfirmed={bk.collection_confirmed_by_customer}
                 customerConfirmedAt={bk.collection_confirmed_by_customer_at}
-                locked={collectionLocked}
-                notes={collectionNotes}
+                locked={collectionLocked} notes={collectionNotes}
                 onNotesChange={setCollectionNotes}
                 onConfirm={() => saveConfirmation("collection", true)}
                 onUnconfirm={() => saveConfirmation("collection", false)}
@@ -536,8 +535,7 @@ export default function TestBookingRequestDetailPage({
                 driverConfirmedAt={bk.return_confirmed_by_driver_at}
                 customerConfirmed={bk.return_confirmed_by_customer}
                 customerConfirmedAt={bk.return_confirmed_by_customer_at}
-                locked={returnLocked}
-                notes={returnNotes}
+                locked={returnLocked} notes={returnNotes}
                 onNotesChange={setReturnNotes}
                 onConfirm={() => saveConfirmation("return", true)}
                 onUnconfirm={() => saveConfirmation("return", false)}
@@ -551,11 +549,10 @@ export default function TestBookingRequestDetailPage({
       {/* Bids */}
       <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
         <h2 className="text-2xl font-semibold text-[#003768]">Partner Bids</h2>
-        {rate && (
-          <p className="mt-1 text-xs text-slate-400">
-            All prices in {currency === "GBP" ? `GBP (1€ = £${rate.toFixed(4)})` : "EUR"}
-          </p>
-        )}
+        <p className="mt-1 text-xs text-slate-400">
+          All prices in GBP (1€ = {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(liveRate)})
+        </p>
+
         {expired || data.request.status === "expired" ? (
           <p className="mt-4 text-red-700">This request has expired and can no longer be accepted.</p>
         ) : data.bids.length === 0 ? (
@@ -569,9 +566,18 @@ export default function TestBookingRequestDetailPage({
                     <h3 className="text-xl font-semibold text-[#003768]">{bid.partner_company_name || "Car Hire Company"}</h3>
                     <p><span className="font-semibold text-slate-900">Phone:</span> {bid.partner_phone || "—"}</p>
                     <p><span className="font-semibold text-slate-900">Vehicle:</span> {bid.vehicle_category_name}</p>
-                    <p><span className="font-semibold text-slate-900">Car hire:</span> {fmt(bid.car_hire_price)}</p>
-                    <p><span className="font-semibold text-slate-900">Fuel deposit:</span> {fmt(bid.fuel_price)}</p>
-                    <p><span className="font-semibold text-slate-900">Total:</span> {fmt(bid.total_price)}</p>
+                    <p>
+                      <span className="font-semibold text-slate-900">Car hire:</span>{" "}
+                      <DualFromEur amountEur={bid.car_hire_price} rate={liveRate} />
+                    </p>
+                    <p>
+                      <span className="font-semibold text-slate-900">Fuel deposit:</span>{" "}
+                      <DualFromEur amountEur={bid.fuel_price} rate={liveRate} />
+                    </p>
+                    <p>
+                      <span className="font-semibold text-slate-900">Total:</span>{" "}
+                      <DualFromEur amountEur={bid.total_price} rate={liveRate} />
+                    </p>
                     <p><span className="font-semibold text-slate-900">Insurance included:</span> {bid.full_insurance_included ? "Yes" : "No"}</p>
                     <p><span className="font-semibold text-slate-900">Full tank included:</span> {bid.full_tank_included ? "Yes" : "No"}</p>
                     {bid.notes && <p><span className="font-semibold text-slate-900">Notes:</span> {bid.notes}</p>}
@@ -582,12 +588,9 @@ export default function TestBookingRequestDetailPage({
                     ) : data.request.status === "confirmed" ? (
                       <span className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-slate-500">Closed</span>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => acceptBid(bid.id)}
+                      <button type="button" onClick={() => acceptBid(bid.id)}
                         disabled={!!acceptingId || expired}
-                        className="rounded-full bg-[#ff7a00] px-5 py-2 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60"
-                      >
+                        className="rounded-full bg-[#ff7a00] px-5 py-2 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60">
                         {acceptingId === bid.id ? "Accepting..." : "Accept Bid"}
                       </button>
                     )}

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { getEurToGbpRate, formatDual, formatDualFromGbp, formatEUR, formatGBP } from "@/lib/currency";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -104,11 +105,6 @@ function fmt(v?: string | null) {
   try { return new Date(v).toLocaleString(); } catch { return v; }
 }
 
-function fmtGBP(v?: number | null) {
-  if (v == null || isNaN(v)) return "—";
-  return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(v);
-}
-
 function fmtDuration(m?: number | null) {
   if (!m) return "—";
   if (m >= 1440) return `${Math.ceil(m/1440)} day${Math.ceil(m/1440)===1?"":"s"}`;
@@ -127,7 +123,6 @@ function statusLabel(s?: string | null) {
   }
 }
 
-// The effective fuel reading = driver's reading, or partner override if set
 function effectiveFuel(driverFuel: unknown, partnerFuel: unknown): string | null {
   return normalizeFuel(partnerFuel) || normalizeFuel(driverFuel);
 }
@@ -148,12 +143,36 @@ const QUARTER_LABELS: Record<number, string> = {
   0: "Empty", 1: "¼ Tank", 2: "½ Tank", 3: "¾ Tank", 4: "Full Tank",
 };
 
-function fmtEUR(v: number | null | undefined) {
-  if (v == null || isNaN(v)) return "—";
-  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(v);
+// ── Dual currency label ───────────────────────────────────────────────────────
+// Small inline component so JSX stays readable
+function Dual({ amountEur, rate }: { amountEur: number | null | undefined; rate: number }) {
+  if (amountEur == null || isNaN(amountEur)) return <span>—</span>;
+  const primary = formatEUR(amountEur);
+  const secondary = formatGBP(Math.round(amountEur * rate * 100) / 100);
+  return (
+    <span>
+      {primary}{" "}
+      <span className="text-white/50 text-sm font-normal">({secondary})</span>
+    </span>
+  );
 }
 
-function FuelSummaryCard({ booking }: { booking: BookingRow }) {
+// Same but for GBP-stored amounts (booking.amount)
+function DualFromGbp({ amountGbp, rate }: { amountGbp: number | null | undefined; rate: number }) {
+  if (amountGbp == null || isNaN(amountGbp)) return <span>—</span>;
+  const gbp = formatGBP(amountGbp);
+  const eur = formatEUR(Math.round((amountGbp / rate) * 100) / 100);
+  return (
+    <span>
+      {eur}{" "}
+      <span className="opacity-60 text-sm font-normal">({gbp})</span>
+    </span>
+  );
+}
+
+// ── Fuel Summary Card ─────────────────────────────────────────────────────────
+
+function FuelSummaryCard({ booking, rate }: { booking: BookingRow; rate: number }) {
   const collFuel = normalizeFuel(booking.collection_fuel_level_partner) ||
     normalizeFuel(booking.collection_fuel_level_driver) ||
     normalizeFuel(booking.collection_fuel_level_customer);
@@ -196,26 +215,29 @@ function FuelSummaryCard({ booking }: { booking: BookingRow }) {
         </div>
         <div className="rounded-2xl bg-white/10 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Price per quarter</p>
-          <p className="mt-1 text-xl font-bold">{fmtEUR(pricePerQuarter)}</p>
-          <p className="mt-1 text-xs text-white/60">Full tank: {fmtEUR(fullTankPrice)}</p>
+          <p className="mt-1 text-xl font-bold"><Dual amountEur={pricePerQuarter} rate={rate} /></p>
+          <p className="mt-1 text-xs text-white/60">Full tank: {formatDual(fullTankPrice, rate, "partner")}</p>
         </div>
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl bg-[#ff7a00]/20 p-5 border border-[#ff7a00]/40">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Fuel charge to customer</p>
-          <p className="mt-2 text-4xl font-black">{fmtEUR(fuelCharge)}</p>
+          <p className="mt-2 text-4xl font-black"><Dual amountEur={fuelCharge} rate={rate} /></p>
           <p className="mt-1 text-sm text-white/60">For {usedQuarters ?? "—"} quarter{usedQuarters !== 1 ? "s" : ""} used</p>
         </div>
         <div className="rounded-2xl bg-green-500/20 p-5 border border-green-400/40">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Refund to customer</p>
-          <p className="mt-2 text-4xl font-black">{fmtEUR(fuelRefund)}</p>
+          <p className="mt-2 text-4xl font-black"><Dual amountEur={fuelRefund} rate={rate} /></p>
           <p className="mt-1 text-sm text-white/60">Unused fuel portion returned</p>
         </div>
       </div>
 
       <p className="mt-4 text-xs text-white/40">
-        Car hire: {fmtEUR(booking.car_hire_price)} · Full tank deposit: {fmtEUR(fullTankPrice)} · Total booking: {fmtGBP(booking.amount)}
+        Car hire: {formatDual(booking.car_hire_price, rate, "partner")} ·{" "}
+        Full tank deposit: {formatDual(fullTankPrice, rate, "partner")} ·{" "}
+        Total booking: {formatDual(booking.car_hire_price != null && fullTankPrice != null ? (booking.car_hire_price + fullTankPrice) : null, rate, "partner")}
+        {" · "}1€ = {formatGBP(rate)}
       </p>
     </div>
   );
@@ -224,74 +246,34 @@ function FuelSummaryCard({ booking }: { booking: BookingRow }) {
 // ── Fuel Stage Card ───────────────────────────────────────────────────────────
 
 function FuelStageCard({
-  title,
-  booking,
-  stage,
-  fuelValue,
-  onFuelChange,
-  confirmed,
-  onConfirmedChange,
-  notes,
-  onNotesChange,
-  onSave,
-  saving,
-  locked,
+  title, booking, stage, fuelValue, onFuelChange,
+  confirmed, onConfirmedChange, notes, onNotesChange,
+  onSave, saving, locked,
 }: {
-  title: string;
-  booking: BookingRow;
-  stage: "collection" | "return";
-  fuelValue: FuelLevel;
-  onFuelChange: (v: FuelLevel) => void;
-  confirmed: boolean;
-  onConfirmedChange: (v: boolean) => void;
-  notes: string;
-  onNotesChange: (v: string) => void;
-  onSave: () => void;
-  saving: boolean;
-  locked: boolean;
+  title: string; booking: BookingRow; stage: "collection" | "return";
+  fuelValue: FuelLevel; onFuelChange: (v: FuelLevel) => void;
+  confirmed: boolean; onConfirmedChange: (v: boolean) => void;
+  notes: string; onNotesChange: (v: string) => void;
+  onSave: () => void; saving: boolean; locked: boolean;
 }) {
-  const driverConfirmed = stage === "collection"
-    ? !!booking.collection_confirmed_by_driver
-    : !!booking.return_confirmed_by_driver;
-  const driverFuel = stage === "collection"
-    ? booking.collection_fuel_level_driver
-    : booking.return_fuel_level_driver;
-  const driverAt = stage === "collection"
-    ? booking.collection_confirmed_by_driver_at
-    : booking.return_confirmed_by_driver_at;
-
-  const customerConfirmed = stage === "collection"
-    ? !!booking.collection_confirmed_by_customer
-    : !!booking.return_confirmed_by_customer;
-  const customerFuel = stage === "collection"
-    ? booking.collection_fuel_level_customer
-    : booking.return_fuel_level_customer;
-  const customerAt = stage === "collection"
-    ? booking.collection_confirmed_by_customer_at
-    : booking.return_confirmed_by_customer_at;
-  const customerNotes = stage === "collection"
-    ? booking.collection_customer_notes
-    : booking.return_customer_notes;
-
-  const savedPartnerFuel = stage === "collection"
-    ? booking.collection_fuel_level_partner
-    : booking.return_fuel_level_partner;
-  const savedPartnerAt = stage === "collection"
-    ? booking.collection_confirmed_by_partner_at
-    : booking.return_confirmed_by_partner_at;
-
+  const driverConfirmed = stage === "collection" ? !!booking.collection_confirmed_by_driver : !!booking.return_confirmed_by_driver;
+  const driverFuel = stage === "collection" ? booking.collection_fuel_level_driver : booking.return_fuel_level_driver;
+  const driverAt = stage === "collection" ? booking.collection_confirmed_by_driver_at : booking.return_confirmed_by_driver_at;
+  const customerConfirmed = stage === "collection" ? !!booking.collection_confirmed_by_customer : !!booking.return_confirmed_by_customer;
+  const customerFuel = stage === "collection" ? booking.collection_fuel_level_customer : booking.return_fuel_level_customer;
+  const customerAt = stage === "collection" ? booking.collection_confirmed_by_customer_at : booking.return_confirmed_by_customer_at;
+  const customerNotes = stage === "collection" ? booking.collection_customer_notes : booking.return_customer_notes;
+  const savedPartnerFuel = stage === "collection" ? booking.collection_fuel_level_partner : booking.return_fuel_level_partner;
+  const savedPartnerAt = stage === "collection" ? booking.collection_confirmed_by_partner_at : booking.return_confirmed_by_partner_at;
   const hasOverride = !!savedPartnerFuel && savedPartnerFuel !== driverFuel;
 
   return (
     <div className={`rounded-3xl border p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)] ${locked ? "border-green-200 bg-green-50" : "border-black/5 bg-white"}`}>
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-bold text-[#003768]">{title}</h3>
-        {locked && (
-          <span className="rounded-full bg-green-600 px-3 py-1 text-xs font-bold text-white">✓ Locked</span>
-        )}
+        {locked && <span className="rounded-full bg-green-600 px-3 py-1 text-xs font-bold text-white">✓ Locked</span>}
       </div>
 
-      {/* Driver reading */}
       <div className={`mt-4 rounded-2xl border p-4 ${driverConfirmed ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-slate-50"}`}>
         <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Driver recorded</p>
         {driverConfirmed && driverFuel ? (
@@ -305,7 +287,6 @@ function FuelStageCard({
         )}
       </div>
 
-      {/* Customer status */}
       <div className={`mt-3 rounded-2xl border p-4 ${customerConfirmed ? "border-green-200 bg-green-50" : "border-slate-200 bg-slate-50"}`}>
         <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Customer confirmed</p>
         {customerConfirmed ? (
@@ -325,25 +306,19 @@ function FuelStageCard({
         </div>
       ) : (
         <>
-          {/* Office override section */}
           <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
             <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
               Office override {hasOverride ? `— currently set to ${fuelLabel(savedPartnerFuel)}` : ""}
             </p>
             <p className="mt-1 text-xs text-amber-600">
               Use this if the driver is unavailable or you need to correct their reading.
-              This will be used as the reference fuel level for customer confirmation.
             </p>
-
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <div>
                 <label className="text-xs font-semibold text-[#003768]">Fuel level</label>
-                <select
-                  value={fuelValue}
-                  onChange={e => onFuelChange(e.target.value as FuelLevel)}
+                <select value={fuelValue} onChange={e => onFuelChange(e.target.value as FuelLevel)}
                   disabled={locked}
-                  className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm outline-none focus:border-[#0f4f8a] disabled:opacity-60"
-                >
+                  className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm outline-none focus:border-[#0f4f8a] disabled:opacity-60">
                   <option value="full">Full</option>
                   <option value="3/4">¾ Tank</option>
                   <option value="half">½ Tank</option>
@@ -353,43 +328,25 @@ function FuelStageCard({
               </div>
               <div className="flex items-end">
                 <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-[#003768]">
-                  <input
-                    type="checkbox"
-                    checked={confirmed}
-                    onChange={e => onConfirmedChange(e.target.checked)}
-                    disabled={locked}
-                    className="h-4 w-4"
-                  />
+                  <input type="checkbox" checked={confirmed} onChange={e => onConfirmedChange(e.target.checked)}
+                    disabled={locked} className="h-4 w-4" />
                   Office confirms
                 </label>
               </div>
             </div>
-
             <div className="mt-3">
               <label className="text-xs font-semibold text-[#003768]">Notes</label>
-              <textarea
-                rows={2}
-                value={notes}
-                onChange={e => onNotesChange(e.target.value)}
+              <textarea rows={2} value={notes} onChange={e => onNotesChange(e.target.value)}
                 disabled={locked}
                 className="mt-1 w-full rounded-xl border border-black/10 px-3 py-2 text-sm outline-none focus:border-[#0f4f8a] disabled:opacity-60"
-                placeholder="Reason for override, depot drop-off, out of hours, etc."
-              />
+                placeholder="Reason for override, depot drop-off, out of hours, etc." />
             </div>
-
             {savedPartnerAt && (
-              <p className="mt-2 text-xs text-amber-600">
-                Last saved: {fuelLabel(savedPartnerFuel)} at {fmt(savedPartnerAt)}
-              </p>
+              <p className="mt-2 text-xs text-amber-600">Last saved: {fuelLabel(savedPartnerFuel)} at {fmt(savedPartnerAt)}</p>
             )}
           </div>
-
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={saving || locked}
-            className="mt-4 w-full rounded-full bg-[#003768] py-3 font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
-          >
+          <button type="button" onClick={onSave} disabled={saving || locked}
+            className="mt-4 w-full rounded-full bg-[#003768] py-3 font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity">
             {saving ? "Saving…" : `Save ${title} Update`}
           </button>
         </>
@@ -411,6 +368,7 @@ export default function PartnerBookingDetailPage() {
   const [ok, setOk] = useState<string | null>(null);
   const [data, setData] = useState<BookingApiResponse | null>(null);
   const [drivers, setDrivers] = useState<DriverRow[]>([]);
+  const [eurGbpRate, setEurGbpRate] = useState<number>(0.85); // live rate, fetched once
 
   // Driver assignment fields
   const [bookingStatus, setBookingStatus] = useState("confirmed");
@@ -424,7 +382,6 @@ export default function PartnerBookingDetailPage() {
   const [collectionFuel, setCollectionFuel] = useState<FuelLevel>("full");
   const [collectionConfirmed, setCollectionConfirmed] = useState(false);
   const [collectionNotes, setCollectionNotes] = useState("");
-
   const [returnFuel, setReturnFuel] = useState<FuelLevel>("full");
   const [returnConfirmed, setReturnConfirmed] = useState(false);
   const [returnNotes, setReturnNotes] = useState("");
@@ -437,12 +394,9 @@ export default function PartnerBookingDetailPage() {
     setDriverVehicle(b.driver_vehicle || "");
     setDriverNotes(b.driver_notes || "");
     setSelectedDriverId(b.assigned_driver_id || "");
-
-    // For fuel: prefer partner override if set, else use driver reading
     setCollectionFuel((normalizeFuel(b.collection_fuel_level_partner) || normalizeFuel(b.collection_fuel_level_driver) || "full") as FuelLevel);
     setCollectionConfirmed(!!b.collection_confirmed_by_partner);
     setCollectionNotes(b.collection_partner_notes || "");
-
     setReturnFuel((normalizeFuel(b.return_fuel_level_partner) || normalizeFuel(b.return_fuel_level_driver) || "full") as FuelLevel);
     setReturnConfirmed(!!b.return_confirmed_by_partner);
     setReturnNotes(b.return_partner_notes || "");
@@ -474,8 +428,13 @@ export default function PartnerBookingDetailPage() {
     finally { setLoadingDrivers(false); }
   }
 
-  useEffect(() => { loadBooking(true, true); }, [bookingId]);
-  useEffect(() => { loadDrivers(); }, []);
+  useEffect(() => {
+    loadBooking(true, true);
+    loadDrivers();
+    // Fetch live rate once on mount
+    getEurToGbpRate().then(r => setEurGbpRate(r)).catch(() => {});
+  }, [bookingId]);
+
   useEffect(() => {
     if (!bookingId) return;
     const t = setInterval(() => loadBooking(false, false), 10000);
@@ -501,7 +460,6 @@ export default function PartnerBookingDetailPage() {
           assigned_driver_id: selectedDriverId || null,
           driver_name: driverName, driver_phone: driverPhone,
           driver_vehicle: driverVehicle, driver_notes: driverNotes,
-          // Pass through existing fuel values unchanged
           collection_fuel_level_partner: data?.booking.collection_fuel_level_partner,
           collection_confirmed_by_partner: data?.booking.collection_confirmed_by_partner,
           collection_partner_notes: data?.booking.collection_partner_notes,
@@ -521,7 +479,7 @@ export default function PartnerBookingDetailPage() {
   async function saveFuelSection(section: "collection" | "return") {
     setSavingSection(section); setError(null); setOk(null);
     try {
-      const isCollection = section === "collection";
+      const isC = section === "collection";
       const res = await fetch(`/api/partner/bookings/${bookingId}/update`, {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -532,13 +490,12 @@ export default function PartnerBookingDetailPage() {
           driver_phone: data?.booking.driver_phone,
           driver_vehicle: data?.booking.driver_vehicle,
           driver_notes: data?.booking.driver_notes,
-          // Update only the relevant section
-          collection_fuel_level_partner: isCollection ? collectionFuel : data?.booking.collection_fuel_level_partner,
-          collection_confirmed_by_partner: isCollection ? collectionConfirmed : data?.booking.collection_confirmed_by_partner,
-          collection_partner_notes: isCollection ? collectionNotes : data?.booking.collection_partner_notes,
-          return_fuel_level_partner: !isCollection ? returnFuel : data?.booking.return_fuel_level_partner,
-          return_confirmed_by_partner: !isCollection ? returnConfirmed : data?.booking.return_confirmed_by_partner,
-          return_partner_notes: !isCollection ? returnNotes : data?.booking.return_partner_notes,
+          collection_fuel_level_partner: isC ? collectionFuel : data?.booking.collection_fuel_level_partner,
+          collection_confirmed_by_partner: isC ? collectionConfirmed : data?.booking.collection_confirmed_by_partner,
+          collection_partner_notes: isC ? collectionNotes : data?.booking.collection_partner_notes,
+          return_fuel_level_partner: !isC ? returnFuel : data?.booking.return_fuel_level_partner,
+          return_confirmed_by_partner: !isC ? returnConfirmed : data?.booking.return_confirmed_by_partner,
+          return_partner_notes: !isC ? returnNotes : data?.booking.return_partner_notes,
         }),
       });
       const json = await res.json().catch(() => null);
@@ -565,22 +522,17 @@ export default function PartnerBookingDetailPage() {
 
   const bk = data.booking;
   const req = data.request;
-  const adminMode = data.role === "admin" || data.role === "super_admin";
 
   const collEffective = effectiveFuel(bk.collection_fuel_level_driver, bk.collection_fuel_level_partner);
   const retEffective = effectiveFuel(bk.return_fuel_level_driver, bk.return_fuel_level_partner);
 
-  const collectionLocked = isLocked({
-    driverOrPartnerFuel: collEffective,
-    customerConfirmed: bk.collection_confirmed_by_customer,
-    customerFuel: bk.collection_fuel_level_customer,
-  });
+  const collectionLocked = isLocked({ driverOrPartnerFuel: collEffective, customerConfirmed: bk.collection_confirmed_by_customer, customerFuel: bk.collection_fuel_level_customer });
+  const returnLocked = isLocked({ driverOrPartnerFuel: retEffective, customerConfirmed: bk.return_confirmed_by_customer, customerFuel: bk.return_fuel_level_customer });
 
-  const returnLocked = isLocked({
-    driverOrPartnerFuel: retEffective,
-    customerConfirmed: bk.return_confirmed_by_customer,
-    customerFuel: bk.return_fuel_level_customer,
-  });
+  // EUR amounts for the booking info panel
+  const carHireEur = bk.car_hire_price;
+  const fullTankEur = bk.fuel_price;
+  const totalEur = carHireEur != null && fullTankEur != null ? carHireEur + fullTankEur : null;
 
   return (
     <div className="space-y-6 px-4 py-8 md:px-8">
@@ -590,9 +542,10 @@ export default function PartnerBookingDetailPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold text-[#003768]">Booking Detail</h1>
-          <p className="mt-1 text-slate-600">{adminMode ? "Admin view — full booking management." : "View and manage this booking."}</p>
+          <p className="mt-1 text-slate-600">View and manage this booking.</p>
         </div>
-        <Link href="/partner/bookings" className="rounded-full border border-black/10 bg-white px-5 py-2 font-semibold text-[#003768] hover:bg-black/5">
+        <Link href="/partner/bookings"
+          className="rounded-full border border-black/10 bg-white px-5 py-2 font-semibold text-[#003768] hover:bg-black/5">
           Back to Bookings
         </Link>
       </div>
@@ -604,11 +557,15 @@ export default function PartnerBookingDetailPage() {
           <div className="mt-6 space-y-3 text-slate-700">
             <p><span className="font-semibold text-slate-900">Job No.:</span> {bk.job_number ?? req?.job_number ?? "—"}</p>
             <p><span className="font-semibold text-slate-900">Status:</span> {statusLabel(bk.booking_status)}</p>
-            <p><span className="font-semibold text-slate-900">Amount:</span> {fmtGBP(bk.amount)}</p>
+            <p>
+              <span className="font-semibold text-slate-900">Amount:</span>{" "}
+              {formatDual(totalEur, eurGbpRate, "partner")}
+            </p>
             <p><span className="font-semibold text-slate-900">Created:</span> {fmt(bk.created_at)}</p>
             <p><span className="font-semibold text-slate-900">Driver:</span> {drivers.find(d => d.id === bk.assigned_driver_id)?.full_name || bk.driver_name || "—"}</p>
             <p><span className="font-semibold text-slate-900">Driver assigned:</span> {fmt(bk.driver_assigned_at)}</p>
             <p><span className="font-semibold text-slate-900">Notes:</span> {bk.notes || "—"}</p>
+            <p className="text-xs text-slate-400">Rate: 1€ = {formatGBP(eurGbpRate)}</p>
           </div>
         </div>
 
@@ -690,9 +647,9 @@ export default function PartnerBookingDetailPage() {
         </form>
       </div>
 
-      {/* Fuel summary — shown when both stages locked */}
+      {/* Fuel summary */}
       {collectionLocked && returnLocked && (
-        <FuelSummaryCard booking={bk} />
+        <FuelSummaryCard booking={bk} rate={eurGbpRate} />
       )}
 
       {/* Fuel tracking */}
@@ -704,34 +661,18 @@ export default function PartnerBookingDetailPage() {
           <span className="ml-1 text-xs text-slate-400">(Refreshes every 10s)</span>
         </p>
         <div className="grid gap-6 xl:grid-cols-2">
-          <FuelStageCard
-            title="Collection"
-            booking={bk}
-            stage="collection"
-            fuelValue={collectionFuel}
-            onFuelChange={setCollectionFuel}
-            confirmed={collectionConfirmed}
-            onConfirmedChange={setCollectionConfirmed}
-            notes={collectionNotes}
-            onNotesChange={setCollectionNotes}
+          <FuelStageCard title="Collection" booking={bk} stage="collection"
+            fuelValue={collectionFuel} onFuelChange={setCollectionFuel}
+            confirmed={collectionConfirmed} onConfirmedChange={setCollectionConfirmed}
+            notes={collectionNotes} onNotesChange={setCollectionNotes}
             onSave={() => saveFuelSection("collection")}
-            saving={savingSection === "collection"}
-            locked={collectionLocked}
-          />
-          <FuelStageCard
-            title="Return"
-            booking={bk}
-            stage="return"
-            fuelValue={returnFuel}
-            onFuelChange={setReturnFuel}
-            confirmed={returnConfirmed}
-            onConfirmedChange={setReturnConfirmed}
-            notes={returnNotes}
-            onNotesChange={setReturnNotes}
+            saving={savingSection === "collection"} locked={collectionLocked} />
+          <FuelStageCard title="Return" booking={bk} stage="return"
+            fuelValue={returnFuel} onFuelChange={setReturnFuel}
+            confirmed={returnConfirmed} onConfirmedChange={setReturnConfirmed}
+            notes={returnNotes} onNotesChange={setReturnNotes}
             onSave={() => saveFuelSection("return")}
-            saving={savingSection === "return"}
-            locked={returnLocked}
-          />
+            saving={savingSection === "return"} locked={returnLocked} />
         </div>
       </div>
     </div>
