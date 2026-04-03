@@ -1,337 +1,196 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
-type RequestRow = {
-  id: string;
-  job_number: number | null;
-  pickup_address: string;
-  dropoff_address: string | null;
-  pickup_at: string;
-  dropoff_at: string | null;
-  journey_duration_minutes: number | null;
-  passengers: number;
-  suitcases: number;
-  hand_luggage: number;
-  vehicle_category_name: string | null;
-  status: string;
-  request_status: string;
-  created_at: string;
-  expires_at?: string | null;
+type BookingRow = {
+  id: string; request_id: string; partner_user_id: string; winning_bid_id: string;
+  booking_status: string; amount: number | null; notes: string | null;
+  created_at: string; job_number: number | null;
+  driver_name: string | null; driver_phone: string | null;
+  driver_vehicle: string | null; driver_notes: string | null; driver_assigned_at: string | null;
+  partner_company_name: string | null; partner_company_phone: string | null;
+  pickup_address: string | null; dropoff_address: string | null;
+  pickup_at: string | null; dropoff_at: string | null;
+  journey_duration_minutes: number | null; passengers: number | null;
+  suitcases: number | null; hand_luggage: number | null;
+  vehicle_category_name: string | null; customer_name: string | null;
+  customer_email: string | null; customer_phone: string | null;
+  request_status: string | null;
 };
 
-type ApiResponse = {
-  data: RequestRow[];
-  role: string | null;
-  adminMode: boolean;
-};
+type ApiResponse = { data: BookingRow[]; role: string | null; adminMode: boolean };
 
-const REQUEST_FILTERS = [
+const FILTERS = [
   { value: "all", label: "All" },
-  { value: "open", label: "Open" },
-  { value: "bid_submitted", label: "Bid Submitted" },
-  { value: "bid_successful", label: "Bid Successful" },
-  { value: "bid_unsuccessful", label: "Bid Unsuccessful" },
-  { value: "expired", label: "Expired" },
-] as const;
+  { value: "confirmed", label: "Confirmed" },
+  { value: "driver_assigned", label: "Driver Assigned" },
+  { value: "collected", label: "On Hire" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+];
 
-function formatDateTime(value?: string | null) {
-  if (!value) return "—";
-  try {
-    return new Date(value).toLocaleString();
-  } catch {
-    return value;
+function fmt(v?: string | null) {
+  if (!v) return "—";
+  try { return new Date(v).toLocaleString(); } catch { return v; }
+}
+
+function fmtDuration(m?: number | null) {
+  if (!m) return "—";
+  const mpd = 24 * 60;
+  if (m >= mpd) { const d = Math.ceil(m/mpd); return `${d} day${d===1?"":"s"}`; }
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m/60), mins = m%60;
+  return mins ? `${h}h ${mins}m` : `${h}h`;
+}
+
+function fmtEUR(v?: number | null) {
+  if (v == null || isNaN(v)) return "—";
+  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(v);
+}
+
+function statusPill(status?: string | null) {
+  const map: Record<string, string> = {
+    confirmed: "border-green-200 bg-green-50 text-green-700",
+    driver_assigned: "border-amber-200 bg-amber-50 text-amber-700",
+    en_route: "border-indigo-200 bg-indigo-50 text-indigo-700",
+    arrived: "border-purple-200 bg-purple-50 text-purple-700",
+    collected: "border-blue-200 bg-blue-50 text-blue-700",
+    returned: "border-blue-200 bg-blue-50 text-blue-700",
+    completed: "border-green-200 bg-green-50 text-green-700",
+    cancelled: "border-red-200 bg-red-50 text-red-700",
+  };
+  return map[status ?? ""] ?? "border-black/10 bg-white text-slate-700";
+}
+
+function fmtStatus(s?: string | null) {
+  switch (String(s||"").toLowerCase()) {
+    case "collected": case "returned": return "On Hire";
+    case "driver_assigned": return "Driver assigned";
+    case "en_route": return "En route";
+    default: return String(s||"—").replaceAll("_"," ");
   }
 }
 
-function formatDuration(minutes?: number | null) {
-  if (minutes === null || minutes === undefined || Number.isNaN(minutes)) {
-    return "—";
-  }
+function norm(v: unknown) { return String(v || "").toLowerCase().trim(); }
 
-  const minutesPerDay = 24 * 60;
-
-  if (minutes >= minutesPerDay) {
-    const days = Math.ceil(minutes / minutesPerDay);
-    return `${days} day${days === 1 ? "" : "s"}`;
-  }
-
-  if (minutes < 60) return `${minutes} min`;
-
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return mins ? `${hours}h ${mins}m` : `${hours}h`;
-}
-
-function formatStatusLabel(value?: string | null) {
-  return String(value || "—").replaceAll("_", " ");
-}
-
-function bookingStatusPillClasses(status?: string | null) {
-  switch (status) {
-    case "open":
-      return "border-blue-200 bg-blue-50 text-blue-700";
-    case "confirmed":
-      return "border-green-200 bg-green-50 text-green-700";
-    case "expired":
-      return "border-slate-200 bg-slate-50 text-slate-600";
-    case "cancelled":
-      return "border-red-200 bg-red-50 text-red-700";
-    default:
-      return "border-black/10 bg-white text-slate-700";
-  }
-}
-
-function requestStatusPillClasses(status?: string | null) {
-  switch (status) {
-    case "open":
-      return "border-blue-200 bg-blue-50 text-blue-700";
-    case "bid_submitted":
-      return "border-amber-200 bg-amber-50 text-amber-700";
-    case "bid_successful":
-      return "border-green-200 bg-green-50 text-green-700";
-    case "bid_unsuccessful":
-      return "border-red-200 bg-red-50 text-red-700";
-    case "expired":
-      return "border-slate-200 bg-slate-50 text-slate-600";
-    case "confirmed":
-      return "border-green-200 bg-green-50 text-green-700";
-    default:
-      return "border-black/10 bg-white text-slate-700";
-  }
-}
-
-function normalizeSearchValue(value: unknown) {
-  return String(value || "").toLowerCase().trim();
-}
-
-export default function PartnerRequestsPage() {
-  const [rows, setRows] = useState<RequestRow[]>([]);
+export default function PartnerBookingsPage() {
+  const router = useRouter();
+  const [rows, setRows] = useState<BookingRow[]>([]);
   const [adminMode, setAdminMode] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState<string>("all");
+  const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
-    setLoading(true);
-    setError(null);
-
+    setLoading(true); setError(null);
     try {
-      const res = await fetch("/api/partner/requests", {
-        method: "GET",
-        cache: "no-store",
-        credentials: "include",
-      });
-
-      const json = (await res.json().catch(() => null)) as ApiResponse | null;
-
-      if (!res.ok) {
-        throw new Error((json as any)?.error || "Failed to load requests.");
-      }
-
+      const res = await fetch("/api/partner/bookings", { cache: "no-store", credentials: "include" });
+      const json = await res.json().catch(() => null) as ApiResponse | null;
+      if (!res.ok) throw new Error((json as any)?.error || "Failed to load.");
       setRows(json?.data || []);
       setAdminMode(!!json?.adminMode);
-    } catch (e: any) {
-      setError(e?.message || "Failed to load requests.");
-      setRows([]);
-      setAdminMode(false);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e: any) { setError(e?.message || "Failed to load."); setRows([]); }
+    finally { setLoading(false); }
   }
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
-  const searchValue = normalizeSearchValue(search);
-
-  const filteredRows = useMemo(() => {
-    let nextRows = rows;
-
-    if (selectedFilter !== "all") {
-      nextRows = nextRows.filter((row) => row.status === selectedFilter);
-    }
-
-    if (!searchValue) return nextRows;
-
-    return nextRows.filter((row) => {
-      const haystack = [
-        row.job_number,
-        row.pickup_address,
-        row.dropoff_address,
-        row.vehicle_category_name,
-        row.status,
-        row.request_status,
-        row.pickup_at,
-        row.dropoff_at,
-      ]
-        .map(normalizeSearchValue)
-        .join(" ");
-
-      return haystack.includes(searchValue);
-    });
-  }, [rows, selectedFilter, searchValue]);
+  const q = norm(search);
+  const filtered = useMemo(() => rows.filter(row => {
+    if (filter !== "all" && row.booking_status !== filter) return false;
+    if (!q) return true;
+    return [row.job_number, row.partner_company_name, row.customer_name, row.driver_name,
+      row.pickup_address, row.dropoff_address, row.vehicle_category_name, row.booking_status]
+      .map(norm).join(" ").includes(q);
+  }), [rows, filter, q]);
 
   return (
     <div className="space-y-6 px-4 py-8 md:px-8">
-      {error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error}
-        </div>
-      ) : null}
+      {error && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
 
       <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-3xl font-semibold text-[#003768]">Requests</h1>
+            <h1 className="text-3xl font-semibold text-[#003768]">Bookings</h1>
             <p className="mt-2 text-slate-600">
-              {adminMode
-                ? "All request history across the network."
-                : "Request history matched to your partner account."}
+              {adminMode ? "All bookings across the network." : "Bookings assigned to your partner account. Click any row to view detail."}
             </p>
           </div>
-
-          <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[520px]">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search job no, pickup, dropoff, vehicle..."
-                className="rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none focus:border-[#0f4f8a]"
-              />
-
-              <select
-                value={selectedFilter}
-                onChange={(e) => setSelectedFilter(e.target.value)}
-                className="rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none focus:border-[#0f4f8a]"
-              >
-                {REQUEST_FILTERS.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setSearch("");
-                  setSelectedFilter("all");
-                }}
-                className="rounded-full border border-black/10 bg-white px-5 py-3 font-semibold text-[#003768] hover:bg-black/5"
-              >
-                Clear Filters
-              </button>
-
-              <button
-                type="button"
-                onClick={load}
-                className="rounded-full bg-[#ff7a00] px-5 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
-              >
-                Refresh
-              </button>
-            </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search job, customer, driver…"
+              className="rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none focus:border-[#0f4f8a]" />
+            <select value={filter} onChange={e => setFilter(e.target.value)}
+              className="rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none focus:border-[#0f4f8a]">
+              {FILTERS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+            </select>
+            <button type="button" onClick={() => { setSearch(""); setFilter("all"); }}
+              className="rounded-full border border-black/10 bg-white px-5 py-2 font-semibold text-[#003768] hover:bg-black/5">
+              Clear
+            </button>
+            <button type="button" onClick={load}
+              className="rounded-full bg-[#ff7a00] px-5 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95">
+              Refresh
+            </button>
           </div>
         </div>
 
-        {searchValue ? (
-          <div className="mt-4 rounded-2xl border border-[#cfe2f7] bg-[#f3f8ff] px-4 py-3 text-sm text-[#003768]">
-            Showing filtered request results for:{" "}
-            <span className="font-semibold">{search}</span>
-          </div>
-        ) : null}
-
         {loading ? (
-          <p className="mt-6 text-slate-600">Loading requests…</p>
-        ) : filteredRows.length === 0 ? (
-          <p className="mt-6 text-slate-600">
-            {searchValue || selectedFilter !== "all"
-              ? "No requests found for this filter."
-              : "No requests found."}
-          </p>
+          <p className="mt-6 text-slate-600">Loading…</p>
+        ) : filtered.length === 0 ? (
+          <p className="mt-6 text-slate-600">No bookings found.</p>
         ) : (
-          <div className="mt-6 overflow-x-auto rounded-3xl border border-black/10">
+          <div className="mt-6 overflow-x-auto rounded-2xl border border-black/10">
             <table className="min-w-full text-sm">
-              <thead className="bg-slate-50 text-left text-[#003768]">
+              <thead className="bg-[#f3f8ff] text-left text-[#003768]">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">View</th>
                   <th className="px-4 py-3 font-semibold">Job No.</th>
-                  <th className="px-4 py-3 font-semibold">Booking Status</th>
-                  <th className="px-4 py-3 font-semibold">Request Status</th>
+                  {adminMode && <th className="px-4 py-3 font-semibold">Partner</th>}
+                  <th className="px-4 py-3 font-semibold">Customer</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold">Driver</th>
                   <th className="px-4 py-3 font-semibold">Pickup</th>
                   <th className="px-4 py-3 font-semibold">Dropoff</th>
                   <th className="px-4 py-3 font-semibold">Pickup Time</th>
-                  <th className="px-4 py-3 font-semibold">Dropoff Time</th>
                   <th className="px-4 py-3 font-semibold">Duration</th>
-                  <th className="px-4 py-3 font-semibold">Passengers</th>
-                  <th className="px-4 py-3 font-semibold">Bags</th>
                   <th className="px-4 py-3 font-semibold">Vehicle</th>
+                  <th className="px-4 py-3 font-semibold">Amount</th>
                   <th className="px-4 py-3 font-semibold">Created</th>
                 </tr>
               </thead>
-
-              <tbody>
-                {filteredRows.map((row) => {
-                  const effectiveBookingStatus = row.request_status;
-                  const effectiveRequestStatus = row.status;
-
-                  return (
-                    <tr key={row.id} className="border-t border-black/5 align-top">
-                      <td className="px-4 py-4">
-                        <Link
-                          href={`/partner/requests/${row.id}`}
-                          className="inline-flex rounded-full bg-[#ff7a00] px-4 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
-                        >
-                          View
-                        </Link>
-                      </td>
-
-                      <td className="px-4 py-4 font-semibold text-[#003768]">
-                        {row.job_number ?? "—"}
-                      </td>
-
-                      <td className="px-4 py-4">
-                        <span
-                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${bookingStatusPillClasses(
-                            effectiveBookingStatus
-                          )}`}
-                        >
-                          {formatStatusLabel(effectiveBookingStatus)}
-                        </span>
-                      </td>
-
-                      <td className="px-4 py-4">
-                        <span
-                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${requestStatusPillClasses(
-                            effectiveRequestStatus
-                          )}`}
-                        >
-                          {formatStatusLabel(effectiveRequestStatus)}
-                        </span>
-                      </td>
-
-                      <td className="px-4 py-4">{row.pickup_address || "—"}</td>
-                      <td className="px-4 py-4">{row.dropoff_address || "—"}</td>
-                      <td className="px-4 py-4">{formatDateTime(row.pickup_at)}</td>
-                      <td className="px-4 py-4">{formatDateTime(row.dropoff_at)}</td>
-                      <td className="px-4 py-4">
-                        {formatDuration(row.journey_duration_minutes)}
-                      </td>
-                      <td className="px-4 py-4">{row.passengers}</td>
-                      <td className="px-4 py-4">
-                        {row.suitcases} suitcases / {row.hand_luggage} hand luggage
-                      </td>
-                      <td className="px-4 py-4">{row.vehicle_category_name || "—"}</td>
-                      <td className="px-4 py-4">{formatDateTime(row.created_at)}</td>
-                    </tr>
-                  );
-                })}
+              <tbody className="divide-y divide-black/5">
+                {filtered.map(row => (
+                  <tr key={row.id}
+                    onClick={() => router.push(`/partner/bookings/${row.id}`)}
+                    className="cursor-pointer hover:bg-[#f3f8ff] transition-colors">
+                    <td className="px-4 py-4 font-bold text-[#003768]">{row.job_number ?? "—"}</td>
+                    {adminMode && (
+                      <td className="px-4 py-4 text-slate-700">{row.partner_company_name || "—"}</td>
+                    )}
+                    <td className="px-4 py-4">
+                      <div className="font-medium text-slate-900">{row.customer_name || "—"}</div>
+                      <div className="text-xs text-slate-400">{row.customer_phone || row.customer_email || ""}</div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusPill(row.booking_status)}`}>
+                        {fmtStatus(row.booking_status)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="font-medium text-slate-900">{row.driver_name || "—"}</div>
+                      <div className="text-xs text-slate-400">{row.driver_vehicle || ""}</div>
+                    </td>
+                    <td className="px-4 py-4 max-w-[160px] truncate text-slate-700">{row.pickup_address || "—"}</td>
+                    <td className="px-4 py-4 max-w-[160px] truncate text-slate-700">{row.dropoff_address || "—"}</td>
+                    <td className="px-4 py-4 text-slate-700">{fmt(row.pickup_at)}</td>
+                    <td className="px-4 py-4 text-slate-700">{fmtDuration(row.journey_duration_minutes)}</td>
+                    <td className="px-4 py-4 text-slate-700">{row.vehicle_category_name || "—"}</td>
+                    <td className="px-4 py-4 font-semibold text-slate-900">{fmtEUR(row.amount)}</td>
+                    <td className="px-4 py-4 text-slate-700">{fmt(row.created_at)}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
