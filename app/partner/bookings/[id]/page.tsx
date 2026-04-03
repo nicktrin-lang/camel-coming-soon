@@ -568,11 +568,13 @@ export default function PartnerBookingDetailPage() {
             <p><span className="font-semibold text-slate-900">Driver:</span> {drivers.find(d => d.id === bk.assigned_driver_id)?.full_name || bk.driver_name || "—"}</p>
             <p><span className="font-semibold text-slate-900">Driver assigned:</span> {fmt(bk.driver_assigned_at)}</p>
             <p><span className="font-semibold text-slate-900">Notes:</span> {bk.notes || "—"}</p>
-            {rateIsLive && (
+            {rateIsLive ? (
               <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1.5 text-sm font-semibold text-green-800">
                 <span className="h-2 w-2 rounded-full bg-green-500" />
                 1€ = {formatGBP(eurGbpRate)} · Live rate (frankfurter.app)
               </div>
+            ) : (
+              <p className="mt-4 text-sm text-slate-500">1€ = {formatGBP(eurGbpRate)}</p>
             )}
           </div>
         </div>
