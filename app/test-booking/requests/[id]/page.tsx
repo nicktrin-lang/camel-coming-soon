@@ -235,10 +235,12 @@ function CustomerFuelSummary({ booking, rate, rateIsLive }: { booking: BookingDa
         </div>
       </div>
 
-      <div className={`mt-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold ${rateIsLive ? "bg-green-400/20 text-green-200" : "bg-amber-400/20 text-amber-200"}`}>
-        <span className={`h-2 w-2 rounded-full ${rateIsLive ? "bg-green-400" : "bg-amber-400"}`} />
-        1€ = {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(rate)} · {rateIsLive ? "Live rate (frankfurter.app)" : "Fallback rate — live rate unavailable"}
-      </div>
+      {rateIsLive && (
+        <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-green-400/20 px-3 py-1.5 text-sm font-semibold text-green-200">
+          <span className="h-2 w-2 rounded-full bg-green-400" />
+          1€ = {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(rate)} · Live rate (frankfurter.app)
+        </div>
+      )}
     </div>
   );
 }
@@ -558,10 +560,12 @@ export default function TestBookingRequestDetailPage({
       {/* Bids */}
       <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
         <h2 className="text-2xl font-semibold text-[#003768]">Partner Bids</h2>
-        <div className={`mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold ${rateIsLive ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}`}>
-          <span className={`h-2 w-2 rounded-full ${rateIsLive ? "bg-green-500" : "bg-amber-500"}`} />
-          1€ = {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(liveRate)} · {rateIsLive ? "Live rate (frankfurter.app)" : "Fallback rate — live rate unavailable"}
-        </div>
+        {rateIsLive && (
+          <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1.5 text-sm font-semibold text-green-800">
+            <span className="h-2 w-2 rounded-full bg-green-500" />
+            1€ = {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(liveRate)} · Live rate (frankfurter.app)
+          </div>
+        )}
 
         {expired || data.request.status === "expired" ? (
           <p className="mt-4 text-red-700">This request has expired and can no longer be accepted.</p>
