@@ -24,14 +24,13 @@ async function safeJson(res: Response): Promise<any> {
 // Clear any stale Supabase lock/session keys from localStorage
 function clearStaleSupabaseLocks() {
   try {
+    // Clear ALL Supabase storage to force a clean state
     Object.keys(localStorage)
       .filter(k => k.includes("sb-") || k.includes("supabase"))
-      .forEach(k => {
-        // Only clear lock keys, not session tokens
-        if (k.includes("lock") || k.includes("Lock")) {
-          localStorage.removeItem(k);
-        }
-      });
+      .forEach(k => localStorage.removeItem(k));
+    Object.keys(sessionStorage)
+      .filter(k => k.includes("sb-") || k.includes("supabase"))
+      .forEach(k => sessionStorage.removeItem(k));
   } catch {}
 }
 
@@ -57,14 +56,14 @@ function PartnerLoginInner() {
     clearStaleSupabaseLocks();
 
     try {
-      // Add a 15 second timeout to prevent infinite hang
+      // Add a 30 second timeout to prevent infinite hang
       const signInPromise = supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
 
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Login timed out. Please try again.")), 15000)
+        setTimeout(() => reject(new Error("Login timed out. Please try again.")), 30000)
       );
 
       const { error: signInError } = await Promise.race([signInPromise, timeoutPromise]);
