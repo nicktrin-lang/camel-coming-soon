@@ -3,31 +3,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type BookingRow = {
-  id: string; request_id: string; partner_user_id: string; winning_bid_id: string;
-  booking_status: string; amount: number | null; notes: string | null;
-  created_at: string; job_number: number | null;
-  driver_name: string | null; driver_phone: string | null;
-  driver_vehicle: string | null; driver_notes: string | null; driver_assigned_at: string | null;
-  partner_company_name: string | null; partner_company_phone: string | null;
-  pickup_address: string | null; dropoff_address: string | null;
-  pickup_at: string | null; dropoff_at: string | null;
-  journey_duration_minutes: number | null; passengers: number | null;
-  suitcases: number | null; hand_luggage: number | null;
-  vehicle_category_name: string | null; customer_name: string | null;
-  customer_email: string | null; customer_phone: string | null;
-  request_status: string | null;
+type RequestRow = {
+  id: string; job_number: number | null; pickup_address: string;
+  dropoff_address: string | null; pickup_at: string; dropoff_at: string | null;
+  journey_duration_minutes: number | null; passengers: number; suitcases: number;
+  hand_luggage: number; vehicle_category_name: string | null; status: string;
+  request_status: string; created_at: string; expires_at?: string | null;
 };
 
-type ApiResponse = { data: BookingRow[]; role: string | null; adminMode: boolean };
+type ApiResponse = { data: RequestRow[]; role: string | null; adminMode: boolean };
 
 const FILTERS = [
   { value: "all", label: "All" },
-  { value: "confirmed", label: "Confirmed" },
-  { value: "driver_assigned", label: "Driver Assigned" },
-  { value: "collected", label: "On Hire" },
-  { value: "completed", label: "Completed" },
-  { value: "cancelled", label: "Cancelled" },
+  { value: "open", label: "Open" },
+  { value: "bid_submitted", label: "Bid Submitted" },
+  { value: "bid_successful", label: "Bid Successful" },
+  { value: "bid_unsuccessful", label: "Bid Unsuccessful" },
+  { value: "expired", label: "Expired" },
 ];
 
 function fmt(v?: string | null) {
@@ -44,39 +36,24 @@ function fmtDuration(m?: number | null) {
   return mins ? `${h}h ${mins}m` : `${h}h`;
 }
 
-function fmtEUR(v?: number | null) {
-  if (v == null || isNaN(v)) return "—";
-  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(v);
-}
-
-function statusPill(status?: string | null) {
+function statusPill(status: string) {
   const map: Record<string, string> = {
+    open: "border-blue-200 bg-blue-50 text-blue-700",
     confirmed: "border-green-200 bg-green-50 text-green-700",
-    driver_assigned: "border-amber-200 bg-amber-50 text-amber-700",
-    en_route: "border-indigo-200 bg-indigo-50 text-indigo-700",
-    arrived: "border-purple-200 bg-purple-50 text-purple-700",
-    collected: "border-blue-200 bg-blue-50 text-blue-700",
-    returned: "border-blue-200 bg-blue-50 text-blue-700",
-    completed: "border-green-200 bg-green-50 text-green-700",
+    bid_submitted: "border-amber-200 bg-amber-50 text-amber-700",
+    bid_successful: "border-green-200 bg-green-50 text-green-700",
+    bid_unsuccessful: "border-red-200 bg-red-50 text-red-700",
+    expired: "border-slate-200 bg-slate-50 text-slate-600",
     cancelled: "border-red-200 bg-red-50 text-red-700",
   };
-  return map[status ?? ""] ?? "border-black/10 bg-white text-slate-700";
-}
-
-function fmtStatus(s?: string | null) {
-  switch (String(s||"").toLowerCase()) {
-    case "collected": case "returned": return "On Hire";
-    case "driver_assigned": return "Driver assigned";
-    case "en_route": return "En route";
-    default: return String(s||"—").replaceAll("_"," ");
-  }
+  return map[status] ?? "border-black/10 bg-white text-slate-700";
 }
 
 function norm(v: unknown) { return String(v || "").toLowerCase().trim(); }
 
-export default function PartnerBookingsPage() {
+export default function PartnerRequestsPage() {
   const router = useRouter();
-  const [rows, setRows] = useState<BookingRow[]>([]);
+  const [rows, setRows] = useState<RequestRow[]>([]);
   const [adminMode, setAdminMode] = useState(false);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
@@ -99,28 +76,26 @@ export default function PartnerBookingsPage() {
 
   const q = norm(search);
   const filtered = useMemo(() => rows.filter(row => {
-    if (filter !== "all" && row.booking_status !== filter) return false;
+    if (filter !== "all" && row.status !== filter) return false;
     if (!q) return true;
-    return [row.job_number, row.partner_company_name, row.customer_name, row.driver_name,
-      row.pickup_address, row.dropoff_address, row.vehicle_category_name, row.booking_status]
+    return [row.job_number, row.pickup_address, row.dropoff_address, row.vehicle_category_name, row.status]
       .map(norm).join(" ").includes(q);
   }), [rows, filter, q]);
 
   return (
     <div className="space-y-6 px-4 py-8 md:px-8">
       {error && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
-
       <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-3xl font-semibold text-[#003768]">Bookings</h1>
+            <h1 className="text-3xl font-semibold text-[#003768]">Requests</h1>
             <p className="mt-2 text-slate-600">
-              {adminMode ? "All bookings across the network." : "Bookings assigned to your partner account. Click any row to view detail."}
+              {adminMode ? "All requests across the network." : "Request history matched to your partner account. Click any row to view detail."}
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search job, customer, driver…"
+              placeholder="Search job, pickup, dropoff..."
               className="rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none focus:border-[#0f4f8a]" />
             <select value={filter} onChange={e => setFilter(e.target.value)}
               className="rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none focus:border-[#0f4f8a]">
@@ -136,58 +111,49 @@ export default function PartnerBookingsPage() {
             </button>
           </div>
         </div>
-
         {loading ? (
-          <p className="mt-6 text-slate-600">Loading…</p>
+          <p className="mt-6 text-slate-600">Loading...</p>
         ) : filtered.length === 0 ? (
-          <p className="mt-6 text-slate-600">No bookings found.</p>
+          <p className="mt-6 text-slate-600">No requests found.</p>
         ) : (
           <div className="mt-6 overflow-x-auto rounded-2xl border border-black/10">
             <table className="min-w-full text-sm">
               <thead className="bg-[#f3f8ff] text-left text-[#003768]">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Job No.</th>
-                  {adminMode && <th className="px-4 py-3 font-semibold">Partner</th>}
-                  <th className="px-4 py-3 font-semibold">Customer</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold">Driver</th>
+                  <th className="px-4 py-3 font-semibold">Booking Status</th>
+                  <th className="px-4 py-3 font-semibold">Request Status</th>
                   <th className="px-4 py-3 font-semibold">Pickup</th>
                   <th className="px-4 py-3 font-semibold">Dropoff</th>
                   <th className="px-4 py-3 font-semibold">Pickup Time</th>
                   <th className="px-4 py-3 font-semibold">Duration</th>
                   <th className="px-4 py-3 font-semibold">Vehicle</th>
-                  <th className="px-4 py-3 font-semibold">Amount</th>
+                  <th className="px-4 py-3 font-semibold">Passengers</th>
                   <th className="px-4 py-3 font-semibold">Created</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/5">
                 {filtered.map(row => (
                   <tr key={row.id}
-                    onClick={() => router.push(`/partner/bookings/${row.id}`)}
+                    onClick={() => router.push(`/partner/requests/${row.id}`)}
                     className="cursor-pointer hover:bg-[#f3f8ff] transition-colors">
                     <td className="px-4 py-4 font-bold text-[#003768]">{row.job_number ?? "—"}</td>
-                    {adminMode && (
-                      <td className="px-4 py-4 text-slate-700">{row.partner_company_name || "—"}</td>
-                    )}
                     <td className="px-4 py-4">
-                      <div className="font-medium text-slate-900">{row.customer_name || "—"}</div>
-                      <div className="text-xs text-slate-400">{row.customer_phone || row.customer_email || ""}</div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusPill(row.booking_status)}`}>
-                        {fmtStatus(row.booking_status)}
+                      <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${statusPill(row.request_status)}`}>
+                        {row.request_status.replaceAll("_", " ")}
                       </span>
                     </td>
                     <td className="px-4 py-4">
-                      <div className="font-medium text-slate-900">{row.driver_name || "—"}</div>
-                      <div className="text-xs text-slate-400">{row.driver_vehicle || ""}</div>
+                      <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${statusPill(row.status)}`}>
+                        {row.status.replaceAll("_", " ")}
+                      </span>
                     </td>
-                    <td className="px-4 py-4 max-w-[160px] truncate text-slate-700">{row.pickup_address || "—"}</td>
-                    <td className="px-4 py-4 max-w-[160px] truncate text-slate-700">{row.dropoff_address || "—"}</td>
+                    <td className="px-4 py-4 max-w-[180px] truncate text-slate-700">{row.pickup_address || "—"}</td>
+                    <td className="px-4 py-4 max-w-[180px] truncate text-slate-700">{row.dropoff_address || "—"}</td>
                     <td className="px-4 py-4 text-slate-700">{fmt(row.pickup_at)}</td>
                     <td className="px-4 py-4 text-slate-700">{fmtDuration(row.journey_duration_minutes)}</td>
                     <td className="px-4 py-4 text-slate-700">{row.vehicle_category_name || "—"}</td>
-                    <td className="px-4 py-4 font-semibold text-slate-900">{fmtEUR(row.amount)}</td>
+                    <td className="px-4 py-4 text-slate-700">{row.passengers}</td>
                     <td className="px-4 py-4 text-slate-700">{fmt(row.created_at)}</td>
                   </tr>
                 ))}
