@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
 import { useCurrency } from "@/lib/useCurrency";
-import { formatEUR } from "@/lib/currency";
+import { formatEUR, getEurToGbpRateWithSource } from "@/lib/currency";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -168,7 +168,7 @@ function DualFromGbp({
 
 // ── Customer Fuel Summary ─────────────────────────────────────────────────────
 
-function CustomerFuelSummary({ booking, rate }: { booking: BookingData; rate: number }) {
+function CustomerFuelSummary({ booking, rate, rateIsLive }: { booking: BookingData; rate: number; rateIsLive: boolean }) {
   const fullTankEur = Number(booking.fuel_price || 0);
   const pricePerQuarterEur = fullTankEur / 4;
   const usedQuarters = booking.fuel_used_quarters ?? null;
@@ -235,9 +235,10 @@ function CustomerFuelSummary({ booking, rate }: { booking: BookingData; rate: nu
         </div>
       </div>
 
-      <p className="mt-4 text-xs text-white/40">
-        Rate used: 1€ = {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(rate)}
-      </p>
+      <div className={`mt-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold ${rateIsLive ? "bg-green-400/20 text-green-200" : "bg-amber-400/20 text-amber-200"}`}>
+        <span className={`h-2 w-2 rounded-full ${rateIsLive ? "bg-green-400" : "bg-amber-400"}`} />
+        1€ = {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(rate)} · {rateIsLive ? "Live rate (frankfurter.app)" : "Fallback rate — live rate unavailable"}
+      </div>
     </div>
   );
 }
@@ -324,7 +325,15 @@ export default function TestBookingRequestDetailPage({
 }) {
   const supabase = useMemo(() => createCustomerBrowserClient(), []);
   const { currency, rate } = useCurrency();
-  const liveRate = rate ?? 0.85;
+  const [liveRate, setLiveRate] = useState<number>(rate ?? 0.85);
+  const [rateIsLive, setRateIsLive] = useState(false);
+
+  useEffect(() => {
+    getEurToGbpRateWithSource().then(({ rate: r, live }) => {
+      setLiveRate(r);
+      setRateIsLive(live);
+    }).catch(() => {});
+  }, []);
 
   const [requestId, setRequestId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -509,7 +518,7 @@ export default function TestBookingRequestDetailPage({
 
           {/* Fuel summary */}
           {collectionLocked && returnLocked && bk.fuel_charge !== null && (
-            <CustomerFuelSummary booking={bk} rate={liveRate} />
+            <CustomerFuelSummary booking={bk} rate={liveRate} rateIsLive={rateIsLive} />
           )}
 
           {/* Fuel confirmation */}
@@ -549,9 +558,10 @@ export default function TestBookingRequestDetailPage({
       {/* Bids */}
       <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
         <h2 className="text-2xl font-semibold text-[#003768]">Partner Bids</h2>
-        <p className="mt-1 text-xs text-slate-400">
-          All prices in GBP (1€ = {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(liveRate)})
-        </p>
+        <div className={`mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold ${rateIsLive ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}`}>
+          <span className={`h-2 w-2 rounded-full ${rateIsLive ? "bg-green-500" : "bg-amber-500"}`} />
+          1€ = {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(liveRate)} · {rateIsLive ? "Live rate (frankfurter.app)" : "Fallback rate — live rate unavailable"}
+        </div>
 
         {expired || data.request.status === "expired" ? (
           <p className="mt-4 text-red-700">This request has expired and can no longer be accepted.</p>

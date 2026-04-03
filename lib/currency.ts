@@ -17,8 +17,10 @@ export async function getEurToGbpRate(): Promise<number> {
   const now = Date.now();
   if (cachedRate && now < cacheExpiry) return cachedRate;
   try {
+    // Use cache: 'no-store' so it works correctly on both client and server.
+    // The in-memory cache above handles rate limiting.
     const res = await fetch("https://api.frankfurter.app/latest?from=EUR&to=GBP", {
-      next: { revalidate: 3600 },
+      cache: "no-store",
     });
     if (!res.ok) throw new Error("Frankfurter API unavailable");
     const data = await res.json();
@@ -30,6 +32,30 @@ export async function getEurToGbpRate(): Promise<number> {
   } catch (e) {
     console.warn("Currency rate fetch failed, using fallback rate:", e);
     return cachedRate ?? 0.85;
+  }
+}
+
+/**
+ * Returns the rate AND whether it's live or the fallback.
+ * Use this when you want to display the source to the user.
+ */
+export async function getEurToGbpRateWithSource(): Promise<{ rate: number; live: boolean }> {
+  const now = Date.now();
+  if (cachedRate && now < cacheExpiry) return { rate: cachedRate, live: true };
+  try {
+    const res = await fetch("https://api.frankfurter.app/latest?from=EUR&to=GBP", {
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error("Frankfurter API unavailable");
+    const data = await res.json();
+    const rate = Number(data?.rates?.GBP);
+    if (!rate || isNaN(rate)) throw new Error("Invalid rate response");
+    cachedRate = rate;
+    cacheExpiry = now + CACHE_TTL;
+    return { rate, live: true };
+  } catch (e) {
+    console.warn("Currency rate fetch failed, using fallback rate:", e);
+    return { rate: cachedRate ?? 0.85, live: false };
   }
 }
 

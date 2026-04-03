@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { getEurToGbpRate, formatDual, formatDualFromGbp, formatEUR, formatGBP } from "@/lib/currency";
+import { getEurToGbpRateWithSource, formatDual, formatEUR, formatGBP } from "@/lib/currency";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -233,11 +233,10 @@ function FuelSummaryCard({ booking, rate }: { booking: BookingRow; rate: number 
         </div>
       </div>
 
-      <p className="mt-4 text-xs text-white/40">
+      <p className="mt-4 text-xs text-white/50">
         Car hire: {formatDual(booking.car_hire_price, rate, "partner")} ·{" "}
         Full tank deposit: {formatDual(fullTankPrice, rate, "partner")} ·{" "}
         Total booking: {formatDual(booking.car_hire_price != null && fullTankPrice != null ? (booking.car_hire_price + fullTankPrice) : null, rate, "partner")}
-        {" · "}1€ = {formatGBP(rate)}
       </p>
     </div>
   );
@@ -368,7 +367,8 @@ export default function PartnerBookingDetailPage() {
   const [ok, setOk] = useState<string | null>(null);
   const [data, setData] = useState<BookingApiResponse | null>(null);
   const [drivers, setDrivers] = useState<DriverRow[]>([]);
-  const [eurGbpRate, setEurGbpRate] = useState<number>(0.85); // live rate, fetched once
+  const [eurGbpRate, setEurGbpRate] = useState<number>(0.85);
+  const [rateIsLive, setRateIsLive] = useState<boolean>(false);
 
   // Driver assignment fields
   const [bookingStatus, setBookingStatus] = useState("confirmed");
@@ -432,7 +432,10 @@ export default function PartnerBookingDetailPage() {
     loadBooking(true, true);
     loadDrivers();
     // Fetch live rate once on mount
-    getEurToGbpRate().then(r => setEurGbpRate(r)).catch(() => {});
+    getEurToGbpRateWithSource().then(({ rate, live }) => {
+      setEurGbpRate(rate);
+      setRateIsLive(live);
+    }).catch(() => {});
   }, [bookingId]);
 
   useEffect(() => {
@@ -565,7 +568,10 @@ export default function PartnerBookingDetailPage() {
             <p><span className="font-semibold text-slate-900">Driver:</span> {drivers.find(d => d.id === bk.assigned_driver_id)?.full_name || bk.driver_name || "—"}</p>
             <p><span className="font-semibold text-slate-900">Driver assigned:</span> {fmt(bk.driver_assigned_at)}</p>
             <p><span className="font-semibold text-slate-900">Notes:</span> {bk.notes || "—"}</p>
-            <p className="text-xs text-slate-400">Rate: 1€ = {formatGBP(eurGbpRate)}</p>
+            <div className={`mt-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold ${rateIsLive ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}`}>
+              <span className={`h-2 w-2 rounded-full ${rateIsLive ? "bg-green-500" : "bg-amber-500"}`} />
+              1€ = {formatGBP(eurGbpRate)} · {rateIsLive ? "Live rate (frankfurter.app)" : "Fallback rate — live rate unavailable"}
+            </div>
           </div>
         </div>
 
