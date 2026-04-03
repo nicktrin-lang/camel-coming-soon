@@ -509,7 +509,7 @@ export default function TestBookingRequestDetailPage({
 
           {/* Fuel summary — only show when both locked AND fuel charge calculated */}
           {collectionLocked && returnLocked && bk.fuel_charge !== null && (
-            <CustomerFuelSummary booking={bk} />
+            <CustomerFuelSummary booking={bk} fmt={fmt} />
           )}
 
           {/* Fuel confirmation — show until both stages are locked */}
