@@ -172,7 +172,7 @@ function DualFromGbp({ amountGbp, rate }: { amountGbp: number | null | undefined
 
 // ── Fuel Summary Card ─────────────────────────────────────────────────────────
 
-function FuelSummaryCard({ booking, rate }: { booking: BookingRow; rate: number }) {
+function FuelSummaryCard({ booking, rate, isLive }: { booking: BookingRow; rate: number; isLive: boolean }) {
   const collFuel = normalizeFuel(booking.collection_fuel_level_partner) ||
     normalizeFuel(booking.collection_fuel_level_driver) ||
     normalizeFuel(booking.collection_fuel_level_customer);
@@ -238,6 +238,10 @@ function FuelSummaryCard({ booking, rate }: { booking: BookingRow; rate: number 
         Full tank deposit: {formatDual(fullTankPrice, rate, "partner")} ·{" "}
         Total booking: {formatDual(booking.car_hire_price != null && fullTankPrice != null ? (booking.car_hire_price + fullTankPrice) : null, rate, "partner")}
       </p>
+      <div className={`mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-base font-bold ${isLive ? "bg-green-400/20 text-green-200" : "bg-white/10 text-white/70"}`}>
+        <span className={`h-2.5 w-2.5 rounded-full ${isLive ? "bg-green-400" : "bg-white/40"}`} />
+        1€ = {formatGBP(rate)}{isLive ? " · Live rate (frankfurter.app)" : ""}
+      </div>
     </div>
   );
 }
@@ -568,14 +572,10 @@ export default function PartnerBookingDetailPage() {
             <p><span className="font-semibold text-slate-900">Driver:</span> {drivers.find(d => d.id === bk.assigned_driver_id)?.full_name || bk.driver_name || "—"}</p>
             <p><span className="font-semibold text-slate-900">Driver assigned:</span> {fmt(bk.driver_assigned_at)}</p>
             <p><span className="font-semibold text-slate-900">Notes:</span> {bk.notes || "—"}</p>
-            {rateIsLive ? (
-              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1.5 text-sm font-semibold text-green-800">
-                <span className="h-2 w-2 rounded-full bg-green-500" />
-                1€ = {formatGBP(eurGbpRate)} · Live rate (frankfurter.app)
-              </div>
-            ) : (
-              <p className="mt-4 text-sm text-slate-500">1€ = {formatGBP(eurGbpRate)}</p>
-            )}
+            <div className={`mt-5 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-base font-bold ${rateIsLive ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-700"}`}>
+              <span className={`h-2.5 w-2.5 rounded-full ${rateIsLive ? "bg-green-500" : "bg-slate-400"}`} />
+              1€ = {formatGBP(eurGbpRate)}{rateIsLive ? " · Live rate (frankfurter.app)" : ""}
+            </div>
           </div>
         </div>
 
@@ -659,7 +659,7 @@ export default function PartnerBookingDetailPage() {
 
       {/* Fuel summary */}
       {collectionLocked && returnLocked && (
-        <FuelSummaryCard booking={bk} rate={eurGbpRate} />
+        <FuelSummaryCard booking={bk} rate={eurGbpRate} isLive={rateIsLive} />
       )}
 
       {/* Fuel tracking */}

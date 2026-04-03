@@ -168,8 +168,7 @@ function DualFromGbp({
 
 // ── Customer Fuel Summary ─────────────────────────────────────────────────────
 
-function CustomerFuelSummary({ booking, rate, rateIsLive }: { booking: BookingData; rate: number; rateIsLive: boolean }) {
-  const fullTankEur = Number(booking.fuel_price || 0);
+function CustomerFuelSummary({ booking, rate, rateIsLive }: { booking: BookingData; rate: number; rateIsLive: boolean }) {  const fullTankEur = Number(booking.fuel_price || 0);
   const pricePerQuarterEur = fullTankEur / 4;
   const usedQuarters = booking.fuel_used_quarters ?? null;
   const fuelCharge = booking.fuel_charge ?? null;  // stored in GBP
@@ -235,14 +234,10 @@ function CustomerFuelSummary({ booking, rate, rateIsLive }: { booking: BookingDa
         </div>
       </div>
 
-      {rateIsLive ? (
-        <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-green-400/20 px-3 py-1.5 text-sm font-semibold text-green-200">
-          <span className="h-2 w-2 rounded-full bg-green-400" />
-          1€ = {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(rate)} · Live rate (frankfurter.app)
-        </div>
-      ) : (
-        <p className="mt-4 text-sm text-white/50">1€ = {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(rate)}</p>
-      )}
+      <div className={`mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-base font-bold ${rateIsLive ? "bg-green-400/20 text-green-200" : "bg-white/10 text-white/70"}`}>
+        <span className={`h-2.5 w-2.5 rounded-full ${rateIsLive ? "bg-green-400" : "bg-white/40"}`} />
+        1€ = {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(rate)}{rateIsLive ? " · Live rate (frankfurter.app)" : ""}
+      </div>
     </div>
   );
 }
@@ -562,14 +557,10 @@ export default function TestBookingRequestDetailPage({
       {/* Bids */}
       <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
         <h2 className="text-2xl font-semibold text-[#003768]">Partner Bids</h2>
-        {rateIsLive ? (
-          <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1.5 text-sm font-semibold text-green-800">
-            <span className="h-2 w-2 rounded-full bg-green-500" />
-            1€ = {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(liveRate)} · Live rate (frankfurter.app)
-          </div>
-        ) : (
-          <p className="mt-2 text-sm text-slate-500">1€ = {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(liveRate)}</p>
-        )}
+        <div className={`mt-2 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-base font-bold ${rateIsLive ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-700"}`}>
+          <span className={`h-2.5 w-2.5 rounded-full ${rateIsLive ? "bg-green-500" : "bg-slate-400"}`} />
+          1€ = {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(liveRate)}{rateIsLive ? " · Live rate (frankfurter.app)" : ""}
+        </div>
 
         {expired || data.request.status === "expired" ? (
           <p className="mt-4 text-red-700">This request has expired and can no longer be accepted.</p>
