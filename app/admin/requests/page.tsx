@@ -24,19 +24,19 @@ type AdminRequestRow = {
 
 function fmtDateTime(value?: string | null) {
   if (!value) return "—";
-  try {
-    return new Date(value).toLocaleString();
-  } catch {
-    return value;
-  }
+  try { return new Date(value).toLocaleString(); } catch { return value; }
 }
 
 function fmtDuration(minutes?: number | null) {
   if (minutes === null || minutes === undefined || Number.isNaN(minutes)) return "—";
+  const minutesPerDay = 24 * 60;
+  if (minutes >= minutesPerDay) {
+    const days = Math.ceil(minutes / minutesPerDay);
+    return `${days} day${days === 1 ? "" : "s"}`;
+  }
   if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return mins ? `${hours}h ${mins}m` : `${hours}h`;
+  const h = Math.floor(minutes / 60), m = minutes % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
 }
 
 export default function AdminRequestsPage() {
@@ -47,20 +47,10 @@ export default function AdminRequestsPage() {
   async function load() {
     setLoading(true);
     setError(null);
-
     try {
-      const res = await fetch("/api/admin/requests", {
-        method: "GET",
-        cache: "no-store",
-        credentials: "include",
-      });
-
+      const res = await fetch("/api/admin/requests", { cache: "no-store", credentials: "include" });
       const json = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        throw new Error(json?.error || "Failed to load requests.");
-      }
-
+      if (!res.ok) throw new Error(json?.error || "Failed to load requests.");
       setRows((json?.data || []) as AdminRequestRow[]);
     } catch (e: any) {
       setError(e?.message || "Failed to load requests.");
@@ -70,27 +60,20 @@ export default function AdminRequestsPage() {
     }
   }
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
   return (
     <div className="space-y-6">
-      {error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error}
-        </div>
-      ) : null}
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+      )}
 
       <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <h2 className="text-2xl font-semibold text-[#003768]">Admin Requests</h2>
-            <p className="mt-2 text-slate-600">
-              Review customer requests and partner bids.
-            </p>
+            <p className="mt-2 text-slate-600">Review customer requests and partner bids.</p>
           </div>
-
           <button
             type="button"
             onClick={load}
@@ -119,64 +102,39 @@ export default function AdminRequestsPage() {
                   <th className="px-4 py-3 font-semibold">Action</th>
                 </tr>
               </thead>
-
               <tbody className="divide-y divide-black/5">
                 {loading ? (
-                  <tr>
-                    <td colSpan={11} className="px-4 py-5 text-slate-600">
-                      Loading…
-                    </td>
-                  </tr>
+                  <tr><td colSpan={11} className="px-4 py-5 text-slate-600">Loading…</td></tr>
                 ) : rows.length === 0 ? (
-                  <tr>
-                    <td colSpan={11} className="px-4 py-5 text-slate-600">
-                      No customer requests found.
-                    </td>
-                  </tr>
+                  <tr><td colSpan={11} className="px-4 py-5 text-slate-600">No customer requests found.</td></tr>
                 ) : (
                   rows.map((row) => (
                     <tr key={row.id} className="hover:bg-black/[0.02]">
-                      <td className="px-4 py-4 text-slate-700">
-                        {fmtDateTime(row.created_at)}
-                      </td>
-                      <td className="px-4 py-4 text-slate-900">
-                        {row.customer_name || "—"}
-                      </td>
+                      <td className="px-4 py-4 text-slate-700">{fmtDateTime(row.created_at)}</td>
+                      <td className="px-4 py-4 text-slate-900">{row.customer_name || "—"}</td>
                       <td className="px-4 py-4 text-slate-900">{row.pickup_address}</td>
-                      <td className="px-4 py-4 text-slate-900">
-                        {row.dropoff_address || "—"}
-                      </td>
-                      <td className="px-4 py-4 text-slate-700">
-                        {fmtDateTime(row.pickup_at)}
-                      </td>
-                      <td className="px-4 py-4 text-slate-700">
-                        {fmtDateTime(row.dropoff_at)}
-                      </td>
-                      <td className="px-4 py-4 text-slate-700">
-                        {fmtDuration(row.journey_duration_minutes)}
-                      </td>
-                      <td className="px-4 py-4 text-slate-700">
-                        {row.vehicle_category_name || "Any suitable vehicle"}
-                      </td>
+                      <td className="px-4 py-4 text-slate-900">{row.dropoff_address || "—"}</td>
+                      <td className="px-4 py-4 text-slate-700">{fmtDateTime(row.pickup_at)}</td>
+                      <td className="px-4 py-4 text-slate-700">{fmtDateTime(row.dropoff_at)}</td>
+                      <td className="px-4 py-4 text-slate-700">{fmtDuration(row.journey_duration_minutes)}</td>
+                      <td className="px-4 py-4 text-slate-700">{row.vehicle_category_name || "Any"}</td>
                       <td className="px-4 py-4 text-slate-700">{row.bid_count}</td>
                       <td className="px-4 py-4">
-                        <span
-                          className={[
-                            "inline-flex rounded-full border px-3 py-1 text-xs font-semibold",
-                            row.has_accepted_bid || row.status === "booked"
-                              ? "border-green-200 bg-green-50 text-green-700"
-                              : "border-yellow-200 bg-yellow-50 text-yellow-800",
-                          ].join(" ")}
-                        >
+                        <span className={[
+                          "inline-flex rounded-full border px-3 py-1 text-xs font-semibold",
+                          row.has_accepted_bid || row.status === "booked"
+                            ? "border-green-200 bg-green-50 text-green-700"
+                            : "border-yellow-200 bg-yellow-50 text-yellow-800",
+                        ].join(" ")}>
                           {row.status}
                         </span>
                       </td>
                       <td className="px-4 py-4">
                         <Link
                           href={`/admin/requests/${row.id}`}
-                          className="rounded-full bg-[#ff7a00] px-4 py-2 text-xs font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+                          className="rounded-full border border-[#003768] px-4 py-1.5 text-xs font-semibold text-[#003768] hover:bg-[#003768] hover:text-white transition-colors"
                         >
-                          View Request
+                          View
                         </Link>
                       </td>
                     </tr>
