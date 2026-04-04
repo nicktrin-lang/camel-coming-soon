@@ -23,10 +23,16 @@ type ProfileState = {
   website: string;
   service_radius_km: string;
   base_address: string;
+  base_address1: string;
+  base_address2: string;
+  base_province: string;
+  base_postcode: string;
+  base_country: string;
   base_lat: string;
   base_lng: string;
   search_address: string;
   default_currency: Currency;
+  same_as_business: boolean;
 };
 
 type Suggestion = {
@@ -121,7 +127,9 @@ export default function PartnerProfilePage() {
     company_name: "", contact_name: "", phone: "", address: "",
     address1: "", address2: "", province: "", postcode: "", country: "",
     website: "", service_radius_km: "30", base_address: "",
+    base_address1: "", base_address2: "", base_province: "", base_postcode: "", base_country: "",
     base_lat: "", base_lng: "", search_address: "", default_currency: "EUR",
+    same_as_business: false,
   });
 
   useEffect(() => {
@@ -167,10 +175,16 @@ export default function PartnerProfilePage() {
           website: String(existingProfile?.website ?? (application as any)?.website ?? ""),
           service_radius_km: String(existingProfile?.service_radius_km ?? "30"),
           base_address: String(existingProfile?.base_address ?? ""),
+          base_address1: String((existingProfile as any)?.base_address1 ?? ""),
+          base_address2: String((existingProfile as any)?.base_address2 ?? ""),
+          base_province: String((existingProfile as any)?.base_province ?? ""),
+          base_postcode: String((existingProfile as any)?.base_postcode ?? ""),
+          base_country: String((existingProfile as any)?.base_country ?? ""),
           base_lat: existingProfile?.base_lat != null ? String(existingProfile.base_lat) : "",
           base_lng: existingProfile?.base_lng != null ? String(existingProfile.base_lng) : "",
           search_address: String(existingProfile?.base_address ?? ""),
           default_currency: savedCurrency ?? (country ? inferCurrencyFromCountry(country) : "EUR"),
+          same_as_business: false,
         });
       } catch (e: any) {
         if (!mounted) return;
@@ -202,14 +216,32 @@ export default function PartnerProfilePage() {
       base_address: item.display_name || prev.base_address,
       base_lat: item.lat !== null ? String(item.lat) : prev.base_lat,
       base_lng: item.lng !== null ? String(item.lng) : prev.base_lng,
-      address1: item.address_line1 || prev.address1,
-      address2: item.address_line2 || prev.address2,
-      province: item.province || prev.province,
-      postcode: item.postcode || prev.postcode,
-      country: item.country || prev.country,
-      address: item.display_name || prev.address,
+      base_address1: item.address_line1 || prev.base_address1,
+      base_address2: item.address_line2 || prev.base_address2,
+      base_province: item.province || prev.base_province,
+      base_postcode: item.postcode || prev.base_postcode,
+      base_country: item.country || prev.base_country,
       default_currency: item.country ? inferCurrencyFromCountry(item.country) : prev.default_currency,
     }));
+  }
+
+  function toggleSameAsBusiness(checked: boolean) {
+    setSaved(false);
+    if (checked) {
+      setProfile(prev => ({
+        ...prev,
+        same_as_business: true,
+        base_address: prev.address,
+        base_address1: prev.address1,
+        base_address2: prev.address2,
+        base_province: prev.province,
+        base_postcode: prev.postcode,
+        base_country: prev.country,
+        search_address: prev.address,
+      }));
+    } else {
+      setProfile(prev => ({ ...prev, same_as_business: false }));
+    }
   }
 
   function pickSuggestion(item: Suggestion) {
