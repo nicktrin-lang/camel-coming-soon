@@ -167,21 +167,15 @@ function DualFromGbp({ amountGbp, rate, className }: {
 function CustomerPaymentSummary({ booking, rate, rateIsLive }: {
   booking: BookingData; rate: number; rateIsLive: boolean;
 }) {
-  // EUR-stored fields
-  const carHireEur   = Number(booking.car_hire_price || 0); // EUR
-  const fullTankEur  = Number(booking.fuel_price || 0);     // EUR
-  const perQtrEur    = fullTankEur / 4;                     // EUR
-
-  // GBP-stored fields
-  const totalPaidGbp  = booking.amount ?? null;             // GBP
-  const fuelChargeGbp = booking.fuel_charge ?? null;        // GBP
-  const fuelRefundGbp = booking.fuel_refund ?? null;        // GBP
+  // Values stored as GBP despite currency field saying EUR (set incorrectly at booking time)
+  const carHireGbp    = Number(booking.car_hire_price || 0);
+  const fullTankGbp   = Number(booking.fuel_price || 0);
+  const totalGbp      = Number(booking.amount || 0);
+  const fuelChargeGbp = Number(booking.fuel_charge || 0);
+  const fuelRefundGbp = Number(booking.fuel_refund || 0);
+  const perQtrGbp     = fullTankGbp / 4;
 
   const usedQuarters = booking.fuel_used_quarters ?? null;
-
-  // Derived GBP equivalents for the breakdown line (EUR → GBP)
-  const carHireGbp  = Math.round(carHireEur  * rate * 100) / 100;
-  const fullTankGbp = Math.round(fullTankEur * rate * 100) / 100;
 
   const collFuel = normalizeFuel(booking.collection_fuel_level_driver) ||
     normalizeFuel(booking.collection_fuel_level_partner);
@@ -200,21 +194,19 @@ function CustomerPaymentSummary({ booking, rate, rateIsLive }: {
       {/* Total paid at booking */}
       <div className="mt-6 rounded-2xl bg-white/10 p-5">
         <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Total you paid at booking</p>
-        {/* amount is stored GBP — show GBP primary, EUR secondary */}
         <p className="mt-1 text-4xl font-black">
-          <DualFromGbp amountGbp={totalPaidGbp} rate={rate} />
+          <DualFromGbp amountGbp={totalGbp} rate={rate} />
         </p>
-        {/* Breakdown: each item EUR→GBP, with EUR in brackets */}
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-white/70">
           <div className="rounded-xl bg-white/10 px-3 py-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-white/50">Car hire</p>
             <p className="mt-0.5 font-bold text-white">{gbpFmt(carHireGbp)}</p>
-            <p className="text-xs text-white/50">({formatEUR(carHireEur)})</p>
+            <p className="text-xs text-white/50">({formatEUR(Math.round(carHireGbp / rate * 100) / 100)})</p>
           </div>
           <div className="rounded-xl bg-white/10 px-3 py-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-white/50">Full tank deposit</p>
             <p className="mt-0.5 font-bold text-white">{gbpFmt(fullTankGbp)}</p>
-            <p className="text-xs text-white/50">({formatEUR(fullTankEur)})</p>
+            <p className="text-xs text-white/50">({formatEUR(Math.round(fullTankGbp / rate * 100) / 100)})</p>
           </div>
         </div>
       </div>
@@ -237,9 +229,8 @@ function CustomerPaymentSummary({ booking, rate, rateIsLive }: {
             {usedQuarters !== null ? QUARTER_LABELS[usedQuarters] ?? `${usedQuarters}/4` : "—"}
           </p>
           <p className="mt-1 text-xs text-white/60">
-            {/* per quarter is EUR-derived */}
-            {gbpFmt(Math.round(perQtrEur * rate * 100) / 100)}{" "}
-            <span className="text-white/40">({formatEUR(perQtrEur)})</span> per quarter
+            {gbpFmt(perQtrGbp)}{" "}
+            <span className="text-white/40">({formatEUR(Math.round(perQtrGbp / rate * 100) / 100)})</span> per quarter
           </p>
         </div>
       </div>
@@ -538,7 +529,7 @@ export default function TestBookingRequestDetailPage({
               <p><span className="font-semibold text-slate-900">Company phone:</span> {bk.company_phone || "—"}</p>
               <p>
                 <span className="font-semibold text-slate-900">Price:</span>{" "}
-                <DualFromGbp amountGbp={bk.amount} rate={liveRate} />
+                <DualFromGbp amountGbp={bk.amount != null ? Number(bk.amount) : null} rate={liveRate} />
               </p>
               <p><span className="font-semibold text-slate-900">Driver:</span> {bk.driver_name || "—"}</p>
               <p><span className="font-semibold text-slate-900">Driver phone:</span> {bk.driver_phone || "—"}</p>
