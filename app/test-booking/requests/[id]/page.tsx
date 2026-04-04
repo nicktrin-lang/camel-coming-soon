@@ -178,7 +178,8 @@ function BookingAmount({ amount, storedCurrency, customerCurrency, rate }: {
   if (amount == null || isNaN(Number(amount))) return <span>—</span>;
   const amt = Number(amount);
   const primaryAmt = convertAmount(amt, storedCurrency, customerCurrency, rate);
-  const otherCurr: "EUR" | "GBP" = storedCurrency === "EUR" ? "GBP" : "EUR";
+  // Secondary is always the opposite of what customer is viewing
+  const otherCurr: "EUR" | "GBP" = customerCurrency === "GBP" ? "EUR" : "GBP";
   const secondaryAmt = convertAmount(amt, storedCurrency, otherCurr, rate);
   return (
     <span>
