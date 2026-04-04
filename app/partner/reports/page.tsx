@@ -258,7 +258,7 @@ export default function PartnerReportsPage() {
 
     const fuelRows = filteredBookings.map(b => {
       const usedQ = b.fuel_used_quarters;
-      const netRevenue = Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0) - Number(b.fuel_refund ?? 0);
+      const netRevenue = Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0);
       return [
         b.job_number || "",
         b.customer_name || "",
@@ -304,7 +304,7 @@ export default function PartnerReportsPage() {
         t.count, t.completed, t.total, t.carHire,
         t.fuelDeposit, t.fuelCharge, t.fuelRefund,
         t.fuelCharge - t.fuelRefund,
-        t.carHire + (t.fuelCharge - t.fuelRefund),
+        t.carHire + t.fuelCharge,
       ];
     });
 
@@ -319,7 +319,7 @@ export default function PartnerReportsPage() {
       fmtDate(b.pickup_at), b.vehicle_category_name || "",
       b.driver_name || "", b.booking_status || "",
       b.currency || "EUR", Number(b.amount ?? 0),
-      Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0) - Number(b.fuel_refund ?? 0),
+      Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0),
       fmtDate(b.created_at),
     ]);
 
@@ -420,8 +420,7 @@ export default function PartnerReportsPage() {
         const t = revenuesByCurrency[curr];
         if (t.count === 0) return null;
         const { symbol } = CURRENCY_META[curr];
-        const netFuel = t.fuelCharge - t.fuelRefund;
-        const netRevenue = t.carHire + netFuel;
+        const netRevenue = t.carHire + t.fuelCharge;
         const currBookings = filteredBookings.filter(b => (b.currency ?? "EUR") === curr);
         return (
           <div key={curr} className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
@@ -438,8 +437,8 @@ export default function PartnerReportsPage() {
                 { label: "Completed", value: t.completed, isMoney: false },
                 { label: "Total Revenue", value: t.total, isMoney: true },
                 { label: "Car Hire Revenue", value: t.carHire, isMoney: true },
-                { label: "Net Fuel Revenue", value: netFuel, isMoney: true },
-                { label: "Net Revenue to Partner", value: netRevenue, isMoney: true },
+                { label: "Fuel Charged to Customers", value: t.fuelCharge, isMoney: true },
+                { label: "Net Revenue to Partner", value: t.carHire + t.fuelCharge, isMoney: true },
               ].map(({ label: lbl, value, isMoney }) => (
                 <div key={lbl} className="rounded-2xl border border-black/5 bg-slate-50 p-4">
                   <p className="text-xs font-medium text-slate-500">{lbl}</p>
