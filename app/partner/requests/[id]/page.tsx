@@ -4,7 +4,13 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
-type Currency = "EUR" | "GBP";
+type Currency = "EUR" | "GBP" | "USD";
+
+const CURRENCY_META: Record<Currency, { symbol: string; label: string; locale: string }> = {
+  EUR: { symbol: "€", label: "Euros (€)",          locale: "es-ES" },
+  GBP: { symbol: "£", label: "British Pounds (£)", locale: "en-GB" },
+  USD: { symbol: "$", label: "US Dollars ($)",     locale: "en-US" },
+};
 
 type FleetOption = {
   id: string; category_slug: string; category_name: string;
@@ -39,7 +45,7 @@ type ApiResponse = {
   request: RequestRow; existingBid: ExistingBid | null;
   existingBooking: ExistingBooking | null; fleetOptions: FleetOption[];
   adminMode: boolean; role: string | null;
-  partnerCurrency: Currency; // returned from API
+  partnerCurrency: Currency;
 };
 
 function fmtDateTime(v?: string | null) {
@@ -67,9 +73,8 @@ function getTimeRemaining(expiresAt?: string | null) {
 
 function fmtCurrency(value: number | null | undefined, currency: Currency) {
   if (value == null || isNaN(value)) return "—";
-  return new Intl.NumberFormat(currency === "EUR" ? "es-ES" : "en-GB", {
-    style: "currency", currency,
-  }).format(value);
+  const { locale } = CURRENCY_META[currency] ?? CURRENCY_META.EUR;
+  return new Intl.NumberFormat(locale, { style: "currency", currency }).format(value);
 }
 
 function getPartnerHistoryStatus(params: {
@@ -105,9 +110,7 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
   const [fullTankIncluded, setFullTankIncluded] = useState(true);
   const [notes, setNotes] = useState("");
 
-  useEffect(() => {
-    params.then(r => setRequestId(r.id));
-  }, [params]);
+  useEffect(() => { params.then(r => setRequestId(r.id)); }, [params]);
 
   async function load() {
     if (!requestId) return;
@@ -118,7 +121,9 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
       if (!res.ok) throw new Error(json?.error || "Failed to load request.");
       const nextData = json as ApiResponse;
       setData(nextData);
-      const currency: Currency = nextData.partnerCurrency ?? "EUR";
+      // Ensure currency is one of the three valid values, fallback to EUR
+      const raw = nextData.partnerCurrency;
+      const currency: Currency = (raw === "EUR" || raw === "GBP" || raw === "USD") ? raw : "EUR";
       setPartnerCurrency(currency);
       if (nextData.existingBid) {
         setFleetId(nextData.existingBid.fleet_id || "");
@@ -157,7 +162,6 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
       const fuel = Number(fuelPrice || 0);
       if (isNaN(carHire) || carHire < 0) throw new Error("Please enter a valid car hire price.");
       if (isNaN(fuel) || fuel < 0) throw new Error("Please enter a valid fuel price.");
-
       const res = await fetch("/api/partner/bids", {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -172,7 +176,7 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
           full_insurance_included: fullInsuranceIncluded,
           full_tank_included: fullTankIncluded,
           notes,
-          currency: partnerCurrency, // send partner's currency with bid
+          currency: partnerCurrency,
         }),
       });
       const json = await res.json().catch(() => null);
@@ -198,6 +202,7 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
   );
 
   const { request, existingBid, existingBooking } = data;
+  const { symbol, label: currencyLabel } = CURRENCY_META[partnerCurrency];
 
   const partnerStatus = getPartnerHistoryStatus({
     requestStatus: request.status, expiresAt: request.expires_at,
@@ -208,8 +213,7 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
     request.status === "expired" || existingBid?.status === "accepted" ||
     existingBid?.status === "unsuccessful" || existingBid?.status === "rejected";
 
-  const currencySymbol = partnerCurrency === "EUR" ? "€" : "£";
-  const total = (Number(carHirePrice || 0) + Number(fuelPrice || 0));
+  const total = Number(carHirePrice || 0) + Number(fuelPrice || 0);
 
   return (
     <div className="space-y-6 px-4 py-8 md:px-8">
@@ -262,8 +266,8 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
               ["Created", fmtDateTime(request.created_at)],
               ["Expires at", fmtDateTime(request.expires_at)],
               ["Matched status", request.matched_status || "—"],
-            ].map(([label, value]) => (
-              <p key={String(label)}><span className="font-semibold text-slate-900">{label}:</span> {String(value)}</p>
+            ].map(([lbl, val]) => (
+              <p key={String(lbl)}><span className="font-semibold text-slate-900">{lbl}:</span> {String(val)}</p>
             ))}
           </div>
         </div>
@@ -272,7 +276,6 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
         <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
           <h2 className="text-2xl font-semibold text-[#003768]">Bid Outcome</h2>
 
-          {/* Status banners */}
           {(expired || request.status === "expired") && (
             <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-slate-700">This request has expired.</div>
           )}
@@ -289,14 +292,15 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
             <div className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-blue-700">Your bid has been submitted and is awaiting customer decision.</div>
           )}
 
-          {/* Existing bid summary */}
+          {/* Existing bid summary — use the bid's own stored currency */}
           {existingBid && (
             <div className="mt-6 space-y-4 text-slate-700">
               <p><span className="font-semibold text-slate-900">Bid status:</span> <span className="capitalize">{existingBid.status.replaceAll("_", " ")}</span></p>
+              <p><span className="font-semibold text-slate-900">Currency:</span> {CURRENCY_META[existingBid.currency ?? partnerCurrency]?.label ?? existingBid.currency}</p>
               <p><span className="font-semibold text-slate-900">Vehicle:</span> {existingBid.vehicle_category_name || "—"}</p>
-              <p><span className="font-semibold text-slate-900">Car hire price:</span> {fmtCurrency(existingBid.car_hire_price, partnerCurrency)}</p>
-              <p><span className="font-semibold text-slate-900">Fuel price:</span> {fmtCurrency(existingBid.fuel_price, partnerCurrency)}</p>
-              <p><span className="font-semibold text-slate-900">Total price:</span> {fmtCurrency(existingBid.total_price, partnerCurrency)}</p>
+              <p><span className="font-semibold text-slate-900">Car hire price:</span> {fmtCurrency(existingBid.car_hire_price, existingBid.currency ?? partnerCurrency)}</p>
+              <p><span className="font-semibold text-slate-900">Fuel price:</span> {fmtCurrency(existingBid.fuel_price, existingBid.currency ?? partnerCurrency)}</p>
+              <p><span className="font-semibold text-slate-900">Total price:</span> {fmtCurrency(existingBid.total_price, existingBid.currency ?? partnerCurrency)}</p>
               <p><span className="font-semibold text-slate-900">Full insurance included:</span> {existingBid.full_insurance_included ? "Yes" : "No"}</p>
               <p><span className="font-semibold text-slate-900">Full tank included:</span> {existingBid.full_tank_included ? "Yes" : "No"}</p>
               <p><span className="font-semibold text-slate-900">Notes:</span> {existingBid.notes || "—"}</p>
@@ -311,17 +315,16 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
             </div>
           )}
 
-          {/* Bid form */}
           {!existingBid && data.fleetOptions.length === 0 && (
             <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-700">No compatible vehicles found in your fleet for this request.</div>
           )}
 
           {!existingBid && data.fleetOptions.length > 0 && (
             <form onSubmit={submitBid} className="mt-6 space-y-5">
-              {/* Currency badge */}
+              {/* Currency badge — 100% driven by partnerCurrency */}
               <div className="inline-flex items-center gap-2 rounded-full bg-[#003768]/10 px-3 py-1.5 text-sm font-semibold text-[#003768]">
-                <span>{currencySymbol}</span>
-                Bidding in {partnerCurrency === "EUR" ? "Euros (€)" : "British Pounds (£)"}
+                <span>{symbol}</span>
+                Bidding in {currencyLabel}
                 <Link href="/partner/profile" className="ml-1 text-xs text-[#003768]/60 underline hover:text-[#003768]">Change in profile</Link>
               </div>
 
@@ -334,15 +337,19 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
               </div>
 
               <div>
-                <label className="text-sm font-medium text-[#003768]">Car hire price ({currencySymbol})</label>
-                <input type="number" min="0" step="0.01" value={carHirePrice} onChange={e => setCarHirePrice(e.target.value)}
-                  disabled={formDisabled} className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a] disabled:opacity-60" required />
+                <label className="text-sm font-medium text-[#003768]">Car hire price ({symbol})</label>
+                <input type="number" min="0" step="0.01" value={carHirePrice}
+                  onChange={e => setCarHirePrice(e.target.value)}
+                  disabled={formDisabled}
+                  className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a] disabled:opacity-60" required />
               </div>
 
               <div>
-                <label className="text-sm font-medium text-[#003768]">Full fuel price ({currencySymbol})</label>
-                <input type="number" min="0" step="0.01" value={fuelPrice} onChange={e => setFuelPrice(e.target.value)}
-                  disabled={formDisabled} className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a] disabled:opacity-60" required />
+                <label className="text-sm font-medium text-[#003768]">Full fuel price ({symbol})</label>
+                <input type="number" min="0" step="0.01" value={fuelPrice}
+                  onChange={e => setFuelPrice(e.target.value)}
+                  disabled={formDisabled}
+                  className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a] disabled:opacity-60" required />
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
@@ -351,18 +358,21 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
 
               <div className="flex flex-wrap gap-6">
                 <label className="flex items-center gap-3 text-sm text-slate-700">
-                  <input type="checkbox" checked={fullInsuranceIncluded} onChange={e => setFullInsuranceIncluded(e.target.checked)} disabled={formDisabled} />
+                  <input type="checkbox" checked={fullInsuranceIncluded}
+                    onChange={e => setFullInsuranceIncluded(e.target.checked)} disabled={formDisabled} />
                   Full insurance included
                 </label>
                 <label className="flex items-center gap-3 text-sm text-slate-700">
-                  <input type="checkbox" checked={fullTankIncluded} onChange={e => setFullTankIncluded(e.target.checked)} disabled={formDisabled} />
+                  <input type="checkbox" checked={fullTankIncluded}
+                    onChange={e => setFullTankIncluded(e.target.checked)} disabled={formDisabled} />
                   Full tank included
                 </label>
               </div>
 
               <div>
                 <label className="text-sm font-medium text-[#003768]">Notes</label>
-                <textarea rows={4} value={notes} onChange={e => setNotes(e.target.value)} disabled={formDisabled}
+                <textarea rows={4} value={notes} onChange={e => setNotes(e.target.value)}
+                  disabled={formDisabled}
                   className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a] disabled:opacity-60"
                   placeholder="Optional notes for this bid" />
               </div>
