@@ -1,193 +1,95 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createServiceRoleSupabaseClient } from "@/lib/supabase/server";
 import { getPortalUserRole } from "@/lib/portal/getPortalUserRole";
-import { isAdminRole } from "@/lib/portal/roles";
 
 export async function GET(
-  _req: NextRequest,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { role, userId } = await getPortalUserRole(req);
+    if (!userId) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+
     const { id } = await params;
-
-    const { user, role, error: authError } = await getPortalUserRole();
-
-    if (!user) {
-      return NextResponse.json(
-        { error: authError || "Not signed in" },
-        { status: 401 }
-      );
-    }
-
-    const partnerUserId = user.id;
-    const adminMode = isAdminRole(role);
-
     const db = createServiceRoleSupabaseClient();
+    const adminMode = role === "admin" || role === "super_admin";
 
-    const { data: requestRow, error: requestErr } = await db
+    // Get partner's default currency from their profile
+    const { data: profileRow } = await db
+      .from("partner_profiles")
+      .select("default_currency")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const partnerCurrency: "EUR" | "GBP" = (profileRow?.default_currency as "EUR" | "GBP") ?? "EUR";
+
+    // Fetch the request
+    const requestQuery = db
       .from("customer_requests")
       .select(`
-        id,
-        job_number,
-        customer_name,
-        customer_email,
-        customer_phone,
-        pickup_address,
-        pickup_lat,
-        pickup_lng,
-        dropoff_address,
-        dropoff_lat,
-        dropoff_lng,
-        pickup_at,
-        dropoff_at,
-        journey_duration_minutes,
-        passengers,
-        suitcases,
-        hand_luggage,
-        vehicle_category_slug,
-        vehicle_category_name,
-        notes,
-        status,
-        created_at,
-        expires_at
+        id, job_number, customer_name, customer_email, customer_phone,
+        pickup_address, dropoff_address, pickup_at, dropoff_at,
+        journey_duration_minutes, passengers, suitcases, hand_luggage,
+        vehicle_category_slug, vehicle_category_name, notes,
+        status, created_at, expires_at
       `)
-      .eq("id", id)
-      .maybeSingle();
+      .eq("id", id);
 
-    if (requestErr) {
-      return NextResponse.json({ error: requestErr.message }, { status: 400 });
-    }
+    const { data: requestRow, error: requestErr } = await requestQuery.maybeSingle();
+    if (requestErr) return NextResponse.json({ error: requestErr.message }, { status: 400 });
+    if (!requestRow) return NextResponse.json({ error: "Request not found" }, { status: 404 });
 
-    if (!requestRow) {
-      return NextResponse.json({ error: "Request not found" }, { status: 404 });
-    }
-
-    const { data: matchRow, error: matchErr } = await db
+    // Get the partner match for this request
+    const { data: matchRow } = await db
       .from("request_partner_matches")
-      .select("id, request_id, partner_user_id, match_status, matched_fleet_id, created_at")
-      .eq("partner_user_id", partnerUserId)
+      .select("match_status, matched_fleet_id")
       .eq("request_id", id)
+      .eq("partner_user_id", userId)
       .maybeSingle();
 
-    if (matchErr) {
-      return NextResponse.json({ error: matchErr.message }, { status: 400 });
-    }
-
-    const { data: existingBid, error: bidErr } = await db
+    // Check for existing bid
+    const { data: bidRow } = await db
       .from("partner_bids")
-      .select(`
-        id,
-        request_id,
-        partner_user_id,
-        fleet_id,
-        vehicle_category_slug,
-        vehicle_category_name,
-        car_hire_price,
-        fuel_price,
-        total_price,
-        full_insurance_included,
-        full_tank_included,
-        notes,
-        status,
-        created_at
-      `)
+      .select("id, fleet_id, vehicle_category_slug, vehicle_category_name, car_hire_price, fuel_price, total_price, full_insurance_included, full_tank_included, notes, status, created_at, currency")
       .eq("request_id", id)
-      .eq("partner_user_id", partnerUserId)
+      .eq("partner_user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
-    if (bidErr) {
-      return NextResponse.json({ error: bidErr.message }, { status: 400 });
-    }
-
-    const { data: existingBooking, error: bookingErr } = await db
+    // Check for existing booking
+    const { data: bookingRow } = bidRow ? await db
       .from("partner_bookings")
-      .select("id, request_id, partner_user_id, booking_status, job_number")
-      .eq("request_id", id)
-      .eq("partner_user_id", partnerUserId)
-      .maybeSingle();
+      .select("id, request_id, partner_user_id, booking_status")
+      .eq("winning_bid_id", bidRow.id)
+      .maybeSingle() : { data: null };
 
-    if (bookingErr) {
-      return NextResponse.json({ error: bookingErr.message }, { status: 400 });
-    }
-
-    if (!adminMode && !matchRow && !existingBid && !existingBooking) {
-      return NextResponse.json(
-        {
-          error: "Request not found",
-          reason: "No partner match, bid, or booking found for this user",
-        },
-        { status: 404 }
-      );
-    }
-
-    const { data: fleetRows, error: fleetErr } = await db
+    // Get fleet options matching the request vehicle category
+    const { data: fleetRows } = await db
       .from("partner_fleet")
-      .select(`
-        id,
-        user_id,
-        category_slug,
-        category_name,
-        max_passengers,
-        max_suitcases,
-        max_hand_luggage,
-        service_level,
-        is_active
-      `)
-      .eq("user_id", partnerUserId)
-      .eq("is_active", true)
-      .order("category_name", { ascending: true });
+      .select("id, category_slug, category_name, max_passengers, max_suitcases, max_hand_luggage, service_level")
+      .eq("user_id", userId)
+      .eq("is_active", true);
 
-    if (fleetErr) {
-      return NextResponse.json({ error: fleetErr.message }, { status: 400 });
-    }
+    const fleetOptions = (fleetRows || [])
+      .filter(f =>
+        !requestRow.vehicle_category_slug ||
+        f.category_slug === requestRow.vehicle_category_slug
+      )
+      .map(f => ({
+        ...f,
+        label: `${f.category_name} · ${f.max_passengers} pax · ${f.max_suitcases} suitcases`,
+      }));
 
-    const compatibleFleet = (fleetRows || []).filter((fleet: any) => {
-      const fitsCategory =
-        String(fleet.category_slug || "") ===
-        String(requestRow.vehicle_category_slug || "");
-
-      const fitsPassengers =
-        Number(fleet.max_passengers || 0) >= Number(requestRow.passengers || 0);
-
-      const fitsSuitcases =
-        Number(fleet.max_suitcases || 0) >= Number(requestRow.suitcases || 0);
-
-      const fitsHand =
-        Number(fleet.max_hand_luggage || 0) >=
-        Number(requestRow.hand_luggage || 0);
-
-      return fitsCategory && fitsPassengers && fitsSuitcases && fitsHand;
-    });
-
-    const fleetOptions = compatibleFleet.map((fleet: any) => ({
-      id: fleet.id,
-      category_slug: fleet.category_slug,
-      category_name: fleet.category_name,
-      max_passengers: fleet.max_passengers,
-      max_suitcases: fleet.max_suitcases,
-      max_hand_luggage: fleet.max_hand_luggage,
-      service_level: fleet.service_level || null,
-      label: `${fleet.category_name} · ${fleet.max_passengers} pax · ${fleet.max_suitcases} suitcases`,
-    }));
-
-    return NextResponse.json(
-      {
-        request: {
-          ...requestRow,
-          matched_status: matchRow?.match_status || (adminMode ? "admin_visible" : null),
-        },
-        existingBid: existingBid || null,
-        existingBooking: existingBooking || null,
-        fleetOptions,
-        adminMode,
-        role,
-      },
-      { status: 200 }
-    );
+    return NextResponse.json({
+      request: { ...requestRow, matched_status: matchRow?.match_status || null },
+      existingBid: bidRow || null,
+      existingBooking: bookingRow || null,
+      fleetOptions,
+      adminMode,
+      role,
+      partnerCurrency,
+    }, { status: 200 });
   } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || "Server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
   }
 }

@@ -23,6 +23,7 @@ type BidRow = {
   car_hire_price: number; fuel_price: number; total_price: number;
   full_insurance_included: boolean; full_tank_included: boolean;
   notes: string | null; status: string; created_at: string;
+  currency: "EUR" | "GBP";
 };
 
 type BookingData = {
@@ -134,30 +135,36 @@ const QUARTER_LABELS: Record<number, string> = {
 const gbpFmt = (v: number) =>
   new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(v);
 
-// ── Dual currency components (GBP primary, EUR secondary) ────────────────────
-
-function DualFromEur({ amountEur, rate, className }: {
-  amountEur: number | null | undefined; rate: number; className?: string;
-}) {
-  if (amountEur == null || isNaN(amountEur)) return <span className={className}>—</span>;
-  const gbp = Math.round(amountEur * rate * 100) / 100;
-  return (
-    <span className={className}>
-      {gbpFmt(gbp)}{" "}
-      <span className="opacity-60 text-[0.85em] font-normal">({formatEUR(amountEur)})</span>
-    </span>
-  );
+// Convert any amount to customer's display currency
+// bidCurrency = what the partner stored, customerCurrency = what customer selected
+function convertAmount(amount: number, fromCurrency: "EUR" | "GBP", toCurrency: "EUR" | "GBP", rate: number): number {
+  if (fromCurrency === toCurrency) return amount;
+  if (fromCurrency === "EUR" && toCurrency === "GBP") return Math.round(amount * rate * 100) / 100;
+  return Math.round((amount / rate) * 100) / 100; // GBP → EUR
 }
 
-function DualFromGbp({ amountGbp, rate, className }: {
-  amountGbp: number | null | undefined; rate: number; className?: string;
+function fmtForCurrency(amount: number, curr: "EUR" | "GBP"): string {
+  return new Intl.NumberFormat(curr === "EUR" ? "es-ES" : "en-GB", {
+    style: "currency", currency: curr,
+  }).format(amount);
+}
+
+// Show primary in customer currency, secondary in bid/partner currency
+function BidAmount({ amount, bidCurrency, customerCurrency, rate }: {
+  amount: number | null | undefined;
+  bidCurrency: "EUR" | "GBP";
+  customerCurrency: "EUR" | "GBP";
+  rate: number;
 }) {
-  if (amountGbp == null || isNaN(amountGbp)) return <span className={className}>—</span>;
-  const eur = Math.round((amountGbp / rate) * 100) / 100;
+  if (amount == null || isNaN(amount)) return <span>—</span>;
+  const primaryAmt = convertAmount(amount, bidCurrency, customerCurrency, rate);
+  const primaryStr = fmtForCurrency(primaryAmt, customerCurrency);
+  // Secondary is original bid currency if different
+  const secondaryStr = bidCurrency !== customerCurrency ? fmtForCurrency(amount, bidCurrency) : null;
   return (
-    <span className={className}>
-      {gbpFmt(amountGbp)}{" "}
-      <span className="opacity-60 text-[0.85em] font-normal">({formatEUR(eur)})</span>
+    <span>
+      {primaryStr}
+      {secondaryStr && <span className="opacity-60 text-[0.85em] font-normal ml-1">({secondaryStr})</span>}
     </span>
   );
 }
@@ -600,20 +607,11 @@ export default function TestBookingRequestDetailPage({
                     <p><span className="font-semibold text-slate-900">Phone:</span> {bid.partner_phone || "—"}</p>
                     <p><span className="font-semibold text-slate-900">Vehicle:</span> {bid.vehicle_category_name}</p>
                     <p><span className="font-semibold text-slate-900">Car hire:</span>{" "}
-                      {currency === "GBP"
-                        ? <DualFromGbp amountGbp={bid.car_hire_price} rate={liveRate} />
-                        : <DualFromEur amountEur={bid.car_hire_price} rate={liveRate} />}
-                    </p>
+                      <BidAmount amount={bid.car_hire_price} bidCurrency={bid.currency ?? "EUR"} customerCurrency={currency} rate={liveRate} /></p>
                     <p><span className="font-semibold text-slate-900">Fuel deposit:</span>{" "}
-                      {currency === "GBP"
-                        ? <DualFromGbp amountGbp={bid.fuel_price} rate={liveRate} />
-                        : <DualFromEur amountEur={bid.fuel_price} rate={liveRate} />}
-                    </p>
+                      <BidAmount amount={bid.fuel_price} bidCurrency={bid.currency ?? "EUR"} customerCurrency={currency} rate={liveRate} /></p>
                     <p><span className="font-semibold text-slate-900">Total:</span>{" "}
-                      {currency === "GBP"
-                        ? <DualFromGbp amountGbp={bid.total_price} rate={liveRate} />
-                        : <DualFromEur amountEur={bid.total_price} rate={liveRate} />}
-                    </p>
+                      <BidAmount amount={bid.total_price} bidCurrency={bid.currency ?? "EUR"} customerCurrency={currency} rate={liveRate} /></p>
                     <p><span className="font-semibold text-slate-900">Insurance included:</span> {bid.full_insurance_included ? "Yes" : "No"}</p>
                     <p><span className="font-semibold text-slate-900">Full tank included:</span> {bid.full_tank_included ? "Yes" : "No"}</p>
                     {bid.notes && <p><span className="font-semibold text-slate-900">Notes:</span> {bid.notes}</p>}

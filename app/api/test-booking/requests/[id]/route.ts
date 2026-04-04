@@ -48,7 +48,7 @@ export async function GET(
       .select(`
         id, partner_user_id, vehicle_category_name, car_hire_price,
         fuel_price, total_price, full_insurance_included,
-        full_tank_included, notes, status, created_at
+        full_tank_included, notes, status, created_at, currency
       `)
       .eq("request_id", id)
       .order("total_price", { ascending: true });
@@ -87,6 +87,7 @@ export async function GET(
         notes: bid.notes || null,
         status: bid.status,
         created_at: bid.created_at,
+        currency: (bid.currency as "EUR" | "GBP") ?? "EUR",
       };
     });
 
