@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
 import { useCurrency } from "@/lib/useCurrency";
 import { getEurToGbpRateWithSource } from "@/lib/currency";
+import type { Currency } from "@/lib/currency";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,7 +24,7 @@ type BidRow = {
   car_hire_price: number; fuel_price: number; total_price: number;
   full_insurance_included: boolean; full_tank_included: boolean;
   notes: string | null; status: string; created_at: string;
-  currency: "EUR" | "GBP";
+  currency: Currency;
 };
 
 type BookingData = {
@@ -35,7 +36,7 @@ type BookingData = {
   driver_vehicle: string | null; driver_notes: string | null; driver_assigned_at: string | null;
   fuel_price: number | null; car_hire_price: number | null;
   fuel_used_quarters: number | null; fuel_charge: number | null; fuel_refund: number | null;
-  currency: "EUR" | "GBP";
+  currency: Currency;
   collection_confirmed_by_driver: boolean; collection_confirmed_by_driver_at: string | null;
   collection_fuel_level_driver: string | null;
   return_confirmed_by_driver: boolean; return_confirmed_by_driver_at: string | null;
@@ -137,27 +138,40 @@ const QUARTER_LABELS: Record<number, string> = {
 
 // ── Currency helpers ──────────────────────────────────────────────────────────
 
-function fmtCurr(amount: number, curr: "EUR" | "GBP"): string {
-  return new Intl.NumberFormat(curr === "EUR" ? "es-ES" : "en-GB", {
+const LOCALE_MAP: Record<Currency, string> = {
+  EUR: "es-ES",
+  GBP: "en-GB",
+  USD: "en-US",
+};
+
+function fmtCurr(amount: number, curr: Currency): string {
+  return new Intl.NumberFormat(LOCALE_MAP[curr], {
     style: "currency", currency: curr,
   }).format(amount);
 }
 
-function convertAmount(amount: number, from: "EUR" | "GBP", to: "EUR" | "GBP", rate: number): number {
+type Rates = { GBP: number; USD: number };
+
+function convertAmount(amount: number, from: Currency, to: Currency, rates: Rates): number {
   if (from === to) return amount;
-  if (from === "EUR" && to === "GBP") return Math.round(amount * rate * 100) / 100;
-  return Math.round((amount / rate) * 100) / 100;
+  // Convert everything through EUR first
+  let inEur = amount;
+  if (from === "GBP") inEur = Math.round((amount / rates.GBP) * 100) / 100;
+  if (from === "USD") inEur = Math.round((amount / rates.USD) * 100) / 100;
+  if (to === "EUR") return inEur;
+  if (to === "GBP") return Math.round(inEur * rates.GBP * 100) / 100;
+  return Math.round(inEur * rates.USD * 100) / 100;
 }
 
 // Bid prices: show in customer currency, original in brackets if different
-function BidAmount({ amount, bidCurrency, customerCurrency, rate }: {
+function BidAmount({ amount, bidCurrency, customerCurrency, rates }: {
   amount: number | null | undefined;
-  bidCurrency: "EUR" | "GBP";
-  customerCurrency: "EUR" | "GBP";
-  rate: number;
+  bidCurrency: Currency;
+  customerCurrency: Currency;
+  rates: Rates;
 }) {
   if (amount == null || isNaN(amount)) return <span>—</span>;
-  const primaryAmt = convertAmount(amount, bidCurrency, customerCurrency, rate);
+  const primaryAmt = convertAmount(amount, bidCurrency, customerCurrency, rates);
   const primaryStr = fmtCurr(primaryAmt, customerCurrency);
   const secondaryStr = bidCurrency !== customerCurrency ? fmtCurr(amount, bidCurrency) : null;
   return (
@@ -168,19 +182,19 @@ function BidAmount({ amount, bidCurrency, customerCurrency, rate }: {
   );
 }
 
-// Booking amounts: stored in booking.currency, display in customer currency with other secondary
-function BookingAmount({ amount, storedCurrency, customerCurrency, rate }: {
+// Booking amounts: stored in booking.currency, display in customer currency with EUR secondary
+function BookingAmount({ amount, storedCurrency, customerCurrency, rates }: {
   amount: number | null | undefined;
-  storedCurrency: "EUR" | "GBP";
-  customerCurrency: "EUR" | "GBP";
-  rate: number;
+  storedCurrency: Currency;
+  customerCurrency: Currency;
+  rates: Rates;
 }) {
   if (amount == null || isNaN(Number(amount))) return <span>—</span>;
   const amt = Number(amount);
-  const primaryAmt = convertAmount(amt, storedCurrency, customerCurrency, rate);
-  // Secondary is always the opposite of what customer is viewing
-  const otherCurr: "EUR" | "GBP" = customerCurrency === "GBP" ? "EUR" : "GBP";
-  const secondaryAmt = convertAmount(amt, storedCurrency, otherCurr, rate);
+  const primaryAmt = convertAmount(amt, storedCurrency, customerCurrency, rates);
+  // Secondary always shows EUR if customer isn't viewing EUR, otherwise GBP
+  const otherCurr: Currency = customerCurrency === "EUR" ? "GBP" : "EUR";
+  const secondaryAmt = convertAmount(amt, storedCurrency, otherCurr, rates);
   return (
     <span>
       {fmtCurr(primaryAmt, customerCurrency)}{" "}
@@ -193,11 +207,11 @@ function BookingAmount({ amount, storedCurrency, customerCurrency, rate }: {
 
 // ── Payment Summary Card ──────────────────────────────────────────────────────
 
-function CustomerPaymentSummary({ booking, rate, rateIsLive, customerCurrency }: {
-  booking: BookingData; rate: number; rateIsLive: boolean; customerCurrency: "EUR" | "GBP";
+function CustomerPaymentSummary({ booking, rates, rateIsLive, customerCurrency }: {
+  booking: BookingData; rates: Rates; rateIsLive: boolean; customerCurrency: Currency;
 }) {
-  const storedCurr: "EUR" | "GBP" = booking.currency ?? "EUR";
-  const otherCurr: "EUR" | "GBP" = customerCurrency === "GBP" ? "EUR" : "GBP";
+  const storedCurr: Currency = booking.currency ?? "EUR";
+  const otherCurr: Currency = customerCurrency === "EUR" ? "GBP" : "EUR";
 
   const totalAmt      = Number(booking.amount || 0);
   const carHireAmt    = Number(booking.car_hire_price || 0);
@@ -212,8 +226,8 @@ function CustomerPaymentSummary({ booking, rate, rateIsLive, customerCurrency }:
   const retFuel = normalizeFuel(booking.return_fuel_level_driver) ||
     normalizeFuel(booking.return_fuel_level_partner);
 
-  const primary   = (amt: number) => fmtCurr(convertAmount(amt, storedCurr, customerCurrency, rate), customerCurrency);
-  const secondary = (amt: number) => `(${fmtCurr(convertAmount(amt, storedCurr, otherCurr, rate), otherCurr)})`;
+  const primary   = (amt: number) => fmtCurr(convertAmount(amt, storedCurr, customerCurrency, rates), customerCurrency);
+  const secondary = (amt: number) => `(${fmtCurr(convertAmount(amt, storedCurr, otherCurr, rates), otherCurr)})`;
   const gbpStr    = (v: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(v);
 
   return (
@@ -295,7 +309,7 @@ function CustomerPaymentSummary({ booking, rate, rateIsLive, customerCurrency }:
         rateIsLive ? "bg-green-400/20 text-green-200" : "bg-white/10 text-white/70"
       }`}>
         <span className={`h-2.5 w-2.5 rounded-full ${rateIsLive ? "bg-green-400" : "bg-white/40"}`} />
-        1€ = {gbpStr(rate)}{rateIsLive ? " · Live rate (frankfurter.app)" : ""}
+        1€ = {gbpStr(rates.GBP)}{rateIsLive ? " · Live rate (frankfurter.app)" : ""}
       </div>
     </div>
   );
@@ -380,13 +394,13 @@ export default function TestBookingRequestDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const supabase = useMemo(() => createCustomerBrowserClient(), []);
-  const { rate: hookRate, currency } = useCurrency();
-  const [liveRate, setLiveRate] = useState<number>(hookRate ?? 0.85);
+  const { rates: hookRates, currency } = useCurrency();
+  const [liveRates, setLiveRates] = useState<Rates>(hookRates ?? { GBP: 0.85, USD: 1.08 });
   const [rateIsLive, setRateIsLive] = useState(false);
 
   useEffect(() => {
     getEurToGbpRateWithSource().then(({ rate: r, live }) => {
-      setLiveRate(r);
+      setLiveRates(prev => ({ ...prev, GBP: r }));
       setRateIsLive(live);
     }).catch(() => {});
   }, []);
@@ -501,7 +515,7 @@ export default function TestBookingRequestDetailPage({
   );
 
   const bk = data.booking;
-  const bookingStoredCurr: "EUR" | "GBP" = bk?.currency ?? "EUR";
+  const bookingStoredCurr: Currency = bk?.currency ?? "EUR";
 
   const collectionLocked = !!bk?.collection_confirmed_by_driver &&
     !!bk?.collection_confirmed_by_customer &&
@@ -578,19 +592,19 @@ export default function TestBookingRequestDetailPage({
               <div className="flex justify-between text-sm">
                 <span>Car hire</span>
                 <span className="font-semibold">
-                  <BookingAmount amount={bk.car_hire_price} storedCurrency={bookingStoredCurr} customerCurrency={currency} rate={liveRate} />
+                  <BookingAmount amount={bk.car_hire_price} storedCurrency={bookingStoredCurr} customerCurrency={currency} rates={liveRates} />
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span>Full tank deposit <span className="text-slate-400 text-xs">(refundable)</span></span>
                 <span className="font-semibold">
-                  <BookingAmount amount={bk.fuel_price} storedCurrency={bookingStoredCurr} customerCurrency={currency} rate={liveRate} />
+                  <BookingAmount amount={bk.fuel_price} storedCurrency={bookingStoredCurr} customerCurrency={currency} rates={liveRates} />
                 </span>
               </div>
               <div className="flex justify-between text-sm border-t border-slate-200 pt-3">
                 <span className="font-bold text-slate-900">Total paid</span>
                 <span className="font-bold text-[#003768]">
-                  <BookingAmount amount={bk.amount} storedCurrency={bookingStoredCurr} customerCurrency={currency} rate={liveRate} />
+                  <BookingAmount amount={bk.amount} storedCurrency={bookingStoredCurr} customerCurrency={currency} rates={liveRates} />
                 </span>
               </div>
             </div>
@@ -600,7 +614,7 @@ export default function TestBookingRequestDetailPage({
           {collectionLocked && returnLocked && bk.fuel_charge !== null && (
             <CustomerPaymentSummary
               booking={bk}
-              rate={liveRate}
+              rates={liveRates}
               rateIsLive={rateIsLive}
               customerCurrency={currency}
             />
@@ -657,11 +671,11 @@ export default function TestBookingRequestDetailPage({
                     <p><span className="font-semibold text-slate-900">Phone:</span> {bid.partner_phone || "—"}</p>
                     <p><span className="font-semibold text-slate-900">Vehicle:</span> {bid.vehicle_category_name}</p>
                     <p><span className="font-semibold text-slate-900">Car hire:</span>{" "}
-                      <BidAmount amount={bid.car_hire_price} bidCurrency={bid.currency ?? "EUR"} customerCurrency={currency} rate={liveRate} /></p>
+                      <BidAmount amount={bid.car_hire_price} bidCurrency={bid.currency ?? "EUR"} customerCurrency={currency} rates={liveRates} /></p>
                     <p><span className="font-semibold text-slate-900">Fuel deposit:</span>{" "}
-                      <BidAmount amount={bid.fuel_price} bidCurrency={bid.currency ?? "EUR"} customerCurrency={currency} rate={liveRate} /></p>
+                      <BidAmount amount={bid.fuel_price} bidCurrency={bid.currency ?? "EUR"} customerCurrency={currency} rates={liveRates} /></p>
                     <p><span className="font-semibold text-slate-900">Total:</span>{" "}
-                      <BidAmount amount={bid.total_price} bidCurrency={bid.currency ?? "EUR"} customerCurrency={currency} rate={liveRate} /></p>
+                      <BidAmount amount={bid.total_price} bidCurrency={bid.currency ?? "EUR"} customerCurrency={currency} rates={liveRates} /></p>
                     <p><span className="font-semibold text-slate-900">Insurance included:</span> {bid.full_insurance_included ? "Yes" : "No"}</p>
                     <p><span className="font-semibold text-slate-900">Full tank included:</span> {bid.full_tank_included ? "Yes" : "No"}</p>
                     {bid.notes && <p><span className="font-semibold text-slate-900">Notes:</span> {bid.notes}</p>}
