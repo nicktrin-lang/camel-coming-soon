@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { getEurToGbpRateWithSource, formatDual, formatEUR, formatGBP } from "@/lib/currency";
+import { getEurToGbpRateWithSource, formatGBP, formatEUR } from "@/lib/currency";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,6 +21,7 @@ type BookingRow = {
   driver_vehicle: string | null; driver_notes: string | null; driver_assigned_at: string | null;
   fuel_price: number | null; car_hire_price: number | null;
   fuel_used_quarters: number | null; fuel_charge: number | null; fuel_refund: number | null;
+  currency: "EUR" | "GBP";
   collection_confirmed_by_driver?: boolean | null;
   collection_confirmed_by_driver_at?: string | null;
   collection_fuel_level_driver?: string | null;
@@ -143,36 +144,52 @@ const QUARTER_LABELS: Record<number, string> = {
   0: "Empty", 1: "¼ Tank", 2: "½ Tank", 3: "¾ Tank", 4: "Full Tank",
 };
 
-// ── Dual currency label ───────────────────────────────────────────────────────
-// Small inline component so JSX stays readable
-function Dual({ amountEur, rate }: { amountEur: number | null | undefined; rate: number }) {
-  if (amountEur == null || isNaN(amountEur)) return <span>—</span>;
-  const primary = formatEUR(amountEur);
-  const secondary = formatGBP(Math.round(amountEur * rate * 100) / 100);
+// ── Currency helpers ──────────────────────────────────────────────────────────
+
+function fmtCurr(amount: number, curr: "EUR" | "GBP"): string {
+  return new Intl.NumberFormat(curr === "EUR" ? "es-ES" : "en-GB", {
+    style: "currency", currency: curr,
+  }).format(amount);
+}
+
+function convertToOther(amount: number, stored: "EUR" | "GBP", rate: number): number {
+  if (stored === "EUR") return Math.round(amount * rate * 100) / 100;
+  return Math.round((amount / rate) * 100) / 100;
+}
+
+// Partner always sees stored currency primary, other secondary
+function Amt({ amount, stored, rate }: {
+  amount: number | null | undefined;
+  stored: "EUR" | "GBP";
+  rate: number;
+}) {
+  if (amount == null || isNaN(amount)) return <span>—</span>;
+  const other: "EUR" | "GBP" = stored === "EUR" ? "GBP" : "EUR";
+  const otherAmt = convertToOther(amount, stored, rate);
   return (
     <span>
-      {primary}{" "}
-      <span className="text-white/50 text-sm font-normal">({secondary})</span>
+      {fmtCurr(amount, stored)}{" "}
+      <span className="opacity-60 text-[0.85em] font-normal">({fmtCurr(otherAmt, other)})</span>
     </span>
   );
 }
 
-// Same but for GBP-stored amounts (booking.amount)
-function DualFromGbp({ amountGbp, rate }: { amountGbp: number | null | undefined; rate: number }) {
-  if (amountGbp == null || isNaN(amountGbp)) return <span>—</span>;
-  const gbp = formatGBP(amountGbp);
-  const eur = formatEUR(Math.round((amountGbp / rate) * 100) / 100);
-  return (
-    <span>
-      {eur}{" "}
-      <span className="opacity-60 text-sm font-normal">({gbp})</span>
-    </span>
-  );
-}
+// ── Payment + Fuel Summary Card ───────────────────────────────────────────────
 
-// ── Fuel Summary Card ─────────────────────────────────────────────────────────
+function BookingSummaryCard({ booking, rate, isLive }: {
+  booking: BookingRow; rate: number; isLive: boolean;
+}) {
+  const stored: "EUR" | "GBP" = booking.currency ?? "EUR";
+  const other: "EUR" | "GBP" = stored === "EUR" ? "GBP" : "EUR";
 
-function FuelSummaryCard({ booking, rate, isLive }: { booking: BookingRow; rate: number; isLive: boolean }) {
+  const carHireAmt   = Number(booking.car_hire_price || 0);
+  const fullTankAmt  = Number(booking.fuel_price || 0);
+  const totalAmt     = Number(booking.amount || 0);
+  const fuelCharge   = booking.fuel_charge ?? null;
+  const fuelRefund   = booking.fuel_refund ?? null;
+  const perQtrAmt    = fullTankAmt / 4;
+  const usedQuarters = booking.fuel_used_quarters ?? null;
+
   const collFuel = normalizeFuel(booking.collection_fuel_level_partner) ||
     normalizeFuel(booking.collection_fuel_level_driver) ||
     normalizeFuel(booking.collection_fuel_level_customer);
@@ -180,20 +197,39 @@ function FuelSummaryCard({ booking, rate, isLive }: { booking: BookingRow; rate:
     normalizeFuel(booking.return_fuel_level_driver) ||
     normalizeFuel(booking.return_fuel_level_customer);
 
-  const fullTankPrice = Number(booking.fuel_price || 0);
-  const pricePerQuarter = fullTankPrice / 4;
-  const usedQuarters = booking.fuel_used_quarters ?? null;
-  const fuelCharge = booking.fuel_charge ?? null;
-  const fuelRefund = booking.fuel_refund ?? null;
+  const primary = (v: number) => fmtCurr(v, stored);
+  const secondary = (v: number) => `(${fmtCurr(convertToOther(v, stored, rate), other)})`;
 
   return (
     <div className="rounded-3xl border border-[#003768]/20 bg-[#003768] p-8 text-white shadow-[0_18px_45px_rgba(0,0,0,0.18)]">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Fuel Cost Summary</h2>
+        <h2 className="text-2xl font-bold">Booking Summary</h2>
         <span className="rounded-full bg-green-400 px-3 py-1 text-xs font-bold text-green-900">Finalised</span>
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* Total + breakdown */}
+      <div className="mt-6 rounded-2xl bg-white/10 p-5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Total booking value</p>
+        <p className="mt-1 text-4xl font-black">
+          {primary(totalAmt)}{" "}
+          <span className="text-2xl font-normal opacity-60">{secondary(totalAmt)}</span>
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="rounded-xl bg-white/10 px-3 py-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-white/50">Car hire</p>
+            <p className="mt-0.5 font-bold text-white">{primary(carHireAmt)}</p>
+            <p className="text-xs text-white/50">{secondary(carHireAmt)}</p>
+          </div>
+          <div className="rounded-xl bg-white/10 px-3 py-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-white/50">Full tank deposit</p>
+            <p className="mt-0.5 font-bold text-white">{primary(fullTankAmt)}</p>
+            <p className="text-xs text-white/50">{secondary(fullTankAmt)}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Fuel levels */}
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl bg-white/10 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Collection fuel</p>
           <p className="mt-1 text-xl font-bold">{fuelLabel(collFuel)}</p>
@@ -215,30 +251,37 @@ function FuelSummaryCard({ booking, rate, isLive }: { booking: BookingRow; rate:
         </div>
         <div className="rounded-2xl bg-white/10 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Price per quarter</p>
-          <p className="mt-1 text-xl font-bold"><Dual amountEur={pricePerQuarter} rate={rate} /></p>
-          <p className="mt-1 text-xs text-white/60">Full tank: {formatDual(fullTankPrice, rate, "partner")}</p>
+          <p className="mt-1 text-xl font-bold">{primary(perQtrAmt)}</p>
+          <p className="mt-1 text-xs text-white/60">{secondary(perQtrAmt)}</p>
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+      {/* Fuel charge + refund */}
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl bg-[#ff7a00]/20 p-5 border border-[#ff7a00]/40">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Fuel charge to customer</p>
-          <p className="mt-2 text-4xl font-black"><Dual amountEur={fuelCharge} rate={rate} /></p>
-          <p className="mt-1 text-sm text-white/60">For {usedQuarters ?? "—"} quarter{usedQuarters !== 1 ? "s" : ""} used</p>
+          <p className="mt-2 text-4xl font-black">
+            {fuelCharge != null ? primary(fuelCharge) : "—"}{" "}
+            {fuelCharge != null && <span className="text-2xl font-normal opacity-60">{secondary(fuelCharge)}</span>}
+          </p>
+          <p className="mt-1 text-sm text-white/60">
+            For {usedQuarters ?? "—"} quarter{usedQuarters !== 1 ? "s" : ""} used
+          </p>
         </div>
         <div className="rounded-2xl bg-green-500/20 p-5 border border-green-400/40">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Refund to customer</p>
-          <p className="mt-2 text-4xl font-black"><Dual amountEur={fuelRefund} rate={rate} /></p>
+          <p className="mt-2 text-4xl font-black">
+            {fuelRefund != null ? primary(fuelRefund) : "—"}{" "}
+            {fuelRefund != null && <span className="text-2xl font-normal opacity-60">{secondary(fuelRefund)}</span>}
+          </p>
           <p className="mt-1 text-sm text-white/60">Unused fuel portion returned</p>
         </div>
       </div>
 
-      <p className="mt-4 text-xs text-white/50">
-        Car hire: {formatDual(booking.car_hire_price, rate, "partner")} ·{" "}
-        Full tank deposit: {formatDual(fullTankPrice, rate, "partner")} ·{" "}
-        Total booking: {formatDual(booking.car_hire_price != null && fullTankPrice != null ? (booking.car_hire_price + fullTankPrice) : null, rate, "partner")}
-      </p>
-      <div className={`mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-base font-bold ${isLive ? "bg-green-400/20 text-green-200" : "bg-white/10 text-white/70"}`}>
+      {/* Rate badge */}
+      <div className={`mt-5 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-base font-bold ${
+        isLive ? "bg-green-400/20 text-green-200" : "bg-white/10 text-white/70"
+      }`}>
         <span className={`h-2.5 w-2.5 rounded-full ${isLive ? "bg-green-400" : "bg-white/40"}`} />
         1€ = {formatGBP(rate)}{isLive ? " · Live rate (frankfurter.app)" : ""}
       </div>
@@ -313,9 +356,7 @@ function FuelStageCard({
             <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
               Office override {hasOverride ? `— currently set to ${fuelLabel(savedPartnerFuel)}` : ""}
             </p>
-            <p className="mt-1 text-xs text-amber-600">
-              Use this if the driver is unavailable or you need to correct their reading.
-            </p>
+            <p className="mt-1 text-xs text-amber-600">Use this if the driver is unavailable or you need to correct their reading.</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <div>
                 <label className="text-xs font-semibold text-[#003768]">Fuel level</label>
@@ -375,7 +416,6 @@ export default function PartnerBookingDetailPage() {
   const [rateIsLive, setRateIsLive] = useState<boolean>(false);
 
   // Driver assignment fields
-  const [bookingStatus, setBookingStatus] = useState("confirmed");
   const [selectedDriverId, setSelectedDriverId] = useState("");
   const [driverName, setDriverName] = useState("");
   const [driverPhone, setDriverPhone] = useState("");
@@ -392,7 +432,6 @@ export default function PartnerBookingDetailPage() {
 
   function hydrateForm(d: BookingApiResponse) {
     const b = d.booking;
-    setBookingStatus(b.booking_status || "confirmed");
     setDriverName(b.driver_name || "");
     setDriverPhone(b.driver_phone || "");
     setDriverVehicle(b.driver_vehicle || "");
@@ -415,11 +454,8 @@ export default function PartnerBookingDetailPage() {
       if (!res.ok) throw new Error(json?.error || "Failed to load booking.");
       setData(json);
       if (hydrate) hydrateForm(json);
-    } catch (e: any) {
-      setError(e?.message || "Failed to load booking.");
-    } finally {
-      if (showSpinner) setLoading(false);
-    }
+    } catch (e: any) { setError(e?.message || "Failed to load booking."); }
+    finally { if (showSpinner) setLoading(false); }
   }
 
   async function loadDrivers() {
@@ -435,7 +471,6 @@ export default function PartnerBookingDetailPage() {
   useEffect(() => {
     loadBooking(true, true);
     loadDrivers();
-    // Fetch live rate once on mount
     getEurToGbpRateWithSource().then(({ rate, live }) => {
       setEurGbpRate(rate);
       setRateIsLive(live);
@@ -463,7 +498,7 @@ export default function PartnerBookingDetailPage() {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          booking_status: bookingStatus,
+          booking_status: data?.booking.booking_status,
           assigned_driver_id: selectedDriverId || null,
           driver_name: driverName, driver_phone: driverPhone,
           driver_vehicle: driverVehicle, driver_notes: driverNotes,
@@ -529,17 +564,12 @@ export default function PartnerBookingDetailPage() {
 
   const bk = data.booking;
   const req = data.request;
+  const stored: "EUR" | "GBP" = bk.currency ?? "EUR";
 
   const collEffective = effectiveFuel(bk.collection_fuel_level_driver, bk.collection_fuel_level_partner);
   const retEffective = effectiveFuel(bk.return_fuel_level_driver, bk.return_fuel_level_partner);
-
   const collectionLocked = isLocked({ driverOrPartnerFuel: collEffective, customerConfirmed: bk.collection_confirmed_by_customer, customerFuel: bk.collection_fuel_level_customer });
   const returnLocked = isLocked({ driverOrPartnerFuel: retEffective, customerConfirmed: bk.return_confirmed_by_customer, customerFuel: bk.return_fuel_level_customer });
-
-  // EUR amounts for the booking info panel
-  const carHireEur = bk.car_hire_price;
-  const fullTankEur = bk.fuel_price;
-  const totalEur = carHireEur != null && fullTankEur != null ? carHireEur + fullTankEur : null;
 
   return (
     <div className="space-y-6 px-4 py-8 md:px-8">
@@ -565,14 +595,14 @@ export default function PartnerBookingDetailPage() {
             <p><span className="font-semibold text-slate-900">Job No.:</span> {bk.job_number ?? req?.job_number ?? "—"}</p>
             <p><span className="font-semibold text-slate-900">Status:</span> {statusLabel(bk.booking_status)}</p>
             <p>
-              <span className="font-semibold text-slate-900">Amount:</span>{" "}
-              {formatDual(totalEur, eurGbpRate, "partner")}
+              <span className="font-semibold text-slate-900">Total:</span>{" "}
+              <Amt amount={bk.amount} stored={stored} rate={eurGbpRate} />
             </p>
             <p><span className="font-semibold text-slate-900">Created:</span> {fmt(bk.created_at)}</p>
             <p><span className="font-semibold text-slate-900">Driver:</span> {drivers.find(d => d.id === bk.assigned_driver_id)?.full_name || bk.driver_name || "—"}</p>
             <p><span className="font-semibold text-slate-900">Driver assigned:</span> {fmt(bk.driver_assigned_at)}</p>
             <p><span className="font-semibold text-slate-900">Notes:</span> {bk.notes || "—"}</p>
-            <div className={`mt-5 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-base font-bold ${rateIsLive ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-700"}`}>
+            <div className={`mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-base font-bold ${rateIsLive ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-700"}`}>
               <span className={`h-2.5 w-2.5 rounded-full ${rateIsLive ? "bg-green-500" : "bg-slate-400"}`} />
               1€ = {formatGBP(eurGbpRate)}{rateIsLive ? " · Live rate (frankfurter.app)" : ""}
             </div>
@@ -596,36 +626,24 @@ export default function PartnerBookingDetailPage() {
         </div>
       </div>
 
-      {/* Driver assignment */}
+      {/* Driver assignment — status shown as text, no dropdown */}
       <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
         <h2 className="text-2xl font-semibold text-[#003768]">Driver Assignment</h2>
+        <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700">
+          <span className="font-semibold">Current status:</span>
+          <span className="font-bold text-[#003768]">{statusLabel(bk.booking_status)}</span>
+        </div>
         <form onSubmit={saveDetails} className="mt-6 space-y-5">
-          <div className="grid gap-5 md:grid-cols-2">
-            <div>
-              <label className="text-sm font-medium text-[#003768]">Booking status</label>
-              <select value={bookingStatus} onChange={e => setBookingStatus(e.target.value)}
-                className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-[#0f4f8a]">
-                <option value="confirmed">Awaiting delivery</option>
-                <option value="driver_assigned">Driver assigned</option>
-                <option value="en_route">En route</option>
-                <option value="arrived">Arrived</option>
-                <option value="collected">On Hire</option>
-                <option value="returned">Returned</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-[#003768]">Assign driver</label>
-              <select value={selectedDriverId} onChange={e => handleDriverSelect(e.target.value)}
-                className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-[#0f4f8a]">
-                <option value="">No driver selected</option>
-                {drivers.map(d => (
-                  <option key={d.id} value={d.id}>{d.full_name}{d.phone ? ` (${d.phone})` : ""}</option>
-                ))}
-              </select>
-              {loadingDrivers && <p className="mt-1 text-xs text-slate-400">Loading drivers…</p>}
-            </div>
+          <div>
+            <label className="text-sm font-medium text-[#003768]">Assign driver</label>
+            <select value={selectedDriverId} onChange={e => handleDriverSelect(e.target.value)}
+              className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-[#0f4f8a]">
+              <option value="">No driver selected</option>
+              {drivers.map(d => (
+                <option key={d.id} value={d.id}>{d.full_name}{d.phone ? ` (${d.phone})` : ""}</option>
+              ))}
+            </select>
+            {loadingDrivers && <p className="mt-1 text-xs text-slate-400">Loading drivers…</p>}
           </div>
           <div className="grid gap-5 md:grid-cols-3">
             <div>
@@ -657,9 +675,9 @@ export default function PartnerBookingDetailPage() {
         </form>
       </div>
 
-      {/* Fuel summary */}
+      {/* Full booking + fuel summary — shown when both stages locked */}
       {collectionLocked && returnLocked && (
-        <FuelSummaryCard booking={bk} rate={eurGbpRate} isLive={rateIsLive} />
+        <BookingSummaryCard booking={bk} rate={eurGbpRate} isLive={rateIsLive} />
       )}
 
       {/* Fuel tracking */}
