@@ -18,35 +18,23 @@ type AccountRow = {
 };
 
 type SortKey =
-  | "created_desc"
-  | "created_asc"
-  | "company_asc"
-  | "company_desc"
-  | "contact_asc"
-  | "contact_desc"
-  | "status_asc"
-  | "status_desc"
-  | "live_desc"
-  | "live_asc";
+  | "created_desc" | "created_asc"
+  | "company_asc" | "company_desc"
+  | "contact_asc" | "contact_desc"
+  | "status_asc" | "status_desc"
+  | "live_desc" | "live_asc";
+
+const PAGE_SIZE = 10;
 
 async function safeJson(res: Response): Promise<any> {
   const text = await res.text();
   if (!text) return null;
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { _raw: text };
-  }
+  try { return JSON.parse(text); } catch { return { _raw: text }; }
 }
 
 function formatDateTime(value?: string | null) {
   if (!value) return "—";
-  try {
-    return new Date(value).toLocaleString();
-  } catch {
-    return value;
-  }
+  try { return new Date(value).toLocaleString(); } catch { return value; }
 }
 
 function normalizeText(value: unknown) {
@@ -55,14 +43,10 @@ function normalizeText(value: unknown) {
 
 function statusPillClasses(status?: string | null) {
   switch (normalizeText(status)) {
-    case "approved":
-      return "border-green-200 bg-green-50 text-green-700";
-    case "pending":
-      return "border-amber-200 bg-amber-50 text-amber-700";
-    case "rejected":
-      return "border-red-200 bg-red-50 text-red-700";
-    default:
-      return "border-black/10 bg-white text-slate-700";
+    case "approved": return "border-green-200 bg-green-50 text-green-700";
+    case "pending": return "border-amber-200 bg-amber-50 text-amber-700";
+    case "rejected": return "border-red-200 bg-red-50 text-red-700";
+    default: return "border-black/10 bg-white text-slate-700";
   }
 }
 
@@ -79,162 +63,107 @@ export default function AdminAccountsPage() {
   const [rows, setRows] = useState<AccountRow[]>([]);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("created_desc");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  const stats = useMemo(() => {
-    const total = rows.length;
-
-    const approved = rows.filter(r => r.application_status === "approved").length;
-    const pending = rows.filter(r => r.application_status === "pending").length;
-    const live = rows.filter(r => r.live_profile).length;
-
-    return { total, approved, pending, live };
-  }, [rows]);
+  const stats = useMemo(() => ({
+    total: rows.length,
+    approved: rows.filter(r => r.application_status === "approved").length,
+    pending: rows.filter(r => r.application_status === "pending").length,
+    live: rows.filter(r => r.live_profile).length,
+  }), [rows]);
 
   async function load() {
-    setLoading(true);
-    setError(null);
-
+    setLoading(true); setError(null);
     try {
       const { data: userData, error: userErr } = await supabase.auth.getUser();
-
-      if (userErr || !userData?.user) {
-        router.replace("/partner/login?reason=not_authorized");
-        return;
-      }
-
-      const adminRes = await fetch("/api/admin/is-admin", {
-        method: "GET",
-        cache: "no-store",
-        credentials: "include",
-      });
-
+      if (userErr || !userData?.user) { router.replace("/partner/login?reason=not_authorized"); return; }
+      const adminRes = await fetch("/api/admin/is-admin", { cache: "no-store", credentials: "include" });
       const adminJson = await safeJson(adminRes);
-
-      if (!adminJson?.isAdmin) {
-        router.replace("/partner/login?reason=not_authorized");
-        return;
-      }
-
-      const res = await fetch("/api/admin/accounts", {
-        method: "GET",
-        cache: "no-store",
-        credentials: "include",
-      });
-
+      if (!adminJson?.isAdmin) { router.replace("/partner/login?reason=not_authorized"); return; }
+      const res = await fetch("/api/admin/accounts", { cache: "no-store", credentials: "include" });
       const json = await safeJson(res);
-
-      if (!res.ok) {
-        throw new Error(json?.error || json?._raw || "Failed to load accounts.");
-      }
-
+      if (!res.ok) throw new Error(json?.error || json?._raw || "Failed to load accounts.");
       setRows(Array.isArray(json?.data) ? json.data : []);
     } catch (e: any) {
       setError(e?.message || "Failed to load accounts.");
       setRows([]);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
+
+  // Reset pagination when search/sort changes
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [search, sortBy]);
 
   const searchValue = normalizeText(search);
 
-  const filteredRows = useMemo(() => {
-    return rows.filter((row) => {
-      if (!searchValue) return true;
-
-      const haystack = [
-        row.company_name,
-        row.contact_name,
-        row.email,
-        row.phone,
-        row.application_status,
-        row.live_profile ? "yes live true" : "no not live false",
-      ]
-        .map(normalizeText)
-        .join(" ");
-
-      return haystack.includes(searchValue);
-    });
-  }, [rows, searchValue]);
+  const filteredRows = useMemo(() => rows.filter(row => {
+    if (!searchValue) return true;
+    return [row.company_name, row.contact_name, row.email, row.phone, row.application_status,
+      row.live_profile ? "yes live true" : "no not live false"]
+      .map(normalizeText).join(" ").includes(searchValue);
+  }), [rows, searchValue]);
 
   const sortedRows = useMemo(() => {
     const data = [...filteredRows];
-
     data.sort((a, b) => {
-      const aCreated = new Date(a.created_at || 0).getTime();
-      const bCreated = new Date(b.created_at || 0).getTime();
-
+      const aT = new Date(a.created_at || 0).getTime();
+      const bT = new Date(b.created_at || 0).getTime();
       switch (sortBy) {
-        case "created_asc":
-          return aCreated - bCreated;
-        case "created_desc":
-          return bCreated - aCreated;
-        case "company_asc":
-          return normalizeText(a.company_name).localeCompare(normalizeText(b.company_name));
-        case "company_desc":
-          return normalizeText(b.company_name).localeCompare(normalizeText(a.company_name));
-        case "contact_asc":
-          return normalizeText(a.contact_name).localeCompare(normalizeText(b.contact_name));
-        case "contact_desc":
-          return normalizeText(b.contact_name).localeCompare(normalizeText(a.contact_name));
-        case "status_asc":
-          return normalizeText(a.application_status).localeCompare(
-            normalizeText(b.application_status)
-          );
-        case "status_desc":
-          return normalizeText(b.application_status).localeCompare(
-            normalizeText(a.application_status)
-          );
-        case "live_asc":
-          return Number(a.live_profile) - Number(b.live_profile);
-        case "live_desc":
-          return Number(b.live_profile) - Number(a.live_profile);
-        default:
-          return bCreated - aCreated;
+        case "created_asc": return aT - bT;
+        case "created_desc": return bT - aT;
+        case "company_asc": return normalizeText(a.company_name).localeCompare(normalizeText(b.company_name));
+        case "company_desc": return normalizeText(b.company_name).localeCompare(normalizeText(a.company_name));
+        case "contact_asc": return normalizeText(a.contact_name).localeCompare(normalizeText(b.contact_name));
+        case "contact_desc": return normalizeText(b.contact_name).localeCompare(normalizeText(a.contact_name));
+        case "status_asc": return normalizeText(a.application_status).localeCompare(normalizeText(b.application_status));
+        case "status_desc": return normalizeText(b.application_status).localeCompare(normalizeText(a.application_status));
+        case "live_asc": return Number(a.live_profile) - Number(b.live_profile);
+        case "live_desc": return Number(b.live_profile) - Number(a.live_profile);
+        default: return bT - aT;
       }
     });
-
     return data;
   }, [filteredRows, sortBy]);
 
+  const visible = sortedRows.slice(0, visibleCount);
+  const hasMore = sortedRows.length > visibleCount;
+
   return (
     <div className="space-y-6">
-      {error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error}
-        </div>
-      ) : null}
+      {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {[
+          { label: "Total Accounts", value: stats.total, color: "text-[#003768]" },
+          { label: "Approved", value: stats.approved, color: "text-green-600" },
+          { label: "Pending", value: stats.pending, color: "text-amber-600" },
+          { label: "Live Profile", value: stats.live, color: "text-blue-600" },
+        ].map(({ label, value, color }) => (
+          <div key={label} className="rounded-3xl border border-black/5 bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+            <p className="text-sm font-medium text-slate-500">{label}</p>
+            <p className={`mt-2 text-2xl font-semibold ${color}`}>{value}</p>
+          </div>
+        ))}
+      </div>
 
       <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)] md:p-8">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-[#003768]">
-              Account Management
-            </h1>
+            <h1 className="text-2xl font-semibold text-[#003768]">Account Management</h1>
           </div>
           <div className="grid w-full grid-cols-1 gap-3 md:grid-cols-3 xl:max-w-[760px]">
             <div className="md:col-span-2">
               <label className="text-sm font-medium text-[#003768]">Search</label>
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+              <input type="text" value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Search company, contact, email, phone..."
-                className="mt-1 w-full rounded-xl border border-black/10 p-3 text-black"
-              />
+                className="mt-1 w-full rounded-xl border border-black/10 p-3 text-black" />
             </div>
-
             <div>
               <label className="text-sm font-medium text-[#003768]">Sort by</label>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortKey)}
-                className="mt-1 w-full rounded-xl border border-black/10 bg-white p-3 text-black"
-              >
+              <select value={sortBy} onChange={e => setSortBy(e.target.value as SortKey)}
+                className="mt-1 w-full rounded-xl border border-black/10 bg-white p-3 text-black">
                 <option value="created_desc">Newest created</option>
                 <option value="created_asc">Oldest created</option>
                 <option value="company_asc">Company A–Z</option>
@@ -250,36 +179,30 @@ export default function AdminAccountsPage() {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-          <button
-            type="button"
-            onClick={() => {
-              setSearch("");
-              setSortBy("created_desc");
-            }}
-            className="rounded-full border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-[#003768] hover:bg-black/5"
-          >
+        <div className="mt-4 flex gap-3">
+          <button type="button" onClick={() => { setSearch(""); setSortBy("created_desc"); }}
+            className="rounded-full border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-[#003768] hover:bg-black/5">
             Clear Filters
           </button>
-
-          <button
-            type="button"
-            onClick={load}
-            disabled={loading}
-            className="rounded-full bg-[#ff7a00] px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60"
-          >
+          <button type="button" onClick={load} disabled={loading}
+            className="rounded-full bg-[#ff7a00] px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60">
             {loading ? "Refreshing..." : "Refresh"}
           </button>
         </div>
 
-        {searchValue ? (
+        {searchValue && (
           <div className="mt-4 rounded-2xl border border-[#cfe2f7] bg-[#f3f8ff] px-4 py-3 text-sm text-[#003768]">
-            Showing filtered account results for:{" "}
-            <span className="font-semibold">{search}</span>
+            Showing filtered results for: <span className="font-semibold">{search}</span>
           </div>
-        ) : null}
+        )}
 
-        <div className="mt-6 overflow-hidden rounded-2xl border border-black/10">
+        <div className="mt-4 flex items-center justify-between">
+          <p className="text-sm text-slate-500">
+            Showing <span className="font-semibold text-[#003768]">{Math.min(visibleCount, sortedRows.length)}</span> of <span className="font-semibold text-[#003768]">{sortedRows.length}</span> accounts
+          </p>
+        </div>
+
+        <div className="mt-3 overflow-hidden rounded-2xl border border-black/10">
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead className="bg-[#f3f8ff] text-[#003768]">
@@ -294,78 +217,57 @@ export default function AdminAccountsPage() {
                   <th className="px-4 py-3 font-semibold">Action</th>
                 </tr>
               </thead>
-
               <tbody className="divide-y divide-black/5">
                 {loading ? (
-                  <tr>
-                    <td className="px-4 py-4 text-slate-600" colSpan={8}>
-                      Loading...
+                  <tr><td className="px-4 py-4 text-slate-600" colSpan={8}>Loading...</td></tr>
+                ) : visible.length === 0 ? (
+                  <tr><td className="px-4 py-4 text-slate-600" colSpan={8}>
+                    {searchValue ? "No partner accounts match this search." : "No partner accounts found."}
+                  </td></tr>
+                ) : visible.map(row => (
+                  <tr key={row.id} className="hover:bg-black/[0.02]">
+                    <td className="px-4 py-4 text-slate-700">{formatDateTime(row.created_at)}</td>
+                    <td className="px-4 py-4 font-medium text-slate-900">{row.company_name || "—"}</td>
+                    <td className="px-4 py-4 text-slate-700">{row.contact_name || "—"}</td>
+                    <td className="px-4 py-4 text-slate-700">{row.email || "—"}</td>
+                    <td className="px-4 py-4 text-slate-700">{row.phone || "—"}</td>
+                    <td className="px-4 py-4">
+                      <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${statusPillClasses(row.application_status)}`}>
+                        {statusLabel(row.application_status)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      {row.live_profile ? (
+                        <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Yes</span>
+                      ) : (
+                        <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">No</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4">
+                      <Link href={`/admin/accounts/${row.id}`}
+                        className="inline-flex rounded-full bg-[#ff7a00] px-4 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95">
+                        View
+                      </Link>
                     </td>
                   </tr>
-                ) : sortedRows.length === 0 ? (
-                  <tr>
-                    <td className="px-4 py-4 text-slate-600" colSpan={8}>
-                      {searchValue
-                        ? "No partner accounts match this search."
-                        : "No partner accounts found."}
-                    </td>
-                  </tr>
-                ) : (
-                  sortedRows.map((row) => (
-                    <tr key={row.id} className="hover:bg-black/[0.02]">
-                      <td className="px-4 py-4 text-slate-700">
-                        {formatDateTime(row.created_at)}
-                      </td>
-
-                      <td className="px-4 py-4 font-medium text-slate-900">
-                        {row.company_name || "—"}
-                      </td>
-
-                      <td className="px-4 py-4 text-slate-700">
-                        {row.contact_name || "—"}
-                      </td>
-
-                      <td className="px-4 py-4 text-slate-700">{row.email || "—"}</td>
-
-                      <td className="px-4 py-4 text-slate-700">{row.phone || "—"}</td>
-
-                      <td className="px-4 py-4">
-                        <span
-                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${statusPillClasses(
-                            row.application_status
-                          )}`}
-                        >
-                          {statusLabel(row.application_status)}
-                        </span>
-                      </td>
-
-                      <td className="px-4 py-4">
-                        {row.live_profile ? (
-                          <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
-                            Yes
-                          </span>
-                        ) : (
-                          <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
-                            No
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="px-4 py-4">
-                        <Link
-                          href={`/admin/accounts/${row.id}`}
-                          className="inline-flex rounded-full bg-[#ff7a00] px-4 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
-                        >
-                          View
-                        </Link>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>
         </div>
+
+        {hasMore && (
+          <button type="button" onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+            className="mt-4 w-full rounded-2xl border border-black/10 bg-slate-50 py-3 text-sm font-semibold text-[#003768] hover:bg-slate-100">
+            ▼ Show more ({sortedRows.length - visibleCount} remaining)
+          </button>
+        )}
+        {visibleCount > PAGE_SIZE && !hasMore && (
+          <button type="button" onClick={() => setVisibleCount(PAGE_SIZE)}
+            className="mt-4 w-full rounded-2xl border border-black/10 bg-slate-50 py-3 text-sm font-semibold text-[#003768] hover:bg-slate-100">
+            ▲ Show less
+          </button>
+        )}
       </div>
     </div>
   );
