@@ -60,6 +60,7 @@ export async function GET() {
     }
 
     const rows = bookingRows || [];
+
     const requestIds = Array.from(
       new Set(rows.map((r: any) => String(r.request_id || "")).filter(Boolean))
     );
@@ -69,10 +70,24 @@ export async function GET() {
       const { data: requestRows, error: requestErr } = await db
         .from("customer_requests")
         .select(`
-          id, job_number, pickup_address, dropoff_address, pickup_at, dropoff_at,
-          journey_duration_minutes, passengers, suitcases, hand_luggage,
-          vehicle_category_name, customer_name, customer_email, customer_phone,
-          notes, status, created_at, expires_at
+          id,
+          job_number,
+          pickup_address,
+          dropoff_address,
+          pickup_at,
+          dropoff_at,
+          journey_duration_minutes,
+          passengers,
+          suitcases,
+          hand_luggage,
+          vehicle_category_name,
+          customer_name,
+          customer_email,
+          customer_phone,
+          notes,
+          status,
+          created_at,
+          expires_at
         `)
         .in("id", requestIds);
       if (requestErr) return NextResponse.json({ error: requestErr.message }, { status: 400 });

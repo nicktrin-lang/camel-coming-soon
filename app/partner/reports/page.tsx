@@ -81,11 +81,6 @@ function fmtDate(value?: string | null) {
   try { return new Date(value).toLocaleDateString(); } catch { return value; }
 }
 
-function fmtDateTime(value?: string | null) {
-  if (!value) return "—";
-  try { return new Date(value).toLocaleString(); } catch { return value; }
-}
-
 function statusPillClasses(status?: string | null) {
   switch (String(status || "").toLowerCase()) {
     case "completed": case "confirmed": case "bid_successful": return "border-green-200 bg-green-50 text-green-700";
@@ -250,8 +245,8 @@ export default function PartnerReportsPage() {
     const fuelHeaders = [
       "Job Number", "Customer", "Customer Email", "Customer Phone",
       "Pickup Address", "Dropoff Address", "Pickup At", "Dropoff At",
-      "Vehicle", "Driver", "Driver Vehicle",
-      "Currency", "Car Hire Price", "Full Fuel Deposit",
+      "Vehicle", "Driver", "Driver Vehicle", "Currency",
+      "Car Hire Price", "Full Fuel Deposit",
       "Collection Fuel (Driver)", "Collection Fuel (Partner Override)",
       "Return Fuel (Driver)", "Return Fuel (Partner Override)",
       "Quarters Used", "Fuel Used Label",
@@ -263,6 +258,7 @@ export default function PartnerReportsPage() {
 
     const fuelRows = filteredBookings.map(b => {
       const usedQ = b.fuel_used_quarters;
+      const netRevenue = Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0) - Number(b.fuel_refund ?? 0);
       return [
         b.job_number || "",
         b.customer_name || "",
@@ -287,7 +283,7 @@ export default function PartnerReportsPage() {
         Number(b.fuel_charge ?? 0),
         Number(b.fuel_refund ?? 0),
         Number(b.amount ?? 0),
-        Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0) - Number(b.fuel_refund ?? 0),
+        netRevenue,
         b.collection_confirmed_by_customer ? "Yes" : "No",
         b.return_confirmed_by_customer ? "Yes" : "No",
         b.booking_status || "",
@@ -299,6 +295,7 @@ export default function PartnerReportsPage() {
       "Currency", "Total Bookings", "Completed",
       "Total Revenue", "Car Hire Revenue", "Fuel Deposits Collected",
       "Fuel Charges Billed", "Fuel Refunds Issued", "Net Fuel Revenue",
+      "Net Revenue to Partner",
     ];
     const summaryRows = (["EUR", "GBP", "USD"] as Currency[]).map(curr => {
       const t = revenuesByCurrency[curr];
@@ -307,19 +304,23 @@ export default function PartnerReportsPage() {
         t.count, t.completed, t.total, t.carHire,
         t.fuelDeposit, t.fuelCharge, t.fuelRefund,
         t.fuelCharge - t.fuelRefund,
+        t.carHire + (t.fuelCharge - t.fuelRefund),
       ];
     });
 
     const allHeaders = [
       "Job Number", "Customer", "Pickup", "Dropoff", "Pickup At",
-      "Vehicle", "Driver", "Status", "Currency", "Amount", "Created At",
+      "Vehicle", "Driver", "Status", "Currency", "Amount",
+      "Net Revenue to Partner", "Created At",
     ];
     const allRows = filteredBookings.map(b => [
       b.job_number || "", b.customer_name || "",
       b.pickup_address || "", b.dropoff_address || "",
       fmtDate(b.pickup_at), b.vehicle_category_name || "",
       b.driver_name || "", b.booking_status || "",
-      b.currency || "EUR", Number(b.amount ?? 0), fmtDate(b.created_at),
+      b.currency || "EUR", Number(b.amount ?? 0),
+      Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0) - Number(b.fuel_refund ?? 0),
+      fmtDate(b.created_at),
     ]);
 
     const blob = buildXls([
@@ -418,13 +419,14 @@ export default function PartnerReportsPage() {
       {(["EUR", "GBP", "USD"] as Currency[]).map(curr => {
         const t = revenuesByCurrency[curr];
         if (t.count === 0) return null;
-        const { symbol, label } = CURRENCY_META[curr];
+        const { symbol } = CURRENCY_META[curr];
         const netFuel = t.fuelCharge - t.fuelRefund;
+        const netRevenue = t.carHire + netFuel;
         const currBookings = filteredBookings.filter(b => (b.currency ?? "EUR") === curr);
         return (
           <div key={curr} className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
             <div className="flex items-center gap-3">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#003768]/10 px-3 py-1 text-sm font-bold text-[#003768]">
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#003768]/10 px-3 py-1 text-sm font-bold text-[#003768]">
                 {symbol}
               </span>
               <h2 className="text-xl font-semibold text-[#003768]">Revenue &amp; Fuel Reconciliation</h2>
@@ -436,8 +438,8 @@ export default function PartnerReportsPage() {
                 { label: "Completed", value: t.completed, isMoney: false },
                 { label: "Total Revenue", value: t.total, isMoney: true },
                 { label: "Car Hire Revenue", value: t.carHire, isMoney: true },
-                { label: "Fuel Deposits", value: t.fuelDeposit, isMoney: true },
                 { label: "Net Fuel Revenue", value: netFuel, isMoney: true },
+                { label: "Net Revenue to Partner", value: netRevenue, isMoney: true },
               ].map(({ label: lbl, value, isMoney }) => (
                 <div key={lbl} className="rounded-2xl border border-black/5 bg-slate-50 p-4">
                   <p className="text-xs font-medium text-slate-500">{lbl}</p>
@@ -467,6 +469,7 @@ export default function PartnerReportsPage() {
                 <tbody className="divide-y divide-black/5">
                   {currBookings.map(b => {
                     const usedQ = b.fuel_used_quarters;
+                    const bNetRevenue = Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0) - Number(b.fuel_refund ?? 0);
                     return (
                       <tr key={b.id} className="hover:bg-[#f3f8ff]">
                         <td className="px-4 py-3 font-semibold text-[#003768]">{b.job_number || "—"}</td>
@@ -488,9 +491,7 @@ export default function PartnerReportsPage() {
                           {b.fuel_refund !== null ? fmtAmt(b.fuel_refund, curr) : "—"}
                         </td>
                         <td className="px-4 py-3 font-bold text-[#003768]">{fmtAmt(b.amount, curr)}</td>
-                        <td className="px-4 py-3 font-bold text-green-700">
-                          {fmtCurr(Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0) - Number(b.fuel_refund ?? 0), curr)}
-                        </td>
+                        <td className="px-4 py-3 font-bold text-green-700">{fmtCurr(bNetRevenue, curr)}</td>
                       </tr>
                     );
                   })}
