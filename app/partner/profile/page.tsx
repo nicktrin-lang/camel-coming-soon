@@ -336,10 +336,44 @@ export default function PartnerProfilePage() {
         {/* ── Section 2: Business Address ── */}
         <SectionCard
           title="Business Address"
-          description="Your registered company address for correspondence and records.">
-          <Field label="Full business address">
-            <TextInput value={profile.address} onChange={v => updateField("address", v)} placeholder="Full address" />
-          </Field>
+          description="Your registered company address for correspondence and records. Each field is stored separately in the database.">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <Field label="Full address (auto-filled)">
+                <p className="mt-0.5 mb-1 text-xs text-slate-500">Combined address — updated automatically from the fields below.</p>
+                <TextInput value={profile.address} onChange={v => updateField("address", v)} placeholder="Full address" />
+              </Field>
+            </div>
+            <Field label="Address line 1">
+              <TextInput value={profile.address1} onChange={v => {
+                updateField("address1", v);
+                // keep full address in sync
+                setProfile(prev => ({ ...prev, address1: v, address: [v, prev.address2, prev.province, prev.postcode, prev.country].filter(Boolean).join(", ") }));
+              }} placeholder="e.g. Calle Mayor 12" />
+            </Field>
+            <Field label="Address line 2">
+              <TextInput value={profile.address2} onChange={v => {
+                setProfile(prev => ({ ...prev, address2: v, address: [prev.address1, v, prev.province, prev.postcode, prev.country].filter(Boolean).join(", ") }));
+              }} placeholder="e.g. Floor 2, Office A" />
+            </Field>
+            <Field label="Province / Region">
+              <TextInput value={profile.province} onChange={v => {
+                setProfile(prev => ({ ...prev, province: v, address: [prev.address1, prev.address2, v, prev.postcode, prev.country].filter(Boolean).join(", ") }));
+              }} placeholder="e.g. Comunitat Valenciana" />
+            </Field>
+            <Field label="Postcode">
+              <TextInput value={profile.postcode} onChange={v => {
+                setProfile(prev => ({ ...prev, postcode: v, address: [prev.address1, prev.address2, prev.province, v, prev.country].filter(Boolean).join(", ") }));
+              }} placeholder="e.g. 46001" />
+            </Field>
+            <div className="md:col-span-2">
+              <Field label="Country">
+                <TextInput value={profile.country} onChange={v => {
+                  setProfile(prev => ({ ...prev, country: v, address: [prev.address1, prev.address2, prev.province, prev.postcode, v].filter(Boolean).join(", "), default_currency: inferCurrencyFromCountry(v) }));
+                }} placeholder="e.g. España" />
+              </Field>
+            </div>
+          </div>
         </SectionCard>
 
         {/* ── Section 3: Service Settings ── */}
@@ -418,26 +452,6 @@ export default function PartnerProfilePage() {
               <p className="mt-0.5 mb-1 text-xs text-slate-500">Auto-filled from search or map. You can also type it manually.</p>
               <TextInput value={profile.base_address} onChange={v => updateField("base_address", v)} />
             </Field>
-          </div>
-
-          <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
-            <Field label="Address line 1">
-              <TextInput value={profile.address1} onChange={v => updateField("address1", v)} />
-            </Field>
-            <Field label="Address line 2">
-              <TextInput value={profile.address2} onChange={v => updateField("address2", v)} />
-            </Field>
-            <Field label="Province / Region">
-              <TextInput value={profile.province} onChange={v => updateField("province", v)} />
-            </Field>
-            <Field label="Postcode">
-              <TextInput value={profile.postcode} onChange={v => updateField("postcode", v)} />
-            </Field>
-            <div className="md:col-span-2">
-              <Field label="Country">
-                <TextInput value={profile.country} onChange={v => updateField("country", v)} />
-              </Field>
-            </div>
           </div>
 
           {/* Coordinates */}
