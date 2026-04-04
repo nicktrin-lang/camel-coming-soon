@@ -33,6 +33,7 @@ export async function GET(
         winning_bid_id,
         booking_status,
         amount,
+        currency,
         fuel_price,
         car_hire_price,
         fuel_used_quarters,
@@ -47,30 +48,24 @@ export async function GET(
         driver_vehicle,
         driver_notes,
         driver_assigned_at,
-
         collection_confirmed_by_driver,
         collection_confirmed_by_driver_at,
         collection_fuel_level_driver,
-
         return_confirmed_by_driver,
         return_confirmed_by_driver_at,
         return_fuel_level_driver,
-
         collection_confirmed_by_partner,
         collection_confirmed_by_partner_at,
         collection_fuel_level_partner,
         collection_partner_notes,
-
         return_confirmed_by_partner,
         return_confirmed_by_partner_at,
         return_fuel_level_partner,
         return_partner_notes,
-
         collection_confirmed_by_customer,
         collection_confirmed_by_customer_at,
         collection_fuel_level_customer,
         collection_customer_notes,
-
         return_confirmed_by_customer,
         return_confirmed_by_customer_at,
         return_fuel_level_customer,
@@ -92,7 +87,6 @@ export async function GET(
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    // Fetch the linked customer request
     let requestRow = null;
     if (bookingRow.request_id) {
       const { data: reqData } = await db
@@ -123,11 +117,7 @@ export async function GET(
     }
 
     return NextResponse.json(
-      {
-        booking: bookingRow,
-        request: requestRow,
-        role: role || "partner",
-      },
+      { booking: bookingRow, request: requestRow, role: role || "partner" },
       { status: 200 }
     );
   } catch (e: any) {
