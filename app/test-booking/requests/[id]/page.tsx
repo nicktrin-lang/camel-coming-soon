@@ -149,7 +149,7 @@ function convertAmount(amount: number, from: "EUR" | "GBP", to: "EUR" | "GBP", r
   return Math.round((amount / rate) * 100) / 100;
 }
 
-// Show amount in customer's currency, with partner's original in brackets if different
+// Bid prices: show in customer currency, original in brackets if different
 function BidAmount({ amount, bidCurrency, customerCurrency, rate }: {
   amount: number | null | undefined;
   bidCurrency: "EUR" | "GBP";
@@ -168,7 +168,7 @@ function BidAmount({ amount, bidCurrency, customerCurrency, rate }: {
   );
 }
 
-// Show a booking amount in customer's preferred currency with other currency secondary
+// Booking amounts: stored in booking.currency, display in customer currency with other secondary
 function BookingAmount({ amount, storedCurrency, customerCurrency, rate }: {
   amount: number | null | undefined;
   storedCurrency: "EUR" | "GBP";
@@ -178,12 +178,13 @@ function BookingAmount({ amount, storedCurrency, customerCurrency, rate }: {
   if (amount == null || isNaN(Number(amount))) return <span>—</span>;
   const amt = Number(amount);
   const primaryAmt = convertAmount(amt, storedCurrency, customerCurrency, rate);
-  const secondaryAmt = convertAmount(amt, storedCurrency, storedCurrency === "EUR" ? "GBP" : "EUR", rate);
+  const otherCurr: "EUR" | "GBP" = storedCurrency === "EUR" ? "GBP" : "EUR";
+  const secondaryAmt = convertAmount(amt, storedCurrency, otherCurr, rate);
   return (
     <span>
       {fmtCurr(primaryAmt, customerCurrency)}{" "}
       <span className="opacity-60 text-[0.85em] font-normal">
-        ({fmtCurr(secondaryAmt, storedCurrency === "EUR" ? "GBP" : "EUR")})
+        ({fmtCurr(secondaryAmt, otherCurr)})
       </span>
     </span>
   );
@@ -194,7 +195,8 @@ function BookingAmount({ amount, storedCurrency, customerCurrency, rate }: {
 function CustomerPaymentSummary({ booking, rate, rateIsLive, customerCurrency }: {
   booking: BookingData; rate: number; rateIsLive: boolean; customerCurrency: "EUR" | "GBP";
 }) {
-  const storedCurr: "EUR" | "GBP" = booking.currency ?? "GBP";
+  const storedCurr: "EUR" | "GBP" = booking.currency ?? "EUR";
+  const otherCurr: "EUR" | "GBP" = customerCurrency === "GBP" ? "EUR" : "GBP";
 
   const totalAmt      = Number(booking.amount || 0);
   const carHireAmt    = Number(booking.car_hire_price || 0);
@@ -209,16 +211,9 @@ function CustomerPaymentSummary({ booking, rate, rateIsLive, customerCurrency }:
   const retFuel = normalizeFuel(booking.return_fuel_level_driver) ||
     normalizeFuel(booking.return_fuel_level_partner);
 
-  // Convert stored amount to customer display currency
-  const toDisplay = (amt: number) => convertAmount(amt, storedCurr, customerCurrency, rate);
-  // Get opposite currency for secondary display
-  const otherCurr: "EUR" | "GBP" = customerCurrency === "GBP" ? "EUR" : "GBP";
-  const toOther = (amt: number) => convertAmount(amt, storedCurr, otherCurr, rate);
-
-  const primary = (amt: number) => fmtCurr(toDisplay(amt), customerCurrency);
-  const secondary = (amt: number) => `(${fmtCurr(toOther(amt), otherCurr)})`;
-
-  const gbpStr = (v: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(v);
+  const primary   = (amt: number) => fmtCurr(convertAmount(amt, storedCurr, customerCurrency, rate), customerCurrency);
+  const secondary = (amt: number) => `(${fmtCurr(convertAmount(amt, storedCurr, otherCurr, rate), otherCurr)})`;
+  const gbpStr    = (v: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(v);
 
   return (
     <div className="rounded-3xl border border-[#003768]/20 bg-[#003768] p-8 text-white shadow-[0_18px_45px_rgba(0,0,0,0.18)]">
@@ -227,7 +222,7 @@ function CustomerPaymentSummary({ booking, rate, rateIsLive, customerCurrency }:
         <span className="rounded-full bg-green-400 px-3 py-1 text-xs font-bold text-green-900">Finalised</span>
       </div>
 
-      {/* Total */}
+      {/* Total + breakdown */}
       <div className="mt-6 rounded-2xl bg-white/10 p-5">
         <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Total you paid at booking</p>
         <p className="mt-1 text-4xl font-black">
@@ -505,7 +500,7 @@ export default function TestBookingRequestDetailPage({
   );
 
   const bk = data.booking;
-  const bookingStoredCurr: "EUR" | "GBP" = bk?.currency ?? "GBP";
+  const bookingStoredCurr: "EUR" | "GBP" = bk?.currency ?? "EUR";
 
   const collectionLocked = !!bk?.collection_confirmed_by_driver &&
     !!bk?.collection_confirmed_by_customer &&
@@ -570,23 +565,37 @@ export default function TestBookingRequestDetailPage({
               <p><span className="font-semibold text-slate-900">Status:</span> {bookingStatusLabel(bk.booking_status)}</p>
               <p><span className="font-semibold text-slate-900">Car hire company:</span> {bk.company_name || "—"}</p>
               <p><span className="font-semibold text-slate-900">Company phone:</span> {bk.company_phone || "—"}</p>
-              <p>
-                <span className="font-semibold text-slate-900">Price:</span>{" "}
-                <BookingAmount
-                  amount={bk.amount}
-                  storedCurrency={bookingStoredCurr}
-                  customerCurrency={currency}
-                  rate={liveRate}
-                />
-              </p>
               <p><span className="font-semibold text-slate-900">Driver:</span> {bk.driver_name || "—"}</p>
               <p><span className="font-semibold text-slate-900">Driver phone:</span> {bk.driver_phone || "—"}</p>
               <p><span className="font-semibold text-slate-900">Driver vehicle:</span> {bk.driver_vehicle || "—"}</p>
               <p><span className="font-semibold text-slate-900">Driver assigned at:</span> {fmt(bk.driver_assigned_at)}</p>
             </div>
+
+            {/* Price breakdown */}
+            <div className="mt-6 rounded-2xl border border-green-200 bg-white p-4 space-y-3 text-slate-700">
+              <p className="text-sm font-bold text-slate-900">Price Breakdown</p>
+              <div className="flex justify-between text-sm">
+                <span>Car hire</span>
+                <span className="font-semibold">
+                  <BookingAmount amount={bk.car_hire_price} storedCurrency={bookingStoredCurr} customerCurrency={currency} rate={liveRate} />
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Full tank deposit <span className="text-slate-400 text-xs">(refundable)</span></span>
+                <span className="font-semibold">
+                  <BookingAmount amount={bk.fuel_price} storedCurrency={bookingStoredCurr} customerCurrency={currency} rate={liveRate} />
+                </span>
+              </div>
+              <div className="flex justify-between text-sm border-t border-slate-200 pt-3">
+                <span className="font-bold text-slate-900">Total paid</span>
+                <span className="font-bold text-[#003768]">
+                  <BookingAmount amount={bk.amount} storedCurrency={bookingStoredCurr} customerCurrency={currency} rate={liveRate} />
+                </span>
+              </div>
+            </div>
           </div>
 
-          {/* Payment summary */}
+          {/* Payment summary — shown when both stages locked */}
           {collectionLocked && returnLocked && bk.fuel_charge !== null && (
             <CustomerPaymentSummary
               booking={bk}
@@ -596,7 +605,7 @@ export default function TestBookingRequestDetailPage({
             />
           )}
 
-          {/* Fuel confirmation */}
+          {/* Fuel confirmation — shown until both stages locked */}
           {(!collectionLocked || !returnLocked) && (
             <div className="grid gap-6 xl:grid-cols-2">
               <FuelConfirmCard
