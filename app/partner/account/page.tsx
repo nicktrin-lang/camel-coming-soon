@@ -19,8 +19,6 @@ type AccountProfile = {
   base_address: string | null;
   base_lat: number | null;
   base_lng: number | null;
-  fleet_size?: number | null;
-  description?: string | null;
 };
 
 // Infer currency from country since there's no currency column yet
@@ -288,7 +286,7 @@ export default function PartnerAccountPage() {
         const [{ data: profileRow, error: profileErr }, { data: applicationRow, error: appErr }] =
           await Promise.all([
             supabase.from("partner_profiles")
-              .select("company_name,contact_name,phone,address,address1,address2,province,postcode,country,website,service_radius_km,base_address,base_lat,base_lng,fleet_size,description")
+              .select("company_name,contact_name,phone,address,address1,address2,province,postcode,country,website,service_radius_km,base_address,base_lat,base_lng")
               .eq("user_id", user.id).maybeSingle(),
             supabase.from("partner_applications")
               .select("status,created_at").eq("email", normalizedEmail)
@@ -366,12 +364,6 @@ export default function PartnerAccountPage() {
               <div><span className="text-slate-500">Website</span><p className="font-medium text-slate-800">{fmtValue(profile?.website)}</p></div>
               <div><span className="text-slate-500">Billing Currency</span><p className="font-medium text-slate-800">{currencyLabel(inferCurrency(profile?.country))}</p></div>
               <div><span className="text-slate-500">Service Radius</span><p className="font-medium text-slate-800">{profile?.service_radius_km ? `${profile.service_radius_km} km` : "—"}</p></div>
-              {profile?.fleet_size && (
-                <div><span className="text-slate-500">Fleet Size</span><p className="font-medium text-slate-800">{profile.fleet_size} vehicles</p></div>
-              )}
-              {profile?.description && (
-                <div className="md:col-span-2"><span className="text-slate-500">Company Description</span><p className="font-medium text-slate-800">{profile.description}</p></div>
-              )}
             </div>
           </div>
 
