@@ -491,9 +491,12 @@ export default function TestBookingRequestDetailPage({
         </Link>
       </div>
 
-      <div className={`rounded-2xl border p-4 text-sm ${expired ? "border-red-200 bg-red-50 text-red-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
-        <span className="font-semibold">Bid window:</span> {timeLabel}
-      </div>
+      {/* Only show bid window when request is still open */}
+      {data.request.status === "open" && (
+        <div className={`rounded-2xl border p-4 text-sm ${expired ? "border-red-200 bg-red-50 text-red-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+          <span className="font-semibold">Bid window:</span> {timeLabel}
+        </div>
+      )}
 
       {/* Request info */}
       <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
@@ -594,11 +597,11 @@ export default function TestBookingRequestDetailPage({
                     <p><span className="font-semibold text-slate-900">Phone:</span> {bid.partner_phone || "—"}</p>
                     <p><span className="font-semibold text-slate-900">Vehicle:</span> {bid.vehicle_category_name}</p>
                     <p><span className="font-semibold text-slate-900">Car hire:</span>{" "}
-                      <DualFromEur amountEur={bid.car_hire_price} rate={liveRate} /></p>
+                      <DualFromGbp amountGbp={bid.car_hire_price} rate={liveRate} /></p>
                     <p><span className="font-semibold text-slate-900">Fuel deposit:</span>{" "}
-                      <DualFromEur amountEur={bid.fuel_price} rate={liveRate} /></p>
+                      <DualFromGbp amountGbp={bid.fuel_price} rate={liveRate} /></p>
                     <p><span className="font-semibold text-slate-900">Total:</span>{" "}
-                      <DualFromEur amountEur={bid.total_price} rate={liveRate} /></p>
+                      <DualFromGbp amountGbp={bid.total_price} rate={liveRate} /></p>
                     <p><span className="font-semibold text-slate-900">Insurance included:</span> {bid.full_insurance_included ? "Yes" : "No"}</p>
                     <p><span className="font-semibold text-slate-900">Full tank included:</span> {bid.full_tank_included ? "Yes" : "No"}</p>
                     {bid.notes && <p><span className="font-semibold text-slate-900">Notes:</span> {bid.notes}</p>}
