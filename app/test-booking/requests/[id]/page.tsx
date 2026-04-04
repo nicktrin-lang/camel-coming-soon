@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
 import { useCurrency } from "@/lib/useCurrency";
-import { formatEUR, getEurToGbpRateWithSource } from "@/lib/currency";
+import { getEurToGbpRateWithSource } from "@/lib/currency";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,6 +35,7 @@ type BookingData = {
   driver_vehicle: string | null; driver_notes: string | null; driver_assigned_at: string | null;
   fuel_price: number | null; car_hire_price: number | null;
   fuel_used_quarters: number | null; fuel_charge: number | null; fuel_refund: number | null;
+  currency: "EUR" | "GBP";
   collection_confirmed_by_driver: boolean; collection_confirmed_by_driver_at: string | null;
   collection_fuel_level_driver: string | null;
   return_confirmed_by_driver: boolean; return_confirmed_by_driver_at: string | null;
@@ -52,7 +53,7 @@ type BookingData = {
 type ResponseShape = { request: RequestData; bids: BidRow[]; booking: BookingData | null };
 type ConfirmSection = "collection" | "return";
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Fuel helpers ──────────────────────────────────────────────────────────────
 
 function normalizeFuel(v: unknown): string | null {
   if (!v) return null;
@@ -95,6 +96,8 @@ function FuelBar({ level }: { level: string | null }) {
   );
 }
 
+// ── General helpers ───────────────────────────────────────────────────────────
+
 function fmt(v?: string | null) {
   if (!v) return "—";
   try { return new Date(v).toLocaleString(); } catch { return v; }
@@ -132,24 +135,21 @@ const QUARTER_LABELS: Record<number, string> = {
   0: "Empty", 1: "¼ Tank", 2: "½ Tank", 3: "¾ Tank", 4: "Full Tank",
 };
 
-const gbpFmt = (v: number) =>
-  new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(v);
+// ── Currency helpers ──────────────────────────────────────────────────────────
 
-// Convert any amount to customer's display currency
-// bidCurrency = what the partner stored, customerCurrency = what customer selected
-function convertAmount(amount: number, fromCurrency: "EUR" | "GBP", toCurrency: "EUR" | "GBP", rate: number): number {
-  if (fromCurrency === toCurrency) return amount;
-  if (fromCurrency === "EUR" && toCurrency === "GBP") return Math.round(amount * rate * 100) / 100;
-  return Math.round((amount / rate) * 100) / 100; // GBP → EUR
-}
-
-function fmtForCurrency(amount: number, curr: "EUR" | "GBP"): string {
+function fmtCurr(amount: number, curr: "EUR" | "GBP"): string {
   return new Intl.NumberFormat(curr === "EUR" ? "es-ES" : "en-GB", {
     style: "currency", currency: curr,
   }).format(amount);
 }
 
-// Show primary in customer currency, secondary in bid/partner currency
+function convertAmount(amount: number, from: "EUR" | "GBP", to: "EUR" | "GBP", rate: number): number {
+  if (from === to) return amount;
+  if (from === "EUR" && to === "GBP") return Math.round(amount * rate * 100) / 100;
+  return Math.round((amount / rate) * 100) / 100;
+}
+
+// Show amount in customer's currency, with partner's original in brackets if different
 function BidAmount({ amount, bidCurrency, customerCurrency, rate }: {
   amount: number | null | undefined;
   bidCurrency: "EUR" | "GBP";
@@ -158,9 +158,8 @@ function BidAmount({ amount, bidCurrency, customerCurrency, rate }: {
 }) {
   if (amount == null || isNaN(amount)) return <span>—</span>;
   const primaryAmt = convertAmount(amount, bidCurrency, customerCurrency, rate);
-  const primaryStr = fmtForCurrency(primaryAmt, customerCurrency);
-  // Secondary is original bid currency if different
-  const secondaryStr = bidCurrency !== customerCurrency ? fmtForCurrency(amount, bidCurrency) : null;
+  const primaryStr = fmtCurr(primaryAmt, customerCurrency);
+  const secondaryStr = bidCurrency !== customerCurrency ? fmtCurr(amount, bidCurrency) : null;
   return (
     <span>
       {primaryStr}
@@ -169,51 +168,82 @@ function BidAmount({ amount, bidCurrency, customerCurrency, rate }: {
   );
 }
 
+// Show a booking amount in customer's preferred currency with other currency secondary
+function BookingAmount({ amount, storedCurrency, customerCurrency, rate }: {
+  amount: number | null | undefined;
+  storedCurrency: "EUR" | "GBP";
+  customerCurrency: "EUR" | "GBP";
+  rate: number;
+}) {
+  if (amount == null || isNaN(Number(amount))) return <span>—</span>;
+  const amt = Number(amount);
+  const primaryAmt = convertAmount(amt, storedCurrency, customerCurrency, rate);
+  const secondaryAmt = convertAmount(amt, storedCurrency, storedCurrency === "EUR" ? "GBP" : "EUR", rate);
+  return (
+    <span>
+      {fmtCurr(primaryAmt, customerCurrency)}{" "}
+      <span className="opacity-60 text-[0.85em] font-normal">
+        ({fmtCurr(secondaryAmt, storedCurrency === "EUR" ? "GBP" : "EUR")})
+      </span>
+    </span>
+  );
+}
+
 // ── Payment Summary Card ──────────────────────────────────────────────────────
 
-function CustomerPaymentSummary({ booking, rate, rateIsLive }: {
-  booking: BookingData; rate: number; rateIsLive: boolean;
+function CustomerPaymentSummary({ booking, rate, rateIsLive, customerCurrency }: {
+  booking: BookingData; rate: number; rateIsLive: boolean; customerCurrency: "EUR" | "GBP";
 }) {
-  // Values stored as GBP despite currency field saying EUR (set incorrectly at booking time)
-  const carHireGbp    = Number(booking.car_hire_price || 0);
-  const fullTankGbp   = Number(booking.fuel_price || 0);
-  const totalGbp      = Number(booking.amount || 0);
-  const fuelChargeGbp = Number(booking.fuel_charge || 0);
-  const fuelRefundGbp = Number(booking.fuel_refund || 0);
-  const perQtrGbp     = fullTankGbp / 4;
+  const storedCurr: "EUR" | "GBP" = booking.currency ?? "GBP";
 
-  const usedQuarters = booking.fuel_used_quarters ?? null;
+  const totalAmt      = Number(booking.amount || 0);
+  const carHireAmt    = Number(booking.car_hire_price || 0);
+  const fullTankAmt   = Number(booking.fuel_price || 0);
+  const fuelChargeAmt = Number(booking.fuel_charge || 0);
+  const fuelRefundAmt = Number(booking.fuel_refund || 0);
+  const perQtrAmt     = fullTankAmt / 4;
+  const usedQuarters  = booking.fuel_used_quarters ?? null;
 
   const collFuel = normalizeFuel(booking.collection_fuel_level_driver) ||
     normalizeFuel(booking.collection_fuel_level_partner);
   const retFuel = normalizeFuel(booking.return_fuel_level_driver) ||
     normalizeFuel(booking.return_fuel_level_partner);
 
+  // Convert stored amount to customer display currency
+  const toDisplay = (amt: number) => convertAmount(amt, storedCurr, customerCurrency, rate);
+  // Get opposite currency for secondary display
+  const otherCurr: "EUR" | "GBP" = customerCurrency === "GBP" ? "EUR" : "GBP";
+  const toOther = (amt: number) => convertAmount(amt, storedCurr, otherCurr, rate);
+
+  const primary = (amt: number) => fmtCurr(toDisplay(amt), customerCurrency);
+  const secondary = (amt: number) => `(${fmtCurr(toOther(amt), otherCurr)})`;
+
+  const gbpStr = (v: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(v);
+
   return (
     <div className="rounded-3xl border border-[#003768]/20 bg-[#003768] p-8 text-white shadow-[0_18px_45px_rgba(0,0,0,0.18)]">
-
-      {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Your Payment Summary</h2>
         <span className="rounded-full bg-green-400 px-3 py-1 text-xs font-bold text-green-900">Finalised</span>
       </div>
 
-      {/* Total paid at booking */}
+      {/* Total */}
       <div className="mt-6 rounded-2xl bg-white/10 p-5">
         <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Total you paid at booking</p>
         <p className="mt-1 text-4xl font-black">
-          <DualFromGbp amountGbp={totalGbp} rate={rate} />
+          {primary(totalAmt)}{" "}
+          <span className="text-2xl font-normal opacity-60">{secondary(totalAmt)}</span>
         </p>
-        <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-white/70">
+        <div className="mt-3 grid grid-cols-2 gap-2">
           <div className="rounded-xl bg-white/10 px-3 py-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-white/50">Car hire</p>
-            <p className="mt-0.5 font-bold text-white">{gbpFmt(carHireGbp)}</p>
-            <p className="text-xs text-white/50">({formatEUR(Math.round(carHireGbp / rate * 100) / 100)})</p>
+            <p className="mt-0.5 font-bold text-white">{primary(carHireAmt)}</p>
+            <p className="text-xs text-white/50">{secondary(carHireAmt)}</p>
           </div>
           <div className="rounded-xl bg-white/10 px-3 py-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-white/50">Full tank deposit</p>
-            <p className="mt-0.5 font-bold text-white">{gbpFmt(fullTankGbp)}</p>
-            <p className="text-xs text-white/50">({formatEUR(Math.round(fullTankGbp / rate * 100) / 100)})</p>
+            <p className="mt-0.5 font-bold text-white">{primary(fullTankAmt)}</p>
+            <p className="text-xs text-white/50">{secondary(fullTankAmt)}</p>
           </div>
         </div>
       </div>
@@ -236,18 +266,19 @@ function CustomerPaymentSummary({ booking, rate, rateIsLive }: {
             {usedQuarters !== null ? QUARTER_LABELS[usedQuarters] ?? `${usedQuarters}/4` : "—"}
           </p>
           <p className="mt-1 text-xs text-white/60">
-            {gbpFmt(perQtrGbp)}{" "}
-            <span className="text-white/40">({formatEUR(Math.round(perQtrGbp / rate * 100) / 100)})</span> per quarter
+            {primary(perQtrAmt)}{" "}
+            <span className="text-white/40">{secondary(perQtrAmt)}</span> per quarter
           </p>
         </div>
       </div>
 
-      {/* Fuel charge + refund — both stored GBP */}
+      {/* Fuel charge + refund */}
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl bg-[#ff7a00]/20 border border-[#ff7a00]/40 p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/70">You pay for fuel</p>
           <p className="mt-2 text-4xl font-black">
-            <DualFromGbp amountGbp={fuelChargeGbp} rate={rate} />
+            {primary(fuelChargeAmt)}{" "}
+            <span className="text-2xl font-normal opacity-60">{secondary(fuelChargeAmt)}</span>
           </p>
           <p className="mt-1 text-sm text-white/60">
             {usedQuarters ?? "—"} quarter{usedQuarters !== 1 ? "s" : ""} used
@@ -256,18 +287,19 @@ function CustomerPaymentSummary({ booking, rate, rateIsLive }: {
         <div className="rounded-2xl bg-green-500/20 border border-green-400/40 p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Your refund</p>
           <p className="mt-2 text-4xl font-black">
-            <DualFromGbp amountGbp={fuelRefundGbp} rate={rate} />
+            {primary(fuelRefundAmt)}{" "}
+            <span className="text-2xl font-normal opacity-60">{secondary(fuelRefundAmt)}</span>
           </p>
           <p className="mt-1 text-sm text-white/60">Unused fuel returned to you</p>
         </div>
       </div>
 
-      {/* Exchange rate — shown once */}
+      {/* Rate badge */}
       <div className={`mt-5 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-base font-bold ${
         rateIsLive ? "bg-green-400/20 text-green-200" : "bg-white/10 text-white/70"
       }`}>
         <span className={`h-2.5 w-2.5 rounded-full ${rateIsLive ? "bg-green-400" : "bg-white/40"}`} />
-        1€ = {gbpFmt(rate)}{rateIsLive ? " · Live rate (frankfurter.app)" : ""}
+        1€ = {gbpStr(rate)}{rateIsLive ? " · Live rate (frankfurter.app)" : ""}
       </div>
     </div>
   );
@@ -473,6 +505,7 @@ export default function TestBookingRequestDetailPage({
   );
 
   const bk = data.booking;
+  const bookingStoredCurr: "EUR" | "GBP" = bk?.currency ?? "GBP";
 
   const collectionLocked = !!bk?.collection_confirmed_by_driver &&
     !!bk?.collection_confirmed_by_customer &&
@@ -539,10 +572,12 @@ export default function TestBookingRequestDetailPage({
               <p><span className="font-semibold text-slate-900">Company phone:</span> {bk.company_phone || "—"}</p>
               <p>
                 <span className="font-semibold text-slate-900">Price:</span>{" "}
-                {currency === "GBP"
-                  ? <DualFromGbp amountGbp={bk.amount != null ? Number(bk.amount) : null} rate={liveRate} />
-                  : <DualFromEur amountEur={bk.amount != null ? Number(bk.amount) : null} rate={liveRate} />
-                }
+                <BookingAmount
+                  amount={bk.amount}
+                  storedCurrency={bookingStoredCurr}
+                  customerCurrency={currency}
+                  rate={liveRate}
+                />
               </p>
               <p><span className="font-semibold text-slate-900">Driver:</span> {bk.driver_name || "—"}</p>
               <p><span className="font-semibold text-slate-900">Driver phone:</span> {bk.driver_phone || "—"}</p>
@@ -551,12 +586,17 @@ export default function TestBookingRequestDetailPage({
             </div>
           </div>
 
-          {/* Payment summary — shown when both stages locked */}
+          {/* Payment summary */}
           {collectionLocked && returnLocked && bk.fuel_charge !== null && (
-            <CustomerPaymentSummary booking={bk} rate={liveRate} rateIsLive={rateIsLive} />
+            <CustomerPaymentSummary
+              booking={bk}
+              rate={liveRate}
+              rateIsLive={rateIsLive}
+              customerCurrency={currency}
+            />
           )}
 
-          {/* Fuel confirmation — shown until both stages locked */}
+          {/* Fuel confirmation */}
           {(!collectionLocked || !returnLocked) && (
             <div className="grid gap-6 xl:grid-cols-2">
               <FuelConfirmCard
