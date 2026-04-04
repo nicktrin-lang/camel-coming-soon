@@ -1,10 +1,8 @@
 "use client";
-
 /**
  * Client-side currency hook for the customer booking site
- * Fetches live EUR/GBP rate and provides formatting helpers
+ * Fetches live EUR/GBP rate via our own API proxy to avoid CORS issues
  */
-
 import { useState, useEffect, useCallback } from "react";
 import type { Currency } from "@/lib/currency";
 import { formatEUR, formatGBP } from "@/lib/currency";
@@ -14,7 +12,8 @@ const STORAGE_KEY = "camel_currency_pref";
 type UseCurrencyReturn = {
   currency: Currency;
   setCurrency: (c: Currency) => void;
-  rate: number | null;        // EUR → GBP rate
+  rate: number | null;
+  rateIsLive: boolean;
   loading: boolean;
   fmt: (amountEur: number | null | undefined) => string;
   fmtEur: (amount: number | null | undefined) => string;
@@ -25,6 +24,7 @@ type UseCurrencyReturn = {
 export function useCurrency(): UseCurrencyReturn {
   const [currency, setCurrencyState] = useState<Currency>("EUR");
   const [rate, setRate] = useState<number | null>(null);
+  const [rateIsLive, setRateIsLive] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Load saved preference
@@ -35,18 +35,24 @@ export function useCurrency(): UseCurrencyReturn {
     } catch {}
   }, []);
 
-  // Fetch live rate
+  // Fetch live rate via our proxy (avoids CORS)
   useEffect(() => {
     let mounted = true;
     async function fetchRate() {
       setLoading(true);
       try {
-        const res = await fetch("https://api.frankfurter.app/latest?from=EUR&to=GBP");
+        const res = await fetch("/api/currency/rate", { cache: "no-store" });
         const data = await res.json();
-        const r = Number(data?.rates?.GBP);
-        if (mounted && r && !isNaN(r)) setRate(r);
+        const r = Number(data?.rate);
+        if (mounted && r && !isNaN(r)) {
+          setRate(r);
+          setRateIsLive(!!data?.live);
+        }
       } catch {
-        if (mounted) setRate(0.85); // fallback
+        if (mounted) {
+          setRate(0.85);
+          setRateIsLive(false);
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -75,6 +81,7 @@ export function useCurrency(): UseCurrencyReturn {
     currency,
     setCurrency,
     rate,
+    rateIsLive,
     loading,
     fmt,
     fmtEur: formatEUR,

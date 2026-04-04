@@ -1,10 +1,9 @@
 "use client";
-
 import { useCurrency } from "@/lib/useCurrency";
 import type { Currency } from "@/lib/currency";
 
 export default function CurrencySelector() {
-  const { currency, setCurrency, rate, loading } = useCurrency();
+  const { currency, setCurrency, rate, rateIsLive, loading } = useCurrency();
 
   return (
     <div className="flex items-center gap-2">
@@ -25,8 +24,10 @@ export default function CurrencySelector() {
           </button>
         ))}
       </div>
-      {rate && !loading && (
-        <span className="text-xs text-white/50 hidden md:block">
+      {/* Only show rate when live — hide completely if fallback or still loading */}
+      {!loading && rate && rateIsLive && (
+        <span className="text-xs text-white/70 hidden md:inline-flex items-center gap-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
           1€ = £{rate.toFixed(4)}
         </span>
       )}
