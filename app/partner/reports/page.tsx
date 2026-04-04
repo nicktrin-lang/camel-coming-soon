@@ -163,16 +163,19 @@ function downloadBlob(blob: Blob, filename: string) {
   document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
-// ── Currency Section Component (needs useState so must be its own component) ──
+// ── Currency Section — own component so useState works correctly ───────────────
 
-function CurrencySection({ curr, t, currBookings }: {
-  curr: Currency;
-  t: { total: number; carHire: number; fuelDeposit: number; fuelCharge: number; fuelRefund: number; count: number; completed: number };
-  currBookings: BookingRow[];
+type CurrencyTotals = {
+  total: number; carHire: number; fuelDeposit: number;
+  fuelCharge: number; fuelRefund: number; count: number; completed: number;
+};
+
+function CurrencySection({ curr, t, bookings }: {
+  curr: Currency; t: CurrencyTotals; bookings: BookingRow[];
 }) {
   const [showAll, setShowAll] = useState(false);
   const { symbol } = CURRENCY_META[curr];
-  const visibleBookings = showAll ? currBookings : currBookings.slice(0, 10);
+  const visible = showAll ? bookings : bookings.slice(0, 10);
 
   return (
     <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
@@ -218,9 +221,9 @@ function CurrencySection({ curr, t, currBookings }: {
             </tr>
           </thead>
           <tbody className="divide-y divide-black/5">
-            {visibleBookings.map(b => {
+            {visible.map(b => {
               const usedQ = b.fuel_used_quarters;
-              const bNetRevenue = Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0);
+              const netRev = Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0);
               return (
                 <tr key={b.id} className="hover:bg-[#f3f8ff]">
                   <td className="px-4 py-3 font-semibold text-[#003768]">{b.job_number || "—"}</td>
@@ -242,7 +245,7 @@ function CurrencySection({ curr, t, currBookings }: {
                     {b.fuel_refund !== null ? fmtAmt(b.fuel_refund, curr) : "—"}
                   </td>
                   <td className="px-4 py-3 font-bold text-[#003768]">{fmtAmt(b.amount, curr)}</td>
-                  <td className="px-4 py-3 font-bold text-green-700">{fmtCurr(bNetRevenue, curr)}</td>
+                  <td className="px-4 py-3 font-bold text-green-700">{fmtCurr(netRev, curr)}</td>
                 </tr>
               );
             })}
@@ -250,15 +253,17 @@ function CurrencySection({ curr, t, currBookings }: {
         </table>
       </div>
 
-      {currBookings.length > 10 && (
+      {bookings.length > 10 && (
         <button type="button" onClick={() => setShowAll(s => !s)}
           className="mt-3 w-full rounded-2xl border border-black/10 bg-slate-50 py-2.5 text-sm font-semibold text-[#003768] hover:bg-slate-100">
-          {showAll ? "▲ Show less" : `▼ Show all ${currBookings.length} bookings`}
+          {showAll ? "▲ Show less" : `▼ Show all ${bookings.length} bookings`}
         </button>
       )}
     </div>
   );
 }
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function PartnerReportsPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
@@ -299,7 +304,7 @@ export default function PartnerReportsPage() {
   const completedBookings = filteredBookings.filter(r => String(r.booking_status || "").toLowerCase() === "completed");
 
   const revenuesByCurrency = useMemo(() => {
-    const t: Record<Currency, { total: number; carHire: number; fuelDeposit: number; fuelCharge: number; fuelRefund: number; count: number; completed: number }> = {
+    const t: Record<Currency, CurrencyTotals> = {
       EUR: { total: 0, carHire: 0, fuelDeposit: 0, fuelCharge: 0, fuelRefund: 0, count: 0, completed: 0 },
       GBP: { total: 0, carHire: 0, fuelDeposit: 0, fuelCharge: 0, fuelRefund: 0, count: 0, completed: 0 },
       USD: { total: 0, carHire: 0, fuelDeposit: 0, fuelCharge: 0, fuelRefund: 0, count: 0, completed: 0 },
@@ -320,7 +325,6 @@ export default function PartnerReportsPage() {
 
   const currentMonthKey = getCurrentMonthKey();
   const previousMonthKey = getPreviousMonthKey();
-
   const bidsSubmitted = filteredRequests.filter(r =>
     ["bid_submitted", "bid_successful", "bid_unsuccessful"].includes(String(r.status || "").toLowerCase())
   ).length;
@@ -355,37 +359,25 @@ export default function PartnerReportsPage() {
 
     const fuelRows = filteredBookings.map(b => {
       const usedQ = b.fuel_used_quarters;
-      // Net revenue = car hire + fuel charge (fuel charge is what partner keeps from fuel)
       const netRevenue = Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0);
       return [
-        b.job_number || "",
-        b.customer_name || "",
-        b.customer_email || "",
-        b.customer_phone || "",
-        b.pickup_address || "",
-        b.dropoff_address || "",
-        fmtDate(b.pickup_at),
-        fmtDate(b.dropoff_at),
-        b.vehicle_category_name || "",
-        b.driver_name || "",
-        b.driver_vehicle || "",
+        b.job_number || "", b.customer_name || "", b.customer_email || "", b.customer_phone || "",
+        b.pickup_address || "", b.dropoff_address || "",
+        fmtDate(b.pickup_at), fmtDate(b.dropoff_at),
+        b.vehicle_category_name || "", b.driver_name || "", b.driver_vehicle || "",
         b.currency || "EUR",
-        Number(b.car_hire_price ?? 0),
-        Number(b.fuel_price ?? 0),
+        Number(b.car_hire_price ?? 0), Number(b.fuel_price ?? 0),
         b.collection_fuel_level_driver || b.collection_fuel_level_partner || "—",
         b.collection_fuel_level_partner || "—",
         b.return_fuel_level_driver || b.return_fuel_level_partner || "—",
         b.return_fuel_level_partner || "—",
         usedQ !== null && usedQ !== undefined ? usedQ : "—",
         usedQ !== null && usedQ !== undefined ? (QUARTER_LABELS[usedQ] ?? `${usedQ}/4`) : "—",
-        Number(b.fuel_charge ?? 0),
-        Number(b.fuel_refund ?? 0),
-        Number(b.amount ?? 0),
-        netRevenue,
+        Number(b.fuel_charge ?? 0), Number(b.fuel_refund ?? 0),
+        Number(b.amount ?? 0), netRevenue,
         b.collection_confirmed_by_customer ? "Yes" : "No",
         b.return_confirmed_by_customer ? "Yes" : "No",
-        b.booking_status || "",
-        fmtDate(b.created_at),
+        b.booking_status || "", fmtDate(b.created_at),
       ];
     });
 
@@ -451,12 +443,6 @@ export default function PartnerReportsPage() {
               <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
                 className="mt-1 w-full rounded-xl border border-black/10 p-3 text-black" />
             </div>
-            {currBookings.length > 10 && (
-              <button type="button" onClick={() => setShowAll(s => !s)}
-                className="mt-3 w-full rounded-2xl border border-black/10 bg-slate-50 py-2.5 text-sm font-semibold text-[#003768] hover:bg-slate-100">
-                {showAll ? "Show less" : `Show all ${currBookings.length} bookings`}
-              </button>
-            )}
             <div>
               <label className="text-sm font-medium text-[#003768]">Date to</label>
               <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
@@ -518,92 +504,12 @@ export default function PartnerReportsPage() {
         ))}
       </div>
 
-      {/* Per-currency revenue + fuel reconciliation */}
+      {/* Per-currency sections — max 10 rows each with show more */}
       {(["EUR", "GBP", "USD"] as Currency[]).map(curr => {
         const t = revenuesByCurrency[curr];
         if (t.count === 0) return null;
-        const { symbol } = CURRENCY_META[curr];
         const currBookings = filteredBookings.filter(b => (b.currency ?? "EUR") === curr);
-        const [showAll, setShowAll] = useState(false);
-        const visibleBookings = showAll ? currBookings : currBookings.slice(0, 10);
-        return (
-          <div key={curr} className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-            <div className="flex items-center gap-3">
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#003768]/10 px-3 py-1 text-sm font-bold text-[#003768]">
-                {symbol}
-              </span>
-              <h2 className="text-xl font-semibold text-[#003768]">Revenue &amp; Fuel Reconciliation</h2>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-              {[
-                { label: "Total Bookings", value: t.count, isMoney: false },
-                { label: "Completed", value: t.completed, isMoney: false },
-                { label: "Total Revenue", value: t.total, isMoney: true },
-                { label: "Car Hire Revenue", value: t.carHire, isMoney: true },
-                { label: "Fuel Charged to Customers", value: t.fuelCharge, isMoney: true },
-                { label: "Net Revenue to Partner", value: t.carHire + t.fuelCharge, isMoney: true },
-              ].map(({ label: lbl, value, isMoney }) => (
-                <div key={lbl} className="rounded-2xl border border-black/5 bg-slate-50 p-4">
-                  <p className="text-xs font-medium text-slate-500">{lbl}</p>
-                  <p className="mt-1 text-lg font-semibold text-[#003768]">
-                    {isMoney ? fmtCurr(value as number, curr) : value}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-4 overflow-x-auto rounded-2xl border border-black/10">
-              <table className="min-w-full text-sm">
-                <thead className="bg-[#f3f8ff] text-left text-[#003768]">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold">Job</th>
-                    <th className="px-4 py-3 font-semibold">Customer</th>
-                    <th className="px-4 py-3 font-semibold">Status</th>
-                    <th className="px-4 py-3 font-semibold">Car Hire</th>
-                    <th className="px-4 py-3 font-semibold">Fuel Deposit</th>
-                    <th className="px-4 py-3 font-semibold">Fuel Used</th>
-                    <th className="px-4 py-3 font-semibold">Fuel Charge</th>
-                    <th className="px-4 py-3 font-semibold">Fuel Refund</th>
-                    <th className="px-4 py-3 font-semibold">Total</th>
-                    <th className="px-4 py-3 font-semibold">Net Revenue</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-black/5">
-                  {visibleBookings.map(b => {
-                    const usedQ = b.fuel_used_quarters;
-                    // Net revenue to partner = car hire + fuel charge (refund goes back to customer)
-                    const bNetRevenue = Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0);
-                    return (
-                      <tr key={b.id} className="hover:bg-[#f3f8ff]">
-                        <td className="px-4 py-3 font-semibold text-[#003768]">{b.job_number || "—"}</td>
-                        <td className="px-4 py-3 text-slate-700">{b.customer_name || "—"}</td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${statusPillClasses(b.booking_status)}`}>
-                            {String(b.booking_status || "—").replaceAll("_", " ")}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-slate-700">{fmtAmt(b.car_hire_price, curr)}</td>
-                        <td className="px-4 py-3 text-slate-700">{fmtAmt(b.fuel_price, curr)}</td>
-                        <td className="px-4 py-3 text-slate-700">
-                          {usedQ !== null && usedQ !== undefined ? (QUARTER_LABELS[usedQ] ?? `${usedQ}/4`) : "—"}
-                        </td>
-                        <td className="px-4 py-3 font-semibold text-orange-700">
-                          {b.fuel_charge !== null ? fmtAmt(b.fuel_charge, curr) : "—"}
-                        </td>
-                        <td className="px-4 py-3 font-semibold text-green-700">
-                          {b.fuel_refund !== null ? fmtAmt(b.fuel_refund, curr) : "—"}
-                        </td>
-                        <td className="px-4 py-3 font-bold text-[#003768]">{fmtAmt(b.amount, curr)}</td>
-                        <td className="px-4 py-3 font-bold text-green-700">{fmtCurr(bNetRevenue, curr)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        );
+        return <CurrencySection key={curr} curr={curr} t={t} bookings={currBookings} />;
       })}
 
       {/* Vehicle breakdown */}
