@@ -6,7 +6,7 @@
  * - Live exchange rates from frankfurter.app (no API key required)
  * - Rates are cached for 1 hour to avoid hammering the API
  */
-export type Currency = "EUR" | "GBP";
+export type Currency = "EUR" | "GBP" | "USD";
 
 // ── Rate cache ────────────────────────────────────────────────────────────────
 let cachedRate: number | null = null;

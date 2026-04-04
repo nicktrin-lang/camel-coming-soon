@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import { useRouter } from "next/navigation";
+import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
+
+type Currency = "EUR" | "GBP" | "USD";
 
 type BookingRow = {
   id: string;
@@ -12,12 +13,15 @@ type BookingRow = {
   partner_company_name: string | null;
   booking_status: string | null;
   amount: number | string | null;
+  currency: Currency | null;
   created_at: string | null;
   job_number: string | null;
   pickup_address: string | null;
   dropoff_address: string | null;
   pickup_at: string | null;
   vehicle_category_name: string | null;
+  customer_name: string | null;
+  customer_phone: string | null;
 };
 
 async function safeJson(res: Response): Promise<any> {
@@ -26,8 +30,12 @@ async function safeJson(res: Response): Promise<any> {
   try { return JSON.parse(text); } catch { return { _raw: text }; }
 }
 
-function fmtCurrency(value: number) {
-  return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 }).format(value);
+function fmtAmount(amount: number | string | null, currency: Currency | null) {
+  const amt = Number(amount || 0);
+  if (!isFinite(amt)) return "—";
+  const curr = currency ?? "EUR";
+  const locale = curr === "EUR" ? "es-ES" : curr === "GBP" ? "en-GB" : "en-US";
+  return new Intl.NumberFormat(locale, { style: "currency", currency: curr, maximumFractionDigits: 0 }).format(amt);
 }
 
 function fmtDateTime(value?: string | null) {
@@ -37,7 +45,7 @@ function fmtDateTime(value?: string | null) {
 
 function statusPillClasses(status?: string | null) {
   switch (String(status || "").toLowerCase()) {
-    case "confirmed": case "completed": case "approved": return "border-green-200 bg-green-50 text-green-700";
+    case "confirmed": case "completed": return "border-green-200 bg-green-50 text-green-700";
     case "collected": case "returned": return "border-blue-200 bg-blue-50 text-blue-700";
     case "driver_assigned": case "en_route": case "arrived": return "border-amber-200 bg-amber-50 text-amber-800";
     case "cancelled": return "border-red-200 bg-red-50 text-red-700";
@@ -68,6 +76,16 @@ function matchesDateRange(value: string | null | undefined, from: string, to: st
   return true;
 }
 
+// Revenue by currency
+function revenuesByCurrency(rows: BookingRow[]): Record<Currency, number> {
+  const totals: Record<Currency, number> = { EUR: 0, GBP: 0, USD: 0 };
+  for (const r of rows) {
+    const curr: Currency = (r.currency as Currency) ?? "EUR";
+    totals[curr] += isFinite(Number(r.amount)) ? Number(r.amount) : 0;
+  }
+  return totals;
+}
+
 export default function AdminBookingsPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const router = useRouter();
@@ -81,16 +99,13 @@ export default function AdminBookingsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
 
   async function load() {
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
     try {
       const { data: userData, error: userErr } = await supabase.auth.getUser();
       if (userErr || !userData?.user) { router.replace("/partner/login?reason=not_authorized"); return; }
-
       const adminRes = await fetch("/api/admin/is-admin", { cache: "no-store", credentials: "include" });
       const adminJson = await safeJson(adminRes);
       if (!adminJson?.isAdmin) { router.replace("/partner/login?reason=not_authorized"); return; }
-
       const res = await fetch("/api/partner/bookings", { cache: "no-store", credentials: "include" });
       const json = await safeJson(res);
       if (!res.ok) throw new Error(json?.error || "Failed to load bookings.");
@@ -98,30 +113,35 @@ export default function AdminBookingsPage() {
     } catch (e: any) {
       setError(e?.message || "Failed to load admin bookings.");
       setBookings([]);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }
 
   useEffect(() => { load(); }, []);
 
   const normalizedSearch = search.trim().toLowerCase();
 
-  const filtered = bookings.filter((row) => {
-    if (!matchesDateRange(row.created_at, dateFrom, dateTo)) return false;
+  const filtered = bookings.filter(row => {
+    if (dateFrom || dateTo) {
+      if (!matchesDateRange(row.created_at, dateFrom, dateTo)) return false;
+    }
     if (statusFilter !== "all" && String(row.booking_status || "").toLowerCase() !== statusFilter) return false;
     if (!normalizedSearch) return true;
-    return [row.job_number, row.partner_company_name, row.pickup_address, row.dropoff_address, row.vehicle_category_name, row.booking_status, row.amount]
+    return [row.job_number, row.partner_company_name, row.pickup_address,
+      row.dropoff_address, row.vehicle_category_name, row.booking_status, row.amount, row.customer_name]
       .map(v => String(v || "").toLowerCase()).join(" ").includes(normalizedSearch);
   });
 
-  const sorted = [...filtered].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+  const sorted = [...filtered].sort((a, b) =>
+    new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+  );
 
-  const totalRevenue = filtered.reduce((sum, r) => sum + (isFinite(Number(r.amount)) ? Number(r.amount) : 0), 0);
   const completed = filtered.filter(r => String(r.booking_status || "").toLowerCase() === "completed").length;
   const confirmed = filtered.filter(r => String(r.booking_status || "").toLowerCase() === "confirmed").length;
+  const revenues = revenuesByCurrency(filtered);
 
-  const statusOptions = Array.from(new Set(bookings.map(r => String(r.booking_status || "").toLowerCase()).filter(Boolean))).sort();
+  const statusOptions = Array.from(new Set(
+    bookings.map(r => String(r.booking_status || "").toLowerCase()).filter(Boolean)
+  )).sort();
 
   if (loading) return (
     <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
@@ -144,7 +164,7 @@ export default function AdminBookingsPage() {
             <div className="xl:min-w-[220px]">
               <label className="text-sm font-medium text-[#003768]">Search</label>
               <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Job, partner, address…"
+                placeholder="Job, partner, customer…"
                 className="mt-1 w-full rounded-xl border border-black/10 p-3 text-sm text-black outline-none focus:border-[#0f4f8a]" />
             </div>
             <div>
@@ -180,18 +200,30 @@ export default function AdminBookingsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
         {[
           ["Total Bookings", filtered.length],
           ["Confirmed", confirmed],
           ["Completed", completed],
-          ["Revenue", fmtCurrency(totalRevenue)],
         ].map(([label, value]) => (
           <div key={String(label)} className="rounded-3xl border border-black/5 bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
             <p className="text-sm font-medium text-slate-500">{label}</p>
             <p className="mt-2 text-2xl font-semibold text-[#003768]">{value}</p>
           </div>
         ))}
+        {/* Revenue split by currency */}
+        {(["EUR", "GBP", "USD"] as Currency[]).map(curr => {
+          const amt = revenues[curr];
+          if (amt === 0) return null;
+          const locale = curr === "EUR" ? "es-ES" : curr === "GBP" ? "en-GB" : "en-US";
+          const formatted = new Intl.NumberFormat(locale, { style: "currency", currency: curr, maximumFractionDigits: 0 }).format(amt);
+          return (
+            <div key={curr} className="rounded-3xl border border-black/5 bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+              <p className="text-sm font-medium text-slate-500">Revenue ({curr})</p>
+              <p className="mt-2 text-2xl font-semibold text-[#003768]">{formatted}</p>
+            </div>
+          );
+        })}
       </div>
 
       {/* Table */}
@@ -205,6 +237,7 @@ export default function AdminBookingsPage() {
                   <th className="px-4 py-3 text-left font-semibold">Created</th>
                   <th className="px-4 py-3 text-left font-semibold">Job No.</th>
                   <th className="px-4 py-3 text-left font-semibold">Partner</th>
+                  <th className="px-4 py-3 text-left font-semibold">Customer</th>
                   <th className="px-4 py-3 text-left font-semibold">Pickup</th>
                   <th className="px-4 py-3 text-left font-semibold">Dropoff</th>
                   <th className="px-4 py-3 text-left font-semibold">Pickup At</th>
@@ -215,30 +248,32 @@ export default function AdminBookingsPage() {
               </thead>
               <tbody className="divide-y divide-black/5">
                 {sorted.length === 0 ? (
-                  <tr><td colSpan={9} className="px-4 py-4 text-slate-600">No bookings found.</td></tr>
-                ) : (
-                  sorted.map((row) => (
-                    <tr
-                      key={row.id}
-                      onClick={() => router.push(`/admin/bookings/${row.id}`)}
-                      className="cursor-pointer hover:bg-[#f3f8ff] transition-colors"
-                    >
-                      <td className="px-4 py-4 text-slate-700">{fmtDateTime(row.created_at)}</td>
-                      <td className="px-4 py-4 font-semibold text-[#003768]">{row.job_number || "—"}</td>
-                      <td className="px-4 py-4 text-slate-700">{row.partner_company_name || "—"}</td>
-                      <td className="px-4 py-4 text-slate-700 max-w-[200px] truncate">{row.pickup_address || "—"}</td>
-                      <td className="px-4 py-4 text-slate-700 max-w-[200px] truncate">{row.dropoff_address || "—"}</td>
-                      <td className="px-4 py-4 text-slate-700">{fmtDateTime(row.pickup_at)}</td>
-                      <td className="px-4 py-4 text-slate-700">{row.vehicle_category_name || "—"}</td>
-                      <td className="px-4 py-4">
-                        <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusPillClasses(row.booking_status)}`}>
-                          {fmtStatus(row.booking_status)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 font-semibold text-slate-900">{fmtCurrency(Number(row.amount || 0))}</td>
-                    </tr>
-                  ))
-                )}
+                  <tr><td colSpan={10} className="px-4 py-4 text-slate-600">No bookings found.</td></tr>
+                ) : sorted.map(row => (
+                  <tr key={row.id}
+                    onClick={() => router.push(`/admin/bookings/${row.id}`)}
+                    className="cursor-pointer hover:bg-[#f3f8ff] transition-colors">
+                    <td className="px-4 py-4 text-slate-700">{fmtDateTime(row.created_at)}</td>
+                    <td className="px-4 py-4 font-semibold text-[#003768]">{row.job_number || "—"}</td>
+                    <td className="px-4 py-4 text-slate-700">{row.partner_company_name || "—"}</td>
+                    <td className="px-4 py-4 text-slate-700">
+                      <div>{row.customer_name || "—"}</div>
+                      <div className="text-xs text-slate-400">{row.customer_phone || ""}</div>
+                    </td>
+                    <td className="px-4 py-4 text-slate-700 max-w-[180px] truncate">{row.pickup_address || "—"}</td>
+                    <td className="px-4 py-4 text-slate-700 max-w-[180px] truncate">{row.dropoff_address || "—"}</td>
+                    <td className="px-4 py-4 text-slate-700">{fmtDateTime(row.pickup_at)}</td>
+                    <td className="px-4 py-4 text-slate-700">{row.vehicle_category_name || "—"}</td>
+                    <td className="px-4 py-4">
+                      <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusPillClasses(row.booking_status)}`}>
+                        {fmtStatus(row.booking_status)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 font-semibold text-slate-900">
+                      {fmtAmount(row.amount, row.currency)}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

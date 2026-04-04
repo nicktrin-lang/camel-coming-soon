@@ -8,7 +8,7 @@ import { triggerPartnerLiveRefresh } from "@/lib/portal/triggerPartnerLiveRefres
 
 const MapPicker = dynamic(() => import("./MapPicker"), { ssr: false });
 
-type Currency = "EUR" | "GBP";
+type Currency = "EUR" | "GBP" | "USD";
 
 type ProfileState = {
   company_name: string;
@@ -60,9 +60,12 @@ async function safeJson(res: Response): Promise<any> {
 }
 
 function inferCurrencyFromCountry(country: string): Currency {
-  const gbpCountries = ["united kingdom", "uk", "england", "scotland", "wales",
-    "northern ireland", "great britain", "gibraltar"];
-  return gbpCountries.includes(country.toLowerCase().trim()) ? "GBP" : "EUR";
+  const c = country.toLowerCase().trim();
+  const gbp = ["united kingdom","uk","england","scotland","wales","northern ireland","great britain","gibraltar"];
+  const usd = ["united states","usa","us","america"];
+  if (gbp.includes(c)) return "GBP";
+  if (usd.includes(c)) return "USD";
+  return "EUR";
 }
 
 export default function PartnerProfilePage() {
@@ -318,7 +321,7 @@ export default function PartnerProfilePage() {
             <label className="text-sm font-medium text-[#003768]">Default currency</label>
             <p className="mt-0.5 text-xs text-slate-500">The currency you bid in. Auto-detected from your country.</p>
             <div className="mt-2 flex gap-3">
-              {(["EUR", "GBP"] as Currency[]).map(c => (
+              {(["EUR", "GBP", "USD"] as Currency[]).map(c => (
                 <button key={c} type="button"
                   onClick={() => updateField("default_currency", c)}
                   className={[
@@ -327,7 +330,7 @@ export default function PartnerProfilePage() {
                       ? "border-[#003768] bg-[#003768] text-white"
                       : "border-black/10 bg-white text-slate-700 hover:border-[#003768]/40"
                   ].join(" ")}>
-                  {c === "EUR" ? "€ Euro" : "£ British Pound"}
+                  {c === "EUR" ? "€ Euro" : c === "GBP" ? "£ British Pound" : "$ US Dollar"}
                 </button>
               ))}
             </div>

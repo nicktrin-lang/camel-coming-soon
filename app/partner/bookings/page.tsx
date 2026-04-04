@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 
 type BookingRow = {
   id: string; request_id: string; partner_user_id: string; winning_bid_id: string;
-  booking_status: string; amount: number | null; notes: string | null;
-  created_at: string; job_number: number | null;
+  booking_status: string; amount: number | null; currency: "EUR" | "GBP" | "USD" | null;
+  notes: string | null; created_at: string; job_number: number | null;
   driver_name: string | null; driver_phone: string | null;
   driver_vehicle: string | null; driver_notes: string | null; driver_assigned_at: string | null;
   partner_company_name: string | null; partner_company_phone: string | null;
@@ -44,9 +44,11 @@ function fmtDuration(m?: number | null) {
   return mins ? `${h}h ${mins}m` : `${h}h`;
 }
 
-function fmtEUR(v?: number | null) {
-  if (v == null || isNaN(v)) return "—";
-  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(v);
+function fmtAmount(amount: number | null, currency: "EUR" | "GBP" | "USD" | null) {
+  if (amount == null || isNaN(amount)) return "—";
+  const curr = currency ?? "EUR";
+  const locale = curr === "EUR" ? "es-ES" : curr === "GBP" ? "en-GB" : "en-US";
+  return new Intl.NumberFormat(locale, { style: "currency", currency: curr }).format(amount);
 }
 
 function statusPill(status?: string | null) {
@@ -68,6 +70,8 @@ function fmtStatus(s?: string | null) {
     case "collected": case "returned": return "On Hire";
     case "driver_assigned": return "Driver assigned";
     case "en_route": return "En route";
+    case "completed": return "Completed";
+    case "cancelled": return "Cancelled";
     default: return String(s||"—").replaceAll("_"," ");
   }
 }
@@ -183,7 +187,9 @@ export default function PartnerBookingsPage() {
                     <td className="px-4 py-4 text-slate-700">{fmt(row.pickup_at)}</td>
                     <td className="px-4 py-4 text-slate-700">{fmtDuration(row.journey_duration_minutes)}</td>
                     <td className="px-4 py-4 text-slate-700">{row.vehicle_category_name || "—"}</td>
-                    <td className="px-4 py-4 font-semibold text-slate-900">{fmtEUR(row.amount)}</td>
+                    <td className="px-4 py-4 font-semibold text-slate-900">
+                      {fmtAmount(row.amount, row.currency)}
+                    </td>
                     <td className="px-4 py-4 text-slate-700">{fmt(row.created_at)}</td>
                   </tr>
                 ))}

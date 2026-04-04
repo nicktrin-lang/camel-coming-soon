@@ -27,6 +27,7 @@ export async function GET() {
         winning_bid_id,
         booking_status,
         amount,
+        currency,
         notes,
         created_at,
         job_number,
@@ -106,11 +107,7 @@ export async function GET() {
     if (partnerUserIds.length > 0) {
       const { data: profileRows, error: profileErr } = await db
         .from("partner_profiles")
-        .select(`
-          user_id,
-          company_name,
-          phone
-        `)
+        .select(`user_id, company_name, phone`)
         .in("user_id", partnerUserIds);
 
       if (profileErr) {
@@ -124,8 +121,7 @@ export async function GET() {
 
     const data = rows.map((booking: any) => {
       const request = requestMap.get(String(booking.request_id)) || null;
-      const partnerProfile =
-        profileMap.get(String(booking.partner_user_id)) || null;
+      const partnerProfile = profileMap.get(String(booking.partner_user_id)) || null;
 
       return {
         id: booking.id,
@@ -134,6 +130,7 @@ export async function GET() {
         winning_bid_id: booking.winning_bid_id,
         booking_status: booking.booking_status,
         amount: booking.amount,
+        currency: booking.currency ?? "EUR",
         notes: booking.notes,
         created_at: booking.created_at,
         job_number: booking.job_number ?? request?.job_number ?? null,
