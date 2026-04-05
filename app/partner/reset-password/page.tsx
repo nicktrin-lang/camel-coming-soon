@@ -5,11 +5,12 @@ import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
-import { createAuthSupabaseClient } from "@/lib/supabase/auth-client";
+import { createAuthSupabaseClient, createCustomerAuthSupabaseClient } from "@/lib/supabase/auth-client";
 
 function PartnerResetPasswordInner() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const authClient = useMemo(() => createAuthSupabaseClient(), []);
+  const customerAuthClient = useMemo(() => createCustomerAuthSupabaseClient(), []);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -80,7 +81,9 @@ function PartnerResetPasswordInner() {
     if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
     setLoading(true); setError("");
     try {
-      const { error } = await authClient.auth.updateUser({ password });
+      const portalCookie = document.cookie.split("; ").find(r => r.startsWith("resetPortal="))?.split("=")[1] ?? null;
+      const activeClient = portalCookie === "customer" ? customerAuthClient : authClient;
+      const { error } = await activeClient.auth.updateUser({ password });
       if (error) throw error;
       setSuccess(true);
       const redirect = await getSuccessRedirect();
@@ -160,5 +163,9 @@ export default function PartnerResetPasswordPage() {
     </Suspense>
   );
 }
+
+
+
+
 
 
