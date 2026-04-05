@@ -91,7 +91,7 @@ function PartnerResetPasswordInner() {
       const { error } = await authClient.auth.updateUser({ password });
       if (error) throw error;
       setSuccess(true);
-      const redirect = await getPostResetRedirect();
+      const redirect = await getSuccessRedirect();
       setTimeout(() => router.replace(redirect), 2500);
     } catch (e: any) {
       setError(e?.message || "Failed to update password.");
