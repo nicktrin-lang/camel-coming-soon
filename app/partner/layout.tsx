@@ -40,6 +40,7 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
 
   const isPublicPartnerPage =
     pathname === "/partner/login" ||
+    pathname === "/partner/reset-password" ||
     pathname === "/partner/application-submitted" ||
     pathname === "/partner/signup" ||
     pathname.startsWith("/partner/signup/");
@@ -58,7 +59,6 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
         if (!mounted) return;
 
         if (userErr?.message === "timeout") {
-          // Auth lock timed out — clear stale locks and redirect to login
           clearStaleSupabaseLocks();
           setTimedOut(true);
           setLoading(false);
@@ -117,14 +117,9 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
           <div className="rounded-3xl border border-red-200 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
             <h2 className="text-xl font-semibold text-red-700">Session error</h2>
             <p className="mt-2 text-slate-600">Your session has a conflict. Click below to clear it and log in again.</p>
-            <button
-              type="button"
-              onClick={() => {
-                clearStaleSupabaseLocks();
-                window.location.href = "/partner/login?reason=not_signed_in";
-              }}
-              className="mt-4 rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white hover:opacity-95"
-            >
+            <button type="button"
+              onClick={() => { clearStaleSupabaseLocks(); window.location.href = "/partner/login?reason=not_signed_in"; }}
+              className="mt-4 rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white hover:opacity-95">
               Clear session & log in again
             </button>
           </div>
