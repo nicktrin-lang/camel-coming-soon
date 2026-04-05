@@ -9,7 +9,6 @@ import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 function PartnerResetPasswordInner() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -20,16 +19,19 @@ function PartnerResetPasswordInner() {
   const [sessionError, setSessionError] = useState("");
 
   useEffect(() => {
-    const code = searchParams.get("code");
-    if (!code) {
-      setSessionError("This reset link has expired or is invalid. Please request a new one.");
-      return;
-    }
-    supabase.auth.exchangeCodeForSession(code).then(({ error }: { error: any }) => {
-      console.error("exchangeCodeForSession error:", error); if (error) setSessionError("This reset link has expired or is invalid. Please request a new one.");
-      else setSessionReady(true);
-    });
-  }, [searchParams, supabase]);
+    // With implicit flow, Supabase sets the session from the URL hash automatically.
+    // Wait briefly for detectSessionInUrl to process it, then check.
+    const timer = setTimeout(() => {
+      supabase.auth.getSession().then(({ data, error }: { data: any; error: any }) => {
+        if (error || !data?.session) {
+          setSessionError("This reset link has expired or is invalid. Please request a new one.");
+        } else {
+          setSessionReady(true);
+        }
+      });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [supabase]);
 
   async function getPostResetRedirect(): Promise<string> {
     try {

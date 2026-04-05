@@ -7,7 +7,7 @@ export function createBrowserSupabaseClient() {
     {
       cookieEncoding: "base64url",
       auth: {
-        flowType: "pkce",
+        flowType: "implicit",
         detectSessionInUrl: true,
       },
     }

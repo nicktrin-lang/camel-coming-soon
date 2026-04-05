@@ -7,7 +7,7 @@ export function createCustomerBrowserClient() {
     {
       cookieEncoding: "base64url",
       auth: {
-        flowType: "pkce",
+        flowType: "implicit",
         detectSessionInUrl: true,
       },
     }

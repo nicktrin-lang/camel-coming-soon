@@ -18,13 +18,17 @@ function DriverResetPasswordInner() {
   const [sessionError, setSessionError] = useState("");
 
   useEffect(() => {
-    const code = searchParams.get("code");
-    if (!code) { setSessionError("This reset link has expired or is invalid. Please request a new one."); return; }
-    supabase.auth.exchangeCodeForSession(code).then(({ error }: { error: any }) => {
-      if (error) setSessionError("This reset link has expired or is invalid. Please request a new one.");
-      else setSessionReady(true);
-    });
-  }, [searchParams, supabase]);
+    const timer = setTimeout(() => {
+      supabase.auth.getSession().then(({ data, error }: { data: any; error: any }) => {
+        if (error || !data?.session) {
+          setSessionError("This reset link has expired or is invalid. Please request a new one.");
+        } else {
+          setSessionReady(true);
+        }
+      });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [supabase]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
