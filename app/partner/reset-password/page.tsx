@@ -26,7 +26,7 @@ function PartnerResetPasswordInner() {
       return;
     }
     supabase.auth.exchangeCodeForSession(code).then(({ error }: { error: any }) => {
-      if (error) setSessionError("This reset link has expired or is invalid. Please request a new one.");
+      console.error("exchangeCodeForSession error:", error); if (error) setSessionError("This reset link has expired or is invalid. Please request a new one.");
       else setSessionReady(true);
     });
   }, [searchParams, supabase]);
