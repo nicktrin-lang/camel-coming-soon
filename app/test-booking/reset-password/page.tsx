@@ -18,12 +18,26 @@ function CustomerResetPasswordInner() {
   const [sessionError, setSessionError] = useState("");
 
   useEffect(() => {
-    const code = searchParams.get("code");
-    if (!code) { setSessionError("Invalid or missing reset link. Please request a new one."); return; }
-    supabase.auth.exchangeCodeForSession(code).then(({ error }: { error: any }) => {
-      if (error) setSessionError("This reset link has expired or is invalid. Please request a new one.");
-      else setSessionReady(true);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") setSessionReady(true);
     });
+
+    const code = searchParams.get("code");
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code).then(({ error }: { error: any }) => {
+        if (error) setSessionError("This reset link has expired or is invalid. Please request a new one.");
+        else setSessionReady(true);
+      });
+    }
+
+    const timeout = setTimeout(() => {
+      setSessionReady(prev => {
+        if (!prev) setSessionError("This reset link has expired or is invalid. Please request a new one.");
+        return prev;
+      });
+    }, 3000);
+
+    return () => { subscription.unsubscribe(); clearTimeout(timeout); };
   }, [searchParams, supabase]);
 
   async function handleSubmit(e: React.FormEvent) {

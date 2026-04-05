@@ -20,12 +20,35 @@ function PartnerResetPasswordInner() {
   const [sessionError, setSessionError] = useState("");
 
   useEffect(() => {
-    const code = searchParams.get("code");
-    if (!code) { setSessionError("Invalid or missing reset link. Please request a new one."); return; }
-    supabase.auth.exchangeCodeForSession(code).then(({ error }: { error: any }) => {
-      if (error) setSessionError("This reset link has expired or is invalid. Please request a new one.");
-      else setSessionReady(true);
+    // Supabase PKCE recovery flow: listen for PASSWORD_RECOVERY event
+    // which fires after Supabase verifies the token from the email link
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setSessionReady(true);
+      }
     });
+
+    // Also handle ?code= param (fallback for some Supabase versions)
+    const code = searchParams.get("code");
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code).then(({ error }: { error: any }) => {
+        if (error) setSessionError("This reset link has expired or is invalid. Please request a new one.");
+        else setSessionReady(true);
+      });
+    }
+
+    // If neither fires after 3s, show error
+    const timeout = setTimeout(() => {
+      setSessionReady(prev => {
+        if (!prev) setSessionError("This reset link has expired or is invalid. Please request a new one.");
+        return prev;
+      });
+    }, 3000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, [searchParams, supabase]);
 
   async function handleSubmit(e: React.FormEvent) {
