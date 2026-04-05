@@ -39,6 +39,7 @@ export default function DriverLoginPage() {
     e.preventDefault();
     setResetLoading(true); setResetError("");
     try {
+      localStorage.setItem("resetPortal", "driver");
       const res = await fetch("/api/auth/send-reset-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -67,6 +67,10 @@ function PartnerResetPasswordInner() {
   }, [authClient, supabase]);
 
   async function getSuccessRedirect(): Promise<string> {
+    const stored = localStorage.getItem("resetPortal");
+    localStorage.removeItem("resetPortal");
+    if (stored === "driver") return "/driver/jobs";
+    if (stored === "customer") return "/test-booking/requests";
     try {
       const { data } = await authClient.auth.getUser();
       const email = data?.user?.email;

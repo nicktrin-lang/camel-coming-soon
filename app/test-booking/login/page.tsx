@@ -41,6 +41,7 @@ export default function TestBookingLoginPage() {
     e.preventDefault();
     setResetLoading(true); setResetError("");
     try {
+      localStorage.setItem("resetPortal", "customer");
       const res = await fetch("/api/auth/send-reset-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
