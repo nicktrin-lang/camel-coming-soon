@@ -72,7 +72,7 @@ function PartnerResetPasswordInner() {
     const stored = document.cookie.split("; ").find(r => r.startsWith("resetPortal="))?.split("=")[1] ?? null;
     document.cookie = "resetPortal=; domain=.camel-global.com; path=/; max-age=0";
     if (stored === "driver") return "/driver/jobs";
-    if (stored === "customer") return "/test-booking/requests";
+    if (stored === "customer") return "/test-booking/login";
     return "/partner/requests"; // default including stored === "partner"
   }
 
