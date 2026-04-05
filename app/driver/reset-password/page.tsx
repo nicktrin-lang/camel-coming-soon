@@ -1,12 +1,13 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
 function DriverResetPasswordInner() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -17,14 +18,13 @@ function DriverResetPasswordInner() {
   const [sessionError, setSessionError] = useState("");
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data, error }: { data: any; error: any }) => {
-      if (error || !data?.session) {
-        setSessionError("This reset link has expired or is invalid. Please request a new one.");
-      } else {
-        setSessionReady(true);
-      }
+    const code = searchParams.get("code");
+    if (!code) { setSessionError("This reset link has expired or is invalid. Please request a new one."); return; }
+    supabase.auth.exchangeCodeForSession(code).then(({ error }: { error: any }) => {
+      if (error) setSessionError("This reset link has expired or is invalid. Please request a new one.");
+      else setSessionReady(true);
     });
-  }, [supabase]);
+  }, [searchParams, supabase]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
