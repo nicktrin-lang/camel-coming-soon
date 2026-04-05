@@ -18,6 +18,21 @@ type Coords = {
 function CustomerMapHome() {
   const router = useRouter();
   const [pickupMode, setPickupMode] = useState<"map" | "current">("map");
+
+  useEffect(() => {
+    if (window.location.hash.includes("access_token")) {
+      const hash = window.location.hash;
+      const params = new URLSearchParams(window.location.search);
+      const portal = params.get("portal");
+      if (portal === "customer") {
+        window.location.replace("/test-booking/reset-password" + hash);
+      } else if (portal === "driver") {
+        window.location.replace("/driver/reset-password" + hash);
+      } else {
+        window.location.replace("/partner/reset-password" + hash);
+      }
+    }
+  }, []);
   const [coords, setCoords] = useState({
     lat: 51.5074,
     lng: -0.1278,
@@ -1418,4 +1433,5 @@ export default function Page() {
 
   return <PartnerMarketingHome />;
 }
+
 
