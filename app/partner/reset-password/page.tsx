@@ -23,16 +23,16 @@ function PartnerResetPasswordInner() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      authClient.auth.getSession().then(({ data, error }: { data: any; error: any }) => {
+      supabase.auth.getSession().then(({ data, error }: { data: any; error: any }) => {
         if (error || !data?.session) {
           setSessionError("This reset link has expired or is invalid. Please request a new one.");
         } else {
           setSessionReady(true);
         }
       });
-    }, 500);
+    }, 800);
     return () => clearTimeout(timer);
-  }, [authClient]);
+  }, [supabase]);
 
   async function getPostResetRedirect(): Promise<string> {
     try {
@@ -56,7 +56,7 @@ function PartnerResetPasswordInner() {
     if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
     setLoading(true); setError("");
     try {
-      const { error } = await authClient.auth.updateUser({ password });
+      const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
       setSuccess(true);
       const redirect = await getPostResetRedirect();

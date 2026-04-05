@@ -3,13 +3,10 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const code = searchParams.get("code");
+  const url = new URL(req.url);
+  const code = url.searchParams.get("code");
+  const tokenHash = url.searchParams.get("token_hash");
   const next = "/partner/reset-password";
-
-  if (!code) {
-    return NextResponse.redirect(new URL("/partner/login?error=link_expired", req.url));
-  }
 
   const cookieStore = await cookies();
 
@@ -28,12 +25,17 @@ export async function GET(req: Request) {
     }
   );
 
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
-
-  if (error) {
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (!error) return NextResponse.redirect(new URL(next, req.url));
     console.error("exchangeCodeForSession error:", JSON.stringify(error));
-    return NextResponse.redirect(new URL("/partner/login?error=link_expired", req.url));
   }
 
-  return NextResponse.redirect(new URL(next, req.url));
+  if (tokenHash) {
+    const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" });
+    if (!error) return NextResponse.redirect(new URL(next, req.url));
+    console.error("verifyOtp error:", JSON.stringify(error));
+  }
+
+  return NextResponse.redirect(new URL("/partner/login?error=link_expired", req.url));
 }
