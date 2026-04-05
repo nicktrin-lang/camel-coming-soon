@@ -21,16 +21,10 @@ async function safeJson(res: Response): Promise<any> {
   try { return JSON.parse(text); } catch { return { _raw: text }; }
 }
 
-// Clear any stale Supabase lock/session keys from localStorage
 function clearStaleSupabaseLocks() {
   try {
-    // Clear ALL Supabase storage to force a clean state
-    Object.keys(localStorage)
-      .filter(k => k.includes("sb-") || k.includes("supabase"))
-      .forEach(k => localStorage.removeItem(k));
-    Object.keys(sessionStorage)
-      .filter(k => k.includes("sb-") || k.includes("supabase"))
-      .forEach(k => sessionStorage.removeItem(k));
+    Object.keys(localStorage).filter(k => k.includes("sb-") || k.includes("supabase")).forEach(k => localStorage.removeItem(k));
+    Object.keys(sessionStorage).filter(k => k.includes("sb-") || k.includes("supabase")).forEach(k => sessionStorage.removeItem(k));
   } catch {}
 }
 
@@ -43,60 +37,57 @@ function PartnerLoginInner() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [mode, setMode] = useState<"login" | "forgot">("login");
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState("");
 
   const reason = searchParams.get("reason");
   const infoMessage = reasonMessage(reason);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    // Clear stale locks before attempting login
+    setLoading(true); setError("");
     clearStaleSupabaseLocks();
-
     try {
-      // Add a 30 second timeout to prevent infinite hang
-      const signInPromise = supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-
+      const signInPromise = supabase.auth.signInWithPassword({ email: email.trim(), password });
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("Login timed out. Please try again.")), 30000)
       );
-
       const { error: signInError } = await Promise.race([signInPromise, timeoutPromise]);
-
       if (signInError) throw signInError;
 
       let nextRole = "partner";
-
       try {
-        const meRes = await fetch("/api/admin/me", {
-          method: "GET",
-          cache: "no-store",
-          credentials: "include",
-        });
-
-        if (meRes.ok) {
-          const meJson = await safeJson(meRes);
-          nextRole = meJson?.role || "partner";
-        }
-      } catch {
-        nextRole = "partner";
-      }
+        const meRes = await fetch("/api/admin/me", { cache: "no-store", credentials: "include" });
+        if (meRes.ok) { const meJson = await safeJson(meRes); nextRole = meJson?.role || "partner"; }
+      } catch { nextRole = "partner"; }
 
       if (nextRole === "admin" || nextRole === "super_admin") {
         router.replace("/admin/approvals");
       } else {
         router.replace("/partner/requests");
       }
-
       router.refresh();
     } catch (e: any) {
       setError(e?.message || "Login failed. Please try again.");
       setLoading(false);
+    }
+  }
+
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setResetLoading(true); setResetError("");
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/partner/login`,
+      });
+      if (error) throw error;
+      setResetSent(true);
+    } catch (e: any) {
+      setResetError(e?.message || "Failed to send reset email.");
+    } finally {
+      setResetLoading(false);
     }
   }
 
@@ -112,77 +103,90 @@ function PartnerLoginInner() {
 
       <div className="mx-auto flex min-h-screen max-w-7xl justify-center px-4 pt-24 pb-10">
         <div className="mt-8 w-full max-w-2xl rounded-3xl border border-black/5 bg-white p-10 shadow-[0_18px_45px_rgba(0,0,0,0.10)]">
-          <h1 className="text-4xl font-semibold text-[#003768]">Partner Login</h1>
-          <p className="mt-3 text-lg text-slate-600">Log in to manage your profile and requests.</p>
 
-          {infoMessage && (
-            <div className="mt-8 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-              {infoMessage}
-            </div>
-          )}
+          {mode === "login" ? (
+            <>
+              <h1 className="text-4xl font-semibold text-[#003768]">Partner Login</h1>
+              <p className="mt-3 text-lg text-slate-600">Log in to manage your profile and requests.</p>
 
-          {error && (
-            <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-              {error.includes("timed out") && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    try {
-                      Object.keys(localStorage)
-                        .filter(k => k.includes("sb-") || k.includes("supabase"))
-                        .forEach(k => localStorage.removeItem(k));
-                    } catch {}
-                    window.location.reload();
-                  }}
-                  className="ml-2 underline font-semibold"
-                >
-                  Clear session & retry
-                </button>
+              {infoMessage && (
+                <div className="mt-8 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">{infoMessage}</div>
               )}
-            </div>
+              {error && (
+                <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {error}
+                  {error.includes("timed out") && (
+                    <button type="button" onClick={() => { try { Object.keys(localStorage).filter(k => k.includes("sb-") || k.includes("supabase")).forEach(k => localStorage.removeItem(k)); } catch {} window.location.reload(); }} className="ml-2 underline font-semibold">
+                      Clear session & retry
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <form onSubmit={handleLogin} className="mt-8 space-y-6">
+                <div>
+                  <label className="text-sm font-medium text-[#003768]">Email</label>
+                  <input type="email" autoComplete="email" required
+                    className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
+                    value={email} onChange={e => setEmail(e.target.value)} />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-[#003768]">Password</label>
+                    <button type="button" onClick={() => { setMode("forgot"); setError(""); setResetSent(false); }}
+                      className="text-xs font-medium text-[#005b9f] hover:underline">
+                      Forgot password?
+                    </button>
+                  </div>
+                  <input type="password" autoComplete="current-password" required
+                    className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
+                    value={password} onChange={e => setPassword(e.target.value)} />
+                </div>
+                <button type="submit" disabled={loading}
+                  className="w-full rounded-full bg-[#ff7a00] px-6 py-4 text-lg font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60">
+                  {loading ? "Logging in..." : "Log in"}
+                </button>
+              </form>
+
+              <p className="mt-8 text-center text-sm text-slate-600">
+                Need an account?{" "}
+                <Link href="/partner/signup" className="font-medium text-[#005b9f] hover:underline">Partner signup</Link>
+              </p>
+            </>
+          ) : (
+            <>
+              <button type="button" onClick={() => { setMode("login"); setResetSent(false); setResetError(""); }}
+                className="mb-6 flex items-center gap-2 text-sm font-medium text-[#003768] hover:underline">
+                ← Back to login
+              </button>
+              <h1 className="text-4xl font-semibold text-[#003768]">Reset Password</h1>
+              <p className="mt-3 text-lg text-slate-600">Enter your email and we'll send you a reset link.</p>
+
+              {resetSent ? (
+                <div className="mt-8 rounded-2xl border border-green-200 bg-green-50 p-5 text-sm text-green-700">
+                  <p className="font-semibold">Reset email sent ✓</p>
+                  <p className="mt-1">Check your inbox for a password reset link. It may take a minute to arrive.</p>
+                  <button type="button" onClick={() => setMode("login")} className="mt-4 text-[#003768] underline font-medium">Back to login</button>
+                </div>
+              ) : (
+                <>
+                  {resetError && <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{resetError}</div>}
+                  <form onSubmit={handleForgotPassword} className="mt-8 space-y-6">
+                    <div>
+                      <label className="text-sm font-medium text-[#003768]">Email address</label>
+                      <input type="email" autoComplete="email" required
+                        className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
+                        value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" />
+                    </div>
+                    <button type="submit" disabled={resetLoading}
+                      className="w-full rounded-full bg-[#ff7a00] px-6 py-4 text-lg font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60">
+                      {resetLoading ? "Sending..." : "Send reset link"}
+                    </button>
+                  </form>
+                </>
+              )}
+            </>
           )}
-
-          <form onSubmit={handleLogin} className="mt-8 space-y-6">
-            <div>
-              <label className="text-sm font-medium text-[#003768]">Email</label>
-              <input
-                type="email"
-                autoComplete="email"
-                className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-[#003768]">Password</label>
-              <input
-                type="password"
-                autoComplete="current-password"
-                className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-full bg-[#ff7a00] px-6 py-4 text-lg font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60"
-            >
-              {loading ? "Logging in..." : "Log in"}
-            </button>
-          </form>
-
-          <p className="mt-8 text-center text-sm text-slate-600">
-            Need an account?{" "}
-            <Link href="/partner/signup" className="font-medium text-[#005b9f] hover:underline">
-              Partner signup
-            </Link>
-          </p>
         </div>
       </div>
     </div>
