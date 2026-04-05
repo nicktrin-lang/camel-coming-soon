@@ -9,6 +9,7 @@ import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 function PartnerResetPasswordInner() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
