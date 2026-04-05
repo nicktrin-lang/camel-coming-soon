@@ -19,8 +19,6 @@ function PartnerResetPasswordInner() {
   const [sessionError, setSessionError] = useState("");
 
   useEffect(() => {
-    // After Supabase verifies the recovery token it sets a session automatically.
-    // We just need to check if that session exists and is valid.
     supabase.auth.getSession().then(({ data, error }: { data: any; error: any }) => {
       if (error || !data?.session) {
         setSessionError("This reset link has expired or is invalid. Please request a new one.");
@@ -29,6 +27,22 @@ function PartnerResetPasswordInner() {
       }
     });
   }, [supabase]);
+
+  async function getPostResetRedirect(): Promise<string> {
+    try {
+      const { data } = await supabase.auth.getUser();
+      const email = data?.user?.email;
+      if (!email) return "/partner/requests";
+      const res = await fetch("/api/driver/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+        credentials: "include",
+      });
+      if (res.ok) return "/driver/jobs";
+    } catch {}
+    return "/partner/requests";
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,7 +53,8 @@ function PartnerResetPasswordInner() {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
       setSuccess(true);
-      setTimeout(() => router.replace("/partner/requests"), 2500);
+      const redirect = await getPostResetRedirect();
+      setTimeout(() => router.replace(redirect), 2500);
     } catch (e: any) {
       setError(e?.message || "Failed to update password.");
     } finally {
