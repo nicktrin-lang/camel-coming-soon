@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createClient } from "@supabase/supabase-js";
 
 export async function POST(req: Request) {
   const { email, redirectTo } = await req.json();
@@ -9,25 +8,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Email is required" }, { status: 400 });
   }
 
-  const cookieStore = await cookies();
+  const redirect = redirectTo ?? `${process.env.NEXT_PUBLIC_SITE_URL}/partner/reset-password`;
 
-  const supabase = createServerClient(
+  const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options);
-          });
-        },
+      auth: {
+        flowType: "implicit",
+        autoRefreshToken: false,
+        persistSession: false,
       },
     }
   );
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: redirectTo ?? `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/exchange-reset-code`,
+    redirectTo: redirect,
   });
 
   if (error) {

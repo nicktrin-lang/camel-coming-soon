@@ -86,7 +86,7 @@ function PartnerLoginInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: email.trim(),
-          redirectTo: `${window.location.origin}/api/auth/exchange-reset-code`,
+          redirectTo: `${window.location.origin}/partner/reset-password`,
         }),
       });
       const json = await res.json();
