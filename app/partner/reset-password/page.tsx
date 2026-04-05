@@ -22,33 +22,48 @@ function PartnerResetPasswordInner() {
   const [sessionError, setSessionError] = useState("");
 
   useEffect(() => {
-    // Listen for auth state change — fires when detectSessionInUrl processes the hash
-    const { data: { subscription } } = authClient.auth.onAuthStateChange((event: any, session: any) => {
-      if (event === "SIGNED_IN" || event === "PASSWORD_RECOVERY") {
-        if (session) {
+    async function init() {
+      // Parse hash params directly from URL
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+      const errorCode = params.get("error_code");
+
+      if (errorCode) {
+        setSessionError("This reset link has expired or is invalid. Please request a new one.");
+        return;
+      }
+
+      if (accessToken && refreshToken) {
+        // Set the session directly from the hash tokens
+        const { error } = await authClient.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (error) {
+          setSessionError("This reset link has expired or is invalid. Please request a new one.");
+        } else {
           setSessionReady(true);
         }
+        return;
       }
-    });
 
-    // Also check immediately in case session is already set
-    authClient.auth.getSession().then(({ data }: { data: any }) => {
-      if (data?.session) setSessionReady(true);
-    });
+      // Fallback: check existing session
+      const { data } = await authClient.auth.getSession();
+      if (data?.session) {
+        setSessionReady(true);
+      } else {
+        const { data: ssrData } = await supabase.auth.getSession();
+        if (ssrData?.session) {
+          setSessionReady(true);
+        } else {
+          setSessionError("This reset link has expired or is invalid. Please request a new one.");
+        }
+      }
+    }
 
-    // Fallback timeout
-    const timer = setTimeout(async () => {
-      const { data: authData } = await authClient.auth.getSession();
-      if (authData?.session) { setSessionReady(true); return; }
-      const { data: ssrData } = await supabase.auth.getSession();
-      if (ssrData?.session) { setSessionReady(true); return; }
-      setSessionError("This reset link has expired or is invalid. Please request a new one.");
-    }, 2000);
-
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timer);
-    };
+    init();
   }, [authClient, supabase]);
 
   async function getPostResetRedirect(): Promise<string> {
@@ -73,10 +88,7 @@ function PartnerResetPasswordInner() {
     if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
     setLoading(true); setError("");
     try {
-      // Try whichever client has the active session
-      const { data: authSession } = await authClient.auth.getSession();
-      const client = authSession?.session ? authClient : supabase;
-      const { error } = await client.auth.updateUser({ password });
+      const { error } = await authClient.auth.updateUser({ password });
       if (error) throw error;
       setSuccess(true);
       const redirect = await getPostResetRedirect();
