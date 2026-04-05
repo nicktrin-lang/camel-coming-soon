@@ -9,6 +9,7 @@ export function createAuthSupabaseClient() {
         flowType: "pkce",
         detectSessionInUrl: true,
         persistSession: true,
+        storageKey: "camel-auth-reset",
         storage: typeof window !== "undefined" ? window.localStorage : undefined,
       },
     }
@@ -24,6 +25,7 @@ export function createCustomerAuthSupabaseClient() {
         flowType: "pkce",
         detectSessionInUrl: true,
         persistSession: true,
+        storageKey: "camel-customer-auth-reset",
         storage: typeof window !== "undefined" ? window.localStorage : undefined,
       },
     }
