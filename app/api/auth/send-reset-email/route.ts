@@ -2,13 +2,11 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const code = searchParams.get("code");
-  const next = "/partner/reset-password";
+export async function POST(req: Request) {
+  const { email, redirectTo } = await req.json();
 
-  if (!code) {
-    return NextResponse.redirect(new URL("/partner/login?error=link_expired", req.url));
+  if (!email) {
+    return NextResponse.json({ error: "Email is required" }, { status: 400 });
   }
 
   const cookieStore = await cookies();
@@ -28,12 +26,13 @@ export async function GET(req: Request) {
     }
   );
 
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: redirectTo ?? `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/exchange-reset-code`,
+  });
 
   if (error) {
-    console.error("exchange-reset-code error:", error.message);
-    return NextResponse.redirect(new URL("/partner/login?error=link_expired", req.url));
+    return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  return NextResponse.redirect(new URL(next, req.url));
+  return NextResponse.json({ ok: true });
 }

@@ -41,10 +41,16 @@ export default function TestBookingLoginPage() {
     e.preventDefault();
     setResetLoading(true); setResetError("");
     try {
-      const { error } = await authClient.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-        redirectTo: `${window.location.origin}/test-booking/reset-password`,
+      const res = await fetch("/api/auth/send-reset-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          redirectTo: `${window.location.origin}/api/auth/exchange-reset-code`,
+        }),
       });
-      if (error) throw error;
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to send reset email.");
       setResetSent(true);
     } catch (e: any) {
       setResetError(e?.message || "Failed to send reset email.");
