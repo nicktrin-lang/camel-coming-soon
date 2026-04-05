@@ -43,7 +43,7 @@ function PartnerResetPasswordInner() {
         if (!prev) setSessionError("This reset link has expired or is invalid. Please request a new one.");
         return prev;
       });
-    }, 3000);
+    }, 10000);
 
     return () => {
       subscription.unsubscribe();
