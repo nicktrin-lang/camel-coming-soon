@@ -66,9 +66,9 @@ function PartnerResetPasswordInner() {
     init();
   }, [authClient, supabase]);
 
-  async function getPostResetRedirect(): Promise<string> {
+  async function getSuccessRedirect(): Promise<string> {
     try {
-      const { data } = await supabase.auth.getUser();
+      const { data } = await authClient.auth.getUser();
       const email = data?.user?.email;
       if (!email) return "/partner/requests";
       const res = await fetch("/api/driver/check", {
