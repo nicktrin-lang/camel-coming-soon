@@ -59,8 +59,8 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
           </div>
         ))}
       </div>
-      <div className="flex justify-between text-xs text-slate-500 mt-1 px-0">
-        {STEP_LABELS.map(l => <span key={l}>{l}</span>)}
+      <div className="flex text-xs text-slate-500 mt-1">
+        {STEP_LABELS.map(l => <span key={l} className="flex-1 text-center first:text-left last:text-right">{l}</span>)}
       </div>
     </div>
   );
