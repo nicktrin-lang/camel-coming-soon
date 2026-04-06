@@ -326,7 +326,6 @@ function StepLocation({ profile, onDone }: { profile: Profile | null; onDone: ()
       </div>
     </Card>
   );
-  );
 }
 
 function StepCurrency({ profile, onDone, onBack }: { profile: Profile | null; onDone: () => void; onBack: () => void }) {
