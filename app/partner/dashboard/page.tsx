@@ -10,6 +10,9 @@ type Profile = {
   company_name: string | null;
   address: string | null;
   service_radius_km: number | null;
+  default_currency: string | null;
+  base_lat: number | null;
+  base_lng: number | null;
   country: string | null;
 };
 
@@ -106,7 +109,7 @@ export default function PartnerDashboardPage() {
           fleetRes,
         ] = await Promise.all([
           supabase.from("partner_profiles")
-            .select("contact_name,company_name,address,service_radius_km,country")
+            .select("contact_name,company_name,address,service_radius_km,country,default_currency,base_lat,base_lng")
             .eq("user_id", user.id).maybeSingle(),
           supabase.from("partner_applications")
             .select("status").eq("email", userEmail)
@@ -322,12 +325,12 @@ export default function PartnerDashboardPage() {
           <p className="mt-1 text-xs text-slate-500">Complete these steps to start receiving bookings.</p>
           <div className="mt-4 space-y-3">
             {[
-              { label: "Fleet location set", done: false, href: "/partner/onboarding" },
-              { label: "Bidding currency set", done: false, href: "/partner/onboarding" },
+              { label: "Fleet location set", done: !!(profile?.base_lat && profile?.base_lng), href: "/partner/onboarding" },
+              { label: "Bidding currency set", done: !!(profile?.default_currency), href: "/partner/onboarding" },
               { label: "Account approved", done: isApproved, href: "/partner/account" },
               { label: "Drivers added", done: driverCount > 0, href: "/partner/onboarding" },
-              { label: "Fleet added", done: false, href: "/partner/onboarding" },
-              { label: "First booking received", done: bookings.length > 0, href: "/partner/bookings" },
+              { label: "Fleet added", done: fleetCount > 0, href: "/partner/onboarding" },
+              
             ].map(({ label, done, href }) => (
               <Link key={label} href={href}
                 className="flex items-center gap-3 rounded-xl border border-black/5 bg-slate-50 px-3 py-2.5 hover:bg-[#f3f8ff] transition-colors">
