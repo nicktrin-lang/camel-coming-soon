@@ -196,7 +196,8 @@ function BookingSummaryCard({ booking, rates, isLive }: {
 }) {
   const stored: Currency = booking.currency ?? "EUR";
   const { symbol } = CURRENCY_META[stored];
-  const secondary: Currency = stored === "EUR" ? "GBP" : "EUR";
+  const secondary: Currency = stored === "USD" ? "EUR" : stored === "GBP" ? "EUR" : "GBP";
+  const tertiary: Currency = stored === "EUR" ? "USD" : stored === "GBP" ? "USD" : "GBP";
 
   const carHireAmt   = Number(booking.car_hire_price || 0);
   const fullTankAmt  = Number(booking.fuel_price || 0);
@@ -216,7 +217,9 @@ function BookingSummaryCard({ booking, rates, isLive }: {
   const primary = (v: number) => fmtCurr(v, stored);
   const sec = (v: number) => {
     const inEur = toEur(v, stored, rates);
-    return `(${fmtCurr(fromEur(inEur, secondary, rates), secondary)})`;
+    const s = fmtCurr(fromEur(inEur, secondary, rates), secondary);
+    const t = fmtCurr(fromEur(inEur, tertiary, rates), tertiary);
+    return `(${s} · ${t})`;
   };
 
   const rateBadge = `1€ = ${new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(rates.GBP)} · 1€ = ${new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(rates.USD)}`;
@@ -717,4 +720,7 @@ export default function PartnerBookingDetailPage() {
     </div>
   );
 }
+
+
+
 
