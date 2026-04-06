@@ -142,7 +142,7 @@ function AddressSearch({ onSelect }: { onSelect: (r: AddressResult) => void }) {
               <span className="ml-2 text-slate-400 text-xs">{[r.city || r.town, r.province, r.country].filter(Boolean).join(", ")}</span>
             </button>
           ))}
-
+        </div>
       )}
     </div>
   );
