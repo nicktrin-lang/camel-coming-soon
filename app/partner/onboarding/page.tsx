@@ -552,5 +552,4 @@ export default function PartnerOnboardingPage() {
     </div>
   );
 }
-CAMEL_EOF
 
