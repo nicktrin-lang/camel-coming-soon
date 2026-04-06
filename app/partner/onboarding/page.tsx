@@ -213,6 +213,20 @@ function StepLocation({ profile, onDone }: { profile: Profile | null; onDone: ()
   const [lng,       setLng]       = useState<number>(profile?.base_lng ?? -0.3763);
   const [radius,    setRadius]    = useState<number>(profile?.service_radius_km ?? 30);
   const [saving,    setSaving]    = useState(false);
+
+  useEffect(() => {
+    if (!profile) return;
+    if (profile.base_address1) setAddr1(profile.base_address1);
+    if (profile.base_address2) setAddr2(profile.base_address2);
+    if (profile.base_town)     setTown(profile.base_town);
+    if (profile.base_city)     setCity(profile.base_city);
+    if (profile.base_province) setProvince(profile.base_province);
+    if (profile.base_postcode) setPostcode(profile.base_postcode);
+    if (profile.base_country)  setCountry(profile.base_country);
+    if (profile.base_lat)      setLat(profile.base_lat);
+    if (profile.base_lng)      setLng(profile.base_lng);
+    if (profile.service_radius_km) setRadius(profile.service_radius_km);
+  }, [profile]);
   const [geocoding, setGeocoding] = useState(false);
   const [error,     setError]     = useState("");
 
