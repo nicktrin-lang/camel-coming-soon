@@ -1,9 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import Image from "next/image";
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import { FLEET_CATEGORIES } from "@/app/components/portal/fleetCategories";
@@ -29,6 +27,12 @@ type Profile = {
   default_currency: string | null;
 };
 
+type AddressResult = {
+  display_name: string; lat: number; lng: number;
+  address_line1: string; address_line2: string;
+  town: string; city: string; province: string; postcode: string; country: string;
+};
+
 type FleetRow = {
   id: string; category_slug: string; category_name: string;
   max_passengers: number; max_suitcases: number; is_active: boolean;
@@ -39,11 +43,11 @@ type DriverRow = {
 };
 
 const STEPS: { key: Step; label: string; icon: string }[] = [
-  { key: "location",  label: "Fleet Location", icon: "📍" },
-  { key: "currency",  label: "Currency",       icon: "💱" },
-  { key: "fleet",     label: "Car Fleet",      icon: "🚗" },
-  { key: "drivers",   label: "Drivers",        icon: "👤" },
-  { key: "golive",    label: "Go Live",        icon: "🚀" },
+  { key: "location", label: "Fleet Location", icon: "📍" },
+  { key: "currency", label: "Currency",       icon: "💱" },
+  { key: "fleet",    label: "Car Fleet",      icon: "🚗" },
+  { key: "drivers",  label: "Drivers",        icon: "👤" },
+  { key: "golive",   label: "Go Live",        icon: "🚀" },
 ];
 
 function StepNav({ current, completed }: { current: Step; completed: Set<Step> }) {
@@ -118,7 +122,7 @@ function NavButtons({ onBack, onNext, nextLabel, saving, canSkip, onSkip }: {
       {onBack && (
         <button type="button" onClick={onBack}
           className="rounded-full border border-black/10 px-6 py-3 font-semibold text-[#003768] hover:bg-black/5 transition-colors">
-          ← Back
+          Back
         </button>
       )}
       {canSkip && onSkip && (
@@ -129,28 +133,118 @@ function NavButtons({ onBack, onNext, nextLabel, saving, canSkip, onSkip }: {
       )}
       <button type="button" onClick={onNext} disabled={saving}
         className="flex-1 rounded-full bg-[#ff7a00] py-3 font-semibold text-white shadow-[0_8px_18px_rgba(255,122,0,0.3)] hover:opacity-95 disabled:opacity-50 transition-opacity">
-        {saving ? "Saving…" : (nextLabel ?? "Save & Continue →")}
+        {saving ? "Saving..." : (nextLabel ?? "Save & Continue")}
       </button>
+    </div>
+  );
+}
+
+function AddressSearch({ onSelect }: { onSelect: (r: AddressResult) => void }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<AddressResult[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  useEffect(() => {
+    if (debounce.current) clearTimeout(debounce.current);
+    if (query.length < 3) { setResults([]); setOpen(false); return; }
+    debounce.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/maps/search?q=${encodeURIComponent(query)}`, { cache: "no-store" });
+        const json = await res.json().catch(() => null);
+        const data = json?.data || [];
+        setResults(data); setOpen(data.length > 0);
+      } catch { setResults([]); } finally { setLoading(false); }
+    }, 350);
+  }, [query]);
+
+  function pick(r: AddressResult) { onSelect(r); setQuery(r.display_name); setOpen(false); }
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <label className="block text-sm font-semibold text-[#003768] mb-1.5">Search for your address</label>
+      <div className="relative">
+        <input
+          value={query}
+          onChange={e => { setQuery(e.target.value); setOpen(true); }}
+          onFocus={() => { if (results.length) setOpen(true); }}
+          placeholder="Start typing your address..."
+          className="w-full rounded-xl border border-black/10 px-4 py-3 outline-none focus:border-[#0f4f8a] bg-white"
+        />
+        {loading && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">Searching...</span>}
+      </div>
+      <p className="mt-1 text-xs text-slate-400">Or click the map below to drop a pin - fields fill automatically.</p>
+      {open && results.length > 0 && (
+        <div className="absolute z-50 left-0 right-0 mt-1 rounded-2xl border border-black/10 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden">
+          {results.map((r, i) => (
+            <button key={i} type="button" onClick={() => pick(r)}
+              className="w-full text-left px-4 py-3 text-sm hover:bg-[#f3f8ff] border-b border-black/5 last:border-b-0">
+              <span className="font-medium text-[#003768]">{r.address_line1 || r.display_name.split(",")[0]}</span>
+              <span className="ml-2 text-slate-400 text-xs">{[r.city || r.town, r.province, r.country].filter(Boolean).join(", ")}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 function StepLocation({ profile, onDone }: { profile: Profile | null; onDone: () => void }) {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
-  const [addr1,    setAddr1]    = useState(profile?.base_address1  ?? "");
-  const [addr2,    setAddr2]    = useState(profile?.base_address2  ?? "");
-  const [town,     setTown]     = useState(profile?.base_town      ?? "");
-  const [city,     setCity]     = useState(profile?.base_city      ?? "");
-  const [province, setProvince] = useState(profile?.base_province  ?? "");
-  const [postcode, setPostcode] = useState(profile?.base_postcode  ?? "");
-  const [country,  setCountry]  = useState(profile?.base_country   ?? "Spain");
-  const [lat,      setLat]      = useState<number>(profile?.base_lat ?? 39.4699);
-  const [lng,      setLng]      = useState<number>(profile?.base_lng ?? -0.3763);
-  const [radius,   setRadius]   = useState<number>(profile?.service_radius_km ?? 30);
-  const [saving,   setSaving]   = useState(false);
-  const [error,    setError]    = useState("");
+  const [addr1,     setAddr1]     = useState(profile?.base_address1 ?? "");
+  const [addr2,     setAddr2]     = useState(profile?.base_address2 ?? "");
+  const [town,      setTown]      = useState(profile?.base_town ?? "");
+  const [city,      setCity]      = useState(profile?.base_city ?? "");
+  const [province,  setProvince]  = useState(profile?.base_province ?? "");
+  const [postcode,  setPostcode]  = useState(profile?.base_postcode ?? "");
+  const [country,   setCountry]   = useState(profile?.base_country ?? "Spain");
+  const [lat,       setLat]       = useState<number>(profile?.base_lat ?? 39.4699);
+  const [lng,       setLng]       = useState<number>(profile?.base_lng ?? -0.3763);
+  const [radius,    setRadius]    = useState<number>(profile?.service_radius_km ?? 30);
+  const [saving,    setSaving]    = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
+  const [error,     setError]     = useState("");
 
   const fullAddress = [addr1, addr2, town, city, province, postcode, country].filter(Boolean).join(", ");
+
+  function applyResult(r: AddressResult) {
+    setLat(r.lat); setLng(r.lng);
+    if (r.address_line1) setAddr1(r.address_line1);
+    setAddr2(r.address_line2 ?? "");
+    setTown(r.town ?? "");
+    setCity(r.city ?? "");
+    setProvince(r.province ?? "");
+    setPostcode(r.postcode ?? "");
+    if (r.country) setCountry(r.country);
+  }
+
+  async function handleMapPick(newLat: number, newLng: number) {
+    setLat(newLat); setLng(newLng); setGeocoding(true);
+    try {
+      const res = await fetch(`/api/maps/reverse?lat=${newLat}&lng=${newLng}`, { cache: "no-store" });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json) {
+        if (json.address_line1) setAddr1(json.address_line1);
+        setAddr2(json.address_line2 ?? "");
+        setTown(json.town ?? "");
+        setCity(json.city ?? "");
+        setProvince(json.province ?? "");
+        setPostcode(json.postcode ?? "");
+        if (json.country) setCountry(json.country);
+      }
+    } catch {} finally { setGeocoding(false); }
+  }
 
   async function save() {
     if (!addr1.trim()) { setError("Address line 1 is required."); return; }
@@ -183,13 +277,22 @@ function StepLocation({ profile, onDone }: { profile: Profile | null; onDone: ()
   }
 
   return (
-    <Card title="📍 Fleet Base Location" subtitle="Set the address your vehicles operate from. This determines which customer requests you receive.">
+    <Card title="Fleet Base Location" subtitle="Set the address your vehicles operate from. This determines which customer requests you receive.">
       <div className="space-y-5">
         <InfoBox>
           <p className="font-semibold mb-1">Why this matters</p>
-          <p>Camel Global uses your fleet base location to match you with customers within your service radius. Only requests within your radius will be sent to you — set this accurately to your depot or office location.</p>
+          <p>Camel Global uses your fleet base location to match you with customers within your service radius. Only requests within your radius will be sent to you - set this accurately to your depot or office location.</p>
         </InfoBox>
         {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+
+        <AddressSearch onSelect={applyResult} />
+
+        {geocoding && (
+          <div className="rounded-xl border border-[#003768]/10 bg-[#f3f8ff] px-4 py-2 text-sm text-[#003768]">
+            Fetching address for selected location...
+          </div>
+        )}
+
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <FieldInput label="Address line 1" value={addr1} onChange={setAddr1} placeholder="e.g. Calle Mayor 12" required />
@@ -205,6 +308,7 @@ function StepLocation({ profile, onDone }: { profile: Profile | null; onDone: ()
             <FieldInput label="Country" value={country} onChange={setCountry} placeholder="e.g. Spain" required />
           </div>
         </div>
+
         <div>
           <label className="block text-sm font-semibold text-[#003768] mb-1.5">
             Service radius: <span className="text-[#ff7a00]">{radius} km</span>
@@ -218,15 +322,17 @@ function StepLocation({ profile, onDone }: { profile: Profile | null; onDone: ()
             <p>A <strong>{radius} km</strong> radius means you will receive requests from customers within {radius} km of your base. Start with 30 km and expand once established.</p>
           </InfoBox>
         </div>
+
         <div>
           <label className="block text-sm font-semibold text-[#003768] mb-1.5">Pin your exact location on the map</label>
-          <p className="text-xs text-slate-400 mb-2">Click anywhere on the map to move the pin to your exact fleet base location.</p>
+          <p className="text-xs text-slate-400 mb-2">Click anywhere on the map - the address fields above will update automatically.</p>
           <div className="rounded-2xl overflow-hidden border border-black/10">
-            <MapPicker lat={lat} lng={lng} onPick={(newLat: number, newLng: number) => { setLat(newLat); setLng(newLng); }} />
+            <MapPicker lat={lat} lng={lng} onPick={handleMapPick} />
           </div>
           <p className="mt-1.5 text-xs text-slate-400">GPS: {lat.toFixed(5)}, {lng.toFixed(5)}</p>
         </div>
-        <NavButtons onNext={save} saving={saving} nextLabel="Save Location & Continue →" />
+
+        <NavButtons onNext={save} saving={saving} nextLabel="Save Location & Continue" />
       </div>
     </Card>
   );
@@ -263,7 +369,7 @@ function StepCurrency({ profile, onDone, onBack }: { profile: Profile | null; on
   }
 
   return (
-    <Card title="💱 Bidding Currency" subtitle="Choose the currency you will use to price your bids.">
+    <Card title="Bidding Currency" subtitle="Choose the currency you will use to price your bids.">
       <div className="space-y-5">
         <InfoBox>
           <p className="font-semibold mb-1">Why this matters</p>
@@ -281,7 +387,7 @@ function StepCurrency({ profile, onDone, onBack }: { profile: Profile | null; on
               <div className="text-3xl font-black text-[#003768]">{o.symbol}</div>
               <div className="mt-2 font-bold text-[#003768]">{o.label}</div>
               <div className="mt-0.5 text-xs text-slate-500">{o.desc}</div>
-              {currency === o.value && <div className="mt-2 text-xs font-bold text-[#ff7a00]">✓ Selected</div>}
+              {currency === o.value && <div className="mt-2 text-xs font-bold text-[#ff7a00]">Selected</div>}
             </button>
           ))}
         </div>
@@ -341,14 +447,14 @@ function StepFleet({ onDone, onBack }: { onDone: () => void; onBack: () => void 
   }
 
   return (
-    <Card title="🚗 Your Car Fleet" subtitle="Add the vehicle categories you can offer to customers.">
+    <Card title="Your Car Fleet" subtitle="Add the vehicle categories you can offer to customers.">
       <div className="space-y-5">
         <InfoBox>
           <p className="font-semibold mb-1">Why this matters</p>
-          <p>Customers request specific vehicle types — Standard Saloon, SUV, Minivan etc. You will only receive requests that match the categories you add here. Add all categories you can service to maximise your opportunities.</p>
+          <p>Customers request specific vehicle types - Standard Saloon, SUV, Minivan etc. You will only receive requests that match the categories you add here. Add all categories you can service to maximise your opportunities.</p>
         </InfoBox>
         {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-        {loading ? <p className="text-slate-500 text-sm">Loading fleet…</p> : (
+        {loading ? <p className="text-slate-500 text-sm">Loading fleet...</p> : (
           <div className="space-y-2">
             {fleet.length === 0 && !adding && <p className="text-sm text-slate-400 italic">No vehicles added yet.</p>}
             {fleet.map(f => (
@@ -369,14 +475,14 @@ function StepFleet({ onDone, onBack }: { onDone: () => void; onBack: () => void 
               <label className="text-sm font-medium text-[#003768] mb-1.5 block">Vehicle category</label>
               <select value={form.category_slug} onChange={e => setForm(f => ({ ...f, category_slug: e.target.value }))}
                 className="w-full rounded-xl border border-black/10 px-4 py-3 outline-none focus:border-[#0f4f8a]">
-                <option value="">Select category…</option>
+                <option value="">Select category...</option>
                 {FLEET_CATEGORIES.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
               </select>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               {[
-                { key: "max_passengers", label: "Max passengers" },
-                { key: "max_suitcases", label: "Max suitcases" },
+                { key: "max_passengers",   label: "Max passengers" },
+                { key: "max_suitcases",    label: "Max suitcases" },
                 { key: "max_hand_luggage", label: "Hand luggage" },
               ].map(({ key, label }) => (
                 <div key={key}>
@@ -392,7 +498,7 @@ function StepFleet({ onDone, onBack }: { onDone: () => void; onBack: () => void 
                 className="flex-1 rounded-full border border-black/10 py-2.5 text-sm font-semibold text-slate-600 hover:bg-black/5">Cancel</button>
               <button type="button" onClick={addVehicle} disabled={saving}
                 className="flex-[2] rounded-full bg-[#003768] py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
-                {saving ? "Saving…" : "Add vehicle"}
+                {saving ? "Saving..." : "Add vehicle"}
               </button>
             </div>
           </div>
@@ -403,7 +509,7 @@ function StepFleet({ onDone, onBack }: { onDone: () => void; onBack: () => void 
           </button>
         )}
         <NavButtons onBack={onBack} onNext={onDone} canSkip onSkip={onDone}
-          nextLabel={fleet.length > 0 ? "Save & Continue →" : undefined} />
+          nextLabel={fleet.length > 0 ? "Save & Continue" : undefined} />
       </div>
     </Card>
   );
@@ -446,14 +552,14 @@ function StepDrivers({ onDone, onBack }: { onDone: () => void; onBack: () => voi
   }
 
   return (
-    <Card title="👤 Your Drivers" subtitle="Add the drivers who will deliver and collect vehicles for your customers.">
+    <Card title="Your Drivers" subtitle="Add the drivers who will deliver and collect vehicles for your customers.">
       <div className="space-y-5">
         <InfoBox>
           <p className="font-semibold mb-1">Why this matters</p>
-          <p>Drivers meet customers at collection and return. Each driver needs an account to use the Camel Global driver app — which records fuel levels and confirms collections. Add at least one driver before going live.</p>
+          <p>Drivers meet customers at collection and return. Each driver needs an account to use the Camel Global driver app - which records fuel levels and confirms collections. Add at least one driver before going live.</p>
         </InfoBox>
         {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-        {loading ? <p className="text-slate-500 text-sm">Loading drivers…</p> : (
+        {loading ? <p className="text-slate-500 text-sm">Loading drivers...</p> : (
           <div className="space-y-2">
             {drivers.length === 0 && !adding && <p className="text-sm text-slate-400 italic">No drivers added yet.</p>}
             {drivers.map(d => (
@@ -462,7 +568,7 @@ function StepDrivers({ onDone, onBack }: { onDone: () => void; onBack: () => voi
                   <p className="font-semibold text-[#003768]">{d.full_name}</p>
                   <p className="text-xs text-slate-500">{d.email}{d.phone ? ` · ${d.phone}` : ""}</p>
                 </div>
-                <span className="text-xs font-semibold text-green-600">✓ Added</span>
+                <span className="text-xs font-semibold text-green-600">Added</span>
               </div>
             ))}
           </div>
@@ -471,8 +577,8 @@ function StepDrivers({ onDone, onBack }: { onDone: () => void; onBack: () => voi
           <div className="rounded-2xl border border-[#003768]/10 bg-[#f3f8ff] p-5 space-y-4">
             <h3 className="font-semibold text-[#003768]">Add a driver</h3>
             {[
-              { key: "full_name", label: "Full name",     placeholder: "Juan García",          required: true },
-              { key: "email",     label: "Email address", placeholder: "juan@valenciacars.com", required: true },
+              { key: "full_name", label: "Full name",     placeholder: "Juan Garcia",           required: true },
+              { key: "email",     label: "Email address", placeholder: "juan@valenciacars.com",  required: true },
               { key: "phone",     label: "Phone number",  placeholder: "+34 600 000 000" },
             ].map(({ key, label, placeholder, required }) => (
               <div key={key}>
@@ -489,7 +595,7 @@ function StepDrivers({ onDone, onBack }: { onDone: () => void; onBack: () => voi
                 className="flex-1 rounded-full border border-black/10 py-2.5 text-sm font-semibold text-slate-600 hover:bg-black/5">Cancel</button>
               <button type="button" onClick={addDriver} disabled={saving}
                 className="flex-[2] rounded-full bg-[#003768] py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
-                {saving ? "Saving…" : "Add driver"}
+                {saving ? "Saving..." : "Add driver"}
               </button>
             </div>
           </div>
@@ -500,7 +606,7 @@ function StepDrivers({ onDone, onBack }: { onDone: () => void; onBack: () => voi
           </button>
         )}
         <NavButtons onBack={onBack} onNext={onDone} canSkip onSkip={onDone}
-          nextLabel={drivers.length > 0 ? "Save & Continue →" : undefined} />
+          nextLabel={drivers.length > 0 ? "Save & Continue" : undefined} />
       </div>
     </Card>
   );
@@ -511,17 +617,17 @@ function StepGoLive({ profile, fleetCount, driverCount, onBack }: {
 }) {
   const router = useRouter();
   const checks = [
-    { label: "Fleet base location set",   done: !!(profile?.base_lat && profile?.base_lng && profile?.base_address1) },
-    { label: "Service radius configured", done: !!(profile?.service_radius_km) },
-    { label: "Bidding currency selected", done: !!(profile?.default_currency) },
-    { label: "At least one vehicle added",done: fleetCount > 0 },
-    { label: "At least one driver added", done: driverCount > 0 },
+    { label: "Fleet base location set",    done: !!(profile?.base_lat && profile?.base_lng && profile?.base_address1) },
+    { label: "Service radius configured",  done: !!(profile?.service_radius_km) },
+    { label: "Bidding currency selected",  done: !!(profile?.default_currency) },
+    { label: "At least one vehicle added", done: fleetCount > 0 },
+    { label: "At least one driver added",  done: driverCount > 0 },
   ];
   const allDone = checks.every(c => c.done);
   const donePct = Math.round((checks.filter(c => c.done).length / checks.length) * 100);
 
   return (
-    <Card title="🚀 Ready to Go Live?" subtitle="Review your setup and request activation when you're ready.">
+    <Card title="Ready to Go Live?" subtitle="Review your setup and request activation when you are ready.">
       <div className="space-y-5">
         <InfoBox>
           <p className="font-semibold mb-1">What happens when you go live?</p>
@@ -550,21 +656,21 @@ function StepGoLive({ profile, fleetCount, driverCount, onBack }: {
         {allDone ? (
           <div className="rounded-2xl border border-green-200 bg-green-50 p-5 text-center">
             <p className="text-2xl mb-2">🎉</p>
-            <p className="font-bold text-green-800 text-lg">You're all set!</p>
+            <p className="font-bold text-green-800 text-lg">You are all set!</p>
             <p className="text-sm text-green-700 mt-1">Your account is ready. The Camel Global team will review and activate you shortly. You will receive an email once you are live.</p>
           </div>
         ) : (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
             <p className="font-semibold">A few things still to complete</p>
-            <p className="mt-1">You can still request to go live — our team will review your account. However we recommend completing all steps first to start receiving bookings immediately.</p>
+            <p className="mt-1">You can still request to go live - our team will review your account. However we recommend completing all steps first to start receiving bookings immediately.</p>
           </div>
         )}
         <div className="flex gap-3">
           <button type="button" onClick={onBack}
-            className="rounded-full border border-black/10 px-6 py-3 font-semibold text-[#003768] hover:bg-black/5">← Back</button>
+            className="rounded-full border border-black/10 px-6 py-3 font-semibold text-[#003768] hover:bg-black/5">Back</button>
           <button type="button" onClick={() => router.replace("/partner/dashboard")}
             className="flex-1 rounded-full bg-[#ff7a00] py-3 font-semibold text-white shadow-[0_8px_18px_rgba(255,122,0,0.3)] hover:opacity-95">
-            {allDone ? "Go to Dashboard 🚀" : "Save progress & go to Dashboard →"}
+            {allDone ? "Go to Dashboard" : "Save progress & go to Dashboard"}
           </button>
         </div>
       </div>
@@ -621,54 +727,41 @@ export default function PartnerOnboardingPage() {
   }
 
   if (loading) return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f7f9fc]">
-      <p className="text-slate-500">Loading your account…</p>
+    <div className="flex min-h-screen items-center justify-center">
+      <p className="text-slate-500">Loading your account...</p>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#f7f9fc]">
-      <header className="fixed inset-x-0 top-0 z-40 h-16 border-b border-black/10 bg-[#0f4f8a] shadow-[0_4px_12px_rgba(0,0,0,0.18)]">
-        <div className="flex h-full items-center justify-between px-4 md:px-8">
-          <Image src="/camel-logo.png" alt="Camel Global" width={160} height={52} className="h-[44px] w-auto" />
-          <button onClick={() => router.replace("/partner/dashboard")}
-            className="text-sm font-semibold text-white/80 hover:text-white transition-colors">
-            Save & finish later →
-          </button>
-        </div>
-      </header>
-      <div className="pt-24 pb-12 px-4 md:px-8">
-        <div className="mx-auto max-w-3xl">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-[#003768]">Get Started</h1>
-            <p className="mt-1 text-slate-500">Complete your setup to start receiving bookings.</p>
-          </div>
-          <StepNav current={step} completed={completed} />
-          {step === "location" && (
-            <StepLocation profile={profile} onDone={async () => {
-              const { data: { user } } = await supabase.auth.getUser();
-              if (user) await refreshProfile(user.id);
-              complete("location", "currency");
-            }} />
-          )}
-          {step === "currency" && (
-            <StepCurrency profile={profile} onDone={async () => {
-              const { data: { user } } = await supabase.auth.getUser();
-              if (user) await refreshProfile(user.id);
-              complete("currency", "fleet");
-            }} onBack={() => setStep("location")} />
-          )}
-          {step === "fleet" && (
-            <StepFleet onDone={() => { setFleetCount(c => c + 1); complete("fleet", "drivers"); }} onBack={() => setStep("currency")} />
-          )}
-          {step === "drivers" && (
-            <StepDrivers onDone={() => { setDriverCount(c => c + 1); complete("drivers", "golive"); }} onBack={() => setStep("fleet")} />
-          )}
-          {step === "golive" && (
-            <StepGoLive profile={profile} fleetCount={fleetCount} driverCount={driverCount} onBack={() => setStep("drivers")} />
-          )}
-        </div>
+    <div className="w-full px-4 py-6 md:px-8">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-[#003768]">Get Started</h1>
+        <p className="mt-1 text-slate-500">Complete your setup to start receiving bookings.</p>
       </div>
+      <StepNav current={step} completed={completed} />
+      {step === "location" && (
+        <StepLocation profile={profile} onDone={async () => {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) await refreshProfile(user.id);
+          complete("location", "currency");
+        }} />
+      )}
+      {step === "currency" && (
+        <StepCurrency profile={profile} onDone={async () => {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) await refreshProfile(user.id);
+          complete("currency", "fleet");
+        }} onBack={() => setStep("location")} />
+      )}
+      {step === "fleet" && (
+        <StepFleet onDone={() => { setFleetCount(c => c + 1); complete("fleet", "drivers"); }} onBack={() => setStep("currency")} />
+      )}
+      {step === "drivers" && (
+        <StepDrivers onDone={() => { setDriverCount(c => c + 1); complete("drivers", "golive"); }} onBack={() => setStep("fleet")} />
+      )}
+      {step === "golive" && (
+        <StepGoLive profile={profile} fleetCount={fleetCount} driverCount={driverCount} onBack={() => setStep("drivers")} />
+      )}
     </div>
   );
 }
