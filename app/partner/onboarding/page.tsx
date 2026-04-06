@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import { FLEET_CATEGORIES } from "@/app/components/portal/fleetCategories";
@@ -26,6 +26,19 @@ type Profile = {
   base_lng: number | null;
   service_radius_km: number | null;
   default_currency: string | null;
+};
+
+type AddressResult = {
+  display_name: string;
+  lat: number;
+  lng: number;
+  address_line1: string;
+  address_line2: string;
+  town: string;
+  city: string;
+  province: string;
+  postcode: string;
+  country: string;
 };
 
 type FleetRow = {
@@ -77,7 +90,101 @@ function StepNav({ current, completed }: { current: Step; completed: Set<Step> }
 
 function Card({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+    <div className="rounded-3xl border border-black/5 b
+cat > ~/camel-portal/app/partner/onboarding/page.tsx << 'EOF'
+"use client";
+
+import dynamic from "next/dynamic";
+import Image from "next/image";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
+import { FLEET_CATEGORIES } from "@/app/components/portal/fleetCategories";
+
+const MapPicker = dynamic(() => import("../profile/MapPicker"), { ssr: false });
+
+type Step = "location" | "currency" | "fleet" | "drivers" | "golive";
+
+type Profile = {
+  company_name: string | null;
+  contact_name: string | null;
+  base_address: string | null;
+  base_address1: string | null;
+  base_address2: string | null;
+  base_town: string | null;
+  base_city: string | null;
+  base_province: string | null;
+  base_postcode: string | null;
+  base_country: string | null;
+  base_lat: number | null;
+  base_lng: number | null;
+  service_radius_km: number | null;
+  default_currency: string | null;
+};
+
+type AddressResult = {
+  display_name: string;
+  lat: number;
+  lng: number;
+  address_line1: string;
+  address_line2: string;
+  town: string;
+  city: string;
+  province: string;
+  postcode: string;
+  country: string;
+};
+
+type FleetRow = {
+  id: string; category_slug: string; category_name: string;
+  max_passengers: number; max_suitcases: number; is_active: boolean;
+};
+
+type DriverRow = {
+  id: string; full_name: string; email: string; phone: string | null; is_active: boolean;
+};
+
+const STEPS: { key: Step; label: string; icon: string }[] = [
+  { key: "location",  label: "Fleet Location", icon: "📍" },
+  { key: "currency",  label: "Currency",       icon: "💱" },
+  { key: "fleet",     label: "Car Fleet",      icon: "🚗" },
+  { key: "drivers",   label: "Drivers",        icon: "👤" },
+  { key: "golive",    label: "Go Live",        icon: "🚀" },
+];
+
+function StepNav({ current, completed }: { current: Step; completed: Set<Step> }) {
+  return (
+    <div className="flex items-center justify-between mb-8">
+      {STEPS.map((s, i) => {
+        const done = completed.has(s.key);
+        const active = s.key === current;
+        return (
+          <div key={s.key} className="flex items-center flex-1">
+            <div className="flex flex-col items-center">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-bold transition-colors ${
+                done ? "bg-green-500 text-white" :
+                active ? "bg-[#ff7a00] text-white shadow-[0_4px_12px_rgba(255,122,0,0.4)]" :
+                "bg-slate-100 text-slate-400"
+              }`}>
+                {done ? "✓" : s.icon}
+              </div>
+              <span className={`mt-1 text-xs font-medium hidden sm:block ${
+                active ? "text-[#ff7a00]" : done ? "text-green-600" : "text-slate-400"
+              }`}>{s.label}</span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div className={`h-0.5 flex-1 mx-2 mb-4 rounded transition-colors ${done ? "bg-green-500" : "bg-slate-200"}`} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Card({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-3xl border border-black/5 bg-white p-6 md:p-10 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
       <h2 className="text-2xl font-bold text-[#003768]">{title}</h2>
       <p className="mt-1 text-slate-500">{subtitle}</p>
       <div className="mt-6">{children}</div>
@@ -113,7 +220,7 @@ function NavButtons({ onBack, onNext, nextLabel, saving, canSkip, onSkip }: {
   saving?: boolean; canSkip?: boolean; onSkip?: () => void;
 }) {
   return (
-    <div className="flex items-center gap-3 mt-6">
+    <div className="flex items-center gap-3 mt-8">
       {onBack && (
         <button type="button" onClick={onBack}
           className="rounded-full border border-black/10 px-6 py-3 font-semibold text-[#003768] hover:bg-black/5 transition-colors">
@@ -134,66 +241,120 @@ function NavButtons({ onBack, onNext, nextLabel, saving, canSkip, onSkip }: {
   );
 }
 
+function AddressSearch({ onSelect }: { onSelect: (r: AddressResult) => void }) {
+  const [query,     setQuery]     = useState("");
+  const [results,   setResults]   = useState<AddressResult[]>([]);
+  const [open,      setOpen]      = useState(false);
+  const [loading,   setLoading]   = useState(false);
+  const debounce    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrapperRef  = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  useEffect(() => {
+    if (debounce.current) clearTimeout(debounce.current);
+    if (query.length < 3) { setResults([]); setOpen(false); return; }
+    debounce.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res  = await fetch(`/api/maps/search?q=${encodeURIComponent(query)}`, { cache: "no-store" });
+        const json = await res.json().catch(() => null);
+        const data = json?.data || [];
+        setResults(data);
+        setOpen(data.length > 0);
+      } catch { setResults([]); }
+      finally { setLoading(false); }
+    }, 350);
+  }, [query]);
+
+  function pick(r: AddressResult) {
+    onSelect(r);
+    setQuery(r.display_name);
+    setOpen(false);
+  }
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <label className="block text-sm font-semibold text-[#003768] mb-1.5">Search for your address</label>
+      <div className="relative">
+        <input
+          value={query}
+          onChange={e => { setQuery(e.target.value); setOpen(true); }}
+          onFocus={() => { if (results.length) setOpen(true); }}
+          placeholder="Start typing your address…"
+          className="w-full rounded-xl border border-black/10 px-4 py-3 pr-10 outline-none focus:border-[#0f4f8a] bg-white" />
+        {loading && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">Searching…</span>
+        )}
+      </div>
+      <p className="mt-1 text-xs text-slate-400">Or click the map below to drop a pin — fields fill automatically.</p>
+      {open && results.length > 0 && (
+        <div className="absolute z-50 left-0 right-0 mt-1 rounded-2xl border border-black/10 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden">
+          {results.map((r, i) => (
+            <button key={i} type="button" onClick={() => pick(r)}
+              className="w-full text-left px-4 py-3 text-sm text-slate-800 hover:bg-[#f3f8ff] border-b border-black/5 last:border-b-0">
+              <span className="font-medium text-[#003768]">{r.address_line1 || r.display_name.split(",")[0]}</span>
+              <span className="ml-1 text-slate-400 text-xs">{[r.city || r.town, r.province, r.country].filter(Boolean).join(", ")}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StepLocation({ profile, onDone }: { profile: Profile | null; onDone: () => void }) {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
-  const [addr1,      setAddr1]      = useState(profile?.base_address1 ?? "");
-  const [addr2,      setAddr2]      = useState(profile?.base_address2 ?? "");
-  const [town,       setTown]       = useState(profile?.base_town ?? "");
-  const [city,       setCity]       = useState(profile?.base_city ?? "");
-  const [province,   setProvince]   = useState(profile?.base_province ?? "");
-  const [postcode,   setPostcode]   = useState(profile?.base_postcode ?? "");
-  const [country,    setCountry]    = useState(profile?.base_country ?? "Spain");
-  const [lat,        setLat]        = useState<number>(profile?.base_lat ?? 39.4699);
-  const [lng,        setLng]        = useState<number>(profile?.base_lng ?? -0.3763);
-  const [radius,     setRadius]     = useState<number>(profile?.service_radius_km ?? 30);
-  const [saving,     setSaving]     = useState(false);
-  const [geocoding,  setGeocoding]  = useState(false);
-  const [searching,  setSearching]  = useState(false);
-  const [searchText, setSearchText] = useState("");
-  const [error,      setError]      = useState("");
+  const [addr1,     setAddr1]     = useState(profile?.base_address1 ?? "");
+  const [addr2,     setAddr2]     = useState(profile?.base_address2 ?? "");
+  const [town,      setTown]      = useState(profile?.base_town ?? "");
+  const [city,      setCity]      = useState(profile?.base_city ?? "");
+  const [province,  setProvince]  = useState(profile?.base_province ?? "");
+  const [postcode,  setPostcode]  = useState(profile?.base_postcode ?? "");
+  const [country,   setCountry]   = useState(profile?.base_country ?? "Spain");
+  const [lat,       setLat]       = useState<number>(profile?.base_lat ?? 39.4699);
+  const [lng,       setLng]       = useState<number>(profile?.base_lng ?? -0.3763);
+  const [radius,    setRadius]    = useState<number>(profile?.service_radius_km ?? 30);
+  const [saving,    setSaving]    = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
+  const [error,     setError]     = useState("");
 
   const fullAddress = [addr1, addr2, town, city, province, postcode, country].filter(Boolean).join(", ");
 
+  function applyResult(r: AddressResult) {
+    setLat(r.lat); setLng(r.lng);
+    if (r.address_line1) setAddr1(r.address_line1);
+    if (r.address_line2 !== undefined) setAddr2(r.address_line2);
+    if (r.town !== undefined)     setTown(r.town);
+    if (r.city !== undefined)     setCity(r.city);
+    if (r.province !== undefined) setProvince(r.province);
+    if (r.postcode !== undefined) setPostcode(r.postcode);
+    if (r.country)                setCountry(r.country);
+  }
+
   async function handleMapPick(newLat: number, newLng: number) {
-    setLat(newLat);
-    setLng(newLng);
+    setLat(newLat); setLng(newLng);
     setGeocoding(true);
     try {
-      const res = await fetch(`/api/maps/reverse?lat=${newLat}&lng=${newLng}`, { cache: "no-store" });
+      const res  = await fetch(`/api/maps/reverse?lat=${newLat}&lng=${newLng}`, { cache: "no-store" });
       const json = await res.json().catch(() => null);
       if (res.ok && json) {
         if (json.address_line1) setAddr1(json.address_line1);
-        if (json.address_line2) setAddr2(json.address_line2);
-        if (json.town)          setTown(json.town);
-        if (json.city)          setCity(json.city);
-        if (json.province)      setProvince(json.province);
-        if (json.postcode)      setPostcode(json.postcode);
-        if (json.country)       setCountry(json.country);
+        if (json.address_line2 !== undefined) setAddr2(json.address_line2);
+        if (json.town !== undefined)     setTown(json.town);
+        if (json.city !== undefined)     setCity(json.city);
+        if (json.province !== undefined) setProvince(json.province);
+        if (json.postcode !== undefined) setPostcode(json.postcode);
+        if (json.country)                setCountry(json.country);
       }
-    } catch { }
+    } catch {}
     finally { setGeocoding(false); }
-  }
-
-  async function handleSearch() {
-    if (!searchText.trim()) return;
-    setSearching(true); setError("");
-    try {
-      const res  = await fetch(`/api/maps/search?q=${encodeURIComponent(searchText.trim())}`, { cache: "no-store" });
-      const json = await res.json().catch(() => null);
-      if (!res.ok || !json) throw new Error("Search failed");
-      const result = Array.isArray(json.results) ? json.results[0] : json;
-      if (!result) throw new Error("No results found for that address");
-      if (result.lat) setLat(Number(result.lat));
-      if (result.lng) setLng(Number(result.lng));
-      if (result.address_line1) setAddr1(result.address_line1);
-      if (result.address_line2) setAddr2(result.address_line2 ?? "");
-      if (result.town)          setTown(result.town ?? "");
-      if (result.city)          setCity(result.city ?? "");
-      if (result.province)      setProvince(result.province ?? "");
-      if (result.postcode)      setPostcode(result.postcode ?? "");
-      if (result.country)       setCountry(result.country ?? "Spain");
-    } catch (e: any) { setError(e.message || "Address not found"); }
-    finally { setSearching(false); }
   }
 
   async function save() {
@@ -205,19 +366,19 @@ function StepLocation({ profile, onDone }: { profile: Profile | null; onDone: ()
       if (!user) throw new Error("Not signed in");
       const { data: existing } = await supabase.from("partner_profiles").select("company_name,contact_name").eq("user_id", user.id).maybeSingle();
       const { error: e } = await supabase.from("partner_profiles").upsert({
-        user_id:          user.id,
-        company_name:     existing?.company_name ?? "",
-        contact_name:     existing?.contact_name ?? null,
-        base_address:     fullAddress,
-        base_address1:    addr1,
-        base_address2:    addr2 || null,
-        base_town:        town || null,
-        base_city:        city || null,
-        base_province:    province || null,
-        base_postcode:    postcode || null,
-        base_country:     country,
-        base_lat:         lat,
-        base_lng:         lng,
+        user_id:           user.id,
+        company_name:      existing?.company_name ?? "",
+        contact_name:      existing?.contact_name ?? null,
+        base_address:      fullAddress,
+        base_address1:     addr1,
+        base_address2:     addr2 || null,
+        base_town:         town || null,
+        base_city:         city || null,
+        base_province:     province || null,
+        base_postcode:     postcode || null,
+        base_country:      country,
+        base_lat:          lat,
+        base_lng:          lng,
         service_radius_km: radius,
       }, { onConflict: "user_id" });
       if (e) throw new Error(e.message);
@@ -228,7 +389,7 @@ function StepLocation({ profile, onDone }: { profile: Profile | null; onDone: ()
 
   return (
     <Card title="📍 Fleet Base Location" subtitle="Set the address your vehicles operate from. This determines which customer requests you receive.">
-      <div className="space-y-5">
+      <div className="space-y-6">
         <InfoBox>
           <p className="font-semibold mb-1">Why this matters</p>
           <p>Camel Global uses your fleet base location to match you with customers within your service radius. Only requests within your radius will be sent to you — set this accurately to your depot or office location.</p>
@@ -236,31 +397,14 @@ function StepLocation({ profile, onDone }: { profile: Profile | null; onDone: ()
 
         {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-        {/* Address search */}
-        <div>
-          <label className="block text-sm font-semibold text-[#003768] mb-1.5">Search for your address</label>
-          <div className="flex gap-2">
-            <input
-              value={searchText}
-              onChange={e => setSearchText(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleSearch(); } }}
-              placeholder="Type your address and press Search…"
-              className="flex-1 rounded-xl border border-black/10 px-4 py-3 outline-none focus:border-[#0f4f8a] bg-white" />
-            <button type="button" onClick={handleSearch} disabled={searching}
-              className="rounded-xl bg-[#003768] px-5 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 shrink-0">
-              {searching ? "Searching…" : "Search"}
-            </button>
-          </div>
-          <p className="mt-1 text-xs text-slate-400">Or click the map below to drop a pin — the address fields will fill automatically.</p>
-        </div>
+        <AddressSearch onSelect={applyResult} />
 
         {geocoding && (
-          <div className="rounded-xl border border-[#003768]/10 bg-[#f3f8ff] px-4 py-3 text-sm text-[#003768]">
+          <div className="rounded-xl border border-[#003768]/10 bg-[#f3f8ff] px-4 py-2 text-sm text-[#003768]">
             Fetching address for selected location…
           </div>
         )}
 
-        {/* Address fields */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <FieldInput label="Address line 1" value={addr1} onChange={setAddr1} placeholder="e.g. Calle Mayor 12" required />
@@ -268,16 +412,15 @@ function StepLocation({ profile, onDone }: { profile: Profile | null; onDone: ()
           <div className="sm:col-span-2">
             <FieldInput label="Address line 2" value={addr2} onChange={setAddr2} placeholder="e.g. Unit 3 (optional)" />
           </div>
-          <FieldInput label="Town"             value={town}     onChange={setTown}     placeholder="e.g. Paterna" />
-          <FieldInput label="City"             value={city}     onChange={setCity}     placeholder="e.g. Valencia" />
+          <FieldInput label="Town"              value={town}     onChange={setTown}     placeholder="e.g. Paterna" />
+          <FieldInput label="City"              value={city}     onChange={setCity}     placeholder="e.g. Valencia" />
           <FieldInput label="Province / Region" value={province} onChange={setProvince} placeholder="e.g. Comunitat Valenciana" />
-          <FieldInput label="Postcode"         value={postcode} onChange={setPostcode} placeholder="e.g. 46001" />
+          <FieldInput label="Postcode"          value={postcode} onChange={setPostcode} placeholder="e.g. 46001" />
           <div className="sm:col-span-2">
             <FieldInput label="Country" value={country} onChange={setCountry} placeholder="e.g. Spain" required />
           </div>
         </div>
 
-        {/* Service radius */}
         <div>
           <label className="block text-sm font-semibold text-[#003768] mb-1.5">
             Service radius: <span className="text-[#ff7a00]">{radius} km</span>
@@ -292,7 +435,6 @@ function StepLocation({ profile, onDone }: { profile: Profile | null; onDone: ()
           </InfoBox>
         </div>
 
-        {/* Map */}
         <div>
           <label className="block text-sm font-semibold text-[#003768] mb-1.5">Pin your exact location on the map</label>
           <p className="text-xs text-slate-400 mb-2">Click anywhere on the map — the address fields above will update automatically.</p>
@@ -340,21 +482,21 @@ function StepCurrency({ profile, onDone, onBack }: { profile: Profile | null; on
 
   return (
     <Card title="💱 Bidding Currency" subtitle="Choose the currency you will use to price your bids.">
-      <div className="space-y-5">
+      <div className="space-y-6">
         <InfoBox>
           <p className="font-semibold mb-1">Why this matters</p>
           <p>All your bids will be submitted in this currency. Customers will see the equivalent in their preferred currency automatically. You can change this later in your profile settings.</p>
         </InfoBox>
         {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-3">
           {options.map(o => (
             <button key={o.value} type="button" onClick={() => setCurrency(o.value)}
-              className={`rounded-2xl border-2 p-5 text-left transition-all ${
+              className={`rounded-2xl border-2 p-6 text-left transition-all ${
                 currency === o.value
                   ? "border-[#ff7a00] bg-[#fff8f3] shadow-[0_4px_12px_rgba(255,122,0,0.15)]"
                   : "border-black/10 bg-white hover:border-[#003768]/30"
               }`}>
-              <div className="text-3xl font-black text-[#003768]">{o.symbol}</div>
+              <div className="text-4xl font-black text-[#003768]">{o.symbol}</div>
               <div className="mt-2 font-bold text-[#003768]">{o.label}</div>
               <div className="mt-0.5 text-xs text-slate-500">{o.desc}</div>
               {currency === o.value && <div className="mt-2 text-xs font-bold text-[#ff7a00]">✓ Selected</div>}
@@ -394,18 +536,13 @@ function StepFleet({ onDone, onBack }: { onDone: () => void; onBack: () => void 
       if (!user) throw new Error("Not signed in");
       const cat = FLEET_CATEGORIES.find(c => c.slug === form.category_slug);
       const { error: e } = await supabase.from("partner_fleet").insert({
-        user_id:          user.id,
-        category_slug:    form.category_slug,
-        category_name:    cat?.name || form.category_slug,
-        max_passengers:   form.max_passengers,
-        max_suitcases:    form.max_suitcases,
-        max_hand_luggage: form.max_hand_luggage,
-        service_level:    "standard",
-        is_active:        true,
+        user_id: user.id, category_slug: form.category_slug,
+        category_name: cat?.name || form.category_slug,
+        max_passengers: form.max_passengers, max_suitcases: form.max_suitcases,
+        max_hand_luggage: form.max_hand_luggage, service_level: "standard", is_active: true,
       });
       if (e) throw new Error(e.message);
-      await load();
-      setAdding(false);
+      await load(); setAdding(false);
       setForm({ category_slug: "", max_passengers: 4, max_suitcases: 2, max_hand_luggage: 2 });
     } catch (e: any) { setError(e.message); }
     finally { setSaving(false); }
@@ -418,7 +555,7 @@ function StepFleet({ onDone, onBack }: { onDone: () => void; onBack: () => void 
 
   return (
     <Card title="🚗 Your Car Fleet" subtitle="Add the vehicle categories you can offer to customers.">
-      <div className="space-y-5">
+      <div className="space-y-6">
         <InfoBox>
           <p className="font-semibold mb-1">Why this matters</p>
           <p>Customers request specific vehicle types — Standard Saloon, SUV, Minivan etc. You will only receive requests that match the categories you add here. Add all categories you can service to maximise your opportunities.</p>
@@ -451,8 +588,8 @@ function StepFleet({ onDone, onBack }: { onDone: () => void; onBack: () => void 
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               {[
-                { key: "max_passengers",   label: "Max passengers" },
-                { key: "max_suitcases",    label: "Max suitcases" },
+                { key: "max_passengers", label: "Max passengers" },
+                { key: "max_suitcases", label: "Max suitcases" },
                 { key: "max_hand_luggage", label: "Hand luggage" },
               ].map(({ key, label }) => (
                 <div key={key}>
@@ -514,8 +651,7 @@ function StepDrivers({ onDone, onBack }: { onDone: () => void; onBack: () => voi
       });
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.error || "Failed to add driver.");
-      await load();
-      setAdding(false);
+      await load(); setAdding(false);
       setForm({ full_name: "", email: "", phone: "" });
     } catch (e: any) { setError(e.message); }
     finally { setSaving(false); }
@@ -523,7 +659,7 @@ function StepDrivers({ onDone, onBack }: { onDone: () => void; onBack: () => voi
 
   return (
     <Card title="👤 Your Drivers" subtitle="Add the drivers who will deliver and collect vehicles for your customers.">
-      <div className="space-y-5">
+      <div className="space-y-6">
         <InfoBox>
           <p className="font-semibold mb-1">Why this matters</p>
           <p>Drivers meet customers at collection and return. Each driver needs an account to use the Camel Global driver app — which records fuel levels and confirms collections. Add at least one driver before going live.</p>
@@ -598,7 +734,7 @@ function StepGoLive({ profile, fleetCount, driverCount, onBack }: {
 
   return (
     <Card title="🚀 Ready to Go Live?" subtitle="Review your setup and request activation when you're ready.">
-      <div className="space-y-5">
+      <div className="space-y-6">
         <InfoBox>
           <p className="font-semibold mb-1">What happens when you go live?</p>
           <p>Once activated, customer requests within your service radius will be sent to you in real time. You will be able to submit competitive bids and start receiving bookings immediately.</p>
@@ -704,7 +840,7 @@ export default function PartnerOnboardingPage() {
   return (
     <div className="min-h-screen bg-[#f7f9fc]">
       <header className="fixed inset-x-0 top-0 z-40 h-16 border-b border-black/10 bg-[#0f4f8a] shadow-[0_4px_12px_rgba(0,0,0,0.18)]">
-        <div className="flex h-full items-center justify-between px-4 md:px-8">
+        <div className="flex h-full items-center justify-between px-6 md:px-12">
           <Image src="/camel-logo.png" alt="Camel Global" width={160} height={52} className="h-[44px] w-auto" />
           <button onClick={() => router.replace("/partner/dashboard")}
             className="text-sm font-semibold text-white/80 hover:text-white transition-colors">
@@ -712,9 +848,9 @@ export default function PartnerOnboardingPage() {
           </button>
         </div>
       </header>
-      <div className="pt-24 pb-12 px-4 md:px-8">
-        <div className="mx-auto max-w-3xl">
-          <div className="mb-6">
+      <div className="pt-24 pb-16 px-4 sm:px-8 md:px-16 lg:px-24">
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-8">
             <h1 className="text-3xl font-bold text-[#003768]">Get Started</h1>
             <p className="mt-1 text-slate-500">Complete your setup to start receiving bookings.</p>
           </div>

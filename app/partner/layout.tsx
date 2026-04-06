@@ -30,13 +30,13 @@ async function getUserWithTimeout(supabase: any, ms = 8000) {
 
 export default function FleetLayout({ children }: { children: React.ReactNode }) {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
-  const router = useRouter();
+  const router   = useRouter();
   const pathname = usePathname();
 
-  const [loading, setLoading] = useState(true);
+  const [loading,     setLoading]     = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [role, setRole] = useState<PortalRole>("partner");
-  const [timedOut, setTimedOut] = useState(false);
+  const [role,        setRole]        = useState<PortalRole>("partner");
+  const [timedOut,    setTimedOut]    = useState(false);
 
   const isPublicPartnerPage =
     pathname === "/partner/login" ||
@@ -45,11 +45,13 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
     pathname === "/partner/signup" ||
     pathname.startsWith("/partner/signup/");
 
+  const isOnboarding = pathname === "/partner/onboarding";
+
   useEffect(() => {
     let mounted = true;
 
     async function guard() {
-      if (isPublicPartnerPage) { setLoading(false); return; }
+      if (isPublicPartnerPage || isOnboarding) { setLoading(false); return; }
 
       setLoading(true);
 
@@ -71,20 +73,15 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
         }
 
         let nextRole: PortalRole = "partner";
-
         try {
-          const meRes = await fetch("/api/admin/me", {
-            method: "GET", cache: "no-store", credentials: "include",
-          });
+          const meRes = await fetch("/api/admin/me", { method: "GET", cache: "no-store", credentials: "include" });
           if (meRes.ok) {
             const meJson = await safeJson(meRes);
             nextRole =
               meJson?.role === "super_admin" ? "super_admin" :
               meJson?.role === "admin" ? "admin" : "partner";
           }
-        } catch {
-          nextRole = "partner";
-        }
+        } catch { nextRole = "partner"; }
 
         if (!mounted) return;
 
@@ -104,11 +101,11 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
 
     guard();
     return () => { mounted = false; };
-  }, [router, supabase, isPublicPartnerPage]);
+  }, [router, supabase, isPublicPartnerPage, isOnboarding]);
 
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
-  if (isPublicPartnerPage) return <>{children}</>;
+  if (isPublicPartnerPage || isOnboarding) return <>{children}</>;
 
   if (timedOut) {
     return (
