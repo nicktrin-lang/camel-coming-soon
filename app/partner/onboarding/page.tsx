@@ -46,11 +46,11 @@ function StepNav({ current, completed }: { current: Step; completed: Set<Step> }
             <div className="flex flex-col items-center">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-bold transition-colors ${done ? "bg-green-500 text-white" : active ? "bg-[#ff7a00] text-white" : "bg-slate-100 text-slate-400"}`}>
                 {done ? "✓" : s.icon}
-      
+              </div>
               <span className={`mt-1 text-xs font-medium hidden sm:block ${active ? "text-[#ff7a00]" : done ? "text-green-600" : "text-slate-400"}`}>{s.label}</span>
-    
+            </div>
             {i < STEPS.length - 1 && <div className={`h-0.5 flex-1 mx-2 mb-4 rounded ${done ? "bg-green-500" : "bg-slate-200"}`} />}
-  
+          </div>
         );
       })}
     </div>
