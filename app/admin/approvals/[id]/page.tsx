@@ -264,6 +264,11 @@ export default function AdminApprovalDetailPage() {
               <InfoRow label="Postcode" value={application.postcode || profile?.postcode} />
               <InfoRow label="Country" value={application.country || profile?.country} />
             </div>
+            {bizLat && bizLng ? (
+              <div className="mt-5 rounded-2xl overflow-hidden border border-black/10">
+                <MapPicker lat={bizLat} lng={bizLng} onPick={() => {}} />
+              </div>
+            ) : null}
           </SectionCard>
 
           {/* Fleet Base Location */}
