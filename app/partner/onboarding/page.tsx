@@ -46,11 +46,11 @@ function StepNav({ current, completed }: { current: Step; completed: Set<Step> }
             <div className="flex flex-col items-center">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-bold transition-colors ${done ? "bg-green-500 text-white" : active ? "bg-[#ff7a00] text-white" : "bg-slate-100 text-slate-400"}`}>
                 {done ? "✓" : s.icon}
-              </div>
+      
               <span className={`mt-1 text-xs font-medium hidden sm:block ${active ? "text-[#ff7a00]" : done ? "text-green-600" : "text-slate-400"}`}>{s.label}</span>
-            </div>
+    
             {i < STEPS.length - 1 && <div className={`h-0.5 flex-1 mx-2 mb-4 rounded ${done ? "bg-green-500" : "bg-slate-200"}`} />}
-          </div>
+  
         );
       })}
     </div>
@@ -142,7 +142,7 @@ function AddressSearch({ onSelect }: { onSelect: (r: AddressResult) => void }) {
               <span className="ml-2 text-slate-400 text-xs">{[r.city || r.town, r.province, r.country].filter(Boolean).join(", ")}</span>
             </button>
           ))}
-        </div>
+
       )}
     </div>
   );
@@ -222,19 +222,19 @@ function StepLocation({ profile, onDone }: { profile: Profile | null; onDone: ()
           <FieldInput label="Province / Region" value={province} onChange={setProvince} placeholder="e.g. Comunitat Valenciana" />
           <FieldInput label="Postcode" value={postcode} onChange={setPostcode} placeholder="e.g. 46001" />
           <div className="sm:col-span-2"><FieldInput label="Country" value={country} onChange={setCountry} placeholder="e.g. Spain" required /></div>
-        </div>
+
         <div>
           <label className="block text-sm font-semibold text-[#003768] mb-1.5">Service radius: <span className="text-[#ff7a00]">{radius} km</span></label>
           <input type="range" min={5} max={150} step={5} value={radius} onChange={e => setRadius(Number(e.target.value))} className="w-full accent-[#ff7a00]" />
           <div className="flex justify-between text-xs text-slate-400 mt-1"><span>5 km</span><span>Local area</span><span>150 km</span></div>
           <InfoBox><p>A <strong>{radius} km</strong> radius means you will receive requests from customers within {radius} km of your base.</p></InfoBox>
-        </div>
+
         <div>
           <label className="block text-sm font-semibold text-[#003768] mb-1.5">Pin your exact location on the map</label>
           <p className="text-xs text-slate-400 mb-2">Click anywhere on the map — the address fields above will update automatically.</p>
           <div className="rounded-2xl overflow-hidden border border-black/10"><MapPicker lat={lat} lng={lng} onPick={handleMapPick} /></div>
           <p className="mt-1.5 text-xs text-slate-400">GPS: {lat.toFixed(5)}, {lng.toFixed(5)}</p>
-        </div>
+
         <NavButtons onNext={save} saving={saving} nextLabel="Save Location & Continue →" />
       </div>
     </Card>
@@ -276,7 +276,7 @@ function StepCurrency({ profile, onDone, onBack }: { profile: Profile | null; on
               {currency === o.value && <div className="mt-2 text-xs font-bold text-[#ff7a00]">✓ Selected</div>}
             </button>
           ))}
-        </div>
+
         <NavButtons onBack={onBack} onNext={save} saving={saving} />
       </div>
     </Card>
@@ -333,9 +333,9 @@ function StepFleet({ onDone, onBack }: { onDone: () => void; onBack: () => void 
               <div key={f.id} className="flex items-center justify-between rounded-xl border border-black/5 bg-slate-50 px-4 py-3">
                 <div><p className="font-semibold text-[#003768]">{f.category_name}</p><p className="text-xs text-slate-500">{f.max_passengers} passengers · {f.max_suitcases} suitcases</p></div>
                 <button type="button" onClick={() => removeVehicle(f.id)} className="text-xs text-red-500 hover:text-red-700 font-semibold">Remove</button>
-              </div>
+      
             ))}
-          </div>
+  
         )}
         {adding ? (
           <div className="rounded-2xl border border-[#003768]/10 bg-[#f3f8ff] p-5 space-y-4">
@@ -349,14 +349,14 @@ function StepFleet({ onDone, onBack }: { onDone: () => void; onBack: () => void 
                 <div key={key}>
                   <label className="text-sm font-medium text-[#003768] mb-1.5 block">{label}</label>
                   <input type="number" min={0} max={20} value={(form as any)[key]} onChange={e => setForm(f => ({ ...f, [key]: Number(e.target.value) }))} className="w-full rounded-xl border border-black/10 px-4 py-3 outline-none" />
-                </div>
+        
               ))}
-            </div>
+    
             <div className="flex gap-2">
               <button type="button" onClick={() => setAdding(false)} className="flex-1 rounded-full border border-black/10 py-2.5 text-sm font-semibold text-slate-600">Cancel</button>
               <button type="button" onClick={addVehicle} disabled={saving} className="flex-[2] rounded-full bg-[#003768] py-2.5 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Saving…" : "Add vehicle"}</button>
-            </div>
-          </div>
+    
+  
         ) : (
           <button type="button" onClick={() => setAdding(true)} className="w-full rounded-xl border-2 border-dashed border-[#003768]/20 py-3 text-sm font-semibold text-[#003768] hover:bg-[#f3f8ff]">+ Add vehicle category</button>
         )}
@@ -405,9 +405,9 @@ function StepDrivers({ onDone, onBack }: { onDone: () => void; onBack: () => voi
               <div key={d.id} className="flex items-center justify-between rounded-xl border border-black/5 bg-slate-50 px-4 py-3">
                 <div><p className="font-semibold text-[#003768]">{d.full_name}</p><p className="text-xs text-slate-500">{d.email}{d.phone ? ` · ${d.phone}` : ""}</p></div>
                 <span className="text-xs font-semibold text-green-600">✓ Added</span>
-              </div>
+      
             ))}
-          </div>
+  
         )}
         {adding ? (
           <div className="rounded-2xl border border-[#003768]/10 bg-[#f3f8ff] p-5 space-y-4">
@@ -416,13 +416,13 @@ function StepDrivers({ onDone, onBack }: { onDone: () => void; onBack: () => voi
               <div key={key}>
                 <label className="text-sm font-medium text-[#003768] mb-1.5 block">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
                 <input value={(form as any)[key]} placeholder={placeholder} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} className="w-full rounded-xl border border-black/10 px-4 py-3 outline-none focus:border-[#0f4f8a]" />
-              </div>
+      
             ))}
             <div className="flex gap-2">
               <button type="button" onClick={() => setAdding(false)} className="flex-1 rounded-full border border-black/10 py-2.5 text-sm font-semibold text-slate-600">Cancel</button>
               <button type="button" onClick={addDriver} disabled={saving} className="flex-[2] rounded-full bg-[#003768] py-2.5 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Saving…" : "Add driver"}</button>
-            </div>
-          </div>
+    
+  
         ) : (
           <button type="button" onClick={() => setAdding(true)} className="w-full rounded-xl border-2 border-dashed border-[#003768]/20 py-3 text-sm font-semibold text-[#003768] hover:bg-[#f3f8ff]">+ Add driver</button>
         )}
@@ -450,34 +450,34 @@ function StepGoLive({ profile, fleetCount, driverCount, onBack }: { profile: Pro
         <div>
           <div className="flex items-center justify-between mb-2"><span className="text-sm font-semibold text-[#003768]">Setup progress</span><span className="text-sm font-bold text-[#ff7a00]">{donePct}%</span></div>
           <div className="h-2 rounded-full bg-slate-100 overflow-hidden"><div className="h-full rounded-full bg-[#ff7a00] transition-all" style={{ width: `${donePct}%` }} /></div>
-        </div>
+
         <div className="space-y-2">
           {checks.map(({ label, done }) => (
             <div key={label} className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${done ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50"}`}>
               <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${done ? "bg-green-500 text-white" : "bg-amber-200 text-amber-700"}`}>{done ? "✓" : "!"}</span>
               <span className={`text-sm font-medium ${done ? "text-green-800" : "text-amber-800"}`}>{label}</span>
               {!done && <span className="ml-auto text-xs text-amber-600 font-semibold">Incomplete</span>}
-            </div>
+    
           ))}
-        </div>
+
         {allDone ? (
           <div className="rounded-2xl border border-green-200 bg-green-50 p-5 text-center">
             <p className="text-2xl mb-2">🎉</p>
             <p className="font-bold text-green-800 text-lg">You are all set!</p>
             <p className="text-sm text-green-700 mt-1">The Camel Global team will review and activate you shortly.</p>
-          </div>
+  
         ) : (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
             <p className="font-semibold">A few things still to complete</p>
             <p className="mt-1">Complete all steps first to start receiving bookings immediately.</p>
-          </div>
+  
         )}
         <div className="flex gap-3">
           <button type="button" onClick={onBack} className="rounded-full border border-black/10 px-6 py-3 font-semibold text-[#003768] hover:bg-black/5">← Back</button>
           <button type="button" onClick={() => router.replace("/partner/dashboard")} className="flex-1 rounded-full bg-[#ff7a00] py-3 font-semibold text-white shadow-[0_8px_18px_rgba(255,122,0,0.3)] hover:opacity-95">
             {allDone ? "Go to Dashboard 🚀" : "Save progress & go to Dashboard →"}
           </button>
-        </div>
+
       </div>
     </Card>
   );
@@ -531,15 +531,15 @@ export default function PartnerOnboardingPage() {
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-[#f7f9fc]"><p className="text-slate-500">Loading your account…</p></div>;
 
   return (
-    <div className="min-h-screen bg-[#f7f9fc]">
-      <header className="fixed inset-x-0 top-0 z-40 h-16 border-b border-black/10 bg-[#0f4f8a] shadow-[0_4px_12px_rgba(0,0,0,0.18)]">
-        <div className="flex h-full items-center justify-between px-6 md:px-12">
-          <Image src="/camel-logo.png" alt="Camel Global" width={160} height={52} className="h-[44px] w-auto" />
-          <button onClick={() => router.replace("/partner/dashboard")} className="text-sm font-semibold text-white/80 hover:text-white">Save & finish later →</button>
-        </div>
-      </header>
-      <div className="pt-24 pb-16 px-4 sm:px-8 md:px-16 lg:px-24">
-        <div className="max-w-4xl mx-auto">
+    <div className="w-full">
+
+
+
+
+
+
+<div className="w-full">
+        <div className="w-full">
           <div className="mb-8"><h1 className="text-3xl font-bold text-[#003768]">Get Started</h1><p className="mt-1 text-slate-500">Complete your setup to start receiving bookings.</p></div>
           <StepNav current={step} completed={completed} />
           {step === "location" && <StepLocation profile={profile} onDone={async () => { const { data: { user } } = await supabase.auth.getUser(); if (user) await refreshProfile(user.id); complete("location", "currency"); }} />}
@@ -547,7 +547,7 @@ export default function PartnerOnboardingPage() {
           {step === "fleet" && <StepFleet onDone={() => { setFleetCount(c => c + 1); complete("fleet", "drivers"); }} onBack={() => setStep("currency")} />}
           {step === "drivers" && <StepDrivers onDone={() => { setDriverCount(c => c + 1); complete("drivers", "golive"); }} onBack={() => setStep("fleet")} />}
           {step === "golive" && <StepGoLive profile={profile} fleetCount={fleetCount} driverCount={driverCount} onBack={() => setStep("drivers")} />}
-        </div>
+
       </div>
     </div>
   );

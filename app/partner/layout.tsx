@@ -45,33 +45,24 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
     pathname === "/partner/signup" ||
     pathname.startsWith("/partner/signup/");
 
-  
-
   useEffect(() => {
     let mounted = true;
-
     async function guard() {
       if (isPublicPartnerPage) { setLoading(false); return; }
-
       setLoading(true);
-
       try {
         const { data: userData, error: userErr } = await getUserWithTimeout(supabase);
-
         if (!mounted) return;
-
         if (userErr?.message === "timeout") {
           clearStaleSupabaseLocks();
           setTimedOut(true);
           setLoading(false);
           return;
         }
-
         if (userErr || !userData?.user) {
           router.replace("/partner/login?reason=not_signed_in");
           return;
         }
-
         let nextRole: PortalRole = "partner";
         try {
           const meRes = await fetch("/api/admin/me", { method: "GET", cache: "no-store", credentials: "include" });
@@ -82,14 +73,11 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
               meJson?.role === "admin" ? "admin" : "partner";
           }
         } catch { nextRole = "partner"; }
-
         if (!mounted) return;
-
         if (nextRole === "admin" || nextRole === "super_admin") {
           router.replace("/admin/approvals");
           return;
         }
-
         setRole(nextRole);
       } catch {
         if (!mounted) return;
@@ -98,14 +86,13 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
         if (mounted) setLoading(false);
       }
     }
-
     guard();
     return () => { mounted = false; };
   }, [router, supabase, isPublicPartnerPage]);
 
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
-  if (isPublicPartnerPage || isOnboarding) return <>{children}</>;
+  if (isPublicPartnerPage) return <>{children}</>;
 
   if (timedOut) {
     return (
