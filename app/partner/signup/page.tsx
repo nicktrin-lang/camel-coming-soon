@@ -42,30 +42,32 @@ const STEP_LABELS = ["Your Business", "Business Address", "Fleet Address", "Pass
 
 function ProgressBar({ step, total }: { step: number; total: number }) {
   return (
-    <div className="mb-8">
-      <div className="flex items-center justify-between mb-2">
-        {Array.from({ length: total }).map((_, i) => (
-          <div key={i} className="flex items-center flex-1">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 transition-colors ${
-              i + 1 < step ? "bg-green-500 text-white" :
-              i + 1 === step ? "bg-[#ff7a00] text-white" :
-              "bg-slate-200 text-slate-500"
-            }`}>
-              {i + 1 < step ? "✓" : i + 1}
+    <div className="mb-10">
+      <div className="flex items-start justify-between">
+        {STEP_LABELS.map((label, i) => {
+          const done = i + 1 < step;
+          const active = i + 1 === step;
+          return (
+            <div key={label} className="flex flex-col items-center flex-1">
+              <div className="flex items-center w-full">
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 transition-colors ${
+                  done ? "bg-green-500 text-white" : active ? "bg-[#ff7a00] text-white" : "bg-slate-200 text-slate-500"
+                }`}>
+                  {done ? "✓" : i + 1}
+                </div>
+                {i < STEP_LABELS.length - 1 && (
+                  <div className={`h-1 flex-1 mx-1 rounded transition-colors ${done ? "bg-green-500" : "bg-slate-200"}`} />
+                )}
+              </div>
+              <span className={`mt-2 text-xs font-medium text-center w-full pr-2 ${
+                active ? "text-[#ff7a00]" : done ? "text-green-600" : "text-slate-400"
+              }`}>{label}</span>
             </div>
-            {i < total - 1 && (
-              <div className={`h-1 flex-1 mx-1 rounded transition-colors ${i + 1 < step ? "bg-green-500" : "bg-slate-200"}`} />
-            )}
-          </div>
-        ))}
-      </div>
-      <div className="flex text-xs text-slate-500 mt-1">
-        <div className="flex items-start mt-1">{STEP_LABELS.map((l, i) => (<div key={l} className="flex flex-col items-center flex-1"><span className="text-xs text-slate-500 text-center leading-tight">{l}</span></div>))}</div>
+          );
+        })}
       </div>
     </div>
   );
-}
-
 function Field({ label, required, error, children }: {
   label: string; required?: boolean; error?: string; children: React.ReactNode;
 }) {
@@ -620,8 +622,8 @@ export default function PartnerSignupPage() {
         </div>
       </header>
 
-      <div className="pt-28 pb-16 px-4 sm:px-8 md:px-16 lg:px-24">
-        <div className="max-w-4xl mx-auto">
+      <div className="pt-28 pb-16 px-6 md:px-12 lg:px-20">
+        <div className="w-full">
           <div className="rounded-3xl border border-black/5 bg-white p-8 md:p-12 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
             <ProgressBar step={step} total={5} />
 
