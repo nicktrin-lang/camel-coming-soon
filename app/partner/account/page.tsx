@@ -19,19 +19,17 @@ type AccountProfile = {
   base_address: string | null;
   base_lat: number | null;
   base_lng: number | null;
+  default_currency: string | null;
 };
-
-// Infer currency from country since there's no currency column yet
-function inferCurrency(country?: string | null): string {
-  const c = String(country || "").toLowerCase();
-  if (c.includes("united kingdom") || c.includes("uk") || c === "gb") return "GBP";
-  if (c.includes("united states") || c.includes("usa") || c === "us") return "USD";
-  return "EUR"; // default for Spain and most of Europe
-}
 
 type ApplicationRow = {
   status: string | null;
   created_at: string | null;
+};
+
+type LiveStatus = {
+  isLive: boolean;
+  missing: string[];
 };
 
 function fmtValue(value?: string | number | null) {
@@ -63,9 +61,20 @@ function currencyLabel(currency?: string | null) {
     case "EUR": return "Euro (€)";
     case "GBP": return "British Pound (£)";
     case "USD": return "US Dollar ($)";
-    default: return currency || "EUR (default)";
+    default: return "Not set";
   }
 }
+
+const MISSING_LABELS: Record<string, { label: string; href: string }> = {
+  service_radius_km: { label: "Service radius not set", href: "/partner/profile" },
+  base_address:      { label: "Fleet base address missing", href: "/partner/profile" },
+  base_location:     { label: "Fleet base location (map pin) missing", href: "/partner/profile" },
+  base_lat:          { label: "Fleet base location (lat) missing", href: "/partner/profile" },
+  base_lng:          { label: "Fleet base location (lng) missing", href: "/partner/profile" },
+  fleet:             { label: "No active fleet vehicles added", href: "/partner/fleet" },
+  driver:            { label: "No active drivers added", href: "/partner/drivers" },
+  default_currency:  { label: "Billing currency not set", href: "/partner/profile" },
+};
 
 // ── Operating Rules ───────────────────────────────────────────────────────────
 
@@ -204,7 +213,6 @@ const OPERATING_RULES = [
 
 function downloadOperatingRulesPDF(companyName: string) {
   const dateStr = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
-
   const rulesHtml = OPERATING_RULES.map(({ section, rules }) => `
     <div style="margin-bottom:24px;">
       <h3 style="color:#003768;font-size:14px;font-weight:700;margin:0 0 8px 0;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">${section}</h3>
@@ -213,53 +221,25 @@ function downloadOperatingRulesPDF(companyName: string) {
       </ol>
     </div>
   `).join("");
-
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8"/>
-  <title>Camel Global — Partner Operating Rules</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; padding: 40px; color: #1e293b; background: #fff; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #003768; padding-bottom: 16px; margin-bottom: 24px; }
-    .logo { font-size: 22px; font-weight: 900; color: #003768; letter-spacing: -1px; }
-    .logo span { color: #ff7a00; }
-    .meta { text-align: right; font-size: 11px; color: #64748b; }
-    h1 { font-size: 20px; color: #003768; font-weight: 800; margin-bottom: 4px; }
-    h2 { font-size: 12px; color: #64748b; font-weight: 400; margin-bottom: 16px; }
-    .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 10px; color: #94a3b8; text-align: center; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div>
-      <div class="logo">🐪 Camel <span>Global</span></div>
-      <div style="font-size:11px;color:#64748b;margin-top:4px;">Meet and greet car hire</div>
-    </div>
-    <div class="meta">
-      <div><strong>Partner Operating Rules</strong></div>
-      <div>Issued to: ${companyName || "Partner"}</div>
-      <div>Generated: ${dateStr}</div>
-    </div>
-  </div>
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Camel Global — Partner Operating Rules</title>
+  <style>* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: Arial, sans-serif; padding: 40px; color: #1e293b; background: #fff; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #003768; padding-bottom: 16px; margin-bottom: 24px; }
+  .logo { font-size: 22px; font-weight: 900; color: #003768; letter-spacing: -1px; } .logo span { color: #ff7a00; }
+  .meta { text-align: right; font-size: 11px; color: #64748b; } h1 { font-size: 20px; color: #003768; font-weight: 800; margin-bottom: 4px; }
+  h2 { font-size: 12px; color: #64748b; font-weight: 400; margin-bottom: 16px; }
+  .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 10px; color: #94a3b8; text-align: center; }</style>
+  </head><body>
+  <div class="header"><div><div class="logo">🐪 Camel <span>Global</span></div><div style="font-size:11px;color:#64748b;margin-top:4px;">Meet and greet car hire</div></div>
+  <div class="meta"><div><strong>Partner Operating Rules</strong></div><div>Issued to: ${companyName || "Partner"}</div><div>Generated: ${dateStr}</div></div></div>
   <h1>Partner Operating Rules</h1>
   <h2>These rules govern the conduct of all partners operating on the Camel Global platform. By operating as a partner you agree to comply with all sections below.</h2>
   ${rulesHtml}
-  <div class="footer">
-    Camel Global — Partner Operating Rules — Generated ${dateStr} — camelglobal.com
-  </div>
-</body>
-</html>`;
-
+  <div class="footer">Camel Global — Partner Operating Rules — Generated ${dateStr} — camelglobal.com</div>
+  </body></html>`;
   const blob = new Blob([html], { type: "text/html;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const win = window.open(url, "_blank");
-  if (win) {
-    win.onload = () => {
-      setTimeout(() => { win.print(); URL.revokeObjectURL(url); }, 500);
-    };
-  }
+  if (win) { win.onload = () => { setTimeout(() => { win.print(); URL.revokeObjectURL(url); }, 500); }; }
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
@@ -273,6 +253,7 @@ export default function PartnerAccountPage() {
   const [profile, setProfile] = useState<AccountProfile | null>(null);
   const [application, setApplication] = useState<ApplicationRow | null>(null);
   const [email, setEmail] = useState<string>("");
+  const [liveStatus, setLiveStatus] = useState<LiveStatus | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -283,21 +264,44 @@ export default function PartnerAccountPage() {
         if (userErr || !userData?.user) { router.replace("/partner/login?reason=not_signed_in"); return; }
         const user = userData.user;
         const normalizedEmail = String(user.email || "").toLowerCase().trim();
+
         const [{ data: profileRow, error: profileErr }, { data: applicationRow, error: appErr }] =
           await Promise.all([
             supabase.from("partner_profiles")
-              .select("company_name,contact_name,phone,address,address1,address2,province,postcode,country,website,service_radius_km,base_address,base_lat,base_lng")
+              .select("company_name,contact_name,phone,address,address1,address2,province,postcode,country,website,service_radius_km,base_address,base_lat,base_lng,default_currency")
               .eq("user_id", user.id).maybeSingle(),
             supabase.from("partner_applications")
               .select("status,created_at").eq("email", normalizedEmail)
               .order("created_at", { ascending: false }).limit(1).maybeSingle(),
           ]);
+
         if (profileErr) throw new Error(profileErr.message || "Failed to load account.");
         if (appErr) throw new Error(appErr.message || "Failed to load application.");
         if (!mounted) return;
+
         setProfile((profileRow || null) as AccountProfile | null);
         setApplication((applicationRow || null) as ApplicationRow | null);
         setEmail(normalizedEmail);
+
+        // Fetch live status from the refresh endpoint
+        try {
+          const liveRes = await fetch("/api/partner/refresh-live-status", {
+            method: "POST",
+            cache: "no-store",
+            credentials: "include",
+          });
+          if (liveRes.ok) {
+            const liveJson = await liveRes.json();
+            if (mounted) {
+              setLiveStatus({
+                isLive: liveJson?.isLiveNow ?? liveJson?.becameLive ?? false,
+                missing: Array.isArray(liveJson?.missing) ? liveJson.missing : [],
+              });
+            }
+          }
+        } catch {
+          // Non-fatal — live status just won't show
+        }
       } catch (e: any) {
         if (!mounted) return;
         setError(e?.message || "Failed to load account.");
@@ -347,9 +351,50 @@ export default function PartnerAccountPage() {
         </div>
         <div className="rounded-3xl bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
           <p className="text-sm text-slate-500">Billing Currency</p>
-          <p className="mt-1 text-lg font-semibold text-[#003768]">{currencyLabel(inferCurrency(profile?.country))}</p>
+          <p className="mt-1 text-lg font-semibold text-[#003768]">{currencyLabel(profile?.default_currency)}</p>
         </div>
       </div>
+
+      {/* Live Status Banner */}
+      {liveStatus && (
+        liveStatus.isLive ? (
+          <div className="rounded-3xl border border-green-200 bg-green-50 p-5 shadow-[0_18px_45px_rgba(0,0,0,0.05)]">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">✅</span>
+              <div>
+                <p className="font-semibold text-green-800">Your account is live</p>
+                <p className="text-sm text-green-700">You are visible to customers and can receive and bid on requests within your service radius.</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-[0_18px_45px_rgba(0,0,0,0.05)]">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">⚠️</span>
+              <div className="flex-1">
+                <p className="font-semibold text-amber-800">Your account is not yet live</p>
+                <p className="mt-1 text-sm text-amber-700">Complete the following to go live and start receiving customer requests:</p>
+                {liveStatus.missing.length > 0 && (
+                  <ul className="mt-3 space-y-2">
+                    {liveStatus.missing.map(m => {
+                      const info = MISSING_LABELS[m] ?? { label: m, href: "/partner/profile" };
+                      return (
+                        <li key={m}>
+                          <a href={info.href}
+                            className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-white px-4 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 transition-colors">
+                            <span className="text-amber-500">→</span>
+                            {info.label}
+                          </a>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      )}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
@@ -362,7 +407,7 @@ export default function PartnerAccountPage() {
               <div><span className="text-slate-500">Email</span><p className="font-medium text-slate-800">{fmtValue(email)}</p></div>
               <div><span className="text-slate-500">Phone</span><p className="font-medium text-slate-800">{fmtValue(profile?.phone)}</p></div>
               <div><span className="text-slate-500">Website</span><p className="font-medium text-slate-800">{fmtValue(profile?.website)}</p></div>
-              <div><span className="text-slate-500">Billing Currency</span><p className="font-medium text-slate-800">{currencyLabel(inferCurrency(profile?.country))}</p></div>
+              <div><span className="text-slate-500">Billing Currency</span><p className="font-medium text-slate-800">{currencyLabel(profile?.default_currency)}</p></div>
               <div><span className="text-slate-500">Service Radius</span><p className="font-medium text-slate-800">{profile?.service_radius_km ? `${profile.service_radius_km} km` : "—"}</p></div>
             </div>
           </div>
@@ -455,13 +500,13 @@ export default function PartnerAccountPage() {
               )}
               {application?.status === "approved" && (
                 <div className="rounded-2xl border border-green-200 bg-green-50 p-3 text-xs text-green-700">
-                  Your account is approved and active. You can bid on customer requests within your service radius.
+                  Your account is approved. Complete your profile setup to go live.
                 </div>
               )}
             </div>
           </div>
 
-          {/* Quick Stats */}
+          {/* Quick Links */}
           <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
             <h2 className="text-xl font-semibold text-[#003768]">Quick Links</h2>
             <div className="mt-4 space-y-2 text-sm">
@@ -498,7 +543,6 @@ export default function PartnerAccountPage() {
             ⬇ Download PDF
           </button>
         </div>
-
         <div className="mt-6 space-y-6">
           {OPERATING_RULES.map(({ section, rules }) => (
             <div key={section} className="rounded-2xl border border-black/5 bg-slate-50 p-5">
@@ -514,7 +558,6 @@ export default function PartnerAccountPage() {
             </div>
           ))}
         </div>
-
         <p className="mt-6 text-xs text-slate-400 text-center">
           Camel Global Partner Operating Rules — Last updated April 2026 — Subject to change with 14 days' notice.
         </p>

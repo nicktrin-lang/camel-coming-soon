@@ -49,10 +49,7 @@ export async function GET() {
       .order("created_at", { ascending: false });
 
     if (applicationsErr) {
-      return NextResponse.json(
-        { error: applicationsErr.message },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: applicationsErr.message }, { status: 400 });
     }
 
     const applicationRows = applications || [];
@@ -75,7 +72,6 @@ export async function GET() {
     for (const user of authUsers?.users || []) {
       const userEmail = String(user.email || "").toLowerCase().trim();
       const authUserId = String(user.id || "").trim();
-
       if (userEmail && authUserId && applicationEmails.includes(userEmail)) {
         emailToUserId.set(userEmail, authUserId);
       }
@@ -105,7 +101,8 @@ export async function GET() {
           base_address,
           base_lat,
           base_lng,
-          service_radius_km
+          service_radius_km,
+          default_currency
         `)
         .in("user_id", profileUserIds);
 
@@ -118,22 +115,45 @@ export async function GET() {
       );
     }
 
+    // Fetch active fleet counts
     let fleetCountMap = new Map<string, number>();
 
     if (profileUserIds.length > 0) {
       const { data: fleetRows, error: fleetErr } = await db
         .from("partner_fleet")
         .select("user_id")
-        .in("user_id", profileUserIds);
+        .in("user_id", profileUserIds)
+        .eq("is_active", true);
 
       if (fleetErr) {
         return NextResponse.json({ error: fleetErr.message }, { status: 400 });
       }
 
       for (const row of fleetRows || []) {
-        const fleetUserId = String((row as any)?.user_id || "").trim();
-        if (!fleetUserId) continue;
-        fleetCountMap.set(fleetUserId, (fleetCountMap.get(fleetUserId) || 0) + 1);
+        const uid = String((row as any)?.user_id || "").trim();
+        if (!uid) continue;
+        fleetCountMap.set(uid, (fleetCountMap.get(uid) || 0) + 1);
+      }
+    }
+
+    // Fetch active driver counts
+    let driverCountMap = new Map<string, number>();
+
+    if (profileUserIds.length > 0) {
+      const { data: driverRows, error: driverErr } = await db
+        .from("partner_drivers")
+        .select("partner_user_id")
+        .in("partner_user_id", profileUserIds)
+        .eq("is_active", true);
+
+      if (driverErr) {
+        return NextResponse.json({ error: driverErr.message }, { status: 400 });
+      }
+
+      for (const row of driverRows || []) {
+        const uid = String((row as any)?.partner_user_id || "").trim();
+        if (!uid) continue;
+        driverCountMap.set(uid, (driverCountMap.get(uid) || 0) + 1);
       }
     }
 
@@ -144,8 +164,9 @@ export async function GET() {
 
       const profile = matchedUserId ? profileMap.get(matchedUserId) || null : null;
       const fleetCount = matchedUserId ? fleetCountMap.get(matchedUserId) || 0 : 0;
+      const driverCount = matchedUserId ? driverCountMap.get(matchedUserId) || 0 : 0;
 
-      const hasFleetAddress = hasText(profile?.base_address);
+      const hasBaseAddress = hasText(profile?.base_address);
       const hasBaseLat = hasValidNumber(profile?.base_lat);
       const hasBaseLng = hasValidNumber(profile?.base_lng);
       const hasRadius =
@@ -153,13 +174,26 @@ export async function GET() {
         profile?.service_radius_km !== undefined &&
         Number(profile.service_radius_km) > 0;
       const hasFleet = fleetCount > 0;
+      const hasDriver = driverCount > 0;
+      const hasCurrency = hasText(profile?.default_currency);
 
       const isLiveProfile =
-        hasFleetAddress &&
+        hasBaseAddress &&
         hasBaseLat &&
         hasBaseLng &&
         hasRadius &&
-        hasFleet;
+        hasFleet &&
+        hasDriver &&
+        hasCurrency;
+
+      // Build missing list for display
+      const missing: string[] = [];
+      if (!hasRadius) missing.push("service_radius_km");
+      if (!hasBaseAddress) missing.push("base_address");
+      if (!hasBaseLat || !hasBaseLng) missing.push("base_location");
+      if (!hasFleet) missing.push("fleet");
+      if (!hasDriver) missing.push("driver");
+      if (!hasCurrency) missing.push("default_currency");
 
       return {
         id: row.id,
@@ -174,11 +208,14 @@ export async function GET() {
         user_id: matchedUserId,
         is_live_profile: isLiveProfile,
         live_profile: isLiveProfile,
+        missing,
         fleet_count: fleetCount,
+        driver_count: driverCount,
         service_radius_km: profile?.service_radius_km ?? null,
         base_address: profile?.base_address || "",
         base_lat: profile?.base_lat ?? null,
         base_lng: profile?.base_lng ?? null,
+        default_currency: profile?.default_currency || null,
       };
     });
 

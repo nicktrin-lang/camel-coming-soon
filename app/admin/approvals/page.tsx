@@ -17,6 +17,10 @@ type ApprovalRow = {
   status: string | null;
   is_live_profile?: boolean | null;
   live_profile?: boolean | null;
+  missing?: string[];
+  fleet_count?: number;
+  driver_count?: number;
+  default_currency?: string | null;
   created_at: string | null;
 };
 
@@ -54,6 +58,18 @@ function liveValue(row: ApprovalRow) {
   return !!(row.is_live_profile ?? row.live_profile ?? false);
 }
 
+function missingLabel(key: string) {
+  const map: Record<string, string> = {
+    service_radius_km: "Service radius",
+    base_address: "Base address",
+    base_location: "Base location (lat/lng)",
+    fleet: "Fleet vehicle",
+    driver: "Driver",
+    default_currency: "Billing currency",
+  };
+  return map[key] ?? key;
+}
+
 export default function AdminApprovalsPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const router = useRouter();
@@ -85,8 +101,6 @@ export default function AdminApprovalsPage() {
   }
 
   useEffect(() => { load(); }, []);
-
-  // Reset pagination when filters change
   useEffect(() => { setVisibleCount(PAGE_SIZE); }, [search, statusFilter, liveFilter]);
 
   const searchValue = normalizeText(search);
@@ -220,9 +234,24 @@ export default function AdminApprovalsPage() {
                     </td>
                     <td className="px-4 py-4">
                       {liveValue(row) ? (
-                        <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Yes</span>
+                        <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
+                          ✓ Live
+                        </span>
                       ) : (
-                        <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">No</span>
+                        <div className="space-y-1">
+                          <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">
+                            Not live
+                          </span>
+                          {row.missing && row.missing.length > 0 && (
+                            <ul className="mt-1 space-y-0.5">
+                              {row.missing.map(m => (
+                                <li key={m} className="text-[11px] text-slate-500">
+                                  · {missingLabel(m)}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
                       )}
                     </td>
                     <td className="px-4 py-4">
