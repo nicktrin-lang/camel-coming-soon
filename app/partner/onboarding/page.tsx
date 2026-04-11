@@ -658,7 +658,7 @@ function StepGoLive({ profile, fleetCount, driverCount, onBack }: {
         <div className="flex gap-3">
           <button type="button" onClick={onBack}
             className="rounded-full border border-black/10 px-6 py-3 font-semibold text-[#003768] hover:bg-black/5">Back</button>
-          <button type="button" onClick={() => router.replace("/partner/dashboard")}
+          <button type="button" onClick={async () => { try { await fetch("/api/partner/refresh-live-status", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }); } catch {} router.replace("/partner/dashboard"); }}
             className="flex-1 rounded-full bg-[#ff7a00] py-3 font-semibold text-white shadow-[0_8px_18px_rgba(255,122,0,0.3)] hover:opacity-95">
             {allDone ? "Go to Dashboard" : "Save progress & go to Dashboard"}
           </button>
