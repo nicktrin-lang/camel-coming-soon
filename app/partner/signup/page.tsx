@@ -43,25 +43,25 @@ const STEP_LABELS = ["Your Business", "Business Address", "Fleet Address", "Pass
 function ProgressBar({ step, total }: { step: number; total: number }) {
   return (
     <div className="mb-10">
-      <div className="flex items-start justify-between">
+      <div className="flex items-center">
         {STEP_LABELS.map((label, i) => {
           const done = i + 1 < step;
           const active = i + 1 === step;
           return (
-            <div key={label} className="flex flex-col items-center flex-1">
-              <div className="flex items-center w-full">
+            <div key={label} className={`flex items-center ${i < STEP_LABELS.length - 1 ? "flex-1" : ""}`}>
+              <div className="flex flex-col items-center">
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 transition-colors ${
                   done ? "bg-green-500 text-white" : active ? "bg-[#ff7a00] text-white" : "bg-slate-200 text-slate-500"
                 }`}>
                   {done ? "✓" : i + 1}
                 </div>
-                {i < STEP_LABELS.length - 1 && (
-                  <div className={`h-1 flex-1 mx-1 rounded transition-colors ${done ? "bg-green-500" : "bg-slate-200"}`} />
-                )}
+                <span className={`mt-1.5 text-xs font-medium whitespace-nowrap ${
+                  active ? "text-[#ff7a00]" : done ? "text-green-600" : "text-slate-400"
+                }`}>{label}</span>
               </div>
-              <span className={`mt-2 text-xs font-medium text-center w-full pr-2 ${
-                active ? "text-[#ff7a00]" : done ? "text-green-600" : "text-slate-400"
-              }`}>{label}</span>
+              {i < STEP_LABELS.length - 1 && (
+                <div className={`h-1 flex-1 mx-2 mb-5 rounded transition-colors ${done ? "bg-green-500" : "bg-slate-200"}`} />
+              )}
             </div>
           );
         })}
