@@ -68,6 +68,7 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
       </div>
     </div>
   );
+}
 function Field({ label, required, error, children }: {
   label: string; required?: boolean; error?: string; children: React.ReactNode;
 }) {
