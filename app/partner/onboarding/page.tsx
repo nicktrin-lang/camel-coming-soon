@@ -602,10 +602,38 @@ function StepDrivers({ onDone, onBack }: { onDone: () => void; onBack: () => voi
   );
 }
 
-function StepGoLive({ profile, fleetCount, driverCount, onBack }: {
-  profile: Profile | null; fleetCount: number; driverCount: number; onBack: () => void;
+// GoLive step fetches its own real counts on mount so skipped steps show correctly
+function StepGoLive({ profile, onBack }: {
+  profile: Profile | null; onBack: () => void;
 }) {
-  const router = useRouter();
+  const router   = useRouter();
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
+  const [fleetCount,  setFleetCount]  = useState(0);
+  const [driverCount, setDriverCount] = useState(0);
+  const [checking,    setChecking]    = useState(true);
+
+  useEffect(() => {
+    async function check() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setChecking(false); return; }
+      const [{ data: fleet }, driversRes] = await Promise.all([
+        supabase.from("partner_fleet").select("id").eq("user_id", user.id).eq("is_active", true),
+        fetch("/api/partner/drivers", { cache: "no-store", credentials: "include" }),
+      ]);
+      const driversJson = await driversRes.json().catch(() => null);
+      setFleetCount(fleet?.length ?? 0);
+      setDriverCount((driversJson?.data || []).filter((d: DriverRow) => d.is_active).length);
+      setChecking(false);
+    }
+    check();
+  }, [supabase]);
+
+  if (checking) return (
+    <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+      <p className="text-slate-500">Checking your setup...</p>
+    </div>
+  );
+
   const checks = [
     { label: "Fleet base location set",    done: !!(profile?.base_lat && profile?.base_lng && profile?.base_address1) },
     { label: "Service radius configured",  done: !!(profile?.service_radius_km) },
@@ -652,13 +680,16 @@ function StepGoLive({ profile, fleetCount, driverCount, onBack }: {
         ) : (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
             <p className="font-semibold">A few things still to complete</p>
-            <p className="mt-1">You can still request to go live - our team will review your account. However we recommend completing all steps first to start receiving bookings immediately.</p>
+            <p className="mt-1">You can still go to the dashboard and complete the remaining steps from there.</p>
           </div>
         )}
         <div className="flex gap-3">
           <button type="button" onClick={onBack}
             className="rounded-full border border-black/10 px-6 py-3 font-semibold text-[#003768] hover:bg-black/5">Back</button>
-          <button type="button" onClick={async () => { try { await fetch("/api/partner/refresh-live-status", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }); } catch {} router.replace("/partner/dashboard"); }}
+          <button type="button" onClick={async () => {
+            try { await fetch("/api/partner/refresh-live-status", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }); } catch {}
+            router.replace("/partner/dashboard");
+          }}
             className="flex-1 rounded-full bg-[#ff7a00] py-3 font-semibold text-white shadow-[0_8px_18px_rgba(255,122,0,0.3)] hover:opacity-95">
             {allDone ? "Go to Dashboard" : "Save progress & go to Dashboard"}
           </button>
@@ -671,12 +702,10 @@ function StepGoLive({ profile, fleetCount, driverCount, onBack }: {
 export default function PartnerOnboardingPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const router   = useRouter();
-  const [step,        setStep]        = useState<Step>("location");
-  const [completed,   setCompleted]   = useState<Set<Step>>(new Set());
-  const [profile,     setProfile]     = useState<Profile | null>(null);
-  const [fleetCount,  setFleetCount]  = useState(0);
-  const [driverCount, setDriverCount] = useState(0);
-  const [loading,     setLoading]     = useState(true);
+  const [step,      setStep]      = useState<Step>("location");
+  const [completed, setCompleted] = useState<Set<Step>>(new Set());
+  const [profile,   setProfile]   = useState<Profile | null>(null);
+  const [loading,   setLoading]   = useState(true);
 
   const cols = "company_name,contact_name,base_address,base_address1,base_address2,base_town,base_city,base_province,base_postcode,base_country,base_lat,base_lng,service_radius_km,default_currency";
 
@@ -697,8 +726,6 @@ export default function PartnerOnboardingPage() {
       ]);
       const driversJson = await driversRes.json().catch(() => null);
       setProfile(prof as Profile | null);
-      setFleetCount(fleet?.length ?? 0);
-      setDriverCount((driversJson?.data || []).filter((d: DriverRow) => d.is_active).length);
       const done = new Set<Step>();
       if (prof?.base_lat && prof?.base_lng && prof?.base_address1) done.add("location");
       if (prof?.default_currency) done.add("currency");
@@ -744,13 +771,13 @@ export default function PartnerOnboardingPage() {
         }} onBack={() => setStep("location")} />
       )}
       {step === "fleet" && (
-        <StepFleet onDone={() => { setFleetCount(c => c + 1); complete("fleet", "drivers"); }} onBack={() => setStep("currency")} />
+        <StepFleet onDone={() => { complete("fleet", "drivers"); }} onBack={() => setStep("currency")} />
       )}
       {step === "drivers" && (
-        <StepDrivers onDone={() => { setDriverCount(c => c + 1); complete("drivers", "golive"); }} onBack={() => setStep("fleet")} />
+        <StepDrivers onDone={() => { complete("drivers", "golive"); }} onBack={() => setStep("fleet")} />
       )}
       {step === "golive" && (
-        <StepGoLive profile={profile} fleetCount={fleetCount} driverCount={driverCount} onBack={() => setStep("drivers")} />
+        <StepGoLive profile={profile} onBack={() => setStep("drivers")} />
       )}
     </div>
   );
