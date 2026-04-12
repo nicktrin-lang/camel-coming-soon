@@ -139,22 +139,17 @@ const QUARTER_LABELS: Record<number, string> = {
 // ── Currency helpers ──────────────────────────────────────────────────────────
 
 const LOCALE_MAP: Record<Currency, string> = {
-  EUR: "es-ES",
-  GBP: "en-GB",
-  USD: "en-US",
+  EUR: "es-ES", GBP: "en-GB", USD: "en-US",
 };
 
 function fmtCurr(amount: number, curr: Currency): string {
-  return new Intl.NumberFormat(LOCALE_MAP[curr], {
-    style: "currency", currency: curr,
-  }).format(amount);
+  return new Intl.NumberFormat(LOCALE_MAP[curr], { style: "currency", currency: curr }).format(amount);
 }
 
 type Rates = { GBP: number; USD: number };
 
 function convertAmount(amount: number, from: Currency, to: Currency, rates: Rates): number {
   if (from === to) return amount;
-  // Convert everything through EUR first
   let inEur = amount;
   if (from === "GBP") inEur = Math.round((amount / rates.GBP) * 100) / 100;
   if (from === "USD") inEur = Math.round((amount / rates.USD) * 100) / 100;
@@ -163,44 +158,34 @@ function convertAmount(amount: number, from: Currency, to: Currency, rates: Rate
   return Math.round(inEur * rates.USD * 100) / 100;
 }
 
-// Bid prices: show in customer currency, original in brackets if different
 function BidAmount({ amount, bidCurrency, customerCurrency, rates }: {
-  amount: number | null | undefined;
-  bidCurrency: Currency;
-  customerCurrency: Currency;
-  rates: Rates;
+  amount: number | null | undefined; bidCurrency: Currency;
+  customerCurrency: Currency; rates: Rates;
 }) {
   if (amount == null || isNaN(amount)) return <span>—</span>;
   const primaryAmt = convertAmount(amount, bidCurrency, customerCurrency, rates);
-  const primaryStr = fmtCurr(primaryAmt, customerCurrency);
   const secondaryStr = bidCurrency !== customerCurrency ? fmtCurr(amount, bidCurrency) : null;
   return (
     <span>
-      {primaryStr}
+      {fmtCurr(primaryAmt, customerCurrency)}
       {secondaryStr && <span className="opacity-60 text-[0.85em] font-normal ml-1">({secondaryStr})</span>}
     </span>
   );
 }
 
-// Booking amounts: stored in booking.currency, display in customer currency with EUR secondary
 function BookingAmount({ amount, storedCurrency, customerCurrency, rates }: {
-  amount: number | null | undefined;
-  storedCurrency: Currency;
-  customerCurrency: Currency;
-  rates: Rates;
+  amount: number | null | undefined; storedCurrency: Currency;
+  customerCurrency: Currency; rates: Rates;
 }) {
   if (amount == null || isNaN(Number(amount))) return <span>—</span>;
   const amt = Number(amount);
   const primaryAmt = convertAmount(amt, storedCurrency, customerCurrency, rates);
-  // Secondary always shows EUR if customer isn't viewing EUR, otherwise GBP
   const otherCurr: Currency = customerCurrency === "EUR" ? "GBP" : "EUR";
   const secondaryAmt = convertAmount(amt, storedCurrency, otherCurr, rates);
   return (
     <span>
       {fmtCurr(primaryAmt, customerCurrency)}{" "}
-      <span className="opacity-60 text-[0.85em] font-normal">
-        ({fmtCurr(secondaryAmt, otherCurr)})
-      </span>
+      <span className="opacity-60 text-[0.85em] font-normal">({fmtCurr(secondaryAmt, otherCurr)})</span>
     </span>
   );
 }
@@ -236,8 +221,6 @@ function CustomerPaymentSummary({ booking, rates, rateIsLive, customerCurrency }
         <h2 className="text-2xl font-bold">Your Payment Summary</h2>
         <span className="rounded-full bg-green-400 px-3 py-1 text-xs font-bold text-green-900">Finalised</span>
       </div>
-
-      {/* Total + breakdown */}
       <div className="mt-6 rounded-2xl bg-white/10 p-5">
         <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Total you paid at booking</p>
         <p className="mt-1 text-4xl font-black">
@@ -257,8 +240,6 @@ function CustomerPaymentSummary({ booking, rates, rateIsLive, customerCurrency }
           </div>
         </div>
       </div>
-
-      {/* Fuel levels */}
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl bg-white/10 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Collected at</p>
@@ -281,8 +262,6 @@ function CustomerPaymentSummary({ booking, rates, rateIsLive, customerCurrency }
           </p>
         </div>
       </div>
-
-      {/* Fuel charge + refund */}
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl bg-[#ff7a00]/20 border border-[#ff7a00]/40 p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/70">You pay for fuel</p>
@@ -290,9 +269,7 @@ function CustomerPaymentSummary({ booking, rates, rateIsLive, customerCurrency }
             {primary(fuelChargeAmt)}{" "}
             <span className="text-2xl font-normal opacity-60">{secondary(fuelChargeAmt)}</span>
           </p>
-          <p className="mt-1 text-sm text-white/60">
-            {usedQuarters ?? "—"} quarter{usedQuarters !== 1 ? "s" : ""} used
-          </p>
+          <p className="mt-1 text-sm text-white/60">{usedQuarters ?? "—"} quarter{usedQuarters !== 1 ? "s" : ""} used</p>
         </div>
         <div className="rounded-2xl bg-green-500/20 border border-green-400/40 p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Your refund</p>
@@ -303,13 +280,11 @@ function CustomerPaymentSummary({ booking, rates, rateIsLive, customerCurrency }
           <p className="mt-1 text-sm text-white/60">Unused fuel returned to you</p>
         </div>
       </div>
-
-      {/* Rate badge */}
       <div className={`mt-5 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-base font-bold ${
         rateIsLive ? "bg-green-400/20 text-green-200" : "bg-white/10 text-white/70"
       }`}>
         <span className={`h-2.5 w-2.5 rounded-full ${rateIsLive ? "bg-green-400" : "bg-white/40"}`} />
-        1€ = {gbpStr(rates.GBP)} · 1€ = ${ new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(rates.USD)}{rateIsLive ? " · Live rate (frankfurter.app)" : ""}
+        1€ = {gbpStr(rates.GBP)} · 1€ = {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(rates.USD)}{rateIsLive ? " · Live rate (frankfurter.app)" : ""}
       </div>
     </div>
   );
@@ -405,17 +380,17 @@ export default function TestBookingRequestDetailPage({
     }).catch(() => {});
   }, []);
 
-  const [requestId, setRequestId] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [acceptingId, setAcceptingId] = useState<string | null>(null);
-  const [savingConfirm, setSavingConfirm] = useState<ConfirmSection | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [ok, setOk] = useState<string | null>(null);
-  const [data, setData] = useState<ResponseShape | null>(null);
-  const [timeLabel, setTimeLabel] = useState("—");
-  const [expired, setExpired] = useState(false);
+  const [requestId,      setRequestId]      = useState("");
+  const [loading,        setLoading]        = useState(true);
+  const [acceptingId,    setAcceptingId]    = useState<string | null>(null);
+  const [savingConfirm,  setSavingConfirm]  = useState<ConfirmSection | null>(null);
+  const [error,          setError]          = useState<string | null>(null);
+  const [ok,             setOk]             = useState<string | null>(null);
+  const [data,           setData]           = useState<ResponseShape | null>(null);
+  const [timeLabel,      setTimeLabel]      = useState("—");
+  const [expired,        setExpired]        = useState(false);
   const [collectionNotes, setCollectionNotes] = useState("");
-  const [returnNotes, setReturnNotes] = useState("");
+  const [returnNotes,    setReturnNotes]    = useState("");
 
   useEffect(() => { params.then(r => setRequestId(r.id)); }, [params]);
 
@@ -492,7 +467,7 @@ export default function TestBookingRequestDetailPage({
       });
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.error || "Failed to save.");
-      setOk(section === "collection" ? "Collection confirmed." : "Return confirmed.");
+      setOk(section === "collection" ? "Delivery fuel confirmed." : "Collection fuel confirmed.");
       await load(false);
     } catch (e: any) { setError(e?.message || "Failed to save."); }
     finally { setSavingConfirm(null); }
@@ -516,19 +491,28 @@ export default function TestBookingRequestDetailPage({
 
   const bk = data.booking;
   const bookingStoredCurr: Currency = bk?.currency ?? "EUR";
+  const status = String(bk?.booking_status || "").toLowerCase();
 
-  const collectionLocked = !!bk?.collection_confirmed_by_driver &&
+  // Use booking_status as source of truth to prevent poll-based flicker
+  const isCollected = ["collected", "returned", "completed"].includes(status);
+  const isCompleted  = status === "completed";
+
+  const collectionLocked = isCollected || (
+    !!bk?.collection_confirmed_by_driver &&
     !!bk?.collection_confirmed_by_customer &&
-    normalizeFuel(bk.collection_fuel_level_driver) === normalizeFuel(bk.collection_fuel_level_customer);
+    normalizeFuel(bk.collection_fuel_level_driver) === normalizeFuel(bk.collection_fuel_level_customer)
+  );
 
-  const returnLocked = !!bk?.return_confirmed_by_driver &&
+  const returnLocked = isCompleted || (
+    !!bk?.return_confirmed_by_driver &&
     !!bk?.return_confirmed_by_customer &&
-    normalizeFuel(bk.return_fuel_level_driver) === normalizeFuel(bk.return_fuel_level_customer);
+    normalizeFuel(bk.return_fuel_level_driver) === normalizeFuel(bk.return_fuel_level_customer)
+  );
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-10">
       {error && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
-      {ok && <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">{ok}</div>}
+      {ok    && <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">{ok}</div>}
 
       <div className="flex items-center justify-between">
         <div>
@@ -541,7 +525,6 @@ export default function TestBookingRequestDetailPage({
         </Link>
       </div>
 
-      {/* Only show bid window when request is still open */}
       {data.request.status === "open" && (
         <div className={`rounded-2xl border p-4 text-sm ${expired ? "border-red-200 bg-red-50 text-red-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
           <span className="font-semibold">Bid window:</span> {timeLabel}
@@ -585,8 +568,6 @@ export default function TestBookingRequestDetailPage({
               <p><span className="font-semibold text-slate-900">Driver vehicle:</span> {bk.driver_vehicle || "—"}</p>
               <p><span className="font-semibold text-slate-900">Driver assigned at:</span> {fmt(bk.driver_assigned_at)}</p>
             </div>
-
-            {/* Price breakdown */}
             <div className="mt-6 rounded-2xl border border-green-200 bg-white p-4 space-y-3 text-slate-700">
               <p className="text-sm font-bold text-slate-900">Price Breakdown</p>
               <div className="flex justify-between text-sm">
@@ -613,10 +594,7 @@ export default function TestBookingRequestDetailPage({
           {/* Payment summary — shown when both stages locked */}
           {collectionLocked && returnLocked && bk.fuel_charge !== null && (
             <CustomerPaymentSummary
-              booking={bk}
-              rates={liveRates}
-              rateIsLive={rateIsLive}
-              customerCurrency={currency}
+              booking={bk} rates={liveRates} rateIsLive={rateIsLive} customerCurrency={currency}
             />
           )}
 
@@ -624,7 +602,7 @@ export default function TestBookingRequestDetailPage({
           {(!collectionLocked || !returnLocked) && (
             <div className="grid gap-6 xl:grid-cols-2">
               <FuelConfirmCard
-                title="Collection Fuel"
+                title="Delivery Fuel"
                 driverConfirmed={bk.collection_confirmed_by_driver}
                 driverFuel={bk.collection_fuel_level_driver}
                 driverConfirmedAt={bk.collection_confirmed_by_driver_at}
@@ -637,7 +615,7 @@ export default function TestBookingRequestDetailPage({
                 saving={savingConfirm === "collection"}
               />
               <FuelConfirmCard
-                title="Return Fuel"
+                title="Collection Fuel"
                 driverConfirmed={bk.return_confirmed_by_driver}
                 driverFuel={bk.return_fuel_level_driver}
                 driverConfirmedAt={bk.return_confirmed_by_driver_at}
