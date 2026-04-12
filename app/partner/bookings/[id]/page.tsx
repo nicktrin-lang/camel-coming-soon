@@ -101,6 +101,144 @@ function Amt({ amount, stored, rates }: {
   const sec2: Currency = stored === "EUR" ? "USD" : stored === "GBP" ? "USD" : "GBP";
   const inEur = toEur(amount, stored, rates);
   return (
+    <div className="space-y-6 px-4 py-8 md:px-8">
+      {error && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
+      {ok    && <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">{ok}</div>}
+
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold text-[#003768]">Booking Detail</h1>
+          <p className="mt-1 text-slate-600">View and manage this booking.</p>
+        </div>
+        <Link href="/partner/bookings" className="rounded-full border border-black/10 bg-white px-5 py-2 font-semibold text-[#003768] hover:bg-black/5">
+          Back to Bookings
+        </Link>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+          <h2 className="text-2xl font-semibold text-[#003768]">Booking Information</h2>
+          <div className="mt-6 space-y-3 text-slate-700">
+            <p><span className="font-semibold text-slate-900">Job No.:</span> {bk.job_number ?? req?.job_number ?? "—"}</p>
+            <p><span className="font-semibold text-slate-900">Status:</span> {statusLabel(bk.booking_status)}</p>
+            <p><span className="font-semibold text-slate-900">Total:</span> <Amt amount={bk.amount} stored={stored} rates={rates} /></p>
+            <p><span className="font-semibold text-slate-900">Created:</span> {fmt(bk.created_at)}</p>
+            <p><span className="font-semibold text-slate-900">Driver:</span> {drivers.find(d => d.id === bk.assigned_driver_id)?.full_name || bk.driver_name || "—"}</p>
+            <p><span className="font-semibold text-slate-900">Driver assigned:</span> {fmt(bk.driver_assigned_at)}</p>
+            <p><span className="font-semibold text-slate-900">Notes:</span> {bk.notes || "—"}</p>
+            <div className={`mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold ${rateIsLive ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-700"}`}>
+              <span className={`h-2.5 w-2.5 rounded-full ${rateIsLive ? "bg-green-500" : "bg-slate-400"}`} />
+              {rateBadgeText}{rateIsLive ? " · Live rate (frankfurter.app)" : ""}
+            </div>
+            <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-[#003768]/20 bg-[#003768]/5 px-3 py-1 text-sm font-semibold text-[#003768]">
+              {symbol} Booking currency: {currLabel}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+          <h2 className="text-2xl font-semibold text-[#003768]">Journey Information</h2>
+          <div className="mt-6 space-y-3 text-slate-700">
+            <p><span className="font-semibold text-slate-900">Customer:</span> {req?.customer_name || "—"}</p>
+            <p><span className="font-semibold text-slate-900">Email:</span> {req?.customer_email || "—"}</p>
+            <p><span className="font-semibold text-slate-900">Phone:</span> {req?.customer_phone || "—"}</p>
+            <p><span className="font-semibold text-slate-900">Pickup:</span> {req?.pickup_address || "—"}</p>
+            <p><span className="font-semibold text-slate-900">Dropoff:</span> {req?.dropoff_address || "—"}</p>
+            <p><span className="font-semibold text-slate-900">Pickup time:</span> {fmt(req?.pickup_at)}</p>
+            <p><span className="font-semibold text-slate-900">Dropoff time:</span> {fmt(req?.dropoff_at)}</p>
+            <p><span className="font-semibold text-slate-900">Duration:</span> {fmtDuration(req?.journey_duration_minutes)}</p>
+            <p><span className="font-semibold text-slate-900">Passengers:</span> {req?.passengers ?? "—"}</p>
+            <p><span className="font-semibold text-slate-900">Vehicle:</span> {req?.vehicle_category_name || "—"}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+        <h2 className="text-2xl font-semibold text-[#003768]">Driver Assignment</h2>
+        <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700">
+          <span className="font-semibold">Current status:</span>
+          <span className="font-bold text-[#003768]">{statusLabel(bk.booking_status)}</span>
+        </div>
+        <form onSubmit={saveDetails} className="mt-6 space-y-5">
+          <div>
+            <label className="text-sm font-medium text-[#003768]">Assign driver</label>
+            <select value={selectedDriverId} onChange={e => handleDriverSelect(e.target.value)}
+              className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-[#0f4f8a]">
+              <option value="">No driver selected</option>
+              {drivers.map(d => (
+                <option key={d.id} value={d.id}>{d.full_name}{d.phone ? ` (${d.phone})` : ""}</option>
+              ))}
+            </select>
+            {loadingDrivers && <p className="mt-1 text-xs text-slate-400">Loading drivers…</p>}
+          </div>
+          <div className="grid gap-5 md:grid-cols-3">
+            <div>
+              <label className="text-sm font-medium text-[#003768]">Driver name</label>
+              <input value={driverName} onChange={e => setDriverName(e.target.value)}
+                className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-[#0f4f8a]" placeholder="John Smith" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-[#003768]">Driver phone</label>
+              <input value={driverPhone} onChange={e => setDriverPhone(e.target.value)}
+                className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-[#0f4f8a]" placeholder="+34 600 000 000" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-[#003768]">Vehicle</label>
+              <input value={driverVehicle} onChange={e => setDriverVehicle(e.target.value)}
+                className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-[#0f4f8a]" placeholder="Mercedes E-Class / AB12 CDE" />
+            </div>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-[#003768]">Driver notes</label>
+            <textarea rows={3} value={driverNotes} onChange={e => setDriverNotes(e.target.value)}
+              className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-[#0f4f8a]"
+              placeholder="Optional notes about this assignment" />
+          </div>
+          <button type="submit" disabled={savingSection === "details"}
+            className="rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60">
+            {savingSection === "details" ? "Saving…" : "Save Driver Details"}
+          </button>
+        </form>
+      </div>
+
+      {collectionLocked && returnLocked && (
+        <BookingSummaryCard booking={bk} rates={rates} isLive={rateIsLive} />
+      )}
+
+      <div>
+        <h2 className="mb-1 text-2xl font-semibold text-[#003768]">Insurance Documents</h2>
+        <p className="mb-4 text-sm text-slate-500">
+          Driver confirms handover at delivery via their app. Customer confirms receipt on their portal.
+          <span className="ml-1 text-xs text-slate-400">(Refreshes every 10s)</span>
+        </p>
+        <InsuranceStatusCard booking={bk} />
+      </div>
+
+      <div>
+        <h2 className="mb-1 text-2xl font-semibold text-[#003768]">Fuel Tracking</h2>
+        <p className="mb-4 text-sm text-slate-500">
+          Driver records fuel level via their app. Use the office override below if the driver is unavailable or you need to correct their reading.
+          Customer confirms the reading to lock each stage.
+          <span className="ml-1 text-xs text-slate-400">(Refreshes every 10s)</span>
+        </p>
+        <div className="grid gap-6 xl:grid-cols-2">
+          <FuelStageCard title="Delivery" booking={bk} stage="collection"
+            fuelValue={collectionFuel} onFuelChange={setCollectionFuel}
+            confirmed={collectionConfirmed} onConfirmedChange={setCollectionConfirmed}
+            notes={collectionNotes} onNotesChange={setCollectionNotes}
+            onSave={() => saveFuelSection("collection")}
+            saving={savingSection === "collection"} locked={collectionLocked} />
+          <FuelStageCard title="Collection" booking={bk} stage="return"
+            fuelValue={returnFuel} onFuelChange={setReturnFuel}
+            confirmed={returnConfirmed} onConfirmedChange={setReturnConfirmed}
+            notes={returnNotes} onNotesChange={setReturnNotes}
+            onSave={() => saveFuelSection("return")}
+            saving={savingSection === "return"} locked={returnLocked} />
+        </div>
+      </div>
+    </div>
+  );
+}
     <span>
       {fmtCurr(amount, stored)}{" "}
       <span className="opacity-60 text-[0.85em] font-normal">({fmtCurr(fromEur(inEur, sec1, rates), sec1)} · {fmtCurr(fromEur(inEur, sec2, rates), sec2)})</span>
@@ -795,5 +933,6 @@ export default function PartnerBookingDetailPage() {
       </div>
     </div>
   );
+}
   );
 }
