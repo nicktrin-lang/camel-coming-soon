@@ -21,6 +21,7 @@ type DriverJob = {
   return_fuel_level_driver?: string | null;
   insurance_docs_confirmed_by_driver?: boolean | null;
   insurance_docs_confirmed_by_driver_at?: string | null;
+  insurance_docs_confirmed_by_customer?: boolean | null;
 };
 
 type FuelLevel = "full" | "3/4" | "half" | "quarter" | "empty";
@@ -82,18 +83,24 @@ function FuelSummaryCard({ title, confirmed, confirmedAt, fuelLevel }: {
   );
 }
 
-function InsuranceSummaryCard({ confirmed, confirmedAt }: {
-  confirmed: boolean; confirmedAt?: string | null;
+function InsuranceSummaryCard({ driverConfirmed, driverConfirmedAt, customerConfirmed }: {
+  driverConfirmed: boolean; driverConfirmedAt?: string | null; customerConfirmed: boolean;
 }) {
+  const bothConfirmed = driverConfirmed && customerConfirmed;
   return (
-    <div className={`rounded-xl border p-3 ${confirmed ? "border-green-200 bg-green-50" : "border-amber-100 bg-amber-50"}`}>
+    <div className={`rounded-xl border p-3 ${bothConfirmed ? "border-green-200 bg-green-50" : driverConfirmed ? "border-blue-200 bg-blue-50" : "border-amber-100 bg-amber-50"}`}>
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Insurance docs</p>
-      <div className="mt-1 flex items-center gap-2">
-        <span className={`text-lg ${confirmed ? "text-green-700" : "text-amber-600"}`}>
-          {confirmed ? "✓ Handed over" : "Not confirmed"}
-        </span>
-      </div>
-      {confirmed && confirmedAt && <p className="mt-1 text-xs text-slate-400">{fmt(confirmedAt)}</p>}
+      {bothConfirmed ? (
+        <span className="mt-1 block text-sm font-bold text-green-700">✓ Both confirmed</span>
+      ) : driverConfirmed ? (
+        <>
+          <span className="mt-1 block text-sm font-bold text-blue-700">✓ You confirmed</span>
+          <span className="text-xs text-amber-600">Waiting for customer…</span>
+        </>
+      ) : (
+        <span className="mt-1 block text-sm font-bold text-amber-600">Not confirmed</span>
+      )}
+      {driverConfirmed && driverConfirmedAt && <p className="mt-1 text-xs text-slate-400">{fmt(driverConfirmedAt)}</p>}
     </div>
   );
 }
@@ -142,8 +149,10 @@ function JobCard({ job, mode, fuelInput, onFuelChange, insuranceChecked, onInsur
             <FuelSummaryCard title="Collection fuel" confirmed={!!job.return_confirmed_by_driver}
               confirmedAt={job.return_confirmed_by_driver_at}
               fuelLevel={job.return_fuel_level_driver as FuelLevel | null} />
-            <InsuranceSummaryCard confirmed={!!job.insurance_docs_confirmed_by_driver}
-              confirmedAt={job.insurance_docs_confirmed_by_driver_at} />
+            <InsuranceSummaryCard
+              driverConfirmed={!!job.insurance_docs_confirmed_by_driver}
+              driverConfirmedAt={job.insurance_docs_confirmed_by_driver_at}
+              customerConfirmed={!!job.insurance_docs_confirmed_by_customer} />
           </div>
 
           {mode !== "readonly" && (

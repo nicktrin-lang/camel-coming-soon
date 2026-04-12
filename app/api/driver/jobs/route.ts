@@ -26,10 +26,7 @@ export async function GET(_req: NextRequest) {
     const { user, error: authError } = await getPortalUserRole();
 
     if (!user) {
-      return NextResponse.json(
-        { error: authError || "Not signed in" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: authError || "Not signed in" }, { status: 401 });
     }
 
     const db = createServiceRoleSupabaseClient();
@@ -44,10 +41,7 @@ export async function GET(_req: NextRequest) {
       .eq("is_active", true)
       .maybeSingle();
 
-    if (byAuthErr) {
-      return NextResponse.json({ error: byAuthErr.message }, { status: 400 });
-    }
-
+    if (byAuthErr) return NextResponse.json({ error: byAuthErr.message }, { status: 400 });
     driverRow = byAuthUser || null;
 
     if (!driverRow && signedInEmail) {
@@ -58,18 +52,12 @@ export async function GET(_req: NextRequest) {
         .eq("is_active", true)
         .maybeSingle();
 
-      if (byEmailErr) {
-        return NextResponse.json({ error: byEmailErr.message }, { status: 400 });
-      }
-
+      if (byEmailErr) return NextResponse.json({ error: byEmailErr.message }, { status: 400 });
       driverRow = byEmail || null;
     }
 
     if (!driverRow) {
-      return NextResponse.json(
-        { error: "No active driver profile found for this account." },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "No active driver profile found for this account." }, { status: 404 });
     }
 
     if (!driverRow.auth_user_id) {
@@ -79,7 +67,6 @@ export async function GET(_req: NextRequest) {
         .eq("id", driverRow.id);
     }
 
-    // Fetch company name from partner profile
     let companyName: string | null = null;
     if (driverRow?.partner_user_id) {
       const { data: partnerProfile } = await db
@@ -129,20 +116,20 @@ export async function GET(_req: NextRequest) {
         return_confirmed_by_customer,
         return_confirmed_by_customer_at,
         return_fuel_level_customer,
-        return_customer_notes
+        return_customer_notes,
+        insurance_docs_confirmed_by_driver,
+        insurance_docs_confirmed_by_driver_at,
+        insurance_docs_confirmed_by_customer,
+        insurance_docs_confirmed_by_customer_at
       `)
       .eq("assigned_driver_id", driverRow.id)
       .order("created_at", { ascending: false });
 
-    if (bookingErr) {
-      return NextResponse.json({ error: bookingErr.message }, { status: 400 });
-    }
+    if (bookingErr) return NextResponse.json({ error: bookingErr.message }, { status: 400 });
 
     const requestIds = Array.from(
       new Set(
-        (bookingRows || [])
-          .map((row: any) => String(row.request_id || ""))
-          .filter(Boolean)
+        (bookingRows || []).map((row: any) => String(row.request_id || "")).filter(Boolean)
       )
     );
 
@@ -152,79 +139,63 @@ export async function GET(_req: NextRequest) {
       const { data: requestRows, error: requestErr } = await db
         .from("customer_requests")
         .select(`
-          id,
-          job_number,
-          customer_name,
-          customer_email,
-          customer_phone,
-          pickup_address,
-          dropoff_address,
-          pickup_at,
-          dropoff_at,
-          journey_duration_minutes,
-          passengers,
-          suitcases,
-          hand_luggage,
-          vehicle_category_name,
-          notes,
-          status,
-          created_at
+          id, job_number, customer_name, customer_email, customer_phone,
+          pickup_address, dropoff_address, pickup_at, dropoff_at,
+          journey_duration_minutes, passengers, suitcases, hand_luggage,
+          vehicle_category_name, notes, status, created_at
         `)
         .in("id", requestIds);
 
-      if (requestErr) {
-        return NextResponse.json({ error: requestErr.message }, { status: 400 });
-      }
-
+      if (requestErr) return NextResponse.json({ error: requestErr.message }, { status: 400 });
       requestMap = new Map((requestRows || []).map((row: any) => [String(row.id), row]));
     }
 
     const jobs = (bookingRows || []).map((booking: any) => {
       const request = requestMap.get(String(booking.request_id)) || null;
       return {
-        booking_id: booking.id,
-        request_id: booking.request_id,
-        job_number: booking.job_number ?? request?.job_number ?? null,
-        booking_status: booking.booking_status,
-        booking_status_label: bookingStatusLabel(booking.booking_status),
-        amount: booking.amount,
-        created_at: booking.created_at,
-        driver_name: booking.driver_name || null,
-        driver_phone: booking.driver_phone || null,
-        driver_vehicle: booking.driver_vehicle || null,
-        driver_notes: booking.driver_notes || null,
-        driver_assigned_at: booking.driver_assigned_at || null,
-        pickup_address: request?.pickup_address || null,
-        dropoff_address: request?.dropoff_address || null,
-        pickup_at: request?.pickup_at || null,
-        dropoff_at: request?.dropoff_at || null,
-        customer_name: request?.customer_name || null,
-        customer_phone: request?.customer_phone || null,
-        vehicle_category_name: request?.vehicle_category_name || null,
-        collection_confirmed_by_driver: booking.collection_confirmed_by_driver ?? null,
-        collection_confirmed_by_driver_at: booking.collection_confirmed_by_driver_at || null,
-        collection_fuel_level_driver: booking.collection_fuel_level_driver || null,
-        return_confirmed_by_driver: booking.return_confirmed_by_driver ?? null,
-        return_confirmed_by_driver_at: booking.return_confirmed_by_driver_at || null,
-        return_fuel_level_driver: booking.return_fuel_level_driver || null,
+        booking_id:                         booking.id,
+        request_id:                         booking.request_id,
+        job_number:                         booking.job_number ?? request?.job_number ?? null,
+        booking_status:                     booking.booking_status,
+        booking_status_label:               bookingStatusLabel(booking.booking_status),
+        amount:                             booking.amount,
+        created_at:                         booking.created_at,
+        driver_name:                        booking.driver_name || null,
+        driver_phone:                       booking.driver_phone || null,
+        driver_vehicle:                     booking.driver_vehicle || null,
+        driver_notes:                       booking.driver_notes || null,
+        driver_assigned_at:                 booking.driver_assigned_at || null,
+        pickup_address:                     request?.pickup_address || null,
+        dropoff_address:                    request?.dropoff_address || null,
+        pickup_at:                          request?.pickup_at || null,
+        dropoff_at:                         request?.dropoff_at || null,
+        customer_name:                      request?.customer_name || null,
+        customer_phone:                     request?.customer_phone || null,
+        vehicle_category_name:              request?.vehicle_category_name || null,
+        collection_confirmed_by_driver:     booking.collection_confirmed_by_driver ?? null,
+        collection_confirmed_by_driver_at:  booking.collection_confirmed_by_driver_at || null,
+        collection_fuel_level_driver:       booking.collection_fuel_level_driver || null,
+        return_confirmed_by_driver:         booking.return_confirmed_by_driver ?? null,
+        return_confirmed_by_driver_at:      booking.return_confirmed_by_driver_at || null,
+        return_fuel_level_driver:           booking.return_fuel_level_driver || null,
+        insurance_docs_confirmed_by_driver:    booking.insurance_docs_confirmed_by_driver ?? null,
+        insurance_docs_confirmed_by_driver_at: booking.insurance_docs_confirmed_by_driver_at || null,
+        insurance_docs_confirmed_by_customer:  booking.insurance_docs_confirmed_by_customer ?? null,
       };
     });
 
     return NextResponse.json({
       driver: {
-        id: driverRow.id,
-        full_name: driverRow.full_name,
-        email: driverRow.email,
-        phone: driverRow.phone,
+        id:           driverRow.id,
+        full_name:    driverRow.full_name,
+        email:        driverRow.email,
+        phone:        driverRow.phone,
         company_name: companyName,
       },
       jobs,
     }, { status: 200 });
 
   } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || "Server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
   }
 }
