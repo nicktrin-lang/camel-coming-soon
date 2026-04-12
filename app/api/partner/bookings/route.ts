@@ -12,8 +12,24 @@ export async function GET() {
     }
 
     const userId = user.id;
-    const adminMode = isAdminRole(role);
     const db = createServiceRoleSupabaseClient();
+
+    // getPortalUserRole checks partner_profiles — admin users aren't there.
+    // Fall back to admin_users table check by email so admin mode works correctly.
+    let adminMode = isAdminRole(role);
+    if (!adminMode) {
+      const email = String(user.email || "").toLowerCase().trim();
+      if (email) {
+        const { data: adminRow } = await db
+          .from("admin_users")
+          .select("role")
+          .eq("email", email)
+          .maybeSingle();
+        if (adminRow?.role === "admin" || adminRow?.role === "super_admin") {
+          adminMode = true;
+        }
+      }
+    }
 
     let bookingsQuery = db
       .from("partner_bookings")
