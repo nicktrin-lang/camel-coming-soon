@@ -89,9 +89,7 @@ function fromEur(amountEur: number, target: Currency, rates: Rates): number {
 }
 
 function Amt({ amount, stored, rates }: {
-  amount: number | null | undefined;
-  stored: Currency;
-  rates: Rates;
+  amount: number | null | undefined; stored: Currency; rates: Rates;
 }) {
   if (amount == null || isNaN(amount)) return <span>—</span>;
   const sec1: Currency = stored === "USD" ? "EUR" : stored === "GBP" ? "EUR" : "GBP";
@@ -189,7 +187,7 @@ const QUARTER_LABELS: Record<number, string> = {
   0: "Empty", 1: "¼ Tank", 2: "½ Tank", 3: "¾ Tank", 4: "Full Tank",
 };
 
-// ── Payment + Fuel Summary Card ───────────────────────────────────────────────
+// ── Booking Summary Card ──────────────────────────────────────────────────────
 
 function BookingSummaryCard({ booking, rates, isLive }: {
   booking: BookingRow; rates: Rates; isLive: boolean;
@@ -217,9 +215,7 @@ function BookingSummaryCard({ booking, rates, isLive }: {
   const primary = (v: number) => fmtCurr(v, stored);
   const sec = (v: number) => {
     const inEur = toEur(v, stored, rates);
-    const s = fmtCurr(fromEur(inEur, secondary, rates), secondary);
-    const t = fmtCurr(fromEur(inEur, tertiary, rates), tertiary);
-    return `(${s} · ${t})`;
+    return `(${fmtCurr(fromEur(inEur, secondary, rates), secondary)} · ${fmtCurr(fromEur(inEur, tertiary, rates), tertiary)})`;
   };
 
   const rateBadge = `1€ = ${new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(rates.GBP)} · 1€ = ${new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(rates.USD)}`;
@@ -254,12 +250,12 @@ function BookingSummaryCard({ booking, rates, isLive }: {
       </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl bg-white/10 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Collection fuel</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Delivery fuel</p>
           <p className="mt-1 text-xl font-bold">{fuelLabel(collFuel)}</p>
           <FuelBar level={collFuel} />
         </div>
         <div className="rounded-2xl bg-white/10 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Return fuel</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Collection fuel</p>
           <p className="mt-1 text-xl font-bold">{fuelLabel(retFuel)}</p>
           <FuelBar level={retFuel} />
         </div>
@@ -558,7 +554,7 @@ export default function PartnerBookingDetailPage() {
       });
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.error || "Failed to update.");
-      setOk(`${section === "collection" ? "Collection" : "Return"} fuel saved.`);
+      setOk(`${section === "collection" ? "Delivery" : "Collection"} fuel saved.`);
       await loadBooking(false, false);
     } catch (e: any) { setError(e?.message || "Failed to update."); }
     finally { setSavingSection(null); }
@@ -584,16 +580,16 @@ export default function PartnerBookingDetailPage() {
   const { symbol, label: currLabel } = CURRENCY_META[stored];
 
   const collEffective = effectiveFuel(bk.collection_fuel_level_driver, bk.collection_fuel_level_partner);
-  const retEffective = effectiveFuel(bk.return_fuel_level_driver, bk.return_fuel_level_partner);
+  const retEffective  = effectiveFuel(bk.return_fuel_level_driver, bk.return_fuel_level_partner);
   const collectionLocked = isLocked({ driverOrPartnerFuel: collEffective, customerConfirmed: bk.collection_confirmed_by_customer, customerFuel: bk.collection_fuel_level_customer });
-  const returnLocked = isLocked({ driverOrPartnerFuel: retEffective, customerConfirmed: bk.return_confirmed_by_customer, customerFuel: bk.return_fuel_level_customer });
+  const returnLocked     = isLocked({ driverOrPartnerFuel: retEffective,  customerConfirmed: bk.return_confirmed_by_customer,     customerFuel: bk.return_fuel_level_customer });
 
   const rateBadgeText = `1€ = ${new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(rates.GBP)} · 1€ = ${new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(rates.USD)}`;
 
   return (
     <div className="space-y-6 px-4 py-8 md:px-8">
       {error && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
-      {ok && <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">{ok}</div>}
+      {ok    && <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">{ok}</div>}
 
       <div className="flex items-center justify-between gap-4">
         <div>
@@ -703,13 +699,13 @@ export default function PartnerBookingDetailPage() {
           <span className="ml-1 text-xs text-slate-400">(Refreshes every 10s)</span>
         </p>
         <div className="grid gap-6 xl:grid-cols-2">
-          <FuelStageCard title="Collection" booking={bk} stage="collection"
+          <FuelStageCard title="Delivery" booking={bk} stage="collection"
             fuelValue={collectionFuel} onFuelChange={setCollectionFuel}
             confirmed={collectionConfirmed} onConfirmedChange={setCollectionConfirmed}
             notes={collectionNotes} onNotesChange={setCollectionNotes}
             onSave={() => saveFuelSection("collection")}
             saving={savingSection === "collection"} locked={collectionLocked} />
-          <FuelStageCard title="Return" booking={bk} stage="return"
+          <FuelStageCard title="Collection" booking={bk} stage="return"
             fuelValue={returnFuel} onFuelChange={setReturnFuel}
             confirmed={returnConfirmed} onConfirmedChange={setReturnConfirmed}
             notes={returnNotes} onNotesChange={setReturnNotes}
@@ -720,8 +716,3 @@ export default function PartnerBookingDetailPage() {
     </div>
   );
 }
-
-
-
-
-
