@@ -579,6 +579,28 @@ export default function TestBookingRequestDetailPage({
                 </span>
               </div>
             </div>
+
+            {/* Contact note */}
+            <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-4 text-sm text-slate-600 space-y-2">
+              <p>For any vehicle condition concerns, contact the car hire company directly using the details above. All vehicles are fully insured by the car hire company.</p>
+              <p className="text-slate-500">We recommend using WhatsApp for the fastest response:</p>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {bk.company_phone && (
+                  <a href={`https://wa.me/${bk.company_phone.replace(/\D/g, "")}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-green-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-green-600">
+                    💬 WhatsApp Car Hire Company
+                  </a>
+                )}
+                {bk.driver_phone && (
+                  <a href={`https://wa.me/${bk.driver_phone.replace(/\D/g, "")}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-green-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-green-600">
+                    💬 WhatsApp Driver
+                  </a>
+                )}
+              </div>
+            </div>
           </div>
 
           {collectionLocked && returnLocked && bk.fuel_charge !== null && (

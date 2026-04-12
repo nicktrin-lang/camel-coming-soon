@@ -1,1 +1,348 @@
-[paste handover artifact here]
+# Camel Global — Project Handover Document
+> **Always paste this document at the start of every new conversation.**
+> Update it at the end of each session before the chat fills up.
+
+---
+
+## Working Rules
+- **Always paste the current file before Claude rewrites it.** Claude works from what you paste, not from memory. For small fixes this isn't needed, but for any full file rewrite, paste the file first.
+- **Always give Claude the full file tree** at the start of a new chat by running: `find ~/camel-portal -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/.next/*' | sort`
+- **Before any rewrite**, Claude will tell you which files to paste, or give you a command to cat them.
+
+---
+
+## Project Overview
+- **Name:** Camel Global
+- **Type:** Meet & greet car hire platform (Uber-style for car hire)
+- **Stack:** Next.js 16, Supabase, Vercel, GitHub
+- **Repo:** `github.com/nicktrin-lang/camel-portal`
+- **Branch:** `main`
+- **Local path:** `~/camel-portal`
+- **Deployment:** Vercel (auto-deploys on push to main)
+- **Cost target:** Zero / minimal
+
+### How It Works
+1. Customer submits a car hire request with pickup/dropoff details
+2. All car hire companies (partners) within 30km radius are alerted and can bid
+3. Customer accepts a bid → booking is confirmed
+4. Driver delivers car to chosen location; fuel level recorded at collection
+5. Fuel level recorded again at return
+6. Customer pays only for fuel used (rounded to nearest ¼ tank)
+7. Launching in Spain first, with USD support ready for future US rollout
+
+### Three Portals
+| Portal | Path | Users |
+|--------|------|-------|
+| Customer | `/test-booking` | End customers |
+| Partner | `/partner` | Car hire companies |
+| Driver | `/driver` | Delivery drivers |
+| Admin | `/admin` | Camel Global staff |
+
+---
+
+## Tech Architecture
+
+### Key Libraries & Files
+| File | Purpose |
+|------|---------|
+| `lib/currency.ts` | All currency utilities — EUR, GBP, USD formatting + conversion |
+| `lib/useCurrency.ts` | React hook — currency state, live rates, fmt helpers |
+| `lib/supabase/browser.ts` | Supabase browser client (partner/admin) |
+| `lib/supabase-customer/browser.ts` | Supabase browser client (customers) |
+| `lib/portal/calculateFuelCharge.ts` | Fuel charge calculation logic |
+| `lib/portal/syncBookingStatuses.ts` | Booking status sync logic |
+| `lib/portal/refreshPartnerLiveStatus.ts` | Core live status logic — checks all 6 requirements, updates DB |
+| `lib/portal/triggerPartnerLiveRefresh.ts` | Triggers the live status refresh |
+| `app/api/currency/rate/route.ts` | Live rate API — fetches EUR→GBP,USD from frankfurter.app |
+| `app/api/partner/refresh-live-status/route.ts` | POST endpoint — runs live status check for current partner |
+
+### Currency System
+- **Storage:** All prices stored in the currency the booking was made in (`booking.currency`)
+- **Supported:** `EUR | GBP | USD`
+- **Rates:** Live from `frankfurter.app` (no API key), cached 1 hour, fallback to hardcoded rates
+- **Fallback rates:** GBP 0.85, USD 1.08
+- **Partner billing:** Partners price in their own currency (EUR or GBP typically)
+- **Customer display:** Converted to customer's preferred currency in real time
+
+### Live Status System
+A partner account is **live** only when ALL of the following are true:
+1. Fleet base address set (`base_address`)
+2. Fleet base lat/lng set (`base_lat`, `base_lng`)
+3. Service radius set (`service_radius_km > 0`)
+4. At least one active fleet vehicle (`partner_fleet.is_active = true`)
+5. At least one active driver (`partner_drivers.is_active = true`)
+6. Billing currency set (`default_currency`)
+
+**Where live status is shown:**
+- `app/admin/approvals/page.tsx` — "Not live" badge with missing items listed per row
+- `app/admin/accounts/page.tsx` — same treatment as approvals page
+- `app/partner/account/page.tsx` — amber banner with clickable links to fix each missing item
+- `app/partner/dashboard/page.tsx` — amber banner at top of dashboard with missing items
+- `app/partner/onboarding/page.tsx` — Go Live step fetches real counts on mount (skipped steps show correctly)
+
+**APIs that compute live status:**
+- `app/api/admin/applications/route.ts` — fetches fleet, drivers, currency per partner
+- `app/api/admin/accounts/route.ts` — same, for account management page
+- `app/api/partner/refresh-live-status/route.ts` — partner's own live status check
+
+---
+
+## Current Stable State
+
+### Last Known Good Tag
+```bash
+git checkout v-stable-live-status-checks
+```
+**Tag:** `v-stable-live-status-checks`
+**Description:** Live status checks require fleet location, service radius, billing currency, at least one active fleet vehicle, and at least one active driver. Missing items shown on admin approvals, admin account management, partner account page, and partner dashboard. Partner login always goes to dashboard (no more onboarding redirect loop). Onboarding Go Live step fetches real counts on mount.
+
+**Tag:** `v-stable-fuel-flow-fixed`
+**Description:** Full fuel confirmation flow working end to end. Driver sets collected/returned status. Customer confirms each fuel stage independently. Booking only completes when both driver and customer confirm both stages.
+
+### Previous Stable Tags
+| Tag | Description |
+|-----|-------------|
+| `v-stable-admin-booking-fixes` | Admin booking detail matches partner view. All three currencies shown everywhere. |
+| `v-stable-password-reset` | All three portals password reset fully working with branded emails. |
+| `v-stable-currency-reporting` | Full EUR/GBP/USD revenue reporting on partner and admin booking pages. |
+
+### What Is Working ✅
+- Customer booking flow (test-booking portal)
+- Partner bid submission and management
+- Driver job portal
+- Admin approval and account management
+- Full EUR / GBP / USD currency support throughout
+- Live exchange rates with fallback
+- Currency selector persisted in localStorage per user
+- Partner bookings page — per-currency revenue cards + breakdown table + date filter
+- Admin bookings page — full reconciliation table per currency + currency filter dropdown
+- Fuel level recording at collection and return
+- Fuel charge / refund calculation
+- Customer fuel confirmation flow
+- Partner and admin booking detail pages
+- Email notifications (application received, etc.)
+- Google Maps integration (pickup/dropoff, partner location)
+- Forgot password flow on all three login pages
+- Reset password pages for partner, driver and customer portals
+- Branded reset emails via Resend from Camel Global address
+- Correct post-reset redirects for all three portals
+- **Live status system** — 6 requirements, shown everywhere with missing items listed
+- **Partner login** — always goes to dashboard, no onboarding redirect loop
+- **Partner onboarding** — Go Live step shows real completion state even if steps were skipped
+- **Partner dashboard** — amber live status banner with clickable fix links
+- **Driver portal** — independent header with full name + company name, correct logout, login box properly positioned, 3 clickable tab cards, 10-per-page pagination, partner drivers page links to driver portal
+
+---
+
+## Session Log
+
+### Chat 1 (Initial build — filled)
+- Project created from scratch
+- Supabase schema built
+- All three portals scaffolded
+- Core booking flow implemented
+- Fuel level recording implemented
+
+### Chat 2 (Currency work — filled)
+- Added GBP support alongside EUR
+- Live exchange rate integration (frankfurter.app)
+- Currency selector component built
+- Dual currency display on booking pages
+- Partner profile currency detection by country
+- Admin and partner booking list pages updated for currency
+
+### Chat 3 (filled)
+- Added `formatUSD` to `lib/currency.ts`
+- Updated `formatCurrency()` to handle USD
+- Fixed `app/test-booking/requests/[id]/page.tsx` — USD support
+- Updated `app/partner/bookings/page.tsx` — full EUR/GBP/USD revenue summary
+- Updated `app/admin/bookings/page.tsx` — full reconciliation table per currency
+- Stable tag: `v-stable-currency-reporting`
+
+### Chat 4 (Completed)
+- Fixed Supabase redirect URL config
+- Built reset-password pages for all three portals
+- Fixed TypeScript errors in reset-password pages
+- Added `app/api/auth/send-reset-email/route.ts`
+- Added `app/api/auth/send-customer-reset-email/route.ts`
+- Added `app/api/auth/exchange-reset-code/route.ts`
+- Added `lib/supabase/auth-client.ts`
+- All three portals password reset fully working
+- Stable tag: `v-stable-password-reset`
+
+### Chat 5 (Completed)
+- Restored partner requests detail page from git history
+- Fixed rate badge to always show EUR/GBP/USD on customer and partner booking pages
+- Fixed USD rate fetch — now uses live frankfurter.app rate
+- Fixed `Amt` component to show all three currency conversions
+- Admin booking detail page rebuilt to match partner view
+- Added partner company name to booking detail API response
+- Admin request detail — duration in days, bid currency displayed correctly
+- Stable tag: `v-stable-admin-booking-fixes`
+
+### Chat 7 (Completed)
+- Fixed driver confirm API — return stage now sets `booking_status = "returned"` not `"completed"`. Only customer confirmation flow sets `"completed"`
+- Fixed customer page fuel lock flicker — reverted status-based lock shortcut that was auto-locking without customer confirmation
+- Fixed driver jobs page — jobs start collapsed, correct labels (Delivery/Collection), clickable tab cards, 10 per page
+- Fixed driver layout — independent from global header, shows full name + company name, correct logout
+- Fixed driver login page — login box top-aligned
+- Fixed partner booking detail — "Collection fuel" → "Delivery fuel", FuelStageCard title "Collection" → "Delivery"
+- Fixed partner bookings list — confirmed status now blue (not green)
+- Fixed customer request detail — "Collection Fuel" card = delivery stage, "Delivery Fuel" card = first stage
+- Fixed `app/ClientRootLayout.tsx` — `/driver` paths excluded from global header
+- Added driver portal link card to partner drivers page
+- Stable tag: `v-stable-fuel-flow-fixed`
+
+### Chat 6 (Completed)
+- Built full annotated file structure breakdown
+- Fixed `lib/portal/refreshPartnerLiveStatus.ts` — added driver and currency checks, fixed duplicate `.limit(1)` syntax error
+- Updated `app/api/admin/applications/route.ts` — fetches active fleet, active drivers, default_currency; computes full 6-check live status; returns `missing[]` array
+- Updated `app/api/admin/accounts/route.ts` — same 6-check live status logic
+- Updated `app/admin/approvals/page.tsx` — "Not live" badge with missing items listed per row
+- Updated `app/admin/accounts/page.tsx` — same treatment
+- Updated `app/partner/account/page.tsx` — amber banner with clickable fix links; reads `default_currency` directly from profile
+- Updated `app/partner/dashboard/page.tsx` — amber live status banner with missing items
+- Updated `app/partner/onboarding/page.tsx` — Go Live step now fetches real fleet/driver counts on mount (skipped steps no longer falsely show green)
+- Updated `app/partner/login/page.tsx` — removed onboarding redirect logic; all approved partners go straight to dashboard
+- Updated `app/partner/drivers/page.tsx` — added driver portal info card with login URL and link
+- Updated `app/driver/layout.tsx` — excluded from global header; driver-specific header with full name + company name; logout goes to `/driver/login`
+- Updated `app/driver/login/page.tsx` — login box top-aligned, removed vertical centering
+- Updated `app/driver/jobs/page.tsx` — full width, 3 clickable colour-coded tab cards (Awaiting Delivery / On Hire / Completed), 10 jobs per page with view more, correct section labels
+- Updated `app/api/driver/jobs/route.ts` — fetches company name from `partner_profiles` and returns it with driver info
+- Updated `app/ClientRootLayout.tsx` — added `/driver` to excluded paths so global header is suppressed for driver portal
+- Stable tag: `v-stable-live-status-checks`
+
+---
+
+## Business Model & Roadmap
+
+### Revenue Model
+Camel Global operates as a **marketplace facilitator**. Customers pay Camel Global directly (not the partner). Camel takes its commission and passes the remainder to the partner automatically via Stripe Connect.
+
+**Commission Structure:**
+- 15% of car hire price (not fuel) for first 10 completed bookings per partner
+- Drops to 10% after 10 successful completed bookings
+- Fuel charges pass through at 100% to partner — Camel takes no cut on fuel
+- Commission is deducted automatically at point of payment split — no chasing partners
+
+**Alternative model under consideration:** Flat monthly subscription fee (£99–£199/month) with zero commission. To be decided before launch.
+
+---
+
+### Payment Architecture — Stripe Connect (To Build)
+**Status:** Not yet built.
+
+- Customer card held by Stripe at booking acceptance
+- On completion: automatic split — partner share + Camel commission
+- Partner bank details in Stripe only — never in Camel DB
+- Files to create: `app/api/stripe/`, `lib/stripe.ts`, `app/partner/payments/`
+
+---
+
+### Invoicing & Tax (To Build)
+**Status:** Not yet built.
+
+- Auto-generated monthly PDF commission invoices per partner
+- VAT/IVA handling (UK 20%, Spain 21%)
+- Files to create: `app/api/invoicing/generate/route.ts`, `lib/invoice.ts`, `app/partner/invoices/`, `app/admin/invoices/`
+
+---
+
+### Insurance (To Build)
+**Status:** Policy defined, not yet enforced in platform.
+
+- Partners upload insurance certificate to profile
+- Certificate expiry alerts (30 days warning)
+- Expired = auto not-live
+- Files to update: `app/partner/profile/page.tsx`, `app/admin/approvals/`
+
+---
+
+### Terms & Conditions (To Build)
+**Status:** Not yet built.
+
+- Customer T&Cs with versioned acceptance (`customer_tc_acceptances` table)
+- Partner T&Cs with versioned acceptance (`partner_tc_acceptances` table)
+- Re-acceptance required on update
+
+---
+
+### Partner Onboarding Polish (To Build)
+**Status:** Functional but not slick.
+
+- Progress bar wizard already exists at `/partner/onboarding`
+- Needs: insurance upload step, branded confirmation email, Spanish translation
+
+---
+
+### Multilingual Support — English & Spanish (To Build)
+**Status:** Marketing homepage has EN/ES/IT/FR/DE. Portals are English only.
+
+- Recommended approach: Option B (simple JSON + context, consistent with marketing page)
+- Files to create: `lib/i18n.ts`, `messages/en.json`, `messages/es.json`
+
+---
+
+### Reviews & Ratings (To Build)
+**Status:** Not yet built.
+
+- Post-booking review prompt for customers
+- 1–5 star + written review, public on bid cards
+- Files to create: `partner_reviews` table, review UI on booking completion, `app/partner/reviews/`, `app/admin/reviews/`
+
+---
+
+## Outstanding TODOs
+- [ ] `partner_profiles` table missing columns: `currency`, `fleet_size`, `description` — add when ready
+- [ ] Reports pages (`/partner/reports` and `/admin/reports`) — not yet updated for multi-currency
+- [ ] CSV export on admin bookings page
+- [ ] Security headers in `next.config.ts` (CSP, HSTS, X-Frame-Options)
+- [ ] Full RLS audit on all Supabase tables
+- [ ] Rate limiting on `/api/auth/` routes
+- [ ] GDPR data deletion endpoint
+- [ ] `app/partner/bids/` — folder exists, no page.tsx (unused/WIP)
+- [ ] `app/api/admin/admin/requests/` — looks like legacy duplicate, review and remove
+- [ ] Clean up stray files: `main`, `camel-portal/camel-portal/`, `public/Screenshot *.png`
+
+---
+
+## Useful Commands
+
+```bash
+# Push changes
+git add .
+git commit -m "your message"
+git push origin main
+
+# Show full file tree (paste to Claude at start of each chat)
+find ~/camel-portal -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/.next/*' | sort
+
+# Cat multiple files for Claude
+cat ~/camel-portal/app/partner/login/page.tsx
+cat ~/camel-portal/app/partner/dashboard/page.tsx
+
+# Create a stable rollback tag
+git tag -a v-tag-name -m "description"
+git push origin v-tag-name
+
+# Roll back to a tag
+git checkout v-tag-name
+
+# List all tags
+git tag
+
+# Check what's changed
+git status
+git diff
+```
+
+---
+
+## Environment
+- `.env.local` — Supabase keys, Google Maps API key, email config
+- Never commit `.env.local` — it is in `.gitignore`
+- Vercel environment variables set separately in Vercel dashboard
+
+---
+
+*Last updated: Chat 6 — Live status checks, dashboard banner, login redirect fix*
