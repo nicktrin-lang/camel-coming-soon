@@ -104,14 +104,15 @@ Permanent record of exactly who delivered and collected each vehicle and when:
 
 ### Last Known Good Tag
 ```bash
-git checkout v-stable-driver-audit-trail
+git checkout v-stable-admin-insurance-live-status
 ```
-**Tag:** `v-stable-driver-audit-trail`
-**Description:** Full driver audit trail. Delivery and collection driver stamped permanently with exact timestamps when they confirm via their app. Never overwritten — split-driver bookings correctly record both drivers. Partner portal shows Driver Audit Trail card with names, times, and amber warning if different drivers handled each leg. Job disappears from old driver's app immediately on reassignment.
+**Tag:** `v-stable-admin-insurance-live-status`
+**Description:** Admin booking detail and list pages show insurance documents and driver audit trail, matching partner portal. Admin auth fixed — admin bookings detail API now uses admin_users table directly instead of partner_profiles. Admin bookings list API falls back to admin_users check so all bookings are returned for admin users. Live status banner fixed — refreshPartnerLiveStatus now returns isLiveNow on all code paths so already-live accounts no longer show false "not live" banner.
 
 ### Previous Stable Tags
 | Tag | Description |
 |-----|-------------|
+| `v-stable-driver-audit-trail` | Driver audit trail — delivery/collection driver stamped permanently with exact timestamps, split-driver warning on partner portal, job disappears from old driver on reassignment. |
 | `v-stable-insurance-handover` | Full insurance document handover flow. Driver checkbox hard blocker. Customer confirmation card. Partner read-only status. Driver app shows both sides and auto-refreshes every 10s. |
 | `v-stable-live-status-checks` | Live status checks require fleet location, service radius, billing currency, at least one active fleet vehicle, and at least one active driver. |
 | `v-stable-fuel-flow-fixed` | Full fuel confirmation flow working end to end. |
@@ -188,7 +189,14 @@ git checkout v-stable-driver-audit-trail
 - Driver app auto-refreshes every 10s silently
 - Stable tag: `v-stable-insurance-handover`
 
-### Chat 9 (Completed)
+### Chat 10 (Completed)
+- Admin booking detail page (`app/admin/bookings/[id]/page.tsx`) — full rewrite with insurance documents section and driver audit trail, matching partner portal
+- Created `app/api/admin/bookings/[id]/route.ts` — new admin-specific booking detail API using `admin_users` auth (not `partner_profiles`)
+- Fixed admin bookings list API (`app/api/partner/bookings/route.ts`) — falls back to `admin_users` email check so `adminMode = true` for admin users and all bookings are returned
+- Fixed `lib/portal/refreshPartnerLiveStatus.ts` — now returns `isLiveNow` on all code paths; previously already-live accounts showed false "not yet live" banner
+- Added insurance columns to `app/api/partner/bookings/route.ts` select and response map
+- Added insurance status pill to admin bookings list page (both per-currency and main table) and Excel export
+- Stable tag: `v-stable-admin-insurance-live-status`
 - Added driver audit trail — 6 new columns on `partner_bookings`: `delivery_driver_id`, `delivery_driver_name`, `delivery_confirmed_at`, `collection_driver_id`, `collection_driver_name`, `collection_confirmed_at`
 - Driver confirm API stamps delivery/collection driver at moment of confirmation — never overwritten
 - Partner booking detail — new Driver Audit Trail card showing who delivered and collected with exact timestamps; amber warning if different drivers
