@@ -45,7 +45,9 @@ export async function GET() {
         return_fuel_level_driver,
         return_fuel_level_partner,
         return_fuel_level_customer,
-        return_confirmed_by_customer
+        return_confirmed_by_customer,
+        insurance_docs_confirmed_by_driver,
+        insurance_docs_confirmed_by_customer
       `)
       .order("created_at", { ascending: false });
 
@@ -70,24 +72,10 @@ export async function GET() {
       const { data: requestRows, error: requestErr } = await db
         .from("customer_requests")
         .select(`
-          id,
-          job_number,
-          pickup_address,
-          dropoff_address,
-          pickup_at,
-          dropoff_at,
-          journey_duration_minutes,
-          passengers,
-          suitcases,
-          hand_luggage,
-          vehicle_category_name,
-          customer_name,
-          customer_email,
-          customer_phone,
-          notes,
-          status,
-          created_at,
-          expires_at
+          id, job_number, pickup_address, dropoff_address, pickup_at, dropoff_at,
+          journey_duration_minutes, passengers, suitcases, hand_luggage,
+          vehicle_category_name, customer_name, customer_email, customer_phone,
+          notes, status, created_at, expires_at
         `)
         .in("id", requestIds);
       if (requestErr) return NextResponse.json({ error: requestErr.message }, { status: 400 });
@@ -140,6 +128,8 @@ export async function GET() {
         return_fuel_level_partner: booking.return_fuel_level_partner || null,
         return_fuel_level_customer: booking.return_fuel_level_customer || null,
         return_confirmed_by_customer: booking.return_confirmed_by_customer ?? false,
+        insurance_docs_confirmed_by_driver: booking.insurance_docs_confirmed_by_driver ?? false,
+        insurance_docs_confirmed_by_customer: booking.insurance_docs_confirmed_by_customer ?? false,
         partner_company_name: partnerProfile?.company_name || null,
         partner_company_phone: partnerProfile?.phone || null,
         pickup_address: request?.pickup_address || null,

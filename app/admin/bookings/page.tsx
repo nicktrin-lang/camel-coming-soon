@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
@@ -37,6 +36,8 @@ type BookingRow = {
   return_fuel_level_partner: string | null;
   collection_confirmed_by_customer: boolean;
   return_confirmed_by_customer: boolean;
+  insurance_docs_confirmed_by_driver: boolean;
+  insurance_docs_confirmed_by_customer: boolean;
 };
 
 const CURRENCY_CONFIG: Record<Currency, { locale: string; label: string; symbol: string }> = {
@@ -79,7 +80,7 @@ function fmtDateTime(value?: string | null) {
 function statusPillClasses(status?: string | null) {
   switch (String(status || "").toLowerCase()) {
     case "confirmed": case "completed": return "border-green-200 bg-green-50 text-green-700";
-    case "collected": case "returned": return "border-blue-200 bg-blue-50 text-blue-700";
+    case "collected": case "returned":  return "border-blue-200 bg-blue-50 text-blue-700";
     case "driver_assigned": case "en_route": case "arrived": return "border-amber-200 bg-amber-50 text-amber-800";
     case "cancelled": return "border-red-200 bg-red-50 text-red-700";
     default: return "border-black/10 bg-white text-slate-700";
@@ -88,16 +89,31 @@ function statusPillClasses(status?: string | null) {
 
 function fmtStatus(value?: string | null) {
   switch (String(value || "").toLowerCase()) {
-    case "confirmed": return "Confirmed";
+    case "confirmed":      return "Confirmed";
     case "driver_assigned": return "Driver assigned";
-    case "en_route": return "En route";
-    case "arrived": return "Arrived";
-    case "collected": return "On hire";
-    case "returned": return "Returned";
-    case "completed": return "Completed";
-    case "cancelled": return "Cancelled";
+    case "en_route":       return "En route";
+    case "arrived":        return "Arrived";
+    case "collected":      return "On hire";
+    case "returned":       return "Returned";
+    case "completed":      return "Completed";
+    case "cancelled":      return "Cancelled";
     default: return String(value || "—").replaceAll("_", " ");
   }
+}
+
+function insurancePill(driver: boolean, customer: boolean) {
+  const both = driver && customer;
+  return (
+    <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${
+      both
+        ? "border-green-200 bg-green-50 text-green-700"
+        : driver
+        ? "border-blue-200 bg-blue-50 text-blue-700"
+        : "border-amber-200 bg-amber-50 text-amber-700"
+    }`}>
+      {both ? "✓ Confirmed" : driver ? "Driver ✓" : "Pending"}
+    </span>
+  );
 }
 
 function matchesDateRange(value: string | null | undefined, from: string, to: string) {
@@ -105,7 +121,7 @@ function matchesDateRange(value: string | null | undefined, from: string, to: st
   const d = new Date(value);
   if (isNaN(d.getTime())) return false;
   if (from && d < new Date(`${from}T00:00:00`)) return false;
-  if (to && d > new Date(`${to}T23:59:59.999`)) return false;
+  if (to   && d > new Date(`${to}T23:59:59.999`)) return false;
   return true;
 }
 
@@ -133,7 +149,9 @@ function buildXls(sheets: { name: string; headers: string[]; rows: Array<Array<u
         `<Row ss:Index="${ri + 2}">${row.map(cell => {
           const v = cell ?? "";
           const isNum = typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v)) && v.trim() !== "");
-          return isNum ? `<Cell><Data ss:Type="Number">${escapeXml(v)}</Data></Cell>` : `<Cell><Data ss:Type="String">${escapeXml(v)}</Data></Cell>`;
+          return isNum
+            ? `<Cell><Data ss:Type="Number">${escapeXml(v)}</Data></Cell>`
+            : `<Cell><Data ss:Type="String">${escapeXml(v)}</Data></Cell>`;
         }).join("")}</Row>`
       ),
     ].join("");
@@ -176,12 +194,12 @@ function AdminCurrencySection({ curr, t, bookings, router }: {
       </div>
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         {[
-          { label: "Total Bookings", value: t.count, isMoney: false },
-          { label: "Completed", value: t.completed, isMoney: false },
-          { label: "Total Revenue", value: t.total, isMoney: true },
-          { label: "Car Hire Revenue", value: t.carHire, isMoney: true },
-          { label: "Fuel Charged", value: t.fuelCharge, isMoney: true },
-          { label: "Net Revenue to Partner", value: t.carHire + t.fuelCharge, isMoney: true },
+          { label: "Total Bookings",        value: t.count,               isMoney: false },
+          { label: "Completed",             value: t.completed,            isMoney: false },
+          { label: "Total Revenue",         value: t.total,                isMoney: true  },
+          { label: "Car Hire Revenue",      value: t.carHire,              isMoney: true  },
+          { label: "Fuel Charged",          value: t.fuelCharge,           isMoney: true  },
+          { label: "Net Revenue to Partner",value: t.carHire + t.fuelCharge, isMoney: true },
         ].map(({ label: lbl, value, isMoney }) => (
           <div key={lbl} className="rounded-2xl border border-black/5 bg-slate-50 p-4">
             <p className="text-xs font-medium text-slate-500">{lbl}</p>
@@ -204,11 +222,12 @@ function AdminCurrencySection({ curr, t, bookings, router }: {
               <th className="px-4 py-3 font-semibold">Fuel Refund</th>
               <th className="px-4 py-3 font-semibold">Total</th>
               <th className="px-4 py-3 font-semibold">Net Revenue</th>
+              <th className="px-4 py-3 font-semibold">Insurance</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-black/5">
             {visible.map(b => {
-              const usedQ = b.fuel_used_quarters;
+              const usedQ  = b.fuel_used_quarters;
               const netRev = Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0);
               return (
                 <tr key={b.id} onClick={() => router.push(`/admin/bookings/${b.id}`)} className="cursor-pointer hover:bg-[#f3f8ff]">
@@ -227,6 +246,7 @@ function AdminCurrencySection({ curr, t, bookings, router }: {
                   <td className="px-4 py-3 font-semibold text-green-700">{b.fuel_refund !== null ? fmtAmt(b.fuel_refund, curr) : "—"}</td>
                   <td className="px-4 py-3 font-bold text-[#003768]">{fmtAmt(b.amount, curr)}</td>
                   <td className="px-4 py-3 font-bold text-green-700">{fmtCurr(netRev, curr)}</td>
+                  <td className="px-4 py-3">{insurancePill(b.insurance_docs_confirmed_by_driver, b.insurance_docs_confirmed_by_customer)}</td>
                 </tr>
               );
             })}
@@ -247,27 +267,27 @@ function AdminCurrencySection({ curr, t, bookings, router }: {
 
 export default function AdminBookingsPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
-  const router = useRouter();
+  const router   = useRouter();
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [bookings, setBookings] = useState<BookingRow[]>([]);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [loading,        setLoading]        = useState(true);
+  const [error,          setError]          = useState<string | null>(null);
+  const [bookings,       setBookings]       = useState<BookingRow[]>([]);
+  const [dateFrom,       setDateFrom]       = useState("");
+  const [dateTo,         setDateTo]         = useState("");
+  const [search,         setSearch]         = useState("");
+  const [statusFilter,   setStatusFilter]   = useState("all");
   const [currencyFilter, setCurrencyFilter] = useState<"all" | Currency>("all");
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [visibleCount,   setVisibleCount]   = useState(PAGE_SIZE);
 
   async function load() {
     setLoading(true); setError(null);
     try {
       const { data: userData, error: userErr } = await supabase.auth.getUser();
       if (userErr || !userData?.user) { router.replace("/partner/login?reason=not_authorized"); return; }
-      const adminRes = await fetch("/api/admin/is-admin", { cache: "no-store", credentials: "include" });
+      const adminRes  = await fetch("/api/admin/is-admin", { cache: "no-store", credentials: "include" });
       const adminJson = await safeJson(adminRes);
       if (!adminJson?.isAdmin) { router.replace("/partner/login?reason=not_authorized"); return; }
-      const res = await fetch("/api/partner/bookings", { cache: "no-store", credentials: "include" });
+      const res  = await fetch("/api/partner/bookings", { cache: "no-store", credentials: "include" });
       const json = await safeJson(res);
       if (!res.ok) throw new Error(json?.error || "Failed to load bookings.");
       setBookings(Array.isArray(json?.data) ? json.data : []);
@@ -307,8 +327,8 @@ export default function AdminBookingsPage() {
       const c: Currency = (b.currency as Currency) ?? "EUR";
       if (!t[c]) continue;
       t[c].count++;
-      t[c].total += Number(b.amount ?? 0);
-      t[c].carHire += Number(b.car_hire_price ?? 0);
+      t[c].total     += Number(b.amount ?? 0);
+      t[c].carHire   += Number(b.car_hire_price ?? 0);
       t[c].fuelCharge += Number(b.fuel_charge ?? 0);
       t[c].fuelRefund += Number(b.fuel_refund ?? 0);
       if (String(b.booking_status || "").toLowerCase() === "completed") t[c].completed++;
@@ -316,16 +336,15 @@ export default function AdminBookingsPage() {
     return t;
   }, [filtered]);
 
-  const completed = filtered.filter(r => String(r.booking_status || "").toLowerCase() === "completed").length;
-  const confirmed = filtered.filter(r => String(r.booking_status || "").toLowerCase() === "confirmed").length;
-  const active = filtered.filter(r => ["driver_assigned", "en_route", "arrived", "collected", "returned"].includes(String(r.booking_status || "").toLowerCase())).length;
+  const completed     = filtered.filter(r => String(r.booking_status || "").toLowerCase() === "completed").length;
+  const confirmed     = filtered.filter(r => String(r.booking_status || "").toLowerCase() === "confirmed").length;
+  const active        = filtered.filter(r => ["driver_assigned", "en_route", "arrived", "collected", "returned"].includes(String(r.booking_status || "").toLowerCase())).length;
   const statusOptions = Array.from(new Set(bookings.map(r => String(r.booking_status || "").toLowerCase()).filter(Boolean))).sort();
-
-  const visible = filtered.slice(0, visibleCount);
-  const hasMore = filtered.length > visibleCount;
+  const visible       = filtered.slice(0, visibleCount);
+  const hasMore       = filtered.length > visibleCount;
 
   function exportExcel() {
-    const dateStr = new Date().toISOString().split("T")[0];
+    const dateStr    = new Date().toISOString().split("T")[0];
     const fuelHeaders = [
       "Job Number", "Partner", "Customer", "Customer Email", "Customer Phone",
       "Pickup Address", "Dropoff Address", "Pickup At", "Dropoff At",
@@ -337,6 +356,7 @@ export default function AdminBookingsPage() {
       "Fuel Charge to Customer", "Fuel Refund to Customer",
       "Total Booking Amount", "Net Revenue to Partner (Car Hire + Fuel Charge)",
       "Customer Collection Confirmed", "Customer Return Confirmed",
+      "Insurance Driver Confirmed", "Insurance Customer Confirmed",
       "Booking Status", "Created At",
     ];
     const fuelRows = filtered.map(b => {
@@ -360,30 +380,33 @@ export default function AdminBookingsPage() {
         Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0),
         b.collection_confirmed_by_customer ? "Yes" : "No",
         b.return_confirmed_by_customer ? "Yes" : "No",
+        b.insurance_docs_confirmed_by_driver ? "Yes" : "No",
+        b.insurance_docs_confirmed_by_customer ? "Yes" : "No",
         b.booking_status || "", fmtDate(b.created_at),
       ];
     });
 
     const summaryHeaders = ["Currency", "Total Bookings", "Completed", "Total Revenue", "Car Hire Revenue", "Fuel Charges Billed", "Fuel Refunds Issued", "Net Revenue to Partner"];
-    const summaryRows = (["EUR", "GBP", "USD"] as Currency[]).map(curr => {
+    const summaryRows    = (["EUR", "GBP", "USD"] as Currency[]).map(curr => {
       const t = currencyTotals[curr];
       return [`${curr} ${CURRENCY_CONFIG[curr].symbol}`, t.count, t.completed, t.total, t.carHire, t.fuelCharge, t.fuelRefund, t.carHire + t.fuelCharge];
     });
 
-    const allHeaders = ["Job Number", "Partner", "Customer", "Pickup", "Dropoff", "Pickup At", "Vehicle", "Driver", "Status", "Currency", "Amount", "Net Revenue to Partner", "Created At"];
-    const allRows = filtered.map(b => [
+    const allHeaders = ["Job Number", "Partner", "Customer", "Pickup", "Dropoff", "Pickup At", "Vehicle", "Driver", "Status", "Currency", "Amount", "Net Revenue to Partner", "Insurance", "Created At"];
+    const allRows    = filtered.map(b => [
       b.job_number || "", b.partner_company_name || "", b.customer_name || "",
       b.pickup_address || "", b.dropoff_address || "",
       fmtDate(b.pickup_at), b.vehicle_category_name || "", b.driver_name || "",
       b.booking_status || "", b.currency || "EUR", Number(b.amount ?? 0),
       Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0),
+      b.insurance_docs_confirmed_by_driver && b.insurance_docs_confirmed_by_customer ? "Confirmed" : "Pending",
       fmtDate(b.created_at),
     ]);
 
     const blob = buildXls([
       { name: "Fuel Reconciliation", headers: fuelHeaders, rows: fuelRows },
-      { name: "Currency Summary", headers: summaryHeaders, rows: summaryRows },
-      { name: "All Bookings", headers: allHeaders, rows: allRows },
+      { name: "Currency Summary",    headers: summaryHeaders, rows: summaryRows },
+      { name: "All Bookings",        headers: allHeaders, rows: allRows },
     ]);
     downloadBlob(blob, `camel-admin-bookings-${dateStr}.xls`);
   }
@@ -461,9 +484,9 @@ export default function AdminBookingsPage() {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
         {[
           { label: "Total Bookings", value: filtered.length, color: "text-[#003768]" },
-          { label: "Confirmed", value: confirmed, color: "text-green-600" },
-          { label: "Active", value: active, color: "text-amber-600" },
-          { label: "Completed", value: completed, color: "text-blue-600" },
+          { label: "Confirmed",      value: confirmed,       color: "text-green-600" },
+          { label: "Active",         value: active,          color: "text-amber-600" },
+          { label: "Completed",      value: completed,       color: "text-blue-600"  },
         ].map(({ label, value, color }) => (
           <div key={label} className="rounded-3xl border border-black/5 bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
             <p className="text-sm font-medium text-slate-500">{label}</p>
@@ -496,7 +519,8 @@ export default function AdminBookingsPage() {
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xl font-semibold text-[#003768]">All Bookings</h2>
           <p className="text-sm text-slate-500">
-            Showing <span className="font-semibold text-[#003768]">{Math.min(visibleCount, filtered.length)}</span> of <span className="font-semibold text-[#003768]">{filtered.length}</span>
+            Showing <span className="font-semibold text-[#003768]">{Math.min(visibleCount, filtered.length)}</span> of{" "}
+            <span className="font-semibold text-[#003768]">{filtered.length}</span>
           </p>
         </div>
         <div className="overflow-x-auto rounded-2xl border border-black/10">
@@ -514,11 +538,12 @@ export default function AdminBookingsPage() {
                 <th className="px-4 py-3 text-left font-semibold">Status</th>
                 <th className="px-4 py-3 text-left font-semibold">Currency</th>
                 <th className="px-4 py-3 text-left font-semibold">Amount</th>
+                <th className="px-4 py-3 text-left font-semibold">Insurance</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-black/5">
               {visible.length === 0 ? (
-                <tr><td colSpan={11} className="px-4 py-4 text-slate-600">No bookings found.</td></tr>
+                <tr><td colSpan={12} className="px-4 py-4 text-slate-600">No bookings found.</td></tr>
               ) : visible.map(row => (
                 <tr key={row.id} onClick={() => router.push(`/admin/bookings/${row.id}`)} className="cursor-pointer hover:bg-[#f3f8ff] transition-colors">
                   <td className="px-4 py-4 text-slate-700">{fmtDateTime(row.created_at)}</td>
@@ -543,6 +568,7 @@ export default function AdminBookingsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-4 font-semibold text-slate-900">{fmtAmt(row.amount, row.currency)}</td>
+                  <td className="px-4 py-4">{insurancePill(row.insurance_docs_confirmed_by_driver, row.insurance_docs_confirmed_by_customer)}</td>
                 </tr>
               ))}
             </tbody>
