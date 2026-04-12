@@ -85,16 +85,14 @@ function JobCard({ job, mode, fuelInput, onFuelChange, onConfirm, saving }: {
   fuelInput: FuelLevel; onFuelChange: (v: FuelLevel) => void;
   onConfirm: () => void; saving: boolean;
 }) {
-  const [expanded, setExpanded] = useState(mode !== "readonly");
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <div className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
       <button type="button" onClick={() => setExpanded(p => !p)}
         className="flex w-full items-center justify-between gap-3 p-4 text-left">
         <div className="flex flex-col gap-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-base font-bold text-[#003768]">Job #{job.job_number ?? "—"}</span>
-          </div>
+          <span className="text-base font-bold text-[#003768]">Job #{job.job_number ?? "—"}</span>
           <span className="text-sm text-slate-600 truncate">{job.pickup_address ?? "—"}</span>
           <span className="text-xs text-slate-400">{fmt(job.pickup_at)}</span>
         </div>
@@ -118,10 +116,10 @@ function JobCard({ job, mode, fuelInput, onFuelChange, onConfirm, saving }: {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <FuelSummaryCard title="Collection fuel" confirmed={!!job.collection_confirmed_by_driver}
+            <FuelSummaryCard title="Delivery fuel"   confirmed={!!job.collection_confirmed_by_driver}
               confirmedAt={job.collection_confirmed_by_driver_at}
               fuelLevel={job.collection_fuel_level_driver as FuelLevel | null} />
-            <FuelSummaryCard title="Return fuel" confirmed={!!job.return_confirmed_by_driver}
+            <FuelSummaryCard title="Collection fuel" confirmed={!!job.return_confirmed_by_driver}
               confirmedAt={job.return_confirmed_by_driver_at}
               fuelLevel={job.return_fuel_level_driver as FuelLevel | null} />
           </div>
@@ -129,7 +127,7 @@ function JobCard({ job, mode, fuelInput, onFuelChange, onConfirm, saving }: {
           {mode !== "readonly" && (
             <div className="rounded-2xl bg-slate-50 p-4 space-y-4">
               <p className="text-sm font-semibold text-[#003768]">
-                {mode === "collection" ? "Record collection fuel level" : "Record return fuel level"}
+                {mode === "collection" ? "Record delivery fuel level" : "Record collection fuel level"}
               </p>
               <div className="grid grid-cols-5 gap-2">
                 {FUEL_OPTIONS.map(opt => (
@@ -149,7 +147,7 @@ function JobCard({ job, mode, fuelInput, onFuelChange, onConfirm, saving }: {
               <FuelBar level={fuelInput} />
               <button type="button" onClick={onConfirm} disabled={saving}
                 className="w-full rounded-full bg-[#ff7a00] py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60 active:scale-95 transition-transform">
-                {saving ? "Saving…" : mode === "collection" ? "✓ Confirm Collection" : "✓ Confirm Return"}
+                {saving ? "Saving…" : mode === "collection" ? "✓ Confirm Delivery" : "✓ Confirm Collection"}
               </button>
             </div>
           )}
@@ -159,46 +157,17 @@ function JobCard({ job, mode, fuelInput, onFuelChange, onConfirm, saving }: {
   );
 }
 
-function Section({ title, icon, accent, jobs, mode, fuelInputs, onFuelChange, onConfirm, savingId }: {
-  title: string; icon: string; accent: string; jobs: DriverJob[];
-  mode: "collection" | "return" | "readonly";
-  fuelInputs: Record<string, FuelLevel>;
-  onFuelChange: (id: string, v: FuelLevel) => void;
-  onConfirm: (id: string, stage: "collection" | "return") => void;
-  savingId: string | null;
-}) {
-  if (jobs.length === 0) return null;
-  return (
-    <section>
-      <div className="mb-3 flex items-center gap-2">
-        <span className="text-xl">{icon}</span>
-        <h2 className={`text-lg font-bold ${accent}`}>{title}</h2>
-        <span className="rounded-full bg-black/5 px-2.5 py-0.5 text-xs font-bold text-slate-600">{jobs.length}</span>
-      </div>
-      <div className="space-y-3">
-        {jobs.map(job => (
-          <JobCard key={job.booking_id} job={job} mode={mode}
-            fuelInput={fuelInputs[job.booking_id] ?? "full"}
-            onFuelChange={v => onFuelChange(job.booking_id, v)}
-            onConfirm={() => onConfirm(job.booking_id, mode === "readonly" ? "return" : mode)}
-            saving={savingId === job.booking_id} />
-        ))}
-      </div>
-    </section>
-  );
-}
-
 const PAGE_SIZE = 10;
 
 export default function DriverJobsPage() {
-  const [loading,    setLoading]    = useState(true);
-  const [activeTab,  setActiveTab]  = useState<"awaiting" | "onHire" | "completed">("awaiting");
-  const [savingId,   setSavingId]   = useState<string | null>(null);
-  const [error,      setError]      = useState<string | null>(null);
-  const [toast,      setToast]      = useState<string | null>(null);
-  const [driver,     setDriver]     = useState<DriverInfo | null>(null);
-  const [jobs,       setJobs]       = useState<DriverJob[]>([]);
-  const [fuelInputs, setFuelInputs] = useState<Record<string, FuelLevel>>({});
+  const [loading,      setLoading]      = useState(true);
+  const [activeTab,    setActiveTab]    = useState<"awaiting" | "onHire" | "completed">("awaiting");
+  const [savingId,     setSavingId]     = useState<string | null>(null);
+  const [error,        setError]        = useState<string | null>(null);
+  const [toast,        setToast]        = useState<string | null>(null);
+  const [driver,       setDriver]       = useState<DriverInfo | null>(null);
+  const [jobs,         setJobs]         = useState<DriverJob[]>([]);
+  const [fuelInputs,   setFuelInputs]   = useState<Record<string, FuelLevel>>({});
   const [visibleCount, setVisibleCount] = useState<Record<string, number>>({
     awaiting: PAGE_SIZE, onHire: PAGE_SIZE, completed: PAGE_SIZE,
   });
@@ -233,7 +202,7 @@ export default function DriverJobsPage() {
       });
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.error || "Failed to save.");
-      setToast(stage === "collection" ? "Collection confirmed ✓" : "Return confirmed ✓");
+      setToast(stage === "collection" ? "Delivery confirmed ✓" : "Collection confirmed ✓");
       setTimeout(() => setToast(null), 3000);
       await load();
     } catch (e: any) {
@@ -249,37 +218,29 @@ export default function DriverJobsPage() {
     completed: jobs.filter(j => j.booking_status_label === "Completed"),
   }), [jobs]);
 
-  // Auto-select the most relevant tab
+  // Auto-select most relevant tab on load
   useEffect(() => {
     if (!loading) {
-      if (jobs.filter(j => j.booking_status_label === "Awaiting delivery").length > 0) setActiveTab("awaiting");
-      else if (jobs.filter(j => j.booking_status_label === "On Hire").length > 0) setActiveTab("onHire");
+      if (awaiting.length > 0) setActiveTab("awaiting");
+      else if (onHire.length > 0) setActiveTab("onHire");
       else setActiveTab("completed");
     }
   }, [loading]);
 
-  const sharedProps = {
-    fuelInputs,
-    onFuelChange: (id: string, v: FuelLevel) => setFuelInputs(p => ({ ...p, [id]: v })),
-    onConfirm: confirmStage,
-    savingId,
-  };
-
-  const tabs: { key: "awaiting" | "onHire" | "completed"; label: string; icon: string; count: number; accent: string; bg: string; border: string }[] = [
-    { key: "awaiting",  label: "Awaiting Delivery", icon: "🔵", count: awaiting.length,  accent: "text-blue-700",   bg: "bg-blue-50",   border: "border-blue-200" },
-    { key: "onHire",    label: "On Hire",            icon: "🟠", count: onHire.length,    accent: "text-orange-600", bg: "bg-orange-50", border: "border-orange-200" },
-    { key: "completed", label: "Completed",          icon: "✅", count: completed.length, accent: "text-green-700",  bg: "bg-green-50",  border: "border-green-200" },
+  const tabs: { key: "awaiting" | "onHire" | "completed"; label: string; count: number; accent: string; bg: string; border: string }[] = [
+    { key: "awaiting",  label: "Awaiting Delivery", count: awaiting.length,  accent: "text-blue-700",   bg: "bg-blue-50",   border: "border-blue-200" },
+    { key: "onHire",    label: "On Hire",            count: onHire.length,    accent: "text-orange-600", bg: "bg-orange-50", border: "border-orange-200" },
+    { key: "completed", label: "Completed",          count: completed.length, accent: "text-green-700",  bg: "bg-green-50",  border: "border-green-200" },
   ];
 
-  const activeJobs = activeTab === "awaiting" ? awaiting : activeTab === "onHire" ? onHire : completed;
-  const activeMode = activeTab === "awaiting" ? "collection" : activeTab === "onHire" ? "return" : "readonly";
+  const activeJobs    = activeTab === "awaiting" ? awaiting : activeTab === "onHire" ? onHire : completed;
+  const activeMode    = activeTab === "awaiting" ? "collection" : activeTab === "onHire" ? "return" : "readonly";
   const activeVisible = visibleCount[activeTab];
-  const visibleJobs = activeJobs.slice(0, activeVisible);
-  const hasMore = activeJobs.length > activeVisible;
+  const visibleJobs   = activeJobs.slice(0, activeVisible);
+  const hasMore       = activeJobs.length > activeVisible;
 
   return (
     <div className="space-y-6">
-      {/* Toast */}
       {toast && (
         <div className="fixed top-24 inset-x-4 z-50 rounded-2xl bg-green-600 px-5 py-3 text-center text-sm font-semibold text-white shadow-xl md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-96">
           {toast}
@@ -310,28 +271,27 @@ export default function DriverJobsPage() {
         </div>
       ) : (
         <>
-          {/* Clickable tab cards */}
+          {/* Tab cards */}
           <div className="grid grid-cols-3 gap-3">
             {tabs.map(tab => (
               <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
                 className={`rounded-3xl border-2 p-4 shadow-sm text-center transition-all ${tab.bg} ${tab.border} ${
                   activeTab === tab.key ? "shadow-md scale-[1.02]" : "opacity-60 hover:opacity-80"
                 }`}>
-                <p className={`text-3xl font-bold ${activeTab === tab.key ? tab.accent : "text-slate-700"}`}>{tab.count}</p>
-                <p className={`mt-1 text-xs font-semibold uppercase tracking-wide ${activeTab === tab.key ? tab.accent : "text-slate-500"}`}>
+                <p className={`text-3xl font-bold ${tab.accent}`}>{tab.count}</p>
+                <p className={`mt-1 text-xs font-semibold uppercase tracking-wide ${tab.accent}`}>
                   {tab.key === "awaiting" ? "Awaiting" : tab.key === "onHire" ? "On Hire" : "Completed"}
                 </p>
-                <p className={`text-xs ${activeTab === tab.key ? tab.accent : "text-slate-400"}`}>
+                <p className={`text-xs ${tab.accent} opacity-80`}>
                   {tab.key === "awaiting" ? "Delivery" : tab.key === "onHire" ? "Active" : "Done"}
                 </p>
               </button>
             ))}
           </div>
 
-          {/* Active tab job list */}
+          {/* Job list */}
           <div>
             <div className="mb-3 flex items-center gap-2">
-              <span className="text-xl">{tabs.find(t => t.key === activeTab)?.icon}</span>
               <h2 className={`text-lg font-bold ${tabs.find(t => t.key === activeTab)?.accent}`}>
                 {tabs.find(t => t.key === activeTab)?.label}
               </h2>
