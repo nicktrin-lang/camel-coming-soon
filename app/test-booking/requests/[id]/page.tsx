@@ -380,17 +380,17 @@ export default function TestBookingRequestDetailPage({
     }).catch(() => {});
   }, []);
 
-  const [requestId,      setRequestId]      = useState("");
-  const [loading,        setLoading]        = useState(true);
-  const [acceptingId,    setAcceptingId]    = useState<string | null>(null);
-  const [savingConfirm,  setSavingConfirm]  = useState<ConfirmSection | null>(null);
-  const [error,          setError]          = useState<string | null>(null);
-  const [ok,             setOk]             = useState<string | null>(null);
-  const [data,           setData]           = useState<ResponseShape | null>(null);
-  const [timeLabel,      setTimeLabel]      = useState("—");
-  const [expired,        setExpired]        = useState(false);
+  const [requestId,       setRequestId]       = useState("");
+  const [loading,         setLoading]         = useState(true);
+  const [acceptingId,     setAcceptingId]     = useState<string | null>(null);
+  const [savingConfirm,   setSavingConfirm]   = useState<ConfirmSection | null>(null);
+  const [error,           setError]           = useState<string | null>(null);
+  const [ok,              setOk]              = useState<string | null>(null);
+  const [data,            setData]            = useState<ResponseShape | null>(null);
+  const [timeLabel,       setTimeLabel]       = useState("—");
+  const [expired,         setExpired]         = useState(false);
   const [collectionNotes, setCollectionNotes] = useState("");
-  const [returnNotes,    setReturnNotes]    = useState("");
+  const [returnNotes,     setReturnNotes]     = useState("");
 
   useEffect(() => { params.then(r => setRequestId(r.id)); }, [params]);
 
@@ -491,23 +491,15 @@ export default function TestBookingRequestDetailPage({
 
   const bk = data.booking;
   const bookingStoredCurr: Currency = bk?.currency ?? "EUR";
-  const status = String(bk?.booking_status || "").toLowerCase();
 
-  // Use booking_status as source of truth to prevent poll-based flicker
-  const isCollected = ["collected", "returned", "completed"].includes(status);
-  const isCompleted  = status === "completed";
-
-  const collectionLocked = isCollected || (
-    !!bk?.collection_confirmed_by_driver &&
+  // Lock is driven purely by both driver and customer confirming the same fuel level
+  const collectionLocked = !!bk?.collection_confirmed_by_driver &&
     !!bk?.collection_confirmed_by_customer &&
-    normalizeFuel(bk.collection_fuel_level_driver) === normalizeFuel(bk.collection_fuel_level_customer)
-  );
+    normalizeFuel(bk.collection_fuel_level_driver) === normalizeFuel(bk.collection_fuel_level_customer);
 
-  const returnLocked = isCompleted || (
-    !!bk?.return_confirmed_by_driver &&
+  const returnLocked = !!bk?.return_confirmed_by_driver &&
     !!bk?.return_confirmed_by_customer &&
-    normalizeFuel(bk.return_fuel_level_driver) === normalizeFuel(bk.return_fuel_level_customer)
-  );
+    normalizeFuel(bk.return_fuel_level_driver) === normalizeFuel(bk.return_fuel_level_customer);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-10">
@@ -531,7 +523,6 @@ export default function TestBookingRequestDetailPage({
         </div>
       )}
 
-      {/* Request info */}
       <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
         <h2 className="text-2xl font-semibold text-[#003768]">Request Information</h2>
         <div className="mt-6 grid gap-3 text-slate-700 sm:grid-cols-2">
@@ -554,7 +545,6 @@ export default function TestBookingRequestDetailPage({
         </div>
       </div>
 
-      {/* Accepted booking */}
       {bk && (
         <>
           <div className="rounded-3xl border border-green-200 bg-green-50 p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
@@ -591,14 +581,12 @@ export default function TestBookingRequestDetailPage({
             </div>
           </div>
 
-          {/* Payment summary — shown when both stages locked */}
           {collectionLocked && returnLocked && bk.fuel_charge !== null && (
             <CustomerPaymentSummary
               booking={bk} rates={liveRates} rateIsLive={rateIsLive} customerCurrency={currency}
             />
           )}
 
-          {/* Fuel confirmation — shown until both stages locked */}
           {(!collectionLocked || !returnLocked) && (
             <div className="grid gap-6 xl:grid-cols-2">
               <FuelConfirmCard
@@ -632,7 +620,6 @@ export default function TestBookingRequestDetailPage({
         </>
       )}
 
-      {/* Partner Bids */}
       <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
         <h2 className="text-2xl font-semibold text-[#003768]">Partner Bids</h2>
         {expired || data.request.status === "expired" ? (
