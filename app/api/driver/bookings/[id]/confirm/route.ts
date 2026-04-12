@@ -7,13 +7,7 @@ type AllowedFuelLevel = (typeof ALLOWED_FUEL_LEVELS)[number];
 
 function normalizeFuel(value: unknown): AllowedFuelLevel | null {
   const clean = String(value || "").trim().toLowerCase();
-  if (
-    clean === "full" ||
-    clean === "3/4" ||
-    clean === "half" ||
-    clean === "quarter" ||
-    clean === "empty"
-  ) {
+  if (clean === "full" || clean === "3/4" || clean === "half" || clean === "quarter" || clean === "empty") {
     return clean as AllowedFuelLevel;
   }
   return null;
@@ -41,28 +35,17 @@ export async function POST(
     const { user, error: authError } = await getPortalUserRole();
 
     if (!user) {
-      return NextResponse.json(
-        { error: authError || "Not signed in" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: authError || "Not signed in" }, { status: 401 });
     }
 
     const db = createServiceRoleSupabaseClient();
-
     const signedInEmail = String(user.email || "").trim().toLowerCase();
 
     let driverRow: any = null;
 
     const { data: byAuthUser, error: byAuthErr } = await db
       .from("partner_drivers")
-      .select(`
-        id,
-        partner_user_id,
-        auth_user_id,
-        full_name,
-        email,
-        is_active
-      `)
+      .select("id, partner_user_id, auth_user_id, full_name, email, is_active")
       .eq("auth_user_id", user.id)
       .eq("is_active", true)
       .maybeSingle();
@@ -76,14 +59,7 @@ export async function POST(
     if (!driverRow && signedInEmail) {
       const { data: byEmail, error: byEmailErr } = await db
         .from("partner_drivers")
-        .select(`
-          id,
-          partner_user_id,
-          auth_user_id,
-          full_name,
-          email,
-          is_active
-        `)
+        .select("id, partner_user_id, auth_user_id, full_name, email, is_active")
         .ilike("email", signedInEmail)
         .eq("is_active", true)
         .maybeSingle();
@@ -101,13 +77,7 @@ export async function POST(
 
     const { data: bookingRow, error: bookingErr } = await db
       .from("partner_bookings")
-      .select(`
-        id,
-        assigned_driver_id,
-        booking_status,
-        collection_confirmed_by_driver,
-        return_confirmed_by_driver
-      `)
+      .select("id, assigned_driver_id, booking_status, collection_confirmed_by_driver, return_confirmed_by_driver")
       .eq("id", id)
       .eq("assigned_driver_id", driverRow.id)
       .maybeSingle();
@@ -117,10 +87,7 @@ export async function POST(
     }
 
     if (!bookingRow) {
-      return NextResponse.json(
-        { error: "Booking not found for this driver." },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Booking not found for this driver." }, { status: 404 });
     }
 
     const now = new Date().toISOString();
@@ -131,12 +98,8 @@ export async function POST(
       updatePayload.collection_confirmed_by_driver_at = now;
       updatePayload.collection_fuel_level_driver = fuelLevel;
 
-      if (
-        bookingRow.booking_status === "confirmed" ||
-        bookingRow.booking_status === "driver_assigned" ||
-        bookingRow.booking_status === "en_route" ||
-        bookingRow.booking_status === "arrived"
-      ) {
+      // Advance to "collected" — waiting for customer to confirm delivery fuel
+      if (["confirmed", "driver_assigned", "en_route", "arrived"].includes(bookingRow.booking_status)) {
         updatePayload.booking_status = "collected";
       }
     }
@@ -146,11 +109,10 @@ export async function POST(
       updatePayload.return_confirmed_by_driver_at = now;
       updatePayload.return_fuel_level_driver = fuelLevel;
 
-      if (
-        bookingRow.booking_status === "collected" ||
-        bookingRow.booking_status === "returned"
-      ) {
-        updatePayload.booking_status = "completed";
+      // Advance to "returned" — waiting for customer to confirm collection fuel
+      // Do NOT set "completed" here — only the customer confirmation flow completes the booking
+      if (["collected", "returned"].includes(bookingRow.booking_status)) {
+        updatePayload.booking_status = "returned";
       }
     }
 
@@ -164,18 +126,9 @@ export async function POST(
       return NextResponse.json({ error: updateErr.message }, { status: 400 });
     }
 
-    return NextResponse.json(
-      {
-        ok: true,
-        stage,
-        fuel_level: fuelLevel,
-      },
-      { status: 200 }
-    );
+    return NextResponse.json({ ok: true, stage, fuel_level: fuelLevel }, { status: 200 });
+
   } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || "Server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
   }
 }
