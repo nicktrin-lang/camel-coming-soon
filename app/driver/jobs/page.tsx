@@ -255,6 +255,21 @@ export default function DriverJobsPage() {
 
   useEffect(() => { load(); }, []);
 
+  // Auto-refresh every 10 seconds so driver sees status changes without manual refresh
+  useEffect(() => {
+    const t = setInterval(() => {
+      // Only silent-refresh (no spinner) — don't reset fuel/insurance inputs mid-interaction
+      fetch("/api/driver/jobs", { credentials: "include", cache: "no-store" })
+        .then(r => r.json())
+        .then(json => {
+          if (json?.jobs) setJobs(json.jobs);
+          if (json?.driver) setDriver(json.driver);
+        })
+        .catch(() => {});
+    }, 10000);
+    return () => clearInterval(t);
+  }, []);
+
   async function confirmStage(bookingId: string, stage: "collection" | "return") {
     setSavingId(bookingId); setError(null);
     try {
