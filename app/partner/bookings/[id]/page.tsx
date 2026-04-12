@@ -761,19 +761,23 @@ export default function PartnerBookingDetailPage() {
         <BookingSummaryCard booking={bk} rates={rates} isLive={rateIsLive} />
       )}
 
+      {/* Insurance status — always visible, independent of fuel lock state */}
       <div>
-        <h2 className="mb-1 text-2xl font-semibold text-[#003768]">Fuel &amp; Document Tracking</h2>
+        <h2 className="mb-1 text-2xl font-semibold text-[#003768]">Insurance Documents</h2>
         <p className="mb-4 text-sm text-slate-500">
-          Driver records fuel level and confirms insurance handover via their app.
-          Customer confirms each item to lock it. Use the office override for fuel if the driver is unavailable.
+          Driver confirms handover at delivery via their app. Customer confirms receipt on their portal.
           <span className="ml-1 text-xs text-slate-400">(Refreshes every 10s)</span>
         </p>
+        <InsuranceStatusCard booking={bk} />
+      </div>
 
-        {/* Insurance status — read-only for partner, action is driver/customer only */}
-        <div className="mb-6">
-          <InsuranceStatusCard booking={bk} />
-        </div>
-
+      <div>
+        <h2 className="mb-1 text-2xl font-semibold text-[#003768]">Fuel Tracking</h2>
+        <p className="mb-4 text-sm text-slate-500">
+          Driver records fuel level via their app. Use the office override below if the driver is unavailable or you need to correct their reading.
+          Customer confirms the reading to lock each stage.
+          <span className="ml-1 text-xs text-slate-400">(Refreshes every 10s)</span>
+        </p>
         <div className="grid gap-6 xl:grid-cols-2">
           <FuelStageCard title="Delivery" booking={bk} stage="collection"
             fuelValue={collectionFuel} onFuelChange={setCollectionFuel}
@@ -790,5 +794,6 @@ export default function PartnerBookingDetailPage() {
         </div>
       </div>
     </div>
+  );
   );
 }

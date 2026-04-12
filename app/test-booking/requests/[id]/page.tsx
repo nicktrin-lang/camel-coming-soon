@@ -726,16 +726,8 @@ export default function TestBookingRequestDetailPage({
             </div>
           </div>
 
-          {collectionLocked && returnLocked && bk.fuel_charge !== null && (
-            <CustomerPaymentSummary
-              booking={bk} rates={liveRates} rateIsLive={rateIsLive} customerCurrency={currency}
-            />
-          )}
-
-          {(!collectionLocked || !returnLocked) && (
-            <>
-              {/* Insurance card — delivery stage only, shown whenever there's an active booking */}
-              <InsuranceConfirmCard
+          {/* Insurance card — always visible once booking exists, independent of fuel lock state */}
+          <InsuranceConfirmCard
                 driverConfirmed={bk.insurance_docs_confirmed_by_driver}
                 driverConfirmedAt={bk.insurance_docs_confirmed_by_driver_at}
                 customerConfirmed={bk.insurance_docs_confirmed_by_customer}
@@ -748,6 +740,14 @@ export default function TestBookingRequestDetailPage({
                 locked={insuranceLocked}
               />
 
+          {collectionLocked && returnLocked && bk.fuel_charge !== null && (
+            <CustomerPaymentSummary
+              booking={bk} rates={liveRates} rateIsLive={rateIsLive} customerCurrency={currency}
+            />
+          )}
+
+          {(!collectionLocked || !returnLocked) && (
+            <>
               {/* Fuel confirmation cards */}
               <div className="grid gap-6 xl:grid-cols-2">
                 <FuelConfirmCard
