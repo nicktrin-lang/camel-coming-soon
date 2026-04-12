@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceRoleSupabaseClient } from "@/lib/supabase/server";
-import { getPortalUserRole } from "@/lib/portal/getPortalUserRole";
-import { isAdminRole } from "@/lib/portal/roles";
+import {
+  createRouteHandlerSupabaseClient,
+  createServiceRoleSupabaseClient,
+} from "@/lib/supabase/server";
 
 export async function GET(
   _req: NextRequest,
@@ -10,11 +11,26 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const { user, role, error: authError } = await getPortalUserRole();
-    if (!user) return NextResponse.json({ error: authError || "Not signed in" }, { status: 401 });
-    if (!isAdminRole(role)) return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    // Use same auth pattern as other admin routes — check admin_users table
+    const authed = await createRouteHandlerSupabaseClient();
+    const { data: userData, error: userErr } = await authed.auth.getUser();
+    const email = (userData?.user?.email || "").toLowerCase().trim();
+
+    if (userErr || !email) {
+      return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+    }
 
     const db = createServiceRoleSupabaseClient();
+
+    const { data: adminRow } = await db
+      .from("admin_users")
+      .select("role")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (!adminRow || (adminRow.role !== "admin" && adminRow.role !== "super_admin")) {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
 
     const { data: bookingRow, error: bookingErr } = await db
       .from("partner_bookings")
@@ -65,7 +81,7 @@ export async function GET(
     return NextResponse.json({
       booking: { ...bookingRow, partner_company_name: profileRow?.company_name || null },
       request: requestRow,
-      role,
+      role: adminRow.role,
     }, { status: 200 });
 
   } catch (e: any) {
