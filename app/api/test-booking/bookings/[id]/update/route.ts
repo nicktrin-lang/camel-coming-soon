@@ -106,22 +106,6 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    // ── Insurance-only path — save without touching fuel confirmation state ──
-    if (insuranceOnly && insuranceConfirmed !== undefined) {
-      const insurancePayload: Record<string, any> = {
-        insurance_docs_confirmed_by_customer: insuranceConfirmed,
-        insurance_docs_confirmed_by_customer_at: insuranceConfirmed
-          ? bookingRow.insurance_docs_confirmed_by_customer_at || now
-          : null,
-      };
-      const { error: insErr } = await db
-        .from("partner_bookings")
-        .update(insurancePayload)
-        .eq("id", id);
-      if (insErr) return NextResponse.json({ error: insErr.message }, { status: 400 });
-      return NextResponse.json({ ok: true, insurance_saved: true }, { status: 200 });
-    }
-
     const collectionAlreadyLocked = isFuelLocked({
       driverConfirmed: bookingRow.collection_confirmed_by_driver,
       customerConfirmed: bookingRow.collection_confirmed_by_customer,
@@ -144,6 +128,23 @@ export async function POST(
     }
 
     const now = new Date().toISOString();
+
+    // ── Insurance-only path — save without touching fuel confirmation state ──
+    if (insuranceOnly && insuranceConfirmed !== undefined) {
+      const insurancePayload: Record<string, any> = {
+        insurance_docs_confirmed_by_customer: insuranceConfirmed,
+        insurance_docs_confirmed_by_customer_at: insuranceConfirmed
+          ? bookingRow.insurance_docs_confirmed_by_customer_at || now
+          : null,
+      };
+      const { error: insErr } = await db
+        .from("partner_bookings")
+        .update(insurancePayload)
+        .eq("id", id);
+      if (insErr) return NextResponse.json({ error: insErr.message }, { status: 400 });
+      return NextResponse.json({ ok: true, insurance_saved: true }, { status: 200 });
+    }
+
     const updatePayload: Record<string, any> = {};
 
     if (section === "collection") {
