@@ -172,23 +172,27 @@ export async function sendCustomerBookingCompletedEmail(to: string, jobNumber?: 
 export async function sendReviewReminderEmail(
   to: string,
   jobNumber?: number | null,
-  bookingId?: string | null
+  requestId?: string | null
 ) {
-  const baseUrl = process.env.PORTAL_BASE_URL || "http://localhost:3000";
+  const baseUrl   = process.env.PORTAL_BASE_URL || "http://localhost:3000";
+  const reviewUrl = requestId
+    ? `${baseUrl}/test-booking/requests/${requestId}`
+    : `${baseUrl}/test-booking/requests`;
+
   return sendEmail({
     to,
-    subject: `How was your Camel Global experience?${jobNumber ? ` (Booking ${jobNumber})` : ""}`,
+    subject: `How was your car hire experience?${jobNumber ? ` (Booking ${jobNumber})` : ""}`,
     html: `
       <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#222; line-height:1.6; max-width:600px;">
         <div style="background:#003768; padding:24px 32px; border-radius:12px 12px 0 0;">
-          <h2 style="color:#fff; margin:0;">How was your experience? ⭐</h2>
+          <h2 style="color:#fff; margin:0;">How was your car hire experience? ⭐</h2>
         </div>
         <div style="background:#f8fafc; padding:24px 32px; border-radius:0 0 12px 12px; border:1px solid #e2e8f0;">
           <p>Hi,</p>
           <p>Your Camel Global car hire booking${jobNumber ? ` <strong>#${jobNumber}</strong>` : ""} is now complete. We'd love to hear how it went.</p>
-          <p>Your review helps other customers choose the right partner, and helps our partners improve their service.</p>
+          <p>Your review helps other customers choose the right car hire company for their trip.</p>
           <p style="margin:24px 0;">
-            <a href="${baseUrl}/test-booking/requests"
+            <a href="${reviewUrl}"
               style="background:#ff7a00; color:#fff; padding:12px 28px; border-radius:999px; text-decoration:none; font-weight:600; display:inline-block;">
               Leave a Review
             </a>
