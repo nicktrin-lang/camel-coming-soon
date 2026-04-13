@@ -42,12 +42,7 @@ export async function sendEmail({
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      from,
-      to: cleanTo,
-      subject,
-      html,
-    }),
+    body: JSON.stringify({ from, to: cleanTo, subject, html }),
   });
 
   if (!res.ok) {
@@ -58,13 +53,11 @@ export async function sendEmail({
 
   const json = await res.json();
   console.log("✅ Email sent successfully:", json?.id || json);
-
   return json;
 }
 
 export async function sendApplicationReceivedEmail(to: string) {
   const baseUrl = process.env.PORTAL_BASE_URL || "http://localhost:3000";
-
   return sendEmail({
     to,
     subject: "Your Camel Global partner application has been received",
@@ -74,9 +67,7 @@ export async function sendApplicationReceivedEmail(to: string) {
         <p>Thanks for applying to become a Camel Global partner.</p>
         <p>We have received your application and our team will review it shortly.</p>
         <p>No action is required at this stage.</p>
-        <p>
-          <a href="${baseUrl}/partner/login">Partner login</a>
-        </p>
+        <p><a href="${baseUrl}/partner/login">Partner login</a></p>
         <p style="margin-top:24px;">Best Regards,<br />The Camel Global Team</p>
       </div>
     `,
@@ -85,7 +76,6 @@ export async function sendApplicationReceivedEmail(to: string) {
 
 export async function sendApprovalEmail(to: string) {
   const baseUrl = process.env.PORTAL_BASE_URL || "http://localhost:3000";
-
   return sendEmail({
     to,
     subject: "Your Camel Global account has been approved ✅",
@@ -100,9 +90,7 @@ export async function sendApprovalEmail(to: string) {
           <li>Confirm your fleet base address</li>
           <li>Check your service radius</li>
         </ul>
-        <p>
-          <a href="${baseUrl}/partner/login">Log in here</a>
-        </p>
+        <p><a href="${baseUrl}/partner/login">Log in here</a></p>
         <p style="margin-top:24px;">Best Regards,<br />The Camel Global Team</p>
       </div>
     `,
@@ -127,7 +115,6 @@ export async function sendRejectionEmail(to: string) {
 
 export async function sendAccountLiveEmail(to: string) {
   const baseUrl = process.env.PORTAL_BASE_URL || "http://localhost:3000";
-
   return sendEmail({
     to,
     subject: "Your Camel Global account is now live 🚀",
@@ -141,9 +128,7 @@ export async function sendAccountLiveEmail(to: string) {
           <li>Your service radius is correct</li>
           <li>Your contact details are current</li>
         </ul>
-        <p>
-          <a href="${baseUrl}/partner/dashboard">Go to dashboard</a>
-        </p>
+        <p><a href="${baseUrl}/partner/dashboard">Go to dashboard</a></p>
         <p style="margin-top:24px;">Best Regards,<br />The Camel Global Team</p>
       </div>
     `,
@@ -152,7 +137,6 @@ export async function sendAccountLiveEmail(to: string) {
 
 export async function sendCustomerBidReceivedEmail(to: string, jobNumber?: number | null) {
   const baseUrl = process.env.PORTAL_BASE_URL || "http://localhost:3000";
-
   return sendEmail({
     to,
     subject: `A new partner bid has been received${jobNumber ? ` for booking ${jobNumber}` : ""}`,
@@ -161,21 +145,15 @@ export async function sendCustomerBidReceivedEmail(to: string, jobNumber?: numbe
         <h2>New partner bid received</h2>
         <p>A partner has submitted a bid for your booking request${jobNumber ? ` <strong>${jobNumber}</strong>` : ""}.</p>
         <p>You can now log in and review the bid details.</p>
-        <p>
-          <a href="${baseUrl}/test-booking/requests">View your requests</a>
-        </p>
+        <p><a href="${baseUrl}/test-booking/requests">View your requests</a></p>
         <p style="margin-top:24px;">Best Regards,<br />The Camel Global Team</p>
       </div>
     `,
   });
 }
 
-export async function sendCustomerBookingCompletedEmail(
-  to: string,
-  jobNumber?: number | null
-) {
+export async function sendCustomerBookingCompletedEmail(to: string, jobNumber?: number | null) {
   const baseUrl = process.env.PORTAL_BASE_URL || "http://localhost:3000";
-
   return sendEmail({
     to,
     subject: `Your Camel Global booking is now completed${jobNumber ? ` - ${jobNumber}` : ""}`,
@@ -184,10 +162,40 @@ export async function sendCustomerBookingCompletedEmail(
         <h2>Booking completed</h2>
         <p>Your booking${jobNumber ? ` <strong>${jobNumber}</strong>` : ""} has now been marked as completed.</p>
         <p>The vehicle return has been confirmed.</p>
-        <p>
-          <a href="${baseUrl}/test-booking/requests">View booking details</a>
-        </p>
+        <p><a href="${baseUrl}/test-booking/requests">View booking details</a></p>
         <p style="margin-top:24px;">Best Regards,<br />The Camel Global Team</p>
+      </div>
+    `,
+  });
+}
+
+export async function sendReviewReminderEmail(
+  to: string,
+  jobNumber?: number | null,
+  bookingId?: string | null
+) {
+  const baseUrl = process.env.PORTAL_BASE_URL || "http://localhost:3000";
+  return sendEmail({
+    to,
+    subject: `How was your Camel Global experience?${jobNumber ? ` (Booking ${jobNumber})` : ""}`,
+    html: `
+      <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#222; line-height:1.6; max-width:600px;">
+        <div style="background:#003768; padding:24px 32px; border-radius:12px 12px 0 0;">
+          <h2 style="color:#fff; margin:0;">How was your experience? ⭐</h2>
+        </div>
+        <div style="background:#f8fafc; padding:24px 32px; border-radius:0 0 12px 12px; border:1px solid #e2e8f0;">
+          <p>Hi,</p>
+          <p>Your Camel Global car hire booking${jobNumber ? ` <strong>#${jobNumber}</strong>` : ""} is now complete. We'd love to hear how it went.</p>
+          <p>Your review helps other customers choose the right partner, and helps our partners improve their service.</p>
+          <p style="margin:24px 0;">
+            <a href="${baseUrl}/test-booking/requests"
+              style="background:#ff7a00; color:#fff; padding:12px 28px; border-radius:999px; text-decoration:none; font-weight:600; display:inline-block;">
+              Leave a Review
+            </a>
+          </p>
+          <p style="color:#64748b; font-size:14px;">It only takes 30 seconds.</p>
+          <p style="margin-top:32px; color:#64748b;">Best regards,<br/><strong>The Camel Global Team</strong></p>
+        </div>
       </div>
     `,
   });

@@ -69,8 +69,27 @@ export async function GET(
       profileMap = new Map((profileRows || []).map((r: any) => [String(r.user_id), r]));
     }
 
+    // Fetch avg ratings per partner for bid display
+    const ratingMap = new Map<string, { avg: number; count: number }>();
+    if (partnerIds.length > 0) {
+      const { data: ratingRows } = await db
+        .from("partner_reviews")
+        .select("partner_user_id, rating")
+        .in("partner_user_id", partnerIds)
+        .eq("is_visible", true);
+
+      for (const pid of partnerIds) {
+        const rows = (ratingRows || []).filter((r: any) => r.partner_user_id === pid);
+        if (rows.length > 0) {
+          const avg = rows.reduce((s: number, r: any) => s + r.rating, 0) / rows.length;
+          ratingMap.set(pid, { avg: Math.round(avg * 10) / 10, count: rows.length });
+        }
+      }
+    }
+
     const bids = (bidRows || []).map((bid: any) => {
       const profile = profileMap.get(String(bid.partner_user_id)) || null;
+      const ratings = ratingMap.get(String(bid.partner_user_id)) || null;
       return {
         id: bid.id,
         partner_user_id: bid.partner_user_id,
@@ -88,6 +107,8 @@ export async function GET(
         status: bid.status,
         created_at: bid.created_at,
         currency: (bid.currency as "EUR" | "GBP") ?? "EUR",
+        avg_rating: ratings?.avg ?? null,
+        review_count: ratings?.count ?? 0,
       };
     });
 
@@ -102,35 +123,16 @@ export async function GET(
           booking_status, amount, notes, created_at, job_number,
           assigned_driver_id, driver_name, driver_phone,
           driver_vehicle, driver_notes, driver_assigned_at,
-          currency,
-          fuel_price, car_hire_price,
+          currency, fuel_price, car_hire_price,
           fuel_used_quarters, fuel_charge, fuel_refund,
-          collection_confirmed_by_driver,
-          collection_confirmed_by_driver_at,
-          collection_fuel_level_driver,
-          return_confirmed_by_driver,
-          return_confirmed_by_driver_at,
-          return_fuel_level_driver,
-          collection_confirmed_by_partner,
-          collection_confirmed_by_partner_at,
-          collection_fuel_level_partner,
-          collection_partner_notes,
-          return_confirmed_by_partner,
-          return_confirmed_by_partner_at,
-          return_fuel_level_partner,
-          return_partner_notes,
-          collection_confirmed_by_customer,
-          collection_confirmed_by_customer_at,
-          collection_fuel_level_customer,
-          collection_customer_notes,
-          return_confirmed_by_customer,
-          return_confirmed_by_customer_at,
-          return_fuel_level_customer,
-          return_customer_notes,
-          insurance_docs_confirmed_by_driver,
-          insurance_docs_confirmed_by_driver_at,
-          insurance_docs_confirmed_by_customer,
-          insurance_docs_confirmed_by_customer_at
+          collection_confirmed_by_driver, collection_confirmed_by_driver_at, collection_fuel_level_driver,
+          return_confirmed_by_driver, return_confirmed_by_driver_at, return_fuel_level_driver,
+          collection_confirmed_by_partner, collection_confirmed_by_partner_at, collection_fuel_level_partner, collection_partner_notes,
+          return_confirmed_by_partner, return_confirmed_by_partner_at, return_fuel_level_partner, return_partner_notes,
+          collection_confirmed_by_customer, collection_confirmed_by_customer_at, collection_fuel_level_customer, collection_customer_notes,
+          return_confirmed_by_customer, return_confirmed_by_customer_at, return_fuel_level_customer, return_customer_notes,
+          insurance_docs_confirmed_by_driver, insurance_docs_confirmed_by_driver_at,
+          insurance_docs_confirmed_by_customer, insurance_docs_confirmed_by_customer_at
         `)
         .eq("winning_bid_id", acceptedBid.id)
         .order("created_at", { ascending: false })
@@ -141,6 +143,14 @@ export async function GET(
       const bk = bookingRows?.[0] || null;
       if (bk) {
         const winnerProfile = profileMap.get(String(bk.partner_user_id || "")) || null;
+
+        // Check if customer has already left a review for this booking
+        const { data: existingReview } = await db
+          .from("partner_reviews")
+          .select("id, rating, comment, partner_reply, partner_replied_at, created_at")
+          .eq("booking_id", bk.id)
+          .maybeSingle();
+
         booking = {
           id: bk.id,
           request_id: bk.request_id,
@@ -191,6 +201,9 @@ export async function GET(
           insurance_docs_confirmed_by_driver_at: bk.insurance_docs_confirmed_by_driver_at || null,
           insurance_docs_confirmed_by_customer: !!bk.insurance_docs_confirmed_by_customer,
           insurance_docs_confirmed_by_customer_at: bk.insurance_docs_confirmed_by_customer_at || null,
+          // Review
+          has_review: !!existingReview,
+          existing_review: existingReview || null,
         };
       }
     }

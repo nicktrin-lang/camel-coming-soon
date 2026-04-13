@@ -24,6 +24,8 @@ type BidRow = {
   full_insurance_included: boolean; full_tank_included: boolean;
   notes: string | null; status: string; created_at: string;
   currency: Currency;
+  avg_rating: number | null;
+  review_count: number;
 };
 
 type BookingData = {
@@ -54,6 +56,118 @@ type BookingData = {
 
 type ResponseShape = { request: RequestData; bids: BidRow[]; booking: BookingData | null };
 type ConfirmSection = "collection" | "return";
+
+// ── Review Card ───────────────────────────────────────────────────────────────
+
+const BAD_WORDS = [
+  "fuck","shit","cunt","bastard","asshole","dick","bitch","wanker",
+  "puta","mierda","coño","joder","hostia","gilipollas",
+];
+
+function containsBadWords(text: string) {
+  return BAD_WORDS.some(w => text.toLowerCase().includes(w));
+}
+
+function StarPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [hovered, setHovered] = useState(0);
+  return (
+    <div className="flex gap-1">
+      {[1,2,3,4,5].map(n => (
+        <button key={n} type="button"
+          onMouseEnter={() => setHovered(n)} onMouseLeave={() => setHovered(0)}
+          onClick={() => onChange(n)}
+          className="text-3xl leading-none transition-transform hover:scale-110">
+          <span className={(hovered || value) >= n ? "text-amber-400" : "text-slate-200"}>★</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ReviewCard({
+  bookingId, accessToken, existingReview, onReviewSubmitted,
+}: {
+  bookingId: string; accessToken: string; existingReview: ExistingReview | null;
+  onReviewSubmitted: () => void;
+}) {
+  const [rating,    setRating]    = useState(existingReview?.rating ?? 0);
+  const [comment,   setComment]   = useState(existingReview?.comment ?? "");
+  const [saving,    setSaving]    = useState(false);
+  const [error,     setError]     = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(!!existingReview);
+
+  async function submit() {
+    if (!rating) { setError("Please select a star rating."); return; }
+    if (comment && containsBadWords(comment)) {
+      setError("Your review contains language that is not permitted. Please revise and resubmit.");
+      return;
+    }
+    setSaving(true); setError(null);
+    try {
+      const res  = await fetch("/api/test-booking/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ booking_id: bookingId, rating, comment }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error || "Failed to submit review");
+      setSubmitted(true);
+      onReviewSubmitted();
+    } catch (e: any) { setError(e?.message); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className={`rounded-3xl border p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)] ${submitted ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50"}`}>
+      <div className="flex items-center gap-3">
+        <span className="text-2xl">⭐</span>
+        <h2 className="text-2xl font-semibold text-[#003768]">
+          {submitted ? "Your Review" : "Leave a Review"}
+        </h2>
+      </div>
+      <p className="mt-2 text-sm text-slate-500">
+        {submitted ? "Thank you for your feedback." : "How was your experience with the car hire company? Your review helps other customers."}
+      </p>
+
+      {submitted ? (
+        <>
+          <div className="mt-4 flex gap-0.5">
+            {[1,2,3,4,5].map(n => (
+              <span key={n} className={`text-2xl ${n <= rating ? "text-amber-400" : "text-slate-200"}`}>★</span>
+            ))}
+          </div>
+          {comment && <p className="mt-2 text-slate-700">{comment}</p>}
+          {existingReview?.partner_reply && (
+            <div className="mt-4 rounded-2xl border border-[#003768]/10 bg-[#003768]/5 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#003768]">
+                Partner reply · {fmt(existingReview.partner_replied_at)}
+              </p>
+              <p className="mt-1 text-sm text-slate-700">{existingReview.partner_reply}</p>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="mt-4">
+            <p className="text-sm font-medium text-[#003768] mb-2">Your rating</p>
+            <StarPicker value={rating} onChange={setRating} />
+          </div>
+          <div className="mt-4">
+            <label className="text-sm font-medium text-[#003768]">Comment (optional)</label>
+            <textarea rows={3} value={comment} onChange={e => setComment(e.target.value)}
+              className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-[#0f4f8a]"
+              placeholder="Tell us about your experience…" />
+          </div>
+          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+          <button type="button" onClick={submit} disabled={saving || !rating}
+            className="mt-4 w-full rounded-full bg-[#ff7a00] py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-50 active:scale-95 transition-transform">
+            {saving ? "Submitting…" : "Submit Review"}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
 type Rates = { GBP: number; USD: number };
 
 // ── Fuel helpers ──────────────────────────────────────────────────────────────
@@ -459,6 +573,7 @@ export default function TestBookingRequestDetailPage({ params }: { params: Promi
   const [collectionNotes,  setCollectionNotes]  = useState("");
   const [returnNotes,      setReturnNotes]      = useState("");
   const [insuranceChecked, setInsuranceChecked] = useState(false);
+  const [accessToken,      setAccessToken]      = useState<string>("");
 
   useEffect(() => {
     fetch("/api/currency/rate", { cache: "no-store" }).then(r => r.json()).then(({ rates, live }) => {
@@ -476,6 +591,7 @@ export default function TestBookingRequestDetailPage({ params }: { params: Promi
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Not signed in");
+      setAccessToken(session.access_token);
       const res  = await fetch(`/api/test-booking/requests/${requestId}`, {
         cache: "no-store",
         headers: { Authorization: `Bearer ${session.access_token}` },
@@ -712,6 +828,16 @@ export default function TestBookingRequestDetailPage({ params }: { params: Promi
             />
           )}
 
+          {/* Review card — shown on completed bookings */}
+          {bk.booking_status === "completed" && (
+            <ReviewCard
+              bookingId={bk.id}
+              accessToken={accessToken}
+              existingReview={bk.existing_review}
+              onReviewSubmitted={() => load(false)}
+            />
+          )}
+
           {/* Insurance confirmation — always visible once booking exists */}
           <InsuranceConfirmCard
             driverConfirmed={bk.insurance_docs_confirmed_by_driver}
@@ -774,6 +900,16 @@ export default function TestBookingRequestDetailPage({ params }: { params: Promi
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                   <div className="space-y-2 text-slate-700">
                     <h3 className="text-xl font-semibold text-[#003768]">{bid.partner_company_name || "Car Hire Company"}</h3>
+                    {bid.avg_rating != null ? (
+                      <p className="text-sm text-amber-600">
+                        {[1,2,3,4,5].map(n => (
+                          <span key={n} className={n <= Math.round(bid.avg_rating!) ? "text-amber-400" : "text-slate-300"}>★</span>
+                        ))}
+                        {" "}{bid.avg_rating.toFixed(1)} ({bid.review_count} review{bid.review_count !== 1 ? "s" : ""})
+                      </p>
+                    ) : (
+                      <p className="text-xs text-slate-400">No reviews yet</p>
+                    )}
                     <p><span className="font-semibold text-slate-900">Phone:</span> {bid.partner_phone || "—"}</p>
                     <p><span className="font-semibold text-slate-900">Vehicle:</span> {bid.vehicle_category_name}</p>
                     <p><span className="font-semibold text-slate-900">Car hire:</span>{" "}
