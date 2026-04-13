@@ -63,6 +63,7 @@ type BookingData = {
 
 type ResponseShape = { request: RequestData; bids: BidRow[]; booking: BookingData | null };
 type ConfirmSection = "collection" | "return";
+type Rates = { GBP: number; USD: number };
 
 // ── Fuel helpers ──────────────────────────────────────────────────────────────
 
@@ -151,8 +152,6 @@ function fmtCurr(amount: number, curr: Currency): string {
   return new Intl.NumberFormat(LOCALE_MAP[curr], { style: "currency", currency: curr }).format(amount);
 }
 
-type Rates = { GBP: number; USD: number };
-
 function convertAmount(amount: number, from: Currency, to: Currency, rates: Rates): number {
   if (from === to) return amount;
   let inEur = amount;
@@ -208,7 +207,7 @@ function CustomerPaymentSummary({ booking, rates, rateIsLive, customerCurrency }
   const perQtrAmt     = fullTankAmt / 4;
   const usedQuarters  = booking.fuel_used_quarters ?? null;
   const collFuel = normalizeFuel(booking.collection_fuel_level_driver) || normalizeFuel(booking.collection_fuel_level_partner);
-  const retFuel  = normalizeFuel(booking.return_fuel_level_driver)     || normalizeFuel(booking.return_fuel_level_partner);
+  const retFuel  = normalizeFuel(booking.return_fuel_level_driver) || normalizeFuel(booking.return_fuel_level_partner);
   const primary   = (amt: number) => fmtCurr(convertAmount(amt, storedCurr, customerCurrency, rates), customerCurrency);
   const secondary = (amt: number) => `(${fmtCurr(convertAmount(amt, storedCurr, otherCurr, rates), otherCurr)})`;
   const gbpStr    = (v: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(v);
@@ -353,11 +352,8 @@ function ReviewCard({ bookingId, accessToken, existingReview, onReviewSubmitted 
         </h2>
       </div>
       <p className="mt-2 text-sm text-slate-500">
-        {submitted
-          ? "Thank you for your feedback."
-          : "How was your experience? Your review helps other customers choose the right partner."}
+        {submitted ? "Thank you for your feedback." : "How was your experience? Your review helps other customers choose the right partner."}
       </p>
-
       {submitted ? (
         <>
           <div className="mt-4 flex gap-0.5">
@@ -401,16 +397,13 @@ function ReviewCard({ bookingId, accessToken, existingReview, onReviewSubmitted 
 // ── Insurance Confirm Card ────────────────────────────────────────────────────
 
 function InsuranceConfirmCard({
-  driverConfirmed, driverConfirmedAt,
-  customerConfirmed, customerConfirmedAt,
-  insuranceChecked, onInsuranceChange,
-  onConfirm, onUnconfirm, saving, locked,
+  driverConfirmed, driverConfirmedAt, customerConfirmed, customerConfirmedAt,
+  insuranceChecked, onInsuranceChange, onConfirm, onUnconfirm, saving, locked,
 }: {
   driverConfirmed: boolean; driverConfirmedAt: string | null;
   customerConfirmed: boolean; customerConfirmedAt: string | null;
   insuranceChecked: boolean; onInsuranceChange: (v: boolean) => void;
-  onConfirm: () => void; onUnconfirm: () => void;
-  saving: boolean; locked: boolean;
+  onConfirm: () => void; onUnconfirm: () => void; saving: boolean; locked: boolean;
 }) {
   return (
     <div className={`rounded-3xl border p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)] ${locked ? "border-green-200 bg-green-50" : "border-black/5 bg-white"}`}>
@@ -542,6 +535,120 @@ function FuelConfirmCard({
           )}
         </>
       )}
+    </div>
+  );
+}
+
+// ── Bid Card with expandable reviews ─────────────────────────────────────────
+
+type ReviewItem = {
+  id: string; rating: number; comment: string | null;
+  partner_reply: string | null; partner_replied_at: string | null; created_at: string;
+};
+
+function BidCard({ bid, currency, rates, requestStatus, acceptingId, expired, onAccept }: {
+  bid: BidRow; currency: Currency; rates: Rates;
+  requestStatus: string; acceptingId: string | null;
+  expired: boolean; onAccept: (id: string) => void;
+}) {
+  const [showReviews, setShowReviews] = useState(false);
+  const [reviews,     setReviews]     = useState<ReviewItem[]>([]);
+  const [loadingRevs, setLoadingRevs] = useState(false);
+
+  async function toggleReviews() {
+    if (showReviews) { setShowReviews(false); return; }
+    setShowReviews(true);
+    if (reviews.length > 0) return;
+    setLoadingRevs(true);
+    try {
+      const res  = await fetch(`/api/test-booking/reviews?partner_user_id=${bid.partner_user_id}`);
+      const json = await res.json().catch(() => null);
+      setReviews(json?.reviews || []);
+    } catch { setReviews([]); }
+    finally { setLoadingRevs(false); }
+  }
+
+  return (
+    <div className="rounded-2xl border border-black/10 p-5">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="space-y-2 text-slate-700 flex-1">
+          <h3 className="text-xl font-semibold text-[#003768]">{bid.partner_company_name || "Car Hire Company"}</h3>
+
+          {bid.avg_rating != null ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span>
+                {[1,2,3,4,5].map(n => (
+                  <span key={n} className={n <= Math.round(bid.avg_rating!) ? "text-amber-400" : "text-slate-300"}>★</span>
+                ))}
+              </span>
+              <span className="text-amber-600 font-semibold text-sm">{bid.avg_rating.toFixed(1)}</span>
+              <button type="button" onClick={toggleReviews}
+                className="text-sm text-[#003768] underline underline-offset-2 hover:opacity-70">
+                {showReviews ? "Hide reviews" : `Read ${bid.review_count} review${bid.review_count !== 1 ? "s" : ""}`}
+              </button>
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400">No reviews yet</p>
+          )}
+
+          {/* Expanded reviews panel */}
+          {showReviews && (
+            <div className="rounded-2xl border border-black/5 bg-slate-50 p-4 space-y-4">
+              {loadingRevs ? (
+                <p className="text-sm text-slate-400">Loading reviews…</p>
+              ) : reviews.length === 0 ? (
+                <p className="text-sm text-slate-400">No reviews to show.</p>
+              ) : reviews.map(r => (
+                <div key={r.id} className="border-b border-black/5 pb-4 last:border-0 last:pb-0">
+                  <div className="flex items-center gap-2">
+                    <span>
+                      {[1,2,3,4,5].map(n => (
+                        <span key={n} className={n <= r.rating ? "text-amber-400" : "text-slate-200"}>★</span>
+                      ))}
+                    </span>
+                    <span className="text-xs text-slate-400">{fmt(r.created_at)}</span>
+                  </div>
+                  {r.comment
+                    ? <p className="mt-1 text-sm text-slate-700">{r.comment}</p>
+                    : <p className="mt-1 text-xs italic text-slate-400">No written comment.</p>
+                  }
+                  {r.partner_reply && (
+                    <div className="mt-2 rounded-xl border border-[#003768]/10 bg-[#003768]/5 px-3 py-2">
+                      <p className="text-xs font-semibold text-[#003768]">Partner reply</p>
+                      <p className="text-xs text-slate-600 mt-0.5">{r.partner_reply}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <p><span className="font-semibold text-slate-900">Phone:</span> {bid.partner_phone || "—"}</p>
+          <p><span className="font-semibold text-slate-900">Vehicle:</span> {bid.vehicle_category_name}</p>
+          <p><span className="font-semibold text-slate-900">Car hire:</span>{" "}
+            <BidAmount amount={bid.car_hire_price} bidCurrency={bid.currency ?? "EUR"} customerCurrency={currency} rates={rates} /></p>
+          <p><span className="font-semibold text-slate-900">Fuel deposit:</span>{" "}
+            <BidAmount amount={bid.fuel_price} bidCurrency={bid.currency ?? "EUR"} customerCurrency={currency} rates={rates} /></p>
+          <p><span className="font-semibold text-slate-900">Total:</span>{" "}
+            <BidAmount amount={bid.total_price} bidCurrency={bid.currency ?? "EUR"} customerCurrency={currency} rates={rates} /></p>
+          <p><span className="font-semibold text-slate-900">Insurance included:</span> {bid.full_insurance_included ? "Yes" : "No"}</p>
+          <p><span className="font-semibold text-slate-900">Full tank included:</span> {bid.full_tank_included ? "Yes" : "No"}</p>
+          {bid.notes && <p><span className="font-semibold text-slate-900">Notes:</span> {bid.notes}</p>}
+        </div>
+        <div className="shrink-0">
+          {bid.status === "accepted" ? (
+            <span className="rounded-full border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700">Accepted</span>
+          ) : requestStatus === "confirmed" ? (
+            <span className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-slate-500">Closed</span>
+          ) : (
+            <button type="button" onClick={() => onAccept(bid.id)}
+              disabled={!!acceptingId || expired}
+              className="rounded-full bg-[#ff7a00] px-5 py-2 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60">
+              {acceptingId === bid.id ? "Accepting..." : "Accept Bid"}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -693,15 +800,10 @@ export default function TestBookingRequestDetailPage({ params }: { params: Promi
 
   const bk = data.booking;
   const bookingStoredCurr: Currency = bk?.currency ?? "EUR";
-
-  const collectionLocked = !!bk?.collection_confirmed_by_driver &&
-    !!bk?.collection_confirmed_by_customer &&
+  const collectionLocked = !!bk?.collection_confirmed_by_driver && !!bk?.collection_confirmed_by_customer &&
     normalizeFuel(bk.collection_fuel_level_driver) === normalizeFuel(bk.collection_fuel_level_customer);
-
-  const returnLocked = !!bk?.return_confirmed_by_driver &&
-    !!bk?.return_confirmed_by_customer &&
+  const returnLocked = !!bk?.return_confirmed_by_driver && !!bk?.return_confirmed_by_customer &&
     normalizeFuel(bk.return_fuel_level_driver) === normalizeFuel(bk.return_fuel_level_customer);
-
   const insuranceLocked = !!bk?.insurance_docs_confirmed_by_driver && !!bk?.insurance_docs_confirmed_by_customer;
 
   return (
@@ -709,7 +811,6 @@ export default function TestBookingRequestDetailPage({ params }: { params: Promi
       {error && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
       {ok    && <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">{ok}</div>}
 
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold text-[#003768]">Request Detail</h1>
@@ -721,14 +822,12 @@ export default function TestBookingRequestDetailPage({ params }: { params: Promi
         </Link>
       </div>
 
-      {/* Bid window timer */}
       {data.request.status === "open" && (
         <div className={`rounded-2xl border p-4 text-sm ${expired ? "border-red-200 bg-red-50 text-red-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
           <span className="font-semibold">Bid window:</span> {timeLabel}
         </div>
       )}
 
-      {/* Request info */}
       <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
         <h2 className="text-2xl font-semibold text-[#003768]">Request Information</h2>
         <div className="mt-6 grid gap-3 text-slate-700 sm:grid-cols-2">
@@ -751,7 +850,6 @@ export default function TestBookingRequestDetailPage({ params }: { params: Promi
         </div>
       </div>
 
-      {/* Booking section */}
       {bk && (
         <>
           <div className="rounded-3xl border border-green-200 bg-green-50 p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
@@ -790,15 +888,13 @@ export default function TestBookingRequestDetailPage({ params }: { params: Promi
               <p>For any vehicle condition concerns, contact the car hire company directly. All vehicles are fully insured by the car hire company.</p>
               <div className="flex flex-wrap gap-2 mt-1">
                 {bk.company_phone && (
-                  <a href={`https://wa.me/${bk.company_phone.replace(/\D/g, "")}`}
-                    target="_blank" rel="noopener noreferrer"
+                  <a href={`https://wa.me/${bk.company_phone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 rounded-full bg-green-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-green-600">
                     💬 WhatsApp Car Hire Company
                   </a>
                 )}
                 {bk.driver_phone && (
-                  <a href={`https://wa.me/${bk.driver_phone.replace(/\D/g, "")}`}
-                    target="_blank" rel="noopener noreferrer"
+                  <a href={`https://wa.me/${bk.driver_phone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 rounded-full bg-green-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-green-600">
                     💬 WhatsApp Driver
                   </a>
@@ -807,24 +903,18 @@ export default function TestBookingRequestDetailPage({ params }: { params: Promi
             </div>
           </div>
 
-          {/* Payment summary — only when fully complete */}
           {collectionLocked && returnLocked && bk.fuel_charge !== null && (
-            <CustomerPaymentSummary
-              booking={bk} rates={liveRates} rateIsLive={rateIsLive} customerCurrency={currency}
-            />
+            <CustomerPaymentSummary booking={bk} rates={liveRates} rateIsLive={rateIsLive} customerCurrency={currency} />
           )}
 
-          {/* Review card — shown on completed bookings */}
           {bk.booking_status === "completed" && (
             <ReviewCard
-              bookingId={bk.id}
-              accessToken={accessToken}
+              bookingId={bk.id} accessToken={accessToken}
               existingReview={bk.existing_review}
               onReviewSubmitted={() => load(false)}
             />
           )}
 
-          {/* Insurance confirmation — always visible */}
           <InsuranceConfirmCard
             driverConfirmed={bk.insurance_docs_confirmed_by_driver}
             driverConfirmedAt={bk.insurance_docs_confirmed_by_driver_at}
@@ -838,7 +928,6 @@ export default function TestBookingRequestDetailPage({ params }: { params: Promi
             locked={insuranceLocked}
           />
 
-          {/* Fuel confirmation cards */}
           {(!collectionLocked || !returnLocked) && (
             <div className="grid gap-6 xl:grid-cols-2">
               <FuelConfirmCard
@@ -872,7 +961,6 @@ export default function TestBookingRequestDetailPage({ params }: { params: Promi
         </>
       )}
 
-      {/* Partner bids */}
       <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
         <h2 className="text-2xl font-semibold text-[#003768]">Partner Bids</h2>
         {expired || data.request.status === "expired" ? (
@@ -882,48 +970,11 @@ export default function TestBookingRequestDetailPage({ params }: { params: Promi
         ) : (
           <div className="mt-6 space-y-4">
             {data.bids.map(bid => (
-              <div key={bid.id} className="rounded-2xl border border-black/10 p-5">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                  <div className="space-y-2 text-slate-700">
-                    <h3 className="text-xl font-semibold text-[#003768]">{bid.partner_company_name || "Car Hire Company"}</h3>
-                    {bid.avg_rating != null ? (
-                      <p className="text-sm">
-                        {[1,2,3,4,5].map(n => (
-                          <span key={n} className={n <= Math.round(bid.avg_rating!) ? "text-amber-400" : "text-slate-300"}>★</span>
-                        ))}
-                        {" "}<span className="text-amber-600 font-semibold">{bid.avg_rating.toFixed(1)}</span>
-                        <span className="text-slate-400"> ({bid.review_count} review{bid.review_count !== 1 ? "s" : ""})</span>
-                      </p>
-                    ) : (
-                      <p className="text-xs text-slate-400">No reviews yet</p>
-                    )}
-                    <p><span className="font-semibold text-slate-900">Phone:</span> {bid.partner_phone || "—"}</p>
-                    <p><span className="font-semibold text-slate-900">Vehicle:</span> {bid.vehicle_category_name}</p>
-                    <p><span className="font-semibold text-slate-900">Car hire:</span>{" "}
-                      <BidAmount amount={bid.car_hire_price} bidCurrency={bid.currency ?? "EUR"} customerCurrency={currency} rates={liveRates} /></p>
-                    <p><span className="font-semibold text-slate-900">Fuel deposit:</span>{" "}
-                      <BidAmount amount={bid.fuel_price} bidCurrency={bid.currency ?? "EUR"} customerCurrency={currency} rates={liveRates} /></p>
-                    <p><span className="font-semibold text-slate-900">Total:</span>{" "}
-                      <BidAmount amount={bid.total_price} bidCurrency={bid.currency ?? "EUR"} customerCurrency={currency} rates={liveRates} /></p>
-                    <p><span className="font-semibold text-slate-900">Insurance included:</span> {bid.full_insurance_included ? "Yes" : "No"}</p>
-                    <p><span className="font-semibold text-slate-900">Full tank included:</span> {bid.full_tank_included ? "Yes" : "No"}</p>
-                    {bid.notes && <p><span className="font-semibold text-slate-900">Notes:</span> {bid.notes}</p>}
-                  </div>
-                  <div>
-                    {bid.status === "accepted" ? (
-                      <span className="rounded-full border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700">Accepted</span>
-                    ) : data.request.status === "confirmed" ? (
-                      <span className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-slate-500">Closed</span>
-                    ) : (
-                      <button type="button" onClick={() => acceptBid(bid.id)}
-                        disabled={!!acceptingId || expired}
-                        className="rounded-full bg-[#ff7a00] px-5 py-2 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60">
-                        {acceptingId === bid.id ? "Accepting..." : "Accept Bid"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <BidCard
+                key={bid.id} bid={bid} currency={currency} rates={liveRates}
+                requestStatus={data.request.status} acceptingId={acceptingId}
+                expired={expired} onAccept={acceptBid}
+              />
             ))}
           </div>
         )}

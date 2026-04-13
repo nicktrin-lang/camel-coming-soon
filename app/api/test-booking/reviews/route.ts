@@ -101,23 +101,39 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   try {
-    const accessToken = getBearerToken(req);
-    const customerUser = await getCustomerUser(accessToken);
-    if (!customerUser) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
-
     const { searchParams } = new URL(req.url);
-    const bookingId = searchParams.get("booking_id");
-    if (!bookingId) return NextResponse.json({ error: "Missing booking_id" }, { status: 400 });
+    const partnerUserId = searchParams.get("partner_user_id");
+    const bookingId     = searchParams.get("booking_id");
 
     const db = createServiceRoleSupabaseClient();
 
-    const { data: review } = await db
-      .from("partner_reviews")
-      .select("id, rating, comment, partner_reply, partner_replied_at, created_at, is_visible")
-      .eq("booking_id", bookingId)
-      .maybeSingle();
+    // Public: fetch visible reviews for a partner (shown on bid cards)
+    if (partnerUserId) {
+      const { data: reviews, error } = await db
+        .from("partner_reviews")
+        .select("id, rating, comment, partner_reply, partner_replied_at, created_at")
+        .eq("partner_user_id", partnerUserId)
+        .eq("is_visible", true)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json({ reviews: reviews || [] }, { status: 200 });
+    }
 
-    return NextResponse.json({ review: review || null }, { status: 200 });
+    // Authenticated: fetch a customer's own review for a booking
+    if (bookingId) {
+      const accessToken = getBearerToken(req);
+      const customerUser = await getCustomerUser(accessToken);
+      if (!customerUser) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+      const { data: review } = await db
+        .from("partner_reviews")
+        .select("id, rating, comment, partner_reply, partner_replied_at, created_at, is_visible")
+        .eq("booking_id", bookingId)
+        .maybeSingle();
+      return NextResponse.json({ review: review || null }, { status: 200 });
+    }
+
+    return NextResponse.json({ error: "Missing partner_user_id or booking_id" }, { status: 400 });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
   }
