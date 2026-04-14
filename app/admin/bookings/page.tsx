@@ -16,14 +16,14 @@ type BookingRow = {
   booking_status: string | null;
   amount: number | string | null;
   currency: Currency | null;
-  car_hire_price: number | null;
-  fuel_price: number | null;
+  car_hire_price: number | string | null;
+  fuel_price: number | string | null;
   fuel_used_quarters: number | null;
-  fuel_charge: number | null;
-  fuel_refund: number | null;
+  fuel_charge: number | string | null;
+  fuel_refund: number | string | null;
   commission_rate: number | null;
-  commission_amount: number | null;
-  partner_payout_amount: number | null;
+  commission_amount: number | string | null;
+  partner_payout_amount: number | string | null;
   created_at: string | null;
   job_number: string | null;
   pickup_address: string | null;
@@ -78,11 +78,6 @@ function fmtAmt(amount: number | string | null, currency: Currency | null): stri
 function fmtDate(value?: string | null) {
   if (!value) return "";
   try { return new Date(value).toLocaleDateString(); } catch { return value; }
-}
-
-function fmtDateTimeExport(value?: string | null) {
-  if (!value) return "";
-  try { return new Date(value).toLocaleString(); } catch { return value; }
 }
 
 function fmtDateTime(value?: string | null) {
@@ -146,6 +141,20 @@ function revenuesByCurrency(rows: BookingRow[]): Record<Currency, number> {
   return totals;
 }
 
+// Consistent payout calc used everywhere: (hire − commission) + fuel_charge
+function calcPayout(b: BookingRow): { hire: number; rate: number; commAmt: number; payout: number } {
+  const hire    = Number(b.car_hire_price ?? 0);
+  const rate    = b.commission_rate ?? 20;
+  const commAmt = b.commission_amount != null
+    ? Number(b.commission_amount)
+    : Math.max((hire * rate) / 100, 10);
+  const basePayout = b.partner_payout_amount != null
+    ? Number(b.partner_payout_amount)
+    : Math.max(0, hire - commAmt);
+  const payout = basePayout + Number(b.fuel_charge ?? 0);
+  return { hire, rate, commAmt, payout };
+}
+
 // ── Excel export ──────────────────────────────────────────────────────────────
 
 function escapeXml(v: unknown): string {
@@ -207,14 +216,14 @@ function AdminCurrencySection({ curr, t, bookings, router }: {
       </div>
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
         {[
-          { label: "Total Bookings",          value: t.count,                      isMoney: false },
-          { label: "Completed",               value: t.completed,                  isMoney: false },
-          { label: "Total Revenue",           value: t.total,                      isMoney: true  },
-          { label: "Car Hire Revenue",        value: t.carHire,                    isMoney: true  },
-          { label: "Fuel Charged",            value: t.fuelCharge,                 isMoney: true  },
-          { label: "Camel Commission",        value: t.commissionTotal,            isMoney: true  },
-          { label: "Partner Payout",          value: t.partnerPayoutTotal,         isMoney: true  },
-          { label: "Net to Partner",          value: t.carHire + t.fuelCharge,     isMoney: true  },
+          { label: "Total Bookings",   value: t.count,                  isMoney: false },
+          { label: "Completed",        value: t.completed,              isMoney: false },
+          { label: "Total Revenue",    value: t.total,                  isMoney: true  },
+          { label: "Car Hire Revenue", value: t.carHire,                isMoney: true  },
+          { label: "Fuel Charged",     value: t.fuelCharge,             isMoney: true  },
+          { label: "Camel Commission", value: t.commissionTotal,        isMoney: true  },
+          { label: "Partner Payout",   value: t.partnerPayoutTotal,     isMoney: true  },
+          { label: "Net to Partner",   value: t.carHire + t.fuelCharge, isMoney: true  },
         ].map(({ label: lbl, value, isMoney }) => (
           <div key={lbl} className="rounded-2xl border border-black/5 bg-slate-50 p-4">
             <p className="text-xs font-medium text-slate-500">{lbl}</p>
@@ -243,12 +252,8 @@ function AdminCurrencySection({ curr, t, bookings, router }: {
           </thead>
           <tbody className="divide-y divide-black/5">
             {visible.map(b => {
-              const usedQ   = b.fuel_used_quarters;
-              const rate    = b.commission_rate ?? 20;
-              const hire    = Number(b.car_hire_price ?? 0);
-              const commAmt = b.commission_amount != null ? Number(b.commission_amount) : Math.max((hire * rate) / 100, 10);
-              const payout  = (b.partner_payout_amount != null ? Number(b.partner_payout_amount) : Math.max(0, hire - commAmt))
-                              + Number(b.fuel_charge ?? 0);
+              const usedQ = b.fuel_used_quarters;
+              const { commAmt, payout, rate } = calcPayout(b);
               return (
                 <tr key={b.id} onClick={() => router.push(`/admin/bookings/${b.id}`)} className="cursor-pointer hover:bg-[#f3f8ff]">
                   <td className="px-4 py-3 font-semibold text-[#003768]">{b.job_number || "—"}</td>
@@ -353,14 +358,10 @@ export default function AdminBookingsPage() {
     for (const b of filtered) {
       const c: Currency = (b.currency as Currency) ?? "EUR";
       if (!t[c]) continue;
-      const hire    = Number(b.car_hire_price ?? 0);
-      const rate    = b.commission_rate ?? 20;
-      const commAmt = b.commission_amount != null ? Number(b.commission_amount) : Math.max((hire * rate) / 100, 10);
-      const payout  = (b.partner_payout_amount != null ? Number(b.partner_payout_amount) : Math.max(0, hire - commAmt))
-                      + Number(b.fuel_charge ?? 0);
+      const { commAmt, payout } = calcPayout(b);
       t[c].count++;
       t[c].total              += Number(b.amount ?? 0);
-      t[c].carHire            += hire;
+      t[c].carHire            += Number(b.car_hire_price ?? 0);
       t[c].fuelCharge         += Number(b.fuel_charge ?? 0);
       t[c].fuelRefund         += Number(b.fuel_refund ?? 0);
       t[c].commissionTotal    += commAmt;
@@ -388,24 +389,21 @@ export default function AdminBookingsPage() {
       "Scheduled Pickup At", "Scheduled Dropoff At",
       "Actual Pickup Date & Time", "Actual Dropoff Date & Time", "Completed Date",
       "Vehicle", "Driver", "Driver Vehicle", "Currency",
-      "Car Hire Price", "Commission Rate (%)", "Commission Amount", "Partner Payout",
+      "Car Hire Price", "Commission Rate (%)", "Commission Amount",
       "Full Fuel Deposit",
       "Collection Fuel (Driver)", "Collection Fuel (Partner Override)",
       "Return Fuel (Driver)", "Return Fuel (Partner Override)",
       "Quarters Used", "Fuel Used Label",
       "Fuel Charge to Customer", "Fuel Refund to Customer",
-      "Total Booking Amount",
+      "Total Booking Amount", "Partner Payout",
       "Customer Collection Confirmed", "Customer Return Confirmed",
       "Insurance Driver Confirmed", "Insurance Customer Confirmed",
       "Booking Status", "Created At",
     ];
 
     const fuelRows = filtered.map(b => {
-      const usedQ   = b.fuel_used_quarters;
-      const hire    = Number(b.car_hire_price ?? 0);
-      const rate    = b.commission_rate ?? 20;
-      const commAmt = b.commission_amount ?? Math.max((hire * rate) / 100, 10);
-      const payout  = b.partner_payout_amount ?? Math.max(0, hire - commAmt);
+      const usedQ = b.fuel_used_quarters;
+      const { hire, rate, commAmt, payout } = calcPayout(b);
       const isCompleted = String(b.booking_status || "").toLowerCase() === "completed";
       return [
         b.job_number || "",
@@ -415,14 +413,14 @@ export default function AdminBookingsPage() {
         b.partner_vat_number || "",
         b.customer_name || "", b.customer_email || "", b.customer_phone || "",
         b.pickup_address || "", b.dropoff_address || "",
-        fmtDateTimeExport(b.pickup_at),
-        fmtDateTimeExport(b.dropoff_at),
-        fmtDateTimeExport(b.delivery_confirmed_at),
-        fmtDateTimeExport(b.collection_confirmed_at),
+        fmtDateTime(b.pickup_at),
+        fmtDateTime(b.dropoff_at),
+        fmtDateTime(b.delivery_confirmed_at),
+        fmtDateTime(b.collection_confirmed_at),
         isCompleted ? fmtDate(b.created_at) : "",
         b.vehicle_category_name || "", b.driver_name || "", b.driver_vehicle || "",
         b.currency || "EUR",
-        hire, rate, commAmt, payout,
+        hire, rate, commAmt,
         Number(b.fuel_price ?? 0),
         b.collection_fuel_level_driver || "—",
         b.collection_fuel_level_partner || "—",
@@ -431,7 +429,7 @@ export default function AdminBookingsPage() {
         usedQ !== null && usedQ !== undefined ? usedQ : "—",
         usedQ !== null && usedQ !== undefined ? (QUARTER_LABELS[usedQ] ?? `${usedQ}/4`) : "—",
         Number(b.fuel_charge ?? 0), Number(b.fuel_refund ?? 0),
-        Number(b.amount ?? 0),
+        Number(b.amount ?? 0), payout,
         b.collection_confirmed_by_customer ? "Yes" : "No",
         b.return_confirmed_by_customer ? "Yes" : "No",
         b.insurance_docs_confirmed_by_driver ? "Yes" : "No",
@@ -457,38 +455,31 @@ export default function AdminBookingsPage() {
       ];
     });
 
+    // All Bookings sheet — same columns as the reconciliation table
     const allHeaders = [
-      "Job Number", "Partner Company Name", "Legal Company Name",
-      "Company Reg. No.", "VAT / NIF Number",
-      "Customer", "Pickup", "Dropoff",
-      "Scheduled Pickup At", "Actual Pickup Date & Time", "Actual Dropoff Date & Time", "Completed Date",
-      "Vehicle", "Driver", "Status", "Currency",
+      "Job", "Partner", "Customer", "Status",
       "Car Hire", "Commission Rate (%)", "Commission Amount",
-      "Amount", "Partner Payout", "Insurance", "Created At",
+      "Fuel Deposit", "Fuel Used", "Fuel Charge", "Fuel Refund",
+      "Total", "Partner Payout", "Insurance",
+      "Currency", "Created At",
     ];
     const allRows = filtered.map(b => {
-      const hire    = Number(b.car_hire_price ?? 0);
-      const rate    = b.commission_rate ?? 20;
-      const commAmt = b.commission_amount ?? Math.max((hire * rate) / 100, 10);
-      const payout  = b.partner_payout_amount ?? Math.max(0, hire - commAmt);
-      const isCompleted = String(b.booking_status || "").toLowerCase() === "completed";
+      const usedQ = b.fuel_used_quarters;
+      const { hire, rate, commAmt, payout } = calcPayout(b);
       return [
         b.job_number || "",
         b.partner_company_name || "",
-        b.partner_legal_company_name || "",
-        b.partner_company_registration_number || "",
-        b.partner_vat_number || "",
         b.customer_name || "",
-        b.pickup_address || "", b.dropoff_address || "",
-        fmtDateTimeExport(b.pickup_at),
-        fmtDateTimeExport(b.delivery_confirmed_at),
-        fmtDateTimeExport(b.collection_confirmed_at),
-        isCompleted ? fmtDate(b.created_at) : "",
-        b.vehicle_category_name || "", b.driver_name || "",
-        b.booking_status || "", b.currency || "EUR",
+        b.booking_status || "",
         hire, rate, commAmt,
-        Number(b.amount ?? 0), payout,
+        Number(b.fuel_price ?? 0),
+        usedQ !== null && usedQ !== undefined ? (QUARTER_LABELS[usedQ] ?? `${usedQ}/4`) : "—",
+        Number(b.fuel_charge ?? 0),
+        Number(b.fuel_refund ?? 0),
+        Number(b.amount ?? 0),
+        payout,
         b.insurance_docs_confirmed_by_driver && b.insurance_docs_confirmed_by_customer ? "Confirmed" : "Pending",
+        b.currency || "EUR",
         fmtDate(b.created_at),
       ];
     });
@@ -604,7 +595,7 @@ export default function AdminBookingsPage() {
         return <AdminCurrencySection key={curr} curr={curr} t={t} bookings={currBookings} router={router} />;
       })}
 
-      {/* Full bookings table */}
+      {/* All Bookings table — same columns as reconciliation section */}
       <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xl font-semibold text-[#003768]">All Bookings</h2>
@@ -615,33 +606,31 @@ export default function AdminBookingsPage() {
         </div>
         <div className="overflow-x-auto rounded-2xl border border-black/10">
           <table className="min-w-full text-sm">
-            <thead className="bg-[#f3f8ff] text-[#003768]">
+            <thead className="bg-[#f3f8ff] text-left text-[#003768]">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold">Created</th>
-                <th className="px-4 py-3 text-left font-semibold">Job No.</th>
-                <th className="px-4 py-3 text-left font-semibold">Partner</th>
-                <th className="px-4 py-3 text-left font-semibold">Customer</th>
-                <th className="px-4 py-3 text-left font-semibold">Pickup</th>
-                <th className="px-4 py-3 text-left font-semibold">Pickup At</th>
-                <th className="px-4 py-3 text-left font-semibold">Vehicle</th>
-                <th className="px-4 py-3 text-left font-semibold">Status</th>
-                <th className="px-4 py-3 text-left font-semibold">Currency</th>
-                <th className="px-4 py-3 text-left font-semibold">Car Hire</th>
-                <th className="px-4 py-3 text-left font-semibold">Commission</th>
-                <th className="px-4 py-3 text-left font-semibold">Amount</th>
-                <th className="px-4 py-3 text-left font-semibold">Insurance</th>
+                <th className="px-4 py-3 font-semibold">Job</th>
+                <th className="px-4 py-3 font-semibold">Partner</th>
+                <th className="px-4 py-3 font-semibold">Customer</th>
+                <th className="px-4 py-3 font-semibold">Status</th>
+                <th className="px-4 py-3 font-semibold">Car Hire</th>
+                <th className="px-4 py-3 font-semibold">Commission</th>
+                <th className="px-4 py-3 font-semibold">Fuel Deposit</th>
+                <th className="px-4 py-3 font-semibold">Fuel Used</th>
+                <th className="px-4 py-3 font-semibold">Fuel Charge</th>
+                <th className="px-4 py-3 font-semibold">Fuel Refund</th>
+                <th className="px-4 py-3 font-semibold">Total</th>
+                <th className="px-4 py-3 font-semibold">Partner Payout</th>
+                <th className="px-4 py-3 font-semibold">Insurance</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-black/5">
               {visible.length === 0 ? (
                 <tr><td colSpan={13} className="px-4 py-4 text-slate-600">No bookings found.</td></tr>
               ) : visible.map(row => {
-                const hire    = Number(row.car_hire_price ?? 0);
-                const rate    = row.commission_rate ?? 20;
-                const commAmt = row.commission_amount ?? Math.max((hire * rate) / 100, 10);
+                const usedQ = row.fuel_used_quarters;
+                const { commAmt, payout, rate } = calcPayout(row);
                 return (
                   <tr key={row.id} onClick={() => router.push(`/admin/bookings/${row.id}`)} className="cursor-pointer hover:bg-[#f3f8ff] transition-colors">
-                    <td className="px-4 py-4 text-slate-700">{fmtDateTime(row.created_at)}</td>
                     <td className="px-4 py-4 font-semibold text-[#003768]">{row.job_number || "—"}</td>
                     <td className="px-4 py-4 text-slate-700">
                       <div>{row.partner_company_name || "—"}</div>
@@ -651,17 +640,9 @@ export default function AdminBookingsPage() {
                       <div>{row.customer_name || "—"}</div>
                       <div className="text-xs text-slate-400">{row.customer_phone || ""}</div>
                     </td>
-                    <td className="px-4 py-4 text-slate-700 max-w-[180px] truncate">{row.pickup_address || "—"}</td>
-                    <td className="px-4 py-4 text-slate-700">{fmtDateTime(row.pickup_at)}</td>
-                    <td className="px-4 py-4 text-slate-700">{row.vehicle_category_name || "—"}</td>
                     <td className="px-4 py-4">
                       <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusPillClasses(row.booking_status)}`}>
                         {fmtStatus(row.booking_status)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className="inline-flex rounded-full border border-black/10 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600">
-                        {row.currency ?? "EUR"}
                       </span>
                     </td>
                     <td className="px-4 py-4 text-slate-700">{fmtAmt(row.car_hire_price, row.currency)}</td>
@@ -669,7 +650,18 @@ export default function AdminBookingsPage() {
                       <div className="text-xs font-semibold text-amber-700">{fmtCurr(commAmt, row.currency ?? "EUR")}</div>
                       <div className="text-xs text-slate-400">{rate}%</div>
                     </td>
-                    <td className="px-4 py-4 font-semibold text-slate-900">{fmtAmt(row.amount, row.currency)}</td>
+                    <td className="px-4 py-4 text-slate-700">{fmtAmt(row.fuel_price, row.currency)}</td>
+                    <td className="px-4 py-4 text-slate-700">
+                      {usedQ !== null && usedQ !== undefined ? (QUARTER_LABELS[usedQ] ?? `${usedQ}/4`) : "—"}
+                    </td>
+                    <td className="px-4 py-4 font-semibold text-orange-700">
+                      {row.fuel_charge !== null ? fmtAmt(row.fuel_charge, row.currency) : "—"}
+                    </td>
+                    <td className="px-4 py-4 font-semibold text-green-600">
+                      {row.fuel_refund !== null ? fmtAmt(row.fuel_refund, row.currency) : "—"}
+                    </td>
+                    <td className="px-4 py-4 font-bold text-[#003768]">{fmtAmt(row.amount, row.currency)}</td>
+                    <td className="px-4 py-4 font-bold text-green-700">{fmtCurr(payout, row.currency ?? "EUR")}</td>
                     <td className="px-4 py-4">{insurancePill(row.insurance_docs_confirmed_by_driver, row.insurance_docs_confirmed_by_customer)}</td>
                   </tr>
                 );
