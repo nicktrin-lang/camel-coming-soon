@@ -15,16 +15,31 @@ export async function GET(
     const db = createServiceRoleSupabaseClient();
     const adminMode = role === "admin" || role === "super_admin";
 
-    // Get partner's default currency from their profile
+    // Get partner's profile — currency + commission rate
     const { data: profileRow } = await db
       .from("partner_profiles")
-      .select("default_currency")
+      .select("default_currency, commission_rate")
       .eq("user_id", userId)
       .maybeSingle();
-    const partnerCurrency: "EUR" | "GBP" = (profileRow?.default_currency as "EUR" | "GBP") ?? "EUR";
+
+    const partnerCurrency: "EUR" | "GBP" | "USD" =
+      (profileRow?.default_currency as "EUR" | "GBP" | "USD") ?? "EUR";
+
+    // Get platform default commission rate from platform_settings
+    const { data: platformSettings } = await db
+      .from("platform_settings")
+      .select("default_commission_rate, minimum_commission_amount")
+      .limit(1)
+      .maybeSingle();
+
+    // Partner-level override takes priority, then platform default, then hardcoded fallback
+    const commissionRate: number =
+      profileRow?.commission_rate ?? platformSettings?.default_commission_rate ?? 20;
+    const minimumCommission: number =
+      platformSettings?.minimum_commission_amount ?? 10;
 
     // Fetch the request
-    const requestQuery = db
+    const { data: requestRow, error: requestErr } = await db
       .from("customer_requests")
       .select(`
         id, job_number, customer_name, customer_email, customer_phone,
@@ -33,9 +48,9 @@ export async function GET(
         vehicle_category_slug, vehicle_category_name, notes,
         status, created_at, expires_at
       `)
-      .eq("id", id);
+      .eq("id", id)
+      .maybeSingle();
 
-    const { data: requestRow, error: requestErr } = await requestQuery.maybeSingle();
     if (requestErr) return NextResponse.json({ error: requestErr.message }, { status: 400 });
     if (!requestRow) return NextResponse.json({ error: "Request not found" }, { status: 404 });
 
@@ -89,6 +104,8 @@ export async function GET(
       adminMode,
       role,
       partnerCurrency,
+      commissionRate,
+      minimumCommission,
     }, { status: 200 });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });

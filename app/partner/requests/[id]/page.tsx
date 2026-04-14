@@ -46,6 +46,8 @@ type ApiResponse = {
   existingBooking: ExistingBooking | null; fleetOptions: FleetOption[];
   adminMode: boolean; role: string | null;
   partnerCurrency: Currency;
+  commissionRate: number;
+  minimumCommission: number;
 };
 
 function fmtDateTime(v?: string | null) {
@@ -121,7 +123,6 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
       if (!res.ok) throw new Error(json?.error || "Failed to load request.");
       const nextData = json as ApiResponse;
       setData(nextData);
-      // Ensure currency is one of the three valid values, fallback to EUR
       const raw = nextData.partnerCurrency;
       const currency: Currency = (raw === "EUR" || raw === "GBP" || raw === "USD") ? raw : "EUR";
       setPartnerCurrency(currency);
@@ -203,6 +204,8 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
 
   const { request, existingBid, existingBooking } = data;
   const { symbol, label: currencyLabel } = CURRENCY_META[partnerCurrency];
+  const commissionRate = data.commissionRate ?? 20;
+  const minimumCommission = data.minimumCommission ?? 10;
 
   const partnerStatus = getPartnerHistoryStatus({
     requestStatus: request.status, expiresAt: request.expires_at,
@@ -215,6 +218,13 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
 
   const total = Number(carHirePrice || 0) + Number(fuelPrice || 0);
 
+  // Live commission calculation
+  const hireNum = Number(carHirePrice || 0);
+  const rawComm = (hireNum * commissionRate) / 100;
+  const commission = Math.max(rawComm, minimumCommission);
+  const payout = Math.max(0, hireNum - commission);
+  const showCommissionPreview = hireNum > 0 && !formDisabled;
+
   return (
     <div className="space-y-6 px-4 py-8 md:px-8">
       {error && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
@@ -223,7 +233,7 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold text-[#003768]">Request Detail</h1>
-          <p className="mt-2 text-slate-600">Review this request and its bidding outcome.</p>
+          <p className="mt-2 text-slate-600">Review this request and submit your bid.</p>
         </div>
         <Link href="/partner/requests" className="rounded-full border border-black/10 bg-white px-5 py-2 font-semibold text-[#003768] hover:bg-black/5">
           Back to Requests
@@ -265,14 +275,13 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
               ["Notes", request.notes || "—"],
               ["Created", fmtDateTime(request.created_at)],
               ["Expires at", fmtDateTime(request.expires_at)],
-              ["Matched status", request.matched_status || "—"],
             ].map(([lbl, val]) => (
               <p key={String(lbl)}><span className="font-semibold text-slate-900">{lbl}:</span> {String(val)}</p>
             ))}
           </div>
         </div>
 
-        {/* Bid outcome */}
+        {/* Bid section */}
         <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
           <h2 className="text-2xl font-semibold text-[#003768]">Bid Outcome</h2>
 
@@ -292,7 +301,6 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
             <div className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-blue-700">Your bid has been submitted and is awaiting customer decision.</div>
           )}
 
-          {/* Existing bid summary — use the bid's own stored currency */}
           {existingBid && (
             <div className="mt-6 space-y-4 text-slate-700">
               <p><span className="font-semibold text-slate-900">Bid status:</span> <span className="capitalize">{existingBid.status.replaceAll("_", " ")}</span></p>
@@ -321,11 +329,37 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
 
           {!existingBid && data.fleetOptions.length > 0 && (
             <form onSubmit={submitBid} className="mt-6 space-y-5">
-              {/* Currency badge — 100% driven by partnerCurrency */}
+              {/* Currency badge */}
               <div className="inline-flex items-center gap-2 rounded-full bg-[#003768]/10 px-3 py-1.5 text-sm font-semibold text-[#003768]">
                 <span>{symbol}</span>
                 Bidding in {currencyLabel}
                 <Link href="/partner/profile" className="ml-1 text-xs text-[#003768]/60 underline hover:text-[#003768]">Change in profile</Link>
+              </div>
+
+              {/* Commission info box */}
+              <div className="rounded-2xl border border-[#003768]/10 bg-[#f3f8ff] p-4 text-sm text-[#003768]">
+                <p className="font-semibold mb-1">💰 Commission on this booking</p>
+                <p>
+                  Camel Global deducts a <strong>{commissionRate}% commission</strong> on the car hire price,
+                  with a <strong>minimum of {fmtCurrency(minimumCommission, partnerCurrency)} per booking</strong>.
+                  Fuel is passed through to you in full — no commission on fuel.
+                </p>
+                {showCommissionPreview && (
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-xl bg-white border border-[#003768]/10 px-3 py-2">
+                      <p className="text-xs text-slate-500">Car hire price</p>
+                      <p className="font-bold text-[#003768]">{fmtCurrency(hireNum, partnerCurrency)}</p>
+                    </div>
+                    <div className="rounded-xl bg-white border border-amber-200 px-3 py-2">
+                      <p className="text-xs text-slate-500">Commission ({commissionRate}%)</p>
+                      <p className="font-bold text-amber-700">− {fmtCurrency(commission, partnerCurrency)}</p>
+                    </div>
+                    <div className="rounded-xl bg-white border border-green-200 px-3 py-2">
+                      <p className="text-xs text-slate-500">Your payout</p>
+                      <p className="font-bold text-green-700">{fmtCurrency(payout, partnerCurrency)}</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

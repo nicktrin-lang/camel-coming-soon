@@ -14,8 +14,6 @@ export async function GET() {
     const userId = user.id;
     const db = createServiceRoleSupabaseClient();
 
-    // getPortalUserRole checks partner_profiles — admin users aren't there.
-    // Fall back to admin_users table check by email so admin mode works correctly.
     let adminMode = isAdminRole(role);
     if (!adminMode) {
       const email = String(user.email || "").toLowerCase().trim();
@@ -46,6 +44,9 @@ export async function GET() {
         fuel_used_quarters,
         fuel_charge,
         fuel_refund,
+        commission_rate,
+        commission_amount,
+        partner_payout_amount,
         notes,
         created_at,
         job_number,
@@ -106,7 +107,7 @@ export async function GET() {
     if (partnerUserIds.length > 0) {
       const { data: profileRows, error: profileErr } = await db
         .from("partner_profiles")
-        .select("user_id, company_name, phone")
+        .select("user_id, company_name, phone, legal_company_name, vat_number, company_registration_number, commission_rate")
         .in("user_id", partnerUserIds);
       if (profileErr) return NextResponse.json({ error: profileErr.message }, { status: 400 });
       profileMap = new Map((profileRows || []).map((r: any) => [String(r.user_id), r]));
@@ -128,6 +129,9 @@ export async function GET() {
         fuel_used_quarters: booking.fuel_used_quarters ?? null,
         fuel_charge: booking.fuel_charge ?? null,
         fuel_refund: booking.fuel_refund ?? null,
+        commission_rate: booking.commission_rate ?? partnerProfile?.commission_rate ?? 20,
+        commission_amount: booking.commission_amount ?? null,
+        partner_payout_amount: booking.partner_payout_amount ?? null,
         notes: booking.notes,
         created_at: booking.created_at,
         job_number: booking.job_number ?? request?.job_number ?? null,
@@ -148,6 +152,9 @@ export async function GET() {
         insurance_docs_confirmed_by_customer: booking.insurance_docs_confirmed_by_customer ?? false,
         partner_company_name: partnerProfile?.company_name || null,
         partner_company_phone: partnerProfile?.phone || null,
+        partner_legal_company_name: partnerProfile?.legal_company_name || null,
+        partner_vat_number: partnerProfile?.vat_number || null,
+        partner_company_registration_number: partnerProfile?.company_registration_number || null,
         pickup_address: request?.pickup_address || null,
         dropoff_address: request?.dropoff_address || null,
         pickup_at: request?.pickup_at || null,

@@ -10,6 +10,9 @@ type BookingRow = {
   request_id: string | null;
   partner_user_id: string | null;
   partner_company_name: string | null;
+  partner_legal_company_name: string | null;
+  partner_vat_number: string | null;
+  partner_company_registration_number: string | null;
   booking_status: string | null;
   amount: number | string | null;
   currency: Currency | null;
@@ -18,6 +21,9 @@ type BookingRow = {
   fuel_used_quarters: number | null;
   fuel_charge: number | null;
   fuel_refund: number | null;
+  commission_rate: number | null;
+  commission_amount: number | null;
+  partner_payout_amount: number | null;
   created_at: string | null;
   job_number: string | null;
   pickup_address: string | null;
@@ -89,14 +95,14 @@ function statusPillClasses(status?: string | null) {
 
 function fmtStatus(value?: string | null) {
   switch (String(value || "").toLowerCase()) {
-    case "confirmed":      return "Confirmed";
+    case "confirmed":       return "Confirmed";
     case "driver_assigned": return "Driver assigned";
-    case "en_route":       return "En route";
-    case "arrived":        return "Arrived";
-    case "collected":      return "On hire";
-    case "returned":       return "Returned";
-    case "completed":      return "Completed";
-    case "cancelled":      return "Cancelled";
+    case "en_route":        return "En route";
+    case "arrived":         return "Arrived";
+    case "collected":       return "On hire";
+    case "returned":        return "Returned";
+    case "completed":       return "Completed";
+    case "cancelled":       return "Cancelled";
     default: return String(value || "—").replaceAll("_", " ");
   }
 }
@@ -105,11 +111,9 @@ function insurancePill(driver: boolean, customer: boolean) {
   const both = driver && customer;
   return (
     <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${
-      both
-        ? "border-green-200 bg-green-50 text-green-700"
-        : driver
-        ? "border-blue-200 bg-blue-50 text-blue-700"
-        : "border-amber-200 bg-amber-50 text-amber-700"
+      both ? "border-green-200 bg-green-50 text-green-700"
+           : driver ? "border-blue-200 bg-blue-50 text-blue-700"
+           : "border-amber-200 bg-amber-50 text-amber-700"
     }`}>
       {both ? "✓ Confirmed" : driver ? "Driver ✓" : "Pending"}
     </span>
@@ -175,9 +179,11 @@ function downloadBlob(blob: Blob, filename: string) {
 
 const PAGE_SIZE = 10;
 
-// ── Currency Section Component ────────────────────────────────────────────────
-
-type CurrencyTotals = { total: number; carHire: number; fuelCharge: number; fuelRefund: number; count: number; completed: number };
+type CurrencyTotals = {
+  total: number; carHire: number; fuelCharge: number; fuelRefund: number;
+  commissionTotal: number; partnerPayoutTotal: number;
+  count: number; completed: number;
+};
 
 function AdminCurrencySection({ curr, t, bookings, router }: {
   curr: Currency; t: CurrencyTotals; bookings: BookingRow[]; router: any;
@@ -192,14 +198,16 @@ function AdminCurrencySection({ curr, t, bookings, router }: {
         <span className="inline-flex items-center gap-1 rounded-full bg-[#003768]/10 px-3 py-1 text-sm font-bold text-[#003768]">{symbol}</span>
         <h2 className="text-xl font-semibold text-[#003768]">Revenue &amp; Fuel Reconciliation</h2>
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
         {[
-          { label: "Total Bookings",        value: t.count,               isMoney: false },
-          { label: "Completed",             value: t.completed,            isMoney: false },
-          { label: "Total Revenue",         value: t.total,                isMoney: true  },
-          { label: "Car Hire Revenue",      value: t.carHire,              isMoney: true  },
-          { label: "Fuel Charged",          value: t.fuelCharge,           isMoney: true  },
-          { label: "Net Revenue to Partner",value: t.carHire + t.fuelCharge, isMoney: true },
+          { label: "Total Bookings",          value: t.count,                      isMoney: false },
+          { label: "Completed",               value: t.completed,                  isMoney: false },
+          { label: "Total Revenue",           value: t.total,                      isMoney: true  },
+          { label: "Car Hire Revenue",        value: t.carHire,                    isMoney: true  },
+          { label: "Fuel Charged",            value: t.fuelCharge,                 isMoney: true  },
+          { label: "Camel Commission",        value: t.commissionTotal,            isMoney: true  },
+          { label: "Partner Payout",          value: t.partnerPayoutTotal,         isMoney: true  },
+          { label: "Net to Partner",          value: t.carHire + t.fuelCharge,     isMoney: true  },
         ].map(({ label: lbl, value, isMoney }) => (
           <div key={lbl} className="rounded-2xl border border-black/5 bg-slate-50 p-4">
             <p className="text-xs font-medium text-slate-500">{lbl}</p>
@@ -216,23 +224,30 @@ function AdminCurrencySection({ curr, t, bookings, router }: {
               <th className="px-4 py-3 font-semibold">Customer</th>
               <th className="px-4 py-3 font-semibold">Status</th>
               <th className="px-4 py-3 font-semibold">Car Hire</th>
+              <th className="px-4 py-3 font-semibold">Commission</th>
               <th className="px-4 py-3 font-semibold">Fuel Deposit</th>
               <th className="px-4 py-3 font-semibold">Fuel Used</th>
               <th className="px-4 py-3 font-semibold">Fuel Charge</th>
               <th className="px-4 py-3 font-semibold">Fuel Refund</th>
               <th className="px-4 py-3 font-semibold">Total</th>
-              <th className="px-4 py-3 font-semibold">Net Revenue</th>
+              <th className="px-4 py-3 font-semibold">Partner Payout</th>
               <th className="px-4 py-3 font-semibold">Insurance</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-black/5">
             {visible.map(b => {
-              const usedQ  = b.fuel_used_quarters;
-              const netRev = Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0);
+              const usedQ   = b.fuel_used_quarters;
+              const rate    = b.commission_rate ?? 20;
+              const hire    = Number(b.car_hire_price ?? 0);
+              const commAmt = b.commission_amount ?? Math.max((hire * rate) / 100, 10);
+              const payout  = b.partner_payout_amount ?? Math.max(0, hire - commAmt);
               return (
                 <tr key={b.id} onClick={() => router.push(`/admin/bookings/${b.id}`)} className="cursor-pointer hover:bg-[#f3f8ff]">
                   <td className="px-4 py-3 font-semibold text-[#003768]">{b.job_number || "—"}</td>
-                  <td className="px-4 py-3 text-slate-700">{b.partner_company_name || "—"}</td>
+                  <td className="px-4 py-3 text-slate-700">
+                    <div>{b.partner_company_name || "—"}</div>
+                    {b.partner_vat_number && <div className="text-xs text-slate-400">{b.partner_vat_number}</div>}
+                  </td>
                   <td className="px-4 py-3 text-slate-700">{b.customer_name || "—"}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${statusPillClasses(b.booking_status)}`}>
@@ -240,12 +255,16 @@ function AdminCurrencySection({ curr, t, bookings, router }: {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-700">{fmtAmt(b.car_hire_price, curr)}</td>
+                  <td className="px-4 py-3">
+                    <div className="text-xs font-semibold text-amber-700">{fmtCurr(commAmt, curr)}</div>
+                    <div className="text-xs text-slate-400">{rate}%</div>
+                  </td>
                   <td className="px-4 py-3 text-slate-700">{fmtAmt(b.fuel_price, curr)}</td>
                   <td className="px-4 py-3 text-slate-700">{usedQ !== null && usedQ !== undefined ? (QUARTER_LABELS[usedQ] ?? `${usedQ}/4`) : "—"}</td>
                   <td className="px-4 py-3 font-semibold text-orange-700">{b.fuel_charge !== null ? fmtAmt(b.fuel_charge, curr) : "—"}</td>
                   <td className="px-4 py-3 font-semibold text-green-700">{b.fuel_refund !== null ? fmtAmt(b.fuel_refund, curr) : "—"}</td>
                   <td className="px-4 py-3 font-bold text-[#003768]">{fmtAmt(b.amount, curr)}</td>
-                  <td className="px-4 py-3 font-bold text-green-700">{fmtCurr(netRev, curr)}</td>
+                  <td className="px-4 py-3 font-bold text-green-700">{fmtCurr(payout, curr)}</td>
                   <td className="px-4 py-3">{insurancePill(b.insurance_docs_confirmed_by_driver, b.insurance_docs_confirmed_by_customer)}</td>
                 </tr>
               );
@@ -319,18 +338,24 @@ export default function AdminBookingsPage() {
 
   const currencyTotals = useMemo(() => {
     const t: Record<Currency, CurrencyTotals> = {
-      EUR: { total: 0, carHire: 0, fuelCharge: 0, fuelRefund: 0, count: 0, completed: 0 },
-      GBP: { total: 0, carHire: 0, fuelCharge: 0, fuelRefund: 0, count: 0, completed: 0 },
-      USD: { total: 0, carHire: 0, fuelCharge: 0, fuelRefund: 0, count: 0, completed: 0 },
+      EUR: { total: 0, carHire: 0, fuelCharge: 0, fuelRefund: 0, commissionTotal: 0, partnerPayoutTotal: 0, count: 0, completed: 0 },
+      GBP: { total: 0, carHire: 0, fuelCharge: 0, fuelRefund: 0, commissionTotal: 0, partnerPayoutTotal: 0, count: 0, completed: 0 },
+      USD: { total: 0, carHire: 0, fuelCharge: 0, fuelRefund: 0, commissionTotal: 0, partnerPayoutTotal: 0, count: 0, completed: 0 },
     };
     for (const b of filtered) {
       const c: Currency = (b.currency as Currency) ?? "EUR";
       if (!t[c]) continue;
+      const hire    = Number(b.car_hire_price ?? 0);
+      const rate    = b.commission_rate ?? 20;
+      const commAmt = b.commission_amount ?? Math.max((hire * rate) / 100, 10);
+      const payout  = b.partner_payout_amount ?? Math.max(0, hire - commAmt);
       t[c].count++;
-      t[c].total     += Number(b.amount ?? 0);
-      t[c].carHire   += Number(b.car_hire_price ?? 0);
-      t[c].fuelCharge += Number(b.fuel_charge ?? 0);
-      t[c].fuelRefund += Number(b.fuel_refund ?? 0);
+      t[c].total              += Number(b.amount ?? 0);
+      t[c].carHire            += hire;
+      t[c].fuelCharge         += Number(b.fuel_charge ?? 0);
+      t[c].fuelRefund         += Number(b.fuel_refund ?? 0);
+      t[c].commissionTotal    += commAmt;
+      t[c].partnerPayoutTotal += payout;
       if (String(b.booking_status || "").toLowerCase() === "completed") t[c].completed++;
     }
     return t;
@@ -344,40 +369,53 @@ export default function AdminBookingsPage() {
   const hasMore       = filtered.length > visibleCount;
 
   function exportExcel() {
-    const dateStr    = new Date().toISOString().split("T")[0];
+    const dateStr = new Date().toISOString().split("T")[0];
+
     const fuelHeaders = [
-      "Job Number", "Partner", "Customer", "Customer Email", "Customer Phone",
+      "Job Number", "Partner Company Name", "Legal Company Name",
+      "Company Reg. No.", "VAT / NIF Number",
+      "Customer", "Customer Email", "Customer Phone",
       "Pickup Address", "Dropoff Address", "Pickup At", "Dropoff At",
       "Vehicle", "Driver", "Driver Vehicle", "Currency",
-      "Car Hire Price", "Full Fuel Deposit",
+      "Car Hire Price", "Commission Rate (%)", "Commission Amount", "Partner Payout",
+      "Full Fuel Deposit",
       "Collection Fuel (Driver)", "Collection Fuel (Partner Override)",
       "Return Fuel (Driver)", "Return Fuel (Partner Override)",
       "Quarters Used", "Fuel Used Label",
       "Fuel Charge to Customer", "Fuel Refund to Customer",
-      "Total Booking Amount", "Net Revenue to Partner (Car Hire + Fuel Charge)",
+      "Total Booking Amount",
       "Customer Collection Confirmed", "Customer Return Confirmed",
       "Insurance Driver Confirmed", "Insurance Customer Confirmed",
       "Booking Status", "Created At",
     ];
+
     const fuelRows = filtered.map(b => {
-      const usedQ = b.fuel_used_quarters;
+      const usedQ   = b.fuel_used_quarters;
+      const hire    = Number(b.car_hire_price ?? 0);
+      const rate    = b.commission_rate ?? 20;
+      const commAmt = b.commission_amount ?? Math.max((hire * rate) / 100, 10);
+      const payout  = b.partner_payout_amount ?? Math.max(0, hire - commAmt);
       return [
-        b.job_number || "", b.partner_company_name || "",
+        b.job_number || "",
+        b.partner_company_name || "",
+        b.partner_legal_company_name || "",
+        b.partner_company_registration_number || "",
+        b.partner_vat_number || "",
         b.customer_name || "", b.customer_email || "", b.customer_phone || "",
         b.pickup_address || "", b.dropoff_address || "",
         fmtDate(b.pickup_at), fmtDate(b.dropoff_at),
         b.vehicle_category_name || "", b.driver_name || "", b.driver_vehicle || "",
         b.currency || "EUR",
-        Number(b.car_hire_price ?? 0), Number(b.fuel_price ?? 0),
-        b.collection_fuel_level_driver || b.collection_fuel_level_partner || "—",
+        hire, rate, commAmt, payout,
+        Number(b.fuel_price ?? 0),
+        b.collection_fuel_level_driver || "—",
         b.collection_fuel_level_partner || "—",
-        b.return_fuel_level_driver || b.return_fuel_level_partner || "—",
+        b.return_fuel_level_driver || "—",
         b.return_fuel_level_partner || "—",
         usedQ !== null && usedQ !== undefined ? usedQ : "—",
         usedQ !== null && usedQ !== undefined ? (QUARTER_LABELS[usedQ] ?? `${usedQ}/4`) : "—",
         Number(b.fuel_charge ?? 0), Number(b.fuel_refund ?? 0),
         Number(b.amount ?? 0),
-        Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0),
         b.collection_confirmed_by_customer ? "Yes" : "No",
         b.return_confirmed_by_customer ? "Yes" : "No",
         b.insurance_docs_confirmed_by_driver ? "Yes" : "No",
@@ -386,22 +424,53 @@ export default function AdminBookingsPage() {
       ];
     });
 
-    const summaryHeaders = ["Currency", "Total Bookings", "Completed", "Total Revenue", "Car Hire Revenue", "Fuel Charges Billed", "Fuel Refunds Issued", "Net Revenue to Partner"];
-    const summaryRows    = (["EUR", "GBP", "USD"] as Currency[]).map(curr => {
+    const summaryHeaders = [
+      "Currency", "Total Bookings", "Completed",
+      "Total Revenue", "Car Hire Revenue",
+      "Camel Commission", "Partner Payout Total",
+      "Fuel Charges Billed", "Fuel Refunds Issued",
+    ];
+    const summaryRows = (["EUR", "GBP", "USD"] as Currency[]).map(curr => {
       const t = currencyTotals[curr];
-      return [`${curr} ${CURRENCY_CONFIG[curr].symbol}`, t.count, t.completed, t.total, t.carHire, t.fuelCharge, t.fuelRefund, t.carHire + t.fuelCharge];
+      return [
+        `${curr} ${CURRENCY_CONFIG[curr].symbol}`,
+        t.count, t.completed,
+        t.total, t.carHire,
+        t.commissionTotal, t.partnerPayoutTotal,
+        t.fuelCharge, t.fuelRefund,
+      ];
     });
 
-    const allHeaders = ["Job Number", "Partner", "Customer", "Pickup", "Dropoff", "Pickup At", "Vehicle", "Driver", "Status", "Currency", "Amount", "Net Revenue to Partner", "Insurance", "Created At"];
-    const allRows    = filtered.map(b => [
-      b.job_number || "", b.partner_company_name || "", b.customer_name || "",
-      b.pickup_address || "", b.dropoff_address || "",
-      fmtDate(b.pickup_at), b.vehicle_category_name || "", b.driver_name || "",
-      b.booking_status || "", b.currency || "EUR", Number(b.amount ?? 0),
-      Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0),
-      b.insurance_docs_confirmed_by_driver && b.insurance_docs_confirmed_by_customer ? "Confirmed" : "Pending",
-      fmtDate(b.created_at),
-    ]);
+    const allHeaders = [
+      "Job Number", "Partner Company Name", "Legal Company Name",
+      "Company Reg. No.", "VAT / NIF Number",
+      "Customer", "Pickup", "Dropoff", "Pickup At",
+      "Vehicle", "Driver", "Status", "Currency",
+      "Car Hire", "Commission Rate (%)", "Commission Amount",
+      "Amount", "Partner Payout", "Insurance", "Created At",
+    ];
+    const allRows = filtered.map(b => {
+      const hire    = Number(b.car_hire_price ?? 0);
+      const rate    = b.commission_rate ?? 20;
+      const commAmt = b.commission_amount ?? Math.max((hire * rate) / 100, 10);
+      const payout  = b.partner_payout_amount ?? Math.max(0, hire - commAmt);
+      return [
+        b.job_number || "",
+        b.partner_company_name || "",
+        b.partner_legal_company_name || "",
+        b.partner_company_registration_number || "",
+        b.partner_vat_number || "",
+        b.customer_name || "",
+        b.pickup_address || "", b.dropoff_address || "",
+        fmtDate(b.pickup_at),
+        b.vehicle_category_name || "", b.driver_name || "",
+        b.booking_status || "", b.currency || "EUR",
+        hire, rate, commAmt,
+        Number(b.amount ?? 0), payout,
+        b.insurance_docs_confirmed_by_driver && b.insurance_docs_confirmed_by_customer ? "Confirmed" : "Pending",
+        fmtDate(b.created_at),
+      ];
+    });
 
     const blob = buildXls([
       { name: "Fuel Reconciliation", headers: fuelHeaders, rows: fuelRows },
@@ -532,45 +601,58 @@ export default function AdminBookingsPage() {
                 <th className="px-4 py-3 text-left font-semibold">Partner</th>
                 <th className="px-4 py-3 text-left font-semibold">Customer</th>
                 <th className="px-4 py-3 text-left font-semibold">Pickup</th>
-                <th className="px-4 py-3 text-left font-semibold">Dropoff</th>
                 <th className="px-4 py-3 text-left font-semibold">Pickup At</th>
                 <th className="px-4 py-3 text-left font-semibold">Vehicle</th>
                 <th className="px-4 py-3 text-left font-semibold">Status</th>
                 <th className="px-4 py-3 text-left font-semibold">Currency</th>
+                <th className="px-4 py-3 text-left font-semibold">Car Hire</th>
+                <th className="px-4 py-3 text-left font-semibold">Commission</th>
                 <th className="px-4 py-3 text-left font-semibold">Amount</th>
                 <th className="px-4 py-3 text-left font-semibold">Insurance</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-black/5">
               {visible.length === 0 ? (
-                <tr><td colSpan={12} className="px-4 py-4 text-slate-600">No bookings found.</td></tr>
-              ) : visible.map(row => (
-                <tr key={row.id} onClick={() => router.push(`/admin/bookings/${row.id}`)} className="cursor-pointer hover:bg-[#f3f8ff] transition-colors">
-                  <td className="px-4 py-4 text-slate-700">{fmtDateTime(row.created_at)}</td>
-                  <td className="px-4 py-4 font-semibold text-[#003768]">{row.job_number || "—"}</td>
-                  <td className="px-4 py-4 text-slate-700">{row.partner_company_name || "—"}</td>
-                  <td className="px-4 py-4 text-slate-700">
-                    <div>{row.customer_name || "—"}</div>
-                    <div className="text-xs text-slate-400">{row.customer_phone || ""}</div>
-                  </td>
-                  <td className="px-4 py-4 text-slate-700 max-w-[180px] truncate">{row.pickup_address || "—"}</td>
-                  <td className="px-4 py-4 text-slate-700 max-w-[180px] truncate">{row.dropoff_address || "—"}</td>
-                  <td className="px-4 py-4 text-slate-700">{fmtDateTime(row.pickup_at)}</td>
-                  <td className="px-4 py-4 text-slate-700">{row.vehicle_category_name || "—"}</td>
-                  <td className="px-4 py-4">
-                    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusPillClasses(row.booking_status)}`}>
-                      {fmtStatus(row.booking_status)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4">
-                    <span className="inline-flex rounded-full border border-black/10 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600">
-                      {row.currency ?? "EUR"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 font-semibold text-slate-900">{fmtAmt(row.amount, row.currency)}</td>
-                  <td className="px-4 py-4">{insurancePill(row.insurance_docs_confirmed_by_driver, row.insurance_docs_confirmed_by_customer)}</td>
-                </tr>
-              ))}
+                <tr><td colSpan={13} className="px-4 py-4 text-slate-600">No bookings found.</td></tr>
+              ) : visible.map(row => {
+                const hire    = Number(row.car_hire_price ?? 0);
+                const rate    = row.commission_rate ?? 20;
+                const commAmt = row.commission_amount ?? Math.max((hire * rate) / 100, 10);
+                return (
+                  <tr key={row.id} onClick={() => router.push(`/admin/bookings/${row.id}`)} className="cursor-pointer hover:bg-[#f3f8ff] transition-colors">
+                    <td className="px-4 py-4 text-slate-700">{fmtDateTime(row.created_at)}</td>
+                    <td className="px-4 py-4 font-semibold text-[#003768]">{row.job_number || "—"}</td>
+                    <td className="px-4 py-4 text-slate-700">
+                      <div>{row.partner_company_name || "—"}</div>
+                      {row.partner_vat_number && <div className="text-xs text-slate-400">{row.partner_vat_number}</div>}
+                    </td>
+                    <td className="px-4 py-4 text-slate-700">
+                      <div>{row.customer_name || "—"}</div>
+                      <div className="text-xs text-slate-400">{row.customer_phone || ""}</div>
+                    </td>
+                    <td className="px-4 py-4 text-slate-700 max-w-[180px] truncate">{row.pickup_address || "—"}</td>
+                    <td className="px-4 py-4 text-slate-700">{fmtDateTime(row.pickup_at)}</td>
+                    <td className="px-4 py-4 text-slate-700">{row.vehicle_category_name || "—"}</td>
+                    <td className="px-4 py-4">
+                      <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusPillClasses(row.booking_status)}`}>
+                        {fmtStatus(row.booking_status)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="inline-flex rounded-full border border-black/10 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                        {row.currency ?? "EUR"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-slate-700">{fmtAmt(row.car_hire_price, row.currency)}</td>
+                    <td className="px-4 py-4">
+                      <div className="text-xs font-semibold text-amber-700">{fmtCurr(commAmt, row.currency ?? "EUR")}</div>
+                      <div className="text-xs text-slate-400">{rate}%</div>
+                    </td>
+                    <td className="px-4 py-4 font-semibold text-slate-900">{fmtAmt(row.amount, row.currency)}</td>
+                    <td className="px-4 py-4">{insurancePill(row.insurance_docs_confirmed_by_driver, row.insurance_docs_confirmed_by_customer)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

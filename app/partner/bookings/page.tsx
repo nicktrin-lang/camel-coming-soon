@@ -12,6 +12,9 @@ type BookingRow = {
   driver_name: string | null; driver_phone: string | null;
   driver_vehicle: string | null; driver_notes: string | null; driver_assigned_at: string | null;
   partner_company_name: string | null; partner_company_phone: string | null;
+  partner_legal_company_name: string | null;
+  partner_vat_number: string | null;
+  partner_company_registration_number: string | null;
   pickup_address: string | null; dropoff_address: string | null;
   pickup_at: string | null; dropoff_at: string | null;
   journey_duration_minutes: number | null; passengers: number | null;
@@ -19,17 +22,21 @@ type BookingRow = {
   vehicle_category_name: string | null; customer_name: string | null;
   customer_email: string | null; customer_phone: string | null;
   request_status: string | null;
+  car_hire_price: number | null;
+  commission_rate: number | null;
+  commission_amount: number | null;
+  partner_payout_amount: number | null;
 };
 
 type ApiResponse = { data: BookingRow[]; role: string | null; adminMode: boolean };
 
 const FILTERS = [
-  { value: "all", label: "All" },
-  { value: "confirmed", label: "Confirmed" },
+  { value: "all",             label: "All" },
+  { value: "confirmed",       label: "Confirmed" },
   { value: "driver_assigned", label: "Driver Assigned" },
-  { value: "collected", label: "On Hire" },
-  { value: "completed", label: "Completed" },
-  { value: "cancelled", label: "Cancelled" },
+  { value: "collected",       label: "On Hire" },
+  { value: "completed",       label: "Completed" },
+  { value: "cancelled",       label: "Cancelled" },
 ];
 
 const CURRENCY_CONFIG: Record<Currency, { locale: string; label: string }> = {
@@ -41,6 +48,11 @@ const CURRENCY_CONFIG: Record<Currency, { locale: string; label: string }> = {
 function fmt(v?: string | null) {
   if (!v) return "—";
   try { return new Date(v).toLocaleString(); } catch { return v; }
+}
+
+function fmtDate(v?: string | null) {
+  if (!v) return "";
+  try { return new Date(v).toLocaleDateString(); } catch { return v; }
 }
 
 function fmtDuration(m?: number | null) {
@@ -61,14 +73,14 @@ function fmtAmount(amount: number | null, currency: Currency | null) {
 
 function statusPill(status?: string | null) {
   const map: Record<string, string> = {
-    confirmed: "border-blue-200 bg-blue-50 text-blue-700",
+    confirmed:       "border-blue-200 bg-blue-50 text-blue-700",
     driver_assigned: "border-amber-200 bg-amber-50 text-amber-700",
-    en_route: "border-indigo-200 bg-indigo-50 text-indigo-700",
-    arrived: "border-purple-200 bg-purple-50 text-purple-700",
-    collected: "border-blue-200 bg-blue-50 text-blue-700",
-    returned: "border-blue-200 bg-blue-50 text-blue-700",
-    completed: "border-green-200 bg-green-50 text-green-700",
-    cancelled: "border-red-200 bg-red-50 text-red-700",
+    en_route:        "border-indigo-200 bg-indigo-50 text-indigo-700",
+    arrived:         "border-purple-200 bg-purple-50 text-purple-700",
+    collected:       "border-blue-200 bg-blue-50 text-blue-700",
+    returned:        "border-blue-200 bg-blue-50 text-blue-700",
+    completed:       "border-green-200 bg-green-50 text-green-700",
+    cancelled:       "border-red-200 bg-red-50 text-red-700",
   };
   return map[status ?? ""] ?? "border-black/10 bg-white text-slate-700";
 }
@@ -94,6 +106,61 @@ function revenuesByCurrency(rows: BookingRow[]): Record<Currency, number> {
     if (isFinite(amt)) totals[curr] += amt;
   }
   return totals;
+}
+
+// ── CSV Export ────────────────────────────────────────────────────────────────
+
+function downloadCsv(rows: BookingRow[]) {
+  const headers = [
+    "Job No.", "Company Name", "Legal Company Name", "Company Reg. No.", "VAT / NIF Number",
+    "Customer", "Customer Email", "Customer Phone",
+    "Status", "Driver", "Vehicle",
+    "Pickup Address", "Dropoff Address", "Pickup At", "Dropoff At", "Duration",
+    "Currency", "Car Hire Price", "Commission Rate (%)", "Commission Amount",
+    "Fuel Deposit", "Fuel Charge", "Fuel Refund",
+    "Total Amount", "Your Payout",
+    "Created At",
+  ];
+  const escape = (v: unknown) => {
+    const s = String(v ?? "");
+    return s.includes(",") || s.includes('"') || s.includes("\n")
+      ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const dataRows = rows.map(r => [
+    r.job_number ?? "",
+    r.partner_company_name ?? "",
+    r.partner_legal_company_name ?? "",
+    r.partner_company_registration_number ?? "",
+    r.partner_vat_number ?? "",
+    r.customer_name ?? "",
+    r.customer_email ?? "",
+    r.customer_phone ?? "",
+    r.booking_status ?? "",
+    r.driver_name ?? "",
+    r.vehicle_category_name ?? "",
+    r.pickup_address ?? "",
+    r.dropoff_address ?? "",
+    fmtDate(r.pickup_at),
+    fmtDate(r.dropoff_at),
+    fmtDuration(r.journey_duration_minutes),
+    r.currency ?? "EUR",
+    r.car_hire_price ?? "",
+    r.commission_rate ?? 20,
+    r.commission_amount ?? "",
+    r.amount ?? "",           // fuel deposit = total amount (hire + fuel)
+    "",                        // fuel charge — not available on list view
+    "",                        // fuel refund — not available on list view
+    r.amount ?? "",
+    r.partner_payout_amount ?? "",
+    fmtDate(r.created_at),
+  ].map(escape).join(","));
+  const csv = [headers.map(escape).join(","), ...dataRows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `camel-bookings-${new Date().toISOString().split("T")[0]}.csv`;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
 const PAGE_SIZE = 10;
@@ -123,8 +190,6 @@ export default function PartnerBookingsPage() {
   }
 
   useEffect(() => { load(); }, []);
-
-  // Reset pagination when filters change
   useEffect(() => { setVisibleCount(PAGE_SIZE); }, [filter, search, dateFrom, dateTo]);
 
   const q = norm(search);
@@ -181,6 +246,10 @@ export default function PartnerBookingsPage() {
             <button type="button" onClick={load}
               className="rounded-full bg-[#ff7a00] px-5 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95">
               Refresh
+            </button>
+            <button type="button" onClick={() => downloadCsv(filtered)}
+              className="rounded-full bg-[#003768] px-5 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95">
+              ⬇ Export CSV
             </button>
           </div>
         </div>
@@ -264,7 +333,8 @@ export default function PartnerBookingsPage() {
           <>
             <div className="mb-3 flex items-center justify-between">
               <p className="text-sm text-slate-500">
-                Showing <span className="font-semibold text-[#003768]">{Math.min(visibleCount, filtered.length)}</span> of <span className="font-semibold text-[#003768]">{filtered.length}</span> bookings
+                Showing <span className="font-semibold text-[#003768]">{Math.min(visibleCount, filtered.length)}</span> of{" "}
+                <span className="font-semibold text-[#003768]">{filtered.length}</span> bookings
               </p>
             </div>
             <div className="overflow-x-auto rounded-2xl border border-black/10">
@@ -277,64 +347,66 @@ export default function PartnerBookingsPage() {
                     <th className="px-4 py-3 font-semibold">Status</th>
                     <th className="px-4 py-3 font-semibold">Driver</th>
                     <th className="px-4 py-3 font-semibold">Pickup</th>
-                    <th className="px-4 py-3 font-semibold">Dropoff</th>
                     <th className="px-4 py-3 font-semibold">Pickup Time</th>
-                    <th className="px-4 py-3 font-semibold">Duration</th>
                     <th className="px-4 py-3 font-semibold">Vehicle</th>
                     <th className="px-4 py-3 font-semibold">Currency</th>
-                    <th className="px-4 py-3 font-semibold">Amount</th>
+                    <th className="px-4 py-3 font-semibold">Car Hire</th>
+                    <th className="px-4 py-3 font-semibold">Commission</th>
+                    <th className="px-4 py-3 font-semibold">Your Payout</th>
                     <th className="px-4 py-3 font-semibold">Created</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/5">
-                  {visible.map(row => (
-                    <tr key={row.id}
-                      onClick={() => router.push(`/partner/bookings/${row.id}`)}
-                      className="cursor-pointer hover:bg-[#f3f8ff] transition-colors">
-                      <td className="px-4 py-4 font-bold text-[#003768]">{row.job_number ?? "—"}</td>
-                      {adminMode && <td className="px-4 py-4 text-slate-700">{row.partner_company_name || "—"}</td>}
-                      <td className="px-4 py-4">
-                        <div className="font-medium text-slate-900">{row.customer_name || "—"}</div>
-                        <div className="text-xs text-slate-400">{row.customer_phone || row.customer_email || ""}</div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusPill(row.booking_status)}`}>
-                          {fmtStatus(row.booking_status)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="font-medium text-slate-900">{row.driver_name || "—"}</div>
-                        <div className="text-xs text-slate-400">{row.driver_vehicle || ""}</div>
-                      </td>
-                      <td className="px-4 py-4 max-w-[160px] truncate text-slate-700">{row.pickup_address || "—"}</td>
-                      <td className="px-4 py-4 max-w-[160px] truncate text-slate-700">{row.dropoff_address || "—"}</td>
-                      <td className="px-4 py-4 text-slate-700">{fmt(row.pickup_at)}</td>
-                      <td className="px-4 py-4 text-slate-700">{fmtDuration(row.journey_duration_minutes)}</td>
-                      <td className="px-4 py-4 text-slate-700">{row.vehicle_category_name || "—"}</td>
-                      <td className="px-4 py-4">
-                        <span className="inline-flex rounded-full border border-black/10 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600">
-                          {row.currency ?? "EUR"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 font-semibold text-slate-900">
-                        {fmtAmount(row.amount, row.currency)}
-                      </td>
-                      <td className="px-4 py-4 text-slate-700">{fmt(row.created_at)}</td>
-                    </tr>
-                  ))}
+                  {visible.map(row => {
+                    const rate = row.commission_rate ?? 20;
+                    const hire = row.car_hire_price ?? 0;
+                    const commAmt = row.commission_amount ?? Math.max((hire * rate) / 100, 10);
+                    const payout = row.partner_payout_amount ?? Math.max(0, hire - commAmt);
+                    return (
+                      <tr key={row.id}
+                        onClick={() => router.push(`/partner/bookings/${row.id}`)}
+                        className="cursor-pointer hover:bg-[#f3f8ff] transition-colors">
+                        <td className="px-4 py-4 font-bold text-[#003768]">{row.job_number ?? "—"}</td>
+                        {adminMode && <td className="px-4 py-4 text-slate-700">{row.partner_company_name || "—"}</td>}
+                        <td className="px-4 py-4">
+                          <div className="font-medium text-slate-900">{row.customer_name || "—"}</div>
+                          <div className="text-xs text-slate-400">{row.customer_phone || row.customer_email || ""}</div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusPill(row.booking_status)}`}>
+                            {fmtStatus(row.booking_status)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-slate-700">{row.driver_name || "—"}</td>
+                        <td className="px-4 py-4 max-w-[160px] truncate text-slate-700">{row.pickup_address || "—"}</td>
+                        <td className="px-4 py-4 text-slate-700">{fmt(row.pickup_at)}</td>
+                        <td className="px-4 py-4 text-slate-700">{row.vehicle_category_name || "—"}</td>
+                        <td className="px-4 py-4">
+                          <span className="inline-flex rounded-full border border-black/10 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                            {row.currency ?? "EUR"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-slate-700">{fmtAmount(row.car_hire_price, row.currency)}</td>
+                        <td className="px-4 py-4">
+                          <div className="text-xs text-amber-700 font-semibold">{fmtAmount(commAmt, row.currency)}</div>
+                          <div className="text-xs text-slate-400">{rate}%</div>
+                        </td>
+                        <td className="px-4 py-4 font-semibold text-green-700">{fmtAmount(payout, row.currency)}</td>
+                        <td className="px-4 py-4 text-slate-700">{fmt(row.created_at)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
             {hasMore && (
-              <button type="button"
-                onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+              <button type="button" onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
                 className="mt-4 w-full rounded-2xl border border-black/10 bg-slate-50 py-3 text-sm font-semibold text-[#003768] hover:bg-slate-100">
                 ▼ Show more ({filtered.length - visibleCount} remaining)
               </button>
             )}
             {visibleCount > PAGE_SIZE && !hasMore && (
-              <button type="button"
-                onClick={() => setVisibleCount(PAGE_SIZE)}
+              <button type="button" onClick={() => setVisibleCount(PAGE_SIZE)}
                 className="mt-4 w-full rounded-2xl border border-black/10 bg-slate-50 py-3 text-sm font-semibold text-[#003768] hover:bg-slate-100">
                 ▲ Show less
               </button>
