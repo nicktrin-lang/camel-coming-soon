@@ -36,6 +36,8 @@ type BookingRow = {
   customer_phone: string | null;
   driver_name: string | null;
   driver_vehicle: string | null;
+  delivery_confirmed_at: string | null;
+  collection_confirmed_at: string | null;
   collection_fuel_level_driver: string | null;
   collection_fuel_level_partner: string | null;
   return_fuel_level_driver: string | null;
@@ -76,6 +78,11 @@ function fmtAmt(amount: number | string | null, currency: Currency | null): stri
 function fmtDate(value?: string | null) {
   if (!value) return "";
   try { return new Date(value).toLocaleDateString(); } catch { return value; }
+}
+
+function fmtDateTimeExport(value?: string | null) {
+  if (!value) return "";
+  try { return new Date(value).toLocaleString(); } catch { return value; }
 }
 
 function fmtDateTime(value?: string | null) {
@@ -375,7 +382,9 @@ export default function AdminBookingsPage() {
       "Job Number", "Partner Company Name", "Legal Company Name",
       "Company Reg. No.", "VAT / NIF Number",
       "Customer", "Customer Email", "Customer Phone",
-      "Pickup Address", "Dropoff Address", "Pickup At", "Dropoff At",
+      "Pickup Address", "Dropoff Address",
+      "Scheduled Pickup At", "Scheduled Dropoff At",
+      "Actual Pickup Date & Time", "Actual Dropoff Date & Time", "Completed Date",
       "Vehicle", "Driver", "Driver Vehicle", "Currency",
       "Car Hire Price", "Commission Rate (%)", "Commission Amount", "Partner Payout",
       "Full Fuel Deposit",
@@ -395,6 +404,7 @@ export default function AdminBookingsPage() {
       const rate    = b.commission_rate ?? 20;
       const commAmt = b.commission_amount ?? Math.max((hire * rate) / 100, 10);
       const payout  = b.partner_payout_amount ?? Math.max(0, hire - commAmt);
+      const isCompleted = String(b.booking_status || "").toLowerCase() === "completed";
       return [
         b.job_number || "",
         b.partner_company_name || "",
@@ -403,7 +413,11 @@ export default function AdminBookingsPage() {
         b.partner_vat_number || "",
         b.customer_name || "", b.customer_email || "", b.customer_phone || "",
         b.pickup_address || "", b.dropoff_address || "",
-        fmtDate(b.pickup_at), fmtDate(b.dropoff_at),
+        fmtDateTimeExport(b.pickup_at),
+        fmtDateTimeExport(b.dropoff_at),
+        fmtDateTimeExport(b.delivery_confirmed_at),
+        fmtDateTimeExport(b.collection_confirmed_at),
+        isCompleted ? fmtDate(b.created_at) : "",
         b.vehicle_category_name || "", b.driver_name || "", b.driver_vehicle || "",
         b.currency || "EUR",
         hire, rate, commAmt, payout,
@@ -444,7 +458,8 @@ export default function AdminBookingsPage() {
     const allHeaders = [
       "Job Number", "Partner Company Name", "Legal Company Name",
       "Company Reg. No.", "VAT / NIF Number",
-      "Customer", "Pickup", "Dropoff", "Pickup At",
+      "Customer", "Pickup", "Dropoff",
+      "Scheduled Pickup At", "Actual Pickup Date & Time", "Actual Dropoff Date & Time", "Completed Date",
       "Vehicle", "Driver", "Status", "Currency",
       "Car Hire", "Commission Rate (%)", "Commission Amount",
       "Amount", "Partner Payout", "Insurance", "Created At",
@@ -454,6 +469,7 @@ export default function AdminBookingsPage() {
       const rate    = b.commission_rate ?? 20;
       const commAmt = b.commission_amount ?? Math.max((hire * rate) / 100, 10);
       const payout  = b.partner_payout_amount ?? Math.max(0, hire - commAmt);
+      const isCompleted = String(b.booking_status || "").toLowerCase() === "completed";
       return [
         b.job_number || "",
         b.partner_company_name || "",
@@ -462,7 +478,10 @@ export default function AdminBookingsPage() {
         b.partner_vat_number || "",
         b.customer_name || "",
         b.pickup_address || "", b.dropoff_address || "",
-        fmtDate(b.pickup_at),
+        fmtDateTimeExport(b.pickup_at),
+        fmtDateTimeExport(b.delivery_confirmed_at),
+        fmtDateTimeExport(b.collection_confirmed_at),
+        isCompleted ? fmtDate(b.created_at) : "",
         b.vehicle_category_name || "", b.driver_name || "",
         b.booking_status || "", b.currency || "EUR",
         hire, rate, commAmt,

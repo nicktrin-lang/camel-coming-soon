@@ -69,11 +69,13 @@ function fmtDuration(m?: number | null) {
   return mins ? `${h}h ${mins}m` : `${h}h`;
 }
 
-function fmtAmount(amount: number | null, currency: Currency | null) {
-  if (amount == null || isNaN(amount)) return "—";
+function fmtAmount(amount: number | string | null, currency: Currency | null) {
+  if (amount == null) return "—";
+  const num = Number(amount);
+  if (isNaN(num)) return "—";
   const curr = currency ?? "EUR";
   const { locale } = CURRENCY_CONFIG[curr];
-  return new Intl.NumberFormat(locale, { style: "currency", currency: curr }).format(amount);
+  return new Intl.NumberFormat(locale, { style: "currency", currency: curr }).format(num);
 }
 
 function statusPill(status?: string | null) {
