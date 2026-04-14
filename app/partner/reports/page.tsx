@@ -89,6 +89,11 @@ function fmtDate(value?: string | null) {
   try { return new Date(value).toLocaleDateString(); } catch { return value; }
 }
 
+function fmtDateTime(value?: string | null) {
+  if (!value) return "";
+  try { return new Date(value).toLocaleString(); } catch { return value; }
+}
+
 function statusPillClasses(status?: string | null) {
   switch (String(status || "").toLowerCase()) {
     case "completed": case "confirmed": case "bid_successful": return "border-green-200 bg-green-50 text-green-700";
@@ -402,9 +407,9 @@ export default function PartnerReportsPage() {
         b.partner_vat_number || "",
         b.customer_name || "", b.customer_email || "", b.customer_phone || "",
         b.pickup_address || "", b.dropoff_address || "",
-        fmtDate(b.pickup_at), fmtDate(b.dropoff_at),
-        fmtDate(b.delivery_confirmed_at),    // actual pickup = driver confirmed delivery
-        fmtDate(b.collection_confirmed_at),  // actual dropoff = driver confirmed return
+        fmtDateTime(b.pickup_at), fmtDateTime(b.dropoff_at),
+        fmtDateTime(b.delivery_confirmed_at),
+        fmtDateTime(b.collection_confirmed_at),
         isCompleted ? fmtDate(b.created_at) : "",
         b.vehicle_category_name || "", b.driver_name || "", b.driver_vehicle || "",
         b.currency || "EUR",
@@ -457,9 +462,9 @@ export default function PartnerReportsPage() {
       return [
         b.job_number || "", b.customer_name || "",
         b.pickup_address || "", b.dropoff_address || "",
-        fmtDate(b.pickup_at),
-        fmtDate(b.delivery_confirmed_at),
-        fmtDate(b.collection_confirmed_at),
+        fmtDateTime(b.pickup_at),
+        fmtDateTime(b.delivery_confirmed_at),
+        fmtDateTime(b.collection_confirmed_at),
         isCompleted ? fmtDate(b.created_at) : "",
         b.vehicle_category_name || "",
         b.driver_name || "", b.booking_status || "",

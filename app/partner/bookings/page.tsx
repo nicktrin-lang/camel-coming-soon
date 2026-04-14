@@ -488,10 +488,11 @@ export default function PartnerBookingsPage() {
                 </thead>
                 <tbody className="divide-y divide-black/5">
                   {visible.map(row => {
-                    const rate = row.commission_rate ?? 20;
-                    const hire = row.car_hire_price ?? 0;
-                    const commAmt = row.commission_amount ?? Math.max((hire * rate) / 100, 10);
-                    const payout = row.partner_payout_amount ?? Math.max(0, hire - commAmt);
+                    const rate    = row.commission_rate ?? 20;
+                    const hire    = Number(row.car_hire_price ?? 0);
+                    const commAmt = row.commission_amount != null ? Number(row.commission_amount) : Math.max((hire * rate) / 100, 10);
+                    const payout  = row.partner_payout_amount != null ? Number(row.partner_payout_amount) : Math.max(0, hire - commAmt);
+                    const netPayout = payout + Number(row.fuel_charge ?? 0);
                     return (
                       <tr key={row.id}
                         onClick={() => router.push(`/partner/bookings/${row.id}`)}
@@ -508,7 +509,7 @@ export default function PartnerBookingsPage() {
                           </span>
                         </td>
                         <td className="px-4 py-4 text-slate-700">{row.driver_name || "—"}</td>
-                        <td className="px-4 py-4 max-w-[160px] truncate text-slate-700">{row.pickup_address || "—"}</td>
+                        <td className="px-4 py-4 max-w-[140px] truncate text-slate-700">{row.pickup_address || "—"}</td>
                         <td className="px-4 py-4 text-slate-700">{fmt(row.pickup_at)}</td>
                         <td className="px-4 py-4 text-slate-700">{row.vehicle_category_name || "—"}</td>
                         <td className="px-4 py-4">
@@ -516,12 +517,18 @@ export default function PartnerBookingsPage() {
                             {row.currency ?? "EUR"}
                           </span>
                         </td>
-                        <td className="px-4 py-4 text-slate-700">{fmtAmount(row.car_hire_price, row.currency)}</td>
+                        <td className="px-4 py-4 text-slate-700">{fmtAmount(hire, row.currency)}</td>
                         <td className="px-4 py-4">
-                          <div className="text-xs text-amber-700 font-semibold">{fmtAmount(commAmt, row.currency)}</div>
+                          <div className="text-xs font-semibold text-amber-700">{fmtAmount(commAmt, row.currency)}</div>
                           <div className="text-xs text-slate-400">{rate}%</div>
                         </td>
-                        <td className="px-4 py-4 font-semibold text-green-700">{fmtAmount(payout, row.currency)}</td>
+                        <td className="px-4 py-4 font-semibold text-orange-700">
+                          {row.fuel_charge != null ? fmtAmount(Number(row.fuel_charge), row.currency) : "—"}
+                        </td>
+                        <td className="px-4 py-4 font-semibold text-green-600">
+                          {row.fuel_refund != null ? fmtAmount(Number(row.fuel_refund), row.currency) : "—"}
+                        </td>
+                        <td className="px-4 py-4 font-bold text-green-700">{fmtAmount(netPayout, row.currency)}</td>
                         <td className="px-4 py-4 text-slate-700">{fmt(row.created_at)}</td>
                       </tr>
                     );
