@@ -33,6 +33,9 @@ type BookingRow = {
   fuel_used_quarters: number | null;
   fuel_charge: number | null;
   fuel_refund: number | null;
+  commission_rate: number | null;
+  commission_amount: number | null;
+  partner_payout_amount: number | null;
   created_at: string | null;
   job_number: string | null;
   pickup_address: string | null;
@@ -51,6 +54,9 @@ type BookingRow = {
   return_fuel_level_partner: string | null;
   collection_confirmed_by_customer: boolean;
   return_confirmed_by_customer: boolean;
+  partner_legal_company_name: string | null;
+  partner_vat_number: string | null;
+  partner_company_registration_number: string | null;
 };
 
 type RequestRow = {
@@ -163,11 +169,20 @@ function downloadBlob(blob: Blob, filename: string) {
   document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
-// ── Currency Section — own component so useState works correctly ───────────────
+// Helper: calculate commission and payout for a booking row
+function calcCommission(b: BookingRow): { rate: number; amount: number; payout: number } {
+  const hire   = Number(b.car_hire_price ?? 0);
+  const rate   = b.commission_rate ?? 20;
+  const amount = b.commission_amount ?? Math.max((hire * rate) / 100, 10);
+  const payout = b.partner_payout_amount ?? Math.max(0, hire - amount);
+  return { rate, amount, payout };
+}
 
 type CurrencyTotals = {
   total: number; carHire: number; fuelDeposit: number;
-  fuelCharge: number; fuelRefund: number; count: number; completed: number;
+  fuelCharge: number; fuelRefund: number;
+  commissionTotal: number; partnerPayoutTotal: number;
+  count: number; completed: number;
 };
 
 function CurrencySection({ curr, t, bookings }: {
@@ -186,14 +201,16 @@ function CurrencySection({ curr, t, bookings }: {
         <h2 className="text-xl font-semibold text-[#003768]">Revenue &amp; Fuel Reconciliation</h2>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
         {[
-          { label: "Total Bookings", value: t.count, isMoney: false },
-          { label: "Completed", value: t.completed, isMoney: false },
-          { label: "Total Revenue", value: t.total, isMoney: true },
-          { label: "Car Hire Revenue", value: t.carHire, isMoney: true },
-          { label: "Fuel Charged to Customers", value: t.fuelCharge, isMoney: true },
-          { label: "Net Revenue to Partner", value: t.carHire + t.fuelCharge, isMoney: true },
+          { label: "Total Bookings",         value: t.count,                                    isMoney: false },
+          { label: "Completed",              value: t.completed,                                isMoney: false },
+          { label: "Total Revenue",          value: t.total,                                    isMoney: true  },
+          { label: "Car Hire Revenue",       value: t.carHire,                                  isMoney: true  },
+          { label: "Fuel Charged",           value: t.fuelCharge,                               isMoney: true  },
+          { label: "Camel Commission",       value: t.commissionTotal,                          isMoney: true  },
+          { label: "Your Net Payout",        value: t.partnerPayoutTotal + t.fuelCharge,        isMoney: true  },
+          { label: "Fuel Refunds Issued",    value: t.fuelRefund,                               isMoney: true  },
         ].map(({ label: lbl, value, isMoney }) => (
           <div key={lbl} className="rounded-2xl border border-black/5 bg-slate-50 p-4">
             <p className="text-xs font-medium text-slate-500">{lbl}</p>
@@ -212,18 +229,20 @@ function CurrencySection({ curr, t, bookings }: {
               <th className="px-4 py-3 font-semibold">Customer</th>
               <th className="px-4 py-3 font-semibold">Status</th>
               <th className="px-4 py-3 font-semibold">Car Hire</th>
+              <th className="px-4 py-3 font-semibold">Commission</th>
               <th className="px-4 py-3 font-semibold">Fuel Deposit</th>
               <th className="px-4 py-3 font-semibold">Fuel Used</th>
               <th className="px-4 py-3 font-semibold">Fuel Charge</th>
               <th className="px-4 py-3 font-semibold">Fuel Refund</th>
               <th className="px-4 py-3 font-semibold">Total</th>
-              <th className="px-4 py-3 font-semibold">Net Revenue</th>
+              <th className="px-4 py-3 font-semibold">Your Payout</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-black/5">
             {visible.map(b => {
               const usedQ = b.fuel_used_quarters;
-              const netRev = Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0);
+              const { rate, amount: commAmt, payout } = calcCommission(b);
+              const netPayout = payout + Number(b.fuel_charge ?? 0);
               return (
                 <tr key={b.id} className="hover:bg-[#f3f8ff]">
                   <td className="px-4 py-3 font-semibold text-[#003768]">{b.job_number || "—"}</td>
@@ -234,6 +253,10 @@ function CurrencySection({ curr, t, bookings }: {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-700">{fmtAmt(b.car_hire_price, curr)}</td>
+                  <td className="px-4 py-3">
+                    <div className="text-xs font-semibold text-amber-700">− {fmtCurr(commAmt, curr)}</div>
+                    <div className="text-xs text-slate-400">{rate}%</div>
+                  </td>
                   <td className="px-4 py-3 text-slate-700">{fmtAmt(b.fuel_price, curr)}</td>
                   <td className="px-4 py-3 text-slate-700">
                     {usedQ !== null && usedQ !== undefined ? (QUARTER_LABELS[usedQ] ?? `${usedQ}/4`) : "—"}
@@ -245,7 +268,7 @@ function CurrencySection({ curr, t, bookings }: {
                     {b.fuel_refund !== null ? fmtAmt(b.fuel_refund, curr) : "—"}
                   </td>
                   <td className="px-4 py-3 font-bold text-[#003768]">{fmtAmt(b.amount, curr)}</td>
-                  <td className="px-4 py-3 font-bold text-green-700">{fmtCurr(netRev, curr)}</td>
+                  <td className="px-4 py-3 font-bold text-green-700">{fmtCurr(netPayout, curr)}</td>
                 </tr>
               );
             })}
@@ -286,11 +309,11 @@ export default function PartnerReportsPage() {
         fetch("/api/partner/bookings", { cache: "no-store", credentials: "include" }),
       ]);
       const reqJson = await safeJson(reqRes);
-      const bkJson = await safeJson(bkRes);
+      const bkJson  = await safeJson(bkRes);
       if (!reqRes.ok) throw new Error(reqJson?.error || "Failed to load requests.");
-      if (!bkRes.ok) throw new Error(bkJson?.error || "Failed to load bookings.");
+      if (!bkRes.ok)  throw new Error(bkJson?.error  || "Failed to load bookings.");
       setRequests(Array.isArray(reqJson?.data) ? reqJson.data : []);
-      setBookings(Array.isArray(bkJson?.data) ? bkJson.data : []);
+      setBookings(Array.isArray(bkJson?.data)  ? bkJson.data  : []);
     } catch (e: any) {
       setError(e?.message || "Failed to load report data.");
       setRequests([]); setBookings([]);
@@ -305,31 +328,34 @@ export default function PartnerReportsPage() {
 
   const revenuesByCurrency = useMemo(() => {
     const t: Record<Currency, CurrencyTotals> = {
-      EUR: { total: 0, carHire: 0, fuelDeposit: 0, fuelCharge: 0, fuelRefund: 0, count: 0, completed: 0 },
-      GBP: { total: 0, carHire: 0, fuelDeposit: 0, fuelCharge: 0, fuelRefund: 0, count: 0, completed: 0 },
-      USD: { total: 0, carHire: 0, fuelDeposit: 0, fuelCharge: 0, fuelRefund: 0, count: 0, completed: 0 },
+      EUR: { total: 0, carHire: 0, fuelDeposit: 0, fuelCharge: 0, fuelRefund: 0, commissionTotal: 0, partnerPayoutTotal: 0, count: 0, completed: 0 },
+      GBP: { total: 0, carHire: 0, fuelDeposit: 0, fuelCharge: 0, fuelRefund: 0, commissionTotal: 0, partnerPayoutTotal: 0, count: 0, completed: 0 },
+      USD: { total: 0, carHire: 0, fuelDeposit: 0, fuelCharge: 0, fuelRefund: 0, commissionTotal: 0, partnerPayoutTotal: 0, count: 0, completed: 0 },
     };
     for (const b of filteredBookings) {
       const c: Currency = (b.currency as Currency) ?? "EUR";
       if (!t[c]) continue;
+      const { amount: commAmt, payout } = calcCommission(b);
       t[c].count++;
-      t[c].total += Number(b.amount ?? 0);
-      t[c].carHire += Number(b.car_hire_price ?? 0);
-      t[c].fuelDeposit += Number(b.fuel_price ?? 0);
-      t[c].fuelCharge += Number(b.fuel_charge ?? 0);
-      t[c].fuelRefund += Number(b.fuel_refund ?? 0);
+      t[c].total              += Number(b.amount ?? 0);
+      t[c].carHire            += Number(b.car_hire_price ?? 0);
+      t[c].fuelDeposit        += Number(b.fuel_price ?? 0);
+      t[c].fuelCharge         += Number(b.fuel_charge ?? 0);
+      t[c].fuelRefund         += Number(b.fuel_refund ?? 0);
+      t[c].commissionTotal    += commAmt;
+      t[c].partnerPayoutTotal += payout;
       if (String(b.booking_status || "").toLowerCase() === "completed") t[c].completed++;
     }
     return t;
   }, [filteredBookings]);
 
-  const currentMonthKey = getCurrentMonthKey();
+  const currentMonthKey  = getCurrentMonthKey();
   const previousMonthKey = getPreviousMonthKey();
-  const bidsSubmitted = filteredRequests.filter(r =>
+  const bidsSubmitted    = filteredRequests.filter(r =>
     ["bid_submitted", "bid_successful", "bid_unsuccessful"].includes(String(r.status || "").toLowerCase())
   ).length;
-  const acceptedBids = filteredRequests.filter(r => String(r.status || "").toLowerCase() === "bid_successful").length;
-  const conversionRate = bidsSubmitted > 0 ? Math.round((acceptedBids / bidsSubmitted) * 100) : 0;
+  const acceptedBids     = filteredRequests.filter(r => String(r.status || "").toLowerCase() === "bid_successful").length;
+  const conversionRate   = bidsSubmitted > 0 ? Math.round((acceptedBids / bidsSubmitted) * 100) : 0;
 
   const vehicleBreakdown = Array.from(
     filteredBookings.reduce((map, r) => {
@@ -344,37 +370,47 @@ export default function PartnerReportsPage() {
     const dateStr = new Date().toISOString().split("T")[0];
 
     const fuelHeaders = [
-      "Job Number", "Customer", "Customer Email", "Customer Phone",
+      "Job Number", "Legal Company Name", "Company Reg. No.", "VAT / NIF Number",
+      "Customer", "Customer Email", "Customer Phone",
       "Pickup Address", "Dropoff Address", "Pickup At", "Dropoff At",
       "Vehicle", "Driver", "Driver Vehicle", "Currency",
-      "Car Hire Price", "Full Fuel Deposit",
+      "Car Hire Price", "Commission Rate (%)", "Commission Amount",
+      "Full Fuel Deposit",
       "Collection Fuel (Driver)", "Collection Fuel (Partner Override)",
       "Return Fuel (Driver)", "Return Fuel (Partner Override)",
       "Quarters Used", "Fuel Used Label",
       "Fuel Charge to Customer", "Fuel Refund to Customer",
-      "Total Booking Amount", "Net Revenue to Partner (Car Hire + Fuel Charge)",
+      "Total Booking Amount",
+      "Your Payout (Car Hire − Commission + Fuel Charge)",
       "Customer Collection Confirmed", "Customer Return Confirmed",
       "Booking Status", "Created At",
     ];
 
     const fuelRows = filteredBookings.map(b => {
       const usedQ = b.fuel_used_quarters;
-      const netRevenue = Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0);
+      const { rate, amount: commAmt, payout } = calcCommission(b);
+      const netPayout = payout + Number(b.fuel_charge ?? 0);
       return [
-        b.job_number || "", b.customer_name || "", b.customer_email || "", b.customer_phone || "",
+        b.job_number || "",
+        b.partner_legal_company_name || "",
+        b.partner_company_registration_number || "",
+        b.partner_vat_number || "",
+        b.customer_name || "", b.customer_email || "", b.customer_phone || "",
         b.pickup_address || "", b.dropoff_address || "",
         fmtDate(b.pickup_at), fmtDate(b.dropoff_at),
         b.vehicle_category_name || "", b.driver_name || "", b.driver_vehicle || "",
         b.currency || "EUR",
-        Number(b.car_hire_price ?? 0), Number(b.fuel_price ?? 0),
-        b.collection_fuel_level_driver || b.collection_fuel_level_partner || "—",
+        Number(b.car_hire_price ?? 0), rate, commAmt,
+        Number(b.fuel_price ?? 0),
+        b.collection_fuel_level_driver || "—",
         b.collection_fuel_level_partner || "—",
-        b.return_fuel_level_driver || b.return_fuel_level_partner || "—",
+        b.return_fuel_level_driver || "—",
         b.return_fuel_level_partner || "—",
         usedQ !== null && usedQ !== undefined ? usedQ : "—",
         usedQ !== null && usedQ !== undefined ? (QUARTER_LABELS[usedQ] ?? `${usedQ}/4`) : "—",
         Number(b.fuel_charge ?? 0), Number(b.fuel_refund ?? 0),
-        Number(b.amount ?? 0), netRevenue,
+        Number(b.amount ?? 0),
+        netPayout,
         b.collection_confirmed_by_customer ? "Yes" : "No",
         b.return_confirmed_by_customer ? "Yes" : "No",
         b.booking_status || "", fmtDate(b.created_at),
@@ -383,39 +419,50 @@ export default function PartnerReportsPage() {
 
     const summaryHeaders = [
       "Currency", "Total Bookings", "Completed",
-      "Total Revenue", "Car Hire Revenue", "Fuel Deposits Collected",
+      "Total Revenue", "Car Hire Revenue",
+      "Camel Commission (deducted)", "Fuel Deposits Collected",
       "Fuel Charges Billed", "Fuel Refunds Issued",
-      "Net Revenue to Partner (Car Hire + Fuel Charge)",
+      "Your Net Payout (Payout + Fuel Charge)",
     ];
     const summaryRows = (["EUR", "GBP", "USD"] as Currency[]).map(curr => {
       const t = revenuesByCurrency[curr];
       return [
         `${curr} ${CURRENCY_META[curr].symbol}`,
-        t.count, t.completed, t.total, t.carHire,
+        t.count, t.completed,
+        t.total, t.carHire,
+        t.commissionTotal,
         t.fuelDeposit, t.fuelCharge, t.fuelRefund,
-        t.carHire + t.fuelCharge,
+        t.partnerPayoutTotal + t.fuelCharge,
       ];
     });
 
     const allHeaders = [
       "Job Number", "Customer", "Pickup", "Dropoff", "Pickup At",
-      "Vehicle", "Driver", "Status", "Currency", "Amount",
-      "Net Revenue to Partner", "Created At",
+      "Vehicle", "Driver", "Status", "Currency",
+      "Car Hire", "Commission Rate (%)", "Commission Amount",
+      "Fuel Charge", "Total Amount", "Your Payout", "Created At",
     ];
-    const allRows = filteredBookings.map(b => [
-      b.job_number || "", b.customer_name || "",
-      b.pickup_address || "", b.dropoff_address || "",
-      fmtDate(b.pickup_at), b.vehicle_category_name || "",
-      b.driver_name || "", b.booking_status || "",
-      b.currency || "EUR", Number(b.amount ?? 0),
-      Number(b.car_hire_price ?? 0) + Number(b.fuel_charge ?? 0),
-      fmtDate(b.created_at),
-    ]);
+    const allRows = filteredBookings.map(b => {
+      const { rate, amount: commAmt, payout } = calcCommission(b);
+      return [
+        b.job_number || "", b.customer_name || "",
+        b.pickup_address || "", b.dropoff_address || "",
+        fmtDate(b.pickup_at), b.vehicle_category_name || "",
+        b.driver_name || "", b.booking_status || "",
+        b.currency || "EUR",
+        Number(b.car_hire_price ?? 0),
+        rate, commAmt,
+        Number(b.fuel_charge ?? 0),
+        Number(b.amount ?? 0),
+        payout + Number(b.fuel_charge ?? 0),
+        fmtDate(b.created_at),
+      ];
+    });
 
     const blob = buildXls([
       { name: "Fuel Reconciliation", headers: fuelHeaders, rows: fuelRows },
-      { name: "Currency Summary", headers: summaryHeaders, rows: summaryRows },
-      { name: "All Bookings", headers: allHeaders, rows: allRows },
+      { name: "Currency Summary",    headers: summaryHeaders, rows: summaryRows },
+      { name: "All Bookings",        headers: allHeaders, rows: allRows },
     ]);
     downloadBlob(blob, `camel-report-${dateStr}.xls`);
   }
@@ -435,7 +482,7 @@ export default function PartnerReportsPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h2 className="text-2xl font-semibold text-[#003768]">Reports</h2>
-            <p className="mt-1 text-sm text-slate-600">Full reconciliation including fuel charges, refunds and multi-currency revenue.</p>
+            <p className="mt-1 text-sm text-slate-600">Full reconciliation including commission, fuel charges, refunds and multi-currency revenue.</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -465,10 +512,10 @@ export default function PartnerReportsPage() {
       {/* Key stats */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {[
-          { label: "Total Bookings", value: filteredBookings.length, color: "text-[#003768]" },
-          { label: "Completed", value: completedBookings.length, color: "text-green-600" },
-          { label: "Bids Submitted", value: bidsSubmitted, color: "text-[#003768]" },
-          { label: "Conversion Rate", value: `${conversionRate}%`, color: "text-amber-600" },
+          { label: "Total Bookings",  value: filteredBookings.length,  color: "text-[#003768]" },
+          { label: "Completed",       value: completedBookings.length, color: "text-green-600" },
+          { label: "Bids Submitted",  value: bidsSubmitted,            color: "text-[#003768]" },
+          { label: "Conversion Rate", value: `${conversionRate}%`,     color: "text-amber-600" },
         ].map(({ label, value, color }) => (
           <div key={label} className="rounded-3xl border border-black/5 bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
             <p className="text-sm font-medium text-slate-500">{label}</p>
@@ -504,7 +551,7 @@ export default function PartnerReportsPage() {
         ))}
       </div>
 
-      {/* Per-currency sections — max 10 rows each with show more */}
+      {/* Per-currency sections */}
       {(["EUR", "GBP", "USD"] as Currency[]).map(curr => {
         const t = revenuesByCurrency[curr];
         if (t.count === 0) return null;

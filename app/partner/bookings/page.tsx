@@ -23,6 +23,9 @@ type BookingRow = {
   customer_email: string | null; customer_phone: string | null;
   request_status: string | null;
   car_hire_price: number | null;
+  fuel_price: number | null;
+  fuel_charge: number | null;
+  fuel_refund: number | null;
   commission_rate: number | null;
   commission_amount: number | null;
   partner_payout_amount: number | null;
@@ -352,6 +355,8 @@ export default function PartnerBookingsPage() {
                     <th className="px-4 py-3 font-semibold">Currency</th>
                     <th className="px-4 py-3 font-semibold">Car Hire</th>
                     <th className="px-4 py-3 font-semibold">Commission</th>
+                    <th className="px-4 py-3 font-semibold">Fuel Charge</th>
+                    <th className="px-4 py-3 font-semibold">Fuel Refund</th>
                     <th className="px-4 py-3 font-semibold">Your Payout</th>
                     <th className="px-4 py-3 font-semibold">Created</th>
                   </tr>
