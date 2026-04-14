@@ -129,34 +129,41 @@ function downloadCsv(rows: BookingRow[]) {
     return s.includes(",") || s.includes('"') || s.includes("\n")
       ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const dataRows = rows.map(r => [
-    r.job_number ?? "",
-    r.partner_company_name ?? "",
-    r.partner_legal_company_name ?? "",
-    r.partner_company_registration_number ?? "",
-    r.partner_vat_number ?? "",
-    r.customer_name ?? "",
-    r.customer_email ?? "",
-    r.customer_phone ?? "",
-    r.booking_status ?? "",
-    r.driver_name ?? "",
-    r.vehicle_category_name ?? "",
-    r.pickup_address ?? "",
-    r.dropoff_address ?? "",
-    fmtDate(r.pickup_at),
-    fmtDate(r.dropoff_at),
-    fmtDuration(r.journey_duration_minutes),
-    r.currency ?? "EUR",
-    r.car_hire_price ?? "",
-    r.commission_rate ?? 20,
-    r.commission_amount ?? "",
-    r.amount ?? "",           // fuel deposit = total amount (hire + fuel)
-    "",                        // fuel charge — not available on list view
-    "",                        // fuel refund — not available on list view
-    r.amount ?? "",
-    r.partner_payout_amount ?? "",
-    fmtDate(r.created_at),
-  ].map(escape).join(","));
+  const dataRows = rows.map(r => {
+    const hire    = r.car_hire_price ?? 0;
+    const rate    = r.commission_rate ?? 20;
+    const commAmt = r.commission_amount ?? Math.max((hire * rate) / 100, 10);
+    const payout  = r.partner_payout_amount ?? Math.max(0, hire - commAmt);
+    const netPayout = payout + Number(r.fuel_charge ?? 0);
+    return [
+      r.job_number ?? "",
+      r.partner_company_name ?? "",
+      r.partner_legal_company_name ?? "",
+      r.partner_company_registration_number ?? "",
+      r.partner_vat_number ?? "",
+      r.customer_name ?? "",
+      r.customer_email ?? "",
+      r.customer_phone ?? "",
+      r.booking_status ?? "",
+      r.driver_name ?? "",
+      r.vehicle_category_name ?? "",
+      r.pickup_address ?? "",
+      r.dropoff_address ?? "",
+      fmtDate(r.pickup_at),
+      fmtDate(r.dropoff_at),
+      fmtDuration(r.journey_duration_minutes),
+      r.currency ?? "EUR",
+      hire,
+      rate,
+      commAmt,
+      r.fuel_price ?? "",
+      r.fuel_charge ?? "",
+      r.fuel_refund ?? "",
+      r.amount ?? "",
+      netPayout,
+      fmtDate(r.created_at),
+    ].map(escape).join(",");
+  });
   const csv = [headers.map(escape).join(","), ...dataRows].join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
