@@ -8,6 +8,8 @@
 - **Always paste the current file before Claude rewrites it.** Claude works from what you paste, not from memory. For small fixes this isn't needed, but for any full file rewrite, paste the file first.
 - **Always give Claude the full file tree** at the start of a new chat by running: `find ~/camel-portal -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/.next/*' | sort`
 - **Before any rewrite**, Claude will tell you which files to paste, or give you a command to cat them.
+- **Always ask Claude to check the actual file** before rewriting — never assume the artifact is current.
+- **Always provide the git push command** at the end of every change.
 
 ---
 
@@ -50,19 +52,29 @@
 | `lib/supabase/browser.ts` | Supabase browser client (partner/admin) |
 | `lib/supabase-customer/browser.ts` | Supabase browser client (customers) |
 | `lib/portal/calculateFuelCharge.ts` | Fuel charge calculation logic |
+| `lib/portal/calculateCommission.ts` | Commission calculation — 20% of hire, min €10 floor |
 | `lib/portal/syncBookingStatuses.ts` | Booking status sync logic |
-| `lib/portal/refreshPartnerLiveStatus.ts` | Core live status logic — checks all 6 requirements, updates DB |
+| `lib/portal/refreshPartnerLiveStatus.ts` | Core live status logic — checks all 7 requirements |
 | `lib/portal/triggerPartnerLiveRefresh.ts` | Triggers the live status refresh |
 | `app/api/currency/rate/route.ts` | Live rate API — fetches EUR→GBP,USD from frankfurter.app |
 | `app/api/partner/refresh-live-status/route.ts` | POST endpoint — runs live status check for current partner |
+| `app/api/partner/requests/[id]/route.ts` | Returns commissionRate + minimumCommission to bid form |
 
 ### Currency System
 - **Storage:** All prices stored in the currency the booking was made in (`booking.currency`)
 - **Supported:** `EUR | GBP | USD`
 - **Rates:** Live from `frankfurter.app` (no API key), cached 1 hour, fallback to hardcoded rates
 - **Fallback rates:** GBP 0.85, USD 1.08
-- **Partner billing:** Partners price in their own currency (EUR or GBP typically)
-- **Customer display:** Converted to customer's preferred currency in real time
+
+### Commission System
+- **Rate:** 20% of car hire price only (not fuel). Per-partner override available in admin.
+- **Minimum:** €10 per booking floor — prevents gaming (e.g. partner setting hire at €1)
+- **Fuel:** 0% commission — passes through 100% to partner
+- **Storage:** `platform_settings` table holds default rate + minimum. `partner_profiles.commission_rate` overrides per partner.
+- **DB columns on `partner_bookings`:** `commission_rate`, `commission_amount`, `partner_payout_amount`, `invoice_period`
+- **Payout formula:** `(car_hire − commission) + fuel_charge`
+- **Display:** Shown on bid form (live preview), partner bookings, partner reports, admin bookings, admin reports
+- **Excel exports:** All exports include commission rate, commission amount, partner payout
 
 ### Live Status System
 A partner account is **live** only when ALL of the following are true:
@@ -72,31 +84,35 @@ A partner account is **live** only when ALL of the following are true:
 4. At least one active fleet vehicle (`partner_fleet.is_active = true`)
 5. At least one active driver (`partner_drivers.is_active = true`)
 6. Billing currency set (`default_currency`)
+7. VAT / NIF number set (`vat_number`) ← added Chat 8
+
+### Business & Billing Details
+Collected during onboarding (Business & Billing step) and editable by admin only:
+- `legal_company_name` — appears on commission invoices
+- `company_registration_number`
+- `vat_number` — required for live status; used for reverse charge cross-border invoicing
+- `commission_rate` — per-partner override (admin can change)
+- `stripe_account_id`, `stripe_onboarding_status` — for future Stripe Connect
+
+**VAT / NIF note:** Spanish companies use NIF (e.g. B12345678) which becomes ESB12345678 for EU transactions. Camel invoices partners with reverse charge — no UK VAT added. Invoice wording: *"VAT reverse charged to customer under Article 44/196 EU VAT Directive"*
+
+**Partner profile page:** Business & Billing is read-only — partners cannot edit. Contact support@camel-global.com to change.
+**Admin account page:** Business & Billing has an ✏️ Edit toggle with amber warning — only update if partner has contacted Camel Global.
 
 ### Insurance Documents Handover System
-At delivery, both driver and customer must confirm insurance documents were handed over:
-- **Driver app** — checkbox at delivery stage (hard blocker — cannot confirm delivery fuel without ticking)
-- **Customer portal** — separate `InsuranceConfirmCard` always visible once booking exists; customer ticks and confirms after driver has confirmed
-- **Partner portal** — read-only `InsuranceStatusCard` showing both driver and customer status; always visible
-- **DB columns:** `insurance_docs_confirmed_by_driver`, `insurance_docs_confirmed_by_driver_at`, `insurance_docs_confirmed_by_customer`, `insurance_docs_confirmed_by_customer_at` on `partner_bookings`
-- Insurance is delivery-only (not collection). Saved via `insurance_only: true` flag in customer update API so it doesn't interfere with fuel confirmation state.
-- Driver app auto-refreshes every 10s (silent fetch, does not reset fuel/insurance input state)
+- **Driver app** — checkbox at delivery stage (hard blocker)
+- **Customer portal** — `InsuranceConfirmCard` always visible
+- **Partner portal** — read-only `InsuranceStatusCard`
+- **DB columns:** `insurance_docs_confirmed_by_driver`, `insurance_docs_confirmed_by_driver_at`, `insurance_docs_confirmed_by_customer`, `insurance_docs_confirmed_by_customer_at`
 
 ### Driver Audit Trail System
-Permanent record of exactly who delivered and collected each vehicle and when:
-- **DB columns on `partner_bookings`:** `delivery_driver_id`, `delivery_driver_name`, `delivery_confirmed_at`, `collection_driver_id`, `collection_driver_name`, `collection_confirmed_at`
-- Stamped automatically by the driver confirm API at the moment the driver confirms — **never overwritten**
-- If a different driver is assigned before collection, the new driver is stamped for collection; the delivery driver record remains intact
-- When `assigned_driver_id` changes, the booking disappears from the old driver's app immediately
-- **Partner portal** shows a Driver Audit Trail card with delivery driver + timestamp, collection driver + timestamp, and an amber warning if different drivers handled each leg
+- **DB columns:** `delivery_driver_id`, `delivery_driver_name`, `delivery_confirmed_at`, `collection_driver_id`, `collection_driver_name`, `collection_confirmed_at`
+- `delivery_confirmed_at` = actual pickup timestamp (driver confirmed delivery to customer)
+- `collection_confirmed_at` = actual dropoff timestamp (driver confirmed return from customer)
+- Both used in Excel exports for "Actual Pickup Date & Time" and "Actual Dropoff Date & Time"
 
-### Fuel Confirmation Flow
-- Driver records fuel at delivery (`collection` stage) and collection (`return` stage)
-- Customer confirms each reading independently — copies driver's fuel level as customer fuel
-- Both must agree (same fuel level) to lock each stage
-- Partner has office override to correct driver reading if needed
-- Booking status: `collected` when delivery locked, `completed` when both locked
-- Fuel charge calculated automatically on completion
+### Partner Login Flow
+After sign-in, checks if onboarding is complete (`base_lat`, `base_lng`, `default_currency`, `vat_number` all set). If any missing → redirects to `/partner/onboarding`. Otherwise → `/partner/dashboard`.
 
 ---
 
@@ -104,22 +120,23 @@ Permanent record of exactly who delivered and collected each vehicle and when:
 
 ### Last Known Good Tag
 ```bash
-git checkout v-stable-partner-reviews
+git checkout v-stable-commission-reporting
 ```
-**Tag:** `v-stable-partner-reviews`
-**Description:** Full partner review system. Customer leaves star rating + comment on completed bookings. Reviews expandable on bid cards so customers can read comments and partner replies before accepting. Partner reviews page shows all reviews with one-reply-only box. Admin review moderation page with hide/restore toggle. 7-day reminder email cron via Vercel. Bad word filter on submit and reply. Ratings shown on bid cards. Reviews and Review Moderation added to sidebars via PortalSidebar.tsx (the actual sidebar in use — PartnerSidebar.tsx and AdminSidebar.tsx are unused). Reviews API at `/api/test-booking/reviews` handles both partner_user_id (public) and booking_id (authenticated) GET params.
+**Tag:** `v-stable-commission-reporting`
+**Description:** Full commission and billing system. Business & Billing onboarding step (legal name, reg number, VAT/NIF). VAT as 7th live status check. Commission shown on bid form with live payout preview. Commission rate, commission amount, partner payout on all reporting pages and Excel exports. Partner login redirects to onboarding if incomplete. Admin can edit billing details and override commission rate per partner. Admin bookings and reports pages show unified columns matching reconciliation table. Actual pickup/dropoff timestamps from driver confirmation in Excel. Partner bookings page shows fuel charge/refund/payout correctly.
 
 ### Previous Stable Tags
 | Tag | Description |
 |-----|-------------|
-| `v-stable-admin-insurance-live-status` | Admin booking detail and list pages show insurance and driver audit trail. Admin auth fixed. Live status banner fixed. |
-| `v-stable-driver-audit-trail` | Driver audit trail — delivery/collection driver stamped permanently with exact timestamps, split-driver warning on partner portal. |
-| `v-stable-insurance-handover` | Full insurance document handover flow. Driver checkbox hard blocker. Customer confirmation card. Partner read-only status. |
-| `v-stable-live-status-checks` | Live status checks require fleet location, service radius, billing currency, at least one active fleet vehicle and driver. |
-| `v-stable-fuel-flow-fixed` | Full fuel confirmation flow working end to end. |
-| `v-stable-admin-booking-fixes` | Admin booking detail matches partner view. All three currencies shown everywhere. |
-| `v-stable-password-reset` | All three portals password reset fully working with branded emails. |
-| `v-stable-currency-reporting` | Full EUR/GBP/USD revenue reporting on partner and admin booking pages. |
+| `v-stable-partner-reviews` | Full partner review system, admin moderation, 7-day reminder cron |
+| `v-stable-admin-insurance-live-status` | Admin booking detail with insurance and driver audit trail |
+| `v-stable-driver-audit-trail` | Driver audit trail — delivery/collection driver stamped permanently |
+| `v-stable-insurance-handover` | Full insurance document handover flow |
+| `v-stable-live-status-checks` | 6-check live status system |
+| `v-stable-fuel-flow-fixed` | Full fuel confirmation flow working end to end |
+| `v-stable-admin-booking-fixes` | Admin booking detail matches partner view |
+| `v-stable-password-reset` | All three portals password reset fully working |
+| `v-stable-currency-reporting` | Full EUR/GBP/USD revenue reporting |
 
 ### What Is Working ✅
 - Customer booking flow (test-booking portal)
@@ -128,171 +145,125 @@ git checkout v-stable-partner-reviews
 - Admin approval and account management
 - Full EUR / GBP / USD currency support throughout
 - Live exchange rates with fallback
-- Currency selector persisted in localStorage per user
-- Partner bookings page — per-currency revenue cards + breakdown table + date filter
-- Admin bookings page — full reconciliation table per currency + currency filter dropdown
-- Fuel level recording at delivery and collection
-- Fuel charge / refund calculation
-- Customer fuel confirmation flow
-- Partner and admin booking detail pages
-- Email notifications (application received, etc.)
-- Google Maps integration (pickup/dropoff, partner location)
-- Forgot password flow on all three login pages
-- Reset password pages for partner, driver and customer portals
-- Branded reset emails via Resend from Camel Global address
-- Correct post-reset redirects for all three portals
-- **Live status system** — 6 requirements, shown everywhere with missing items listed
-- **Partner login** — always goes to dashboard, no onboarding redirect loop
-- **Partner onboarding** — Go Live step shows real completion state even if steps were skipped
-- **Partner dashboard** — amber live status banner with clickable fix links
-- **Driver portal** — independent header, full name + company name, correct logout, 3 tab cards, 10-per-page pagination, auto-refresh every 10s
-- **Insurance handover** — driver checkbox (hard blocker at delivery), customer confirmation card, partner read-only status, driver app shows both sides
-- **Partner review system** — customer leaves star rating + comment on completed bookings, expandable reviews on bid cards, partner one-reply-only, admin hide/restore moderation, 7-day reminder email cron, bad word filter, ratings shown on bid cards
+- Partner bookings page — per-currency revenue cards + commission + payout + fuel columns
+- Admin bookings page — unified columns matching reconciliation table, correct payout
+- Admin reports page — same columns as bookings, All Bookings section at top, partner breakdown with commission
+- Partner reports page — commission column, correct payout, Excel with actual timestamps
+- All Excel/CSV exports — commission rate, commission amount, payout, legal name, reg no, VAT/NIF, actual pickup/dropoff timestamps, completed date
+- Fuel level recording, fuel charge/refund calculation
+- Email notifications
+- Google Maps integration
+- Forgot/reset password flow on all three portals
+- Live status system — 7 requirements (added VAT/NIF check)
+- Partner login — redirects to onboarding if setup incomplete
+- Partner onboarding — 6 steps including Business & Billing step
+- Partner dashboard — setup checklist includes VAT/NIF
+- Driver portal — independent header, auto-refresh, insurance checkbox
+- Insurance handover — across all three portals
+- Partner review system — ratings, replies, admin moderation, cron reminder
+- **Commission system** — 20% default, min €10, per-partner override in admin, shown everywhere
+- **Business & Billing** — collected in onboarding, read-only for partners, editable by admin
+- **Billing details in exports** — legal company name, reg number, VAT/NIF in all Excel downloads
 
 ---
 
 ## Session Log
 
-### Chat 1 (Initial build — filled)
-- Project created from scratch, Supabase schema built, all three portals scaffolded
-- Core booking flow and fuel level recording implemented
-
-### Chat 2 (Currency work — filled)
-- GBP support, live exchange rates, currency selector, dual currency display
-- Partner profile currency detection by country
-
-### Chat 3 (filled)
-- USD support throughout, full EUR/GBP/USD revenue summary on partner and admin booking pages
-- Stable tag: `v-stable-currency-reporting`
-
-### Chat 4 (Completed)
-- Reset-password pages for all three portals, branded emails via Resend
-- Stable tag: `v-stable-password-reset`
-
-### Chat 5 (Completed)
-- Admin booking detail rebuilt to match partner view, all three currencies everywhere
-- Stable tag: `v-stable-admin-booking-fixes`
-
-### Chat 6 (Completed)
-- Full 6-check live status system, dashboard banners, partner login redirect fix, driver portal polish
-- Stable tag: `v-stable-live-status-checks`
+### Chat 8 (Current)
+- Added `platform_settings` table (`default_commission_rate`, `minimum_commission_amount`)
+- Added to `partner_profiles`: `legal_company_name`, `vat_number`, `company_registration_number`, `stripe_account_id`, `stripe_onboarding_status`, `commission_rate`
+- Added to `partner_bookings`: `commission_rate`, `commission_amount`, `partner_payout_amount`, `invoice_period`
+- Built `lib/portal/calculateCommission.ts` — 20% of hire, min €10 floor
+- Added Business & Billing step to partner onboarding (step 3 of 6)
+- VAT/NIF added as 7th live status check in `refreshPartnerLiveStatus.ts`
+- Partner login redirects to onboarding if `base_lat`, `base_lng`, `default_currency`, `vat_number` not all set
+- Partner profile Business & Billing section is read-only with support contact link
+- Admin account detail — Business & Billing inline edit (read-only by default, ✏️ Edit with amber warning)
+- Admin account detail — Commission Rate override card
+- Commission shown on bid form with live 3-column preview (hire / commission / payout)
+- Partner bookings page — added Commission, Fuel Charge, Fuel Refund, Your Payout columns; Export Excel matches reports format
+- Partner reports page — Commission column added to reconciliation table; correct payout; Excel updated
+- Admin bookings API — added `delivery_confirmed_at`, `collection_confirmed_at`, billing fields, commission fields
+- Admin bookings page — unified columns, correct payout calc via `calcPayout()` helper
+- Admin reports page — same columns, All Bookings section at top (10 at a time), Partner Breakdown shows commission
+- All Excel exports — actual pickup/dropoff from `delivery_confirmed_at`/`collection_confirmed_at`, completed date, legal name, reg no, VAT/NIF
+- Stable tag: `v-stable-commission-reporting`
 
 ### Chat 7 (Completed)
-- Fuel flow fixes — correct stage labels, lock logic, driver layout, partner booking detail
+- Fuel flow fixes, driver layout, partner booking detail labels
 - Stable tag: `v-stable-fuel-flow-fixed`
 
-### Chat 8 (Completed)
-- Full insurance document handover flow across all three portals
-- Added 4 insurance columns to `partner_bookings`
-- Driver confirm API hard blocks without insurance tick
-- Customer update API `insurance_only` flag saves independently of fuel state
-- Both GET API routes fixed to return insurance columns
-- Driver app auto-refreshes every 10s silently
-- Stable tag: `v-stable-insurance-handover`
+### Chat 6 (Completed)
+- 6-check live status, dashboard banners, partner login redirect fix, driver portal polish
+- Stable tag: `v-stable-live-status-checks`
 
-### Chat 11 (Completed)
-- Full partner review system built end to end
-- DB: `partner_reviews` table + `review_reminder_sent_at` column on `partner_bookings`
-- `app/api/test-booking/reviews/route.ts` — POST submit review (bad word filter, one per booking, completed only), GET by booking_id or partner_user_id
-- `app/api/partner/reviews/route.ts` — GET all reviews for partner with stats, POST partner reply (one reply only, bad word filter)
-- `app/api/admin/reviews/route.ts` — GET all reviews with company names, PATCH toggle visibility
-- `app/api/cron/review-reminder/route.ts` — daily cron, emails customers 7 days after completion if no review
-- `vercel.json` — cron schedule 10am UTC daily, secured with CRON_SECRET env var
-- `app/partner/reviews/page.tsx` — partner reviews page with star summary, distribution bar, reply box
-- `app/admin/reviews/page.tsx` — admin moderation with hide/restore and platform stats
-- `app/components/portal/PortalSidebar.tsx` — Reviews and Review Moderation added (this is the actual sidebar in use)
-- `lib/email.ts` — `sendReviewReminderEmail` added
-- `app/api/test-booking/requests/[id]/route.ts` — avg rating and review count joined onto bids, existing_review and has_review returned on booking
-- `app/test-booking/requests/[id]/page.tsx` — full rewrite: BidCard component with expandable reviews, ReviewCard on completed bookings, StarPicker, partner reply display
-- Stable tag: `v-stable-partner-reviews`
-- Admin booking detail page (`app/admin/bookings/[id]/page.tsx`) — full rewrite with insurance documents section and driver audit trail, matching partner portal
-- Created `app/api/admin/bookings/[id]/route.ts` — new admin-specific booking detail API using `admin_users` auth (not `partner_profiles`)
-- Fixed admin bookings list API (`app/api/partner/bookings/route.ts`) — falls back to `admin_users` email check so `adminMode = true` for admin users and all bookings are returned
-- Fixed `lib/portal/refreshPartnerLiveStatus.ts` — now returns `isLiveNow` on all code paths; previously already-live accounts showed false "not yet live" banner
-- Added insurance columns to `app/api/partner/bookings/route.ts` select and response map
-- Added insurance status pill to admin bookings list page (both per-currency and main table) and Excel export
-- Stable tag: `v-stable-admin-insurance-live-status`
-- Added driver audit trail — 6 new columns on `partner_bookings`: `delivery_driver_id`, `delivery_driver_name`, `delivery_confirmed_at`, `collection_driver_id`, `collection_driver_name`, `collection_confirmed_at`
-- Driver confirm API stamps delivery/collection driver at moment of confirmation — never overwritten
-- Partner booking detail — new Driver Audit Trail card showing who delivered and collected with exact timestamps; amber warning if different drivers
-- Partner bookings GET API updated to select all 6 new columns
-- Booking disappears from old driver's app immediately on reassignment
-- Stable tag: `v-stable-driver-audit-trail`
+### Chats 1–5 (Completed — see previous handover versions)
 
 ---
 
 ## Business Model & Roadmap
 
 ### Revenue Model
-Camel Global operates as a **marketplace facilitator**. Customers pay Camel Global directly (not the partner). Camel takes its commission and passes the remainder to the partner automatically via Stripe Connect.
+Camel Global operates as a **marketplace intermediary**. Camel takes commission and passes remainder to partner.
 
-**Commission Structure:**
-- 15% of car hire price (not fuel) for first 10 completed bookings per partner
-- Drops to 10% after 10 successful completed bookings
-- Fuel charges pass through at 100% to partner — Camel takes no cut on fuel
-- Commission is deducted automatically at point of payment split — no chasing partners
-
-**Alternative model under consideration:** Flat monthly subscription fee (£99–£199/month) with zero commission. To be decided before launch.
-
----
+**Commission:** 20% of car hire price, minimum €10 per booking. 0% on fuel.
+**Per-partner override:** Admin can set custom rate on account detail page.
+**Invoicing:** Camel sends monthly commission invoice to partner (already collected via Stripe). No UK VAT — reverse charge applies (B2B cross-border). Invoice must include: *"VAT reverse charged — Article 44/196 EU VAT Directive"*. Invoicing handled in Xero, not in Camel system.
 
 ### Payment Architecture — Stripe Connect (To Build)
 **Status:** Not yet built.
 - Customer card held by Stripe at booking acceptance
 - On completion: automatic split — partner share + Camel commission
 - Partner bank details in Stripe only — never in Camel DB
+- Use Stripe Connect Express accounts for partners
 - Files to create: `app/api/stripe/`, `lib/stripe.ts`, `app/partner/payments/`
-
----
 
 ### Invoicing & Tax (To Build)
 **Status:** Not yet built.
-- Auto-generated monthly PDF commission invoices per partner
-- VAT/IVA handling (UK 20%, Spain 21%)
-- Files to create: `app/api/invoicing/generate/route.ts`, `lib/invoice.ts`, `app/partner/invoices/`, `app/admin/invoices/`
+- Auto-generated monthly PDF commission invoices per partner via Xero
+- VAT/IVA handling (UK 20%, Spain 21% — reverse charge for B2B EU)
+- Files to create: `app/api/reports/commission/monthly/route.ts` (clean data endpoint for Xero)
 
----
+### Finance Pages (To Build)
+**Status:** Not yet built.
+- `/admin/finance` — platform revenue dashboard (Camel's commission totals)
+- `/partner/finance` — partner's commission/payout view
 
 ### Insurance Certificate Upload (To Build)
-**Status:** Handover confirmation done. Certificate upload not yet built.
 - Partners upload insurance certificate to profile
 - Certificate expiry alerts (30 days warning)
 - Expired = auto not-live
-- Files to update: `app/partner/profile/page.tsx`, `app/admin/approvals/`
-
----
 
 ### Terms & Conditions (To Build)
-**Status:** Not yet built.
 - Customer and partner T&Cs with versioned acceptance
-- Re-acceptance required on update
-
----
 
 ### Multilingual Support — English & Spanish (To Build)
-**Status:** Marketing homepage has EN/ES/IT/FR/DE. Portals are English only.
-- Files to create: `lib/i18n.ts`, `messages/en.json`, `messages/es.json`
+- Portals are English only. Marketing homepage has EN/ES/IT/FR/DE.
 
----
-
-### Reviews & Ratings (To Build)
-**Status:** Not yet built.
-- Post-booking review prompt, 1–5 star + written review, public on bid cards
-- Files to create: `partner_reviews` table, review UI, `app/partner/reviews/`, `app/admin/reviews/`
+### Embedded Insurance — Phase 3 (To Build)
+- Approach AXA/Zurich after launch with real booking volume data
+- Per-booking insurance included in price
+- Phase in as optional "Camel Protected" tier, then make default
 
 ---
 
 ## Outstanding TODOs
-- [ ] `partner_profiles` table missing columns: `currency`, `fleet_size`, `description` — add when ready
-- [ ] Reports pages (`/partner/reports` and `/admin/reports`) — not yet updated for multi-currency
-- [ ] CSV export on admin bookings page
+- [ ] Stripe Connect integration (before first real payment)
+- [ ] `app/partner/finance` and `app/admin/finance` pages
+- [ ] Xero integration — monthly commission data endpoint
+- [ ] `partner_profiles` — `stripe_account_id` onboarding flow in partner portal
+- [ ] Insurance certificate upload to partner profile
+- [ ] Terms & Conditions with versioned acceptance
+- [ ] Reports pages multi-currency updates (partially done — commission added, full P&L TBD)
 - [ ] Security headers in `next.config.ts` (CSP, HSTS, X-Frame-Options)
 - [ ] Full RLS audit on all Supabase tables
 - [ ] Rate limiting on `/api/auth/` routes
 - [ ] GDPR data deletion endpoint
-- [ ] `app/partner/bids/` — folder exists, no page.tsx (unused/WIP)
-- [ ] `app/api/admin/admin/requests/` — looks like legacy duplicate, review and remove
+- [ ] DAC7 EU platform reporting (annual partner earnings)
+- [ ] `app/partner/bids/` — folder exists, no page.tsx
+- [ ] `app/api/admin/admin/requests/` — legacy duplicate, remove
 - [ ] Clean up stray files: `main`, `camel-portal/camel-portal/`, `public/Screenshot *.png`
+- [ ] `app/components/admin/AdminSidebar.tsx` and `PartnerSidebar.tsx` — unused, remove
 
 ---
 
@@ -307,8 +278,8 @@ git push origin main
 # Show full file tree (paste to Claude at start of each chat)
 find ~/camel-portal -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/.next/*' | sort
 
-# Cat multiple files for Claude
-cat ~/camel-portal/app/partner/login/page.tsx
+# Cat a file for Claude
+cat ~/camel-portal/app/partner/bookings/page.tsx
 
 # Create a stable rollback tag
 git tag -a v-tag-name -m "description"
@@ -328,361 +299,10 @@ git diff
 ---
 
 ## Environment
-- `.env.local` — Supabase keys, Google Maps API key, email config
+- `.env.local` — Supabase keys, Google Maps API key, Resend, CRON_SECRET
 - Never commit `.env.local` — it is in `.gitignore`
 - Vercel environment variables set separately in Vercel dashboard
 
 ---
 
-*Last updated: Chat 9 — Driver audit trail fully working*
-> **Always paste this document at the start of every new conversation.**
-> Update it at the end of each session before the chat fills up.
-
----
-
-## Working Rules
-- **Always paste the current file before Claude rewrites it.** Claude works from what you paste, not from memory. For small fixes this isn't needed, but for any full file rewrite, paste the file first.
-- **Always give Claude the full file tree** at the start of a new chat by running: `find ~/camel-portal -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/.next/*' | sort`
-- **Before any rewrite**, Claude will tell you which files to paste, or give you a command to cat them.
-
----
-
-## Project Overview
-- **Name:** Camel Global
-- **Type:** Meet & greet car hire platform (Uber-style for car hire)
-- **Stack:** Next.js 16, Supabase, Vercel, GitHub
-- **Repo:** `github.com/nicktrin-lang/camel-portal`
-- **Branch:** `main`
-- **Local path:** `~/camel-portal`
-- **Deployment:** Vercel (auto-deploys on push to main)
-- **Cost target:** Zero / minimal
-
-### How It Works
-1. Customer submits a car hire request with pickup/dropoff details
-2. All car hire companies (partners) within 30km radius are alerted and can bid
-3. Customer accepts a bid → booking is confirmed
-4. Driver delivers car to chosen location; fuel level recorded at collection
-5. Fuel level recorded again at return
-6. Customer pays only for fuel used (rounded to nearest ¼ tank)
-7. Launching in Spain first, with USD support ready for future US rollout
-
-### Three Portals
-| Portal | Path | Users |
-|--------|------|-------|
-| Customer | `/test-booking` | End customers |
-| Partner | `/partner` | Car hire companies |
-| Driver | `/driver` | Delivery drivers |
-| Admin | `/admin` | Camel Global staff |
-
----
-
-## Tech Architecture
-
-### Key Libraries & Files
-| File | Purpose |
-|------|---------|
-| `lib/currency.ts` | All currency utilities — EUR, GBP, USD formatting + conversion |
-| `lib/useCurrency.ts` | React hook — currency state, live rates, fmt helpers |
-| `lib/supabase/browser.ts` | Supabase browser client (partner/admin) |
-| `lib/supabase-customer/browser.ts` | Supabase browser client (customers) |
-| `lib/portal/calculateFuelCharge.ts` | Fuel charge calculation logic |
-| `lib/portal/syncBookingStatuses.ts` | Booking status sync logic |
-| `lib/portal/refreshPartnerLiveStatus.ts` | Core live status logic — checks all 6 requirements, updates DB |
-| `lib/portal/triggerPartnerLiveRefresh.ts` | Triggers the live status refresh |
-| `app/api/currency/rate/route.ts` | Live rate API — fetches EUR→GBP,USD from frankfurter.app |
-| `app/api/partner/refresh-live-status/route.ts` | POST endpoint — runs live status check for current partner |
-
-### Currency System
-- **Storage:** All prices stored in the currency the booking was made in (`booking.currency`)
-- **Supported:** `EUR | GBP | USD`
-- **Rates:** Live from `frankfurter.app` (no API key), cached 1 hour, fallback to hardcoded rates
-- **Fallback rates:** GBP 0.85, USD 1.08
-- **Partner billing:** Partners price in their own currency (EUR or GBP typically)
-- **Customer display:** Converted to customer's preferred currency in real time
-
-### Live Status System
-A partner account is **live** only when ALL of the following are true:
-1. Fleet base address set (`base_address`)
-2. Fleet base lat/lng set (`base_lat`, `base_lng`)
-3. Service radius set (`service_radius_km > 0`)
-4. At least one active fleet vehicle (`partner_fleet.is_active = true`)
-5. At least one active driver (`partner_drivers.is_active = true`)
-6. Billing currency set (`default_currency`)
-
-### Insurance Documents Handover System
-At delivery, both driver and customer must confirm insurance documents were handed over:
-- **Driver app** — checkbox at delivery stage (hard blocker — cannot confirm delivery fuel without ticking)
-- **Customer portal** — separate `InsuranceConfirmCard` always visible once booking exists; customer ticks and confirms after driver has confirmed
-- **Partner portal** — read-only `InsuranceStatusCard` showing both driver and customer status; visible always
-- **DB columns:** `insurance_docs_confirmed_by_driver`, `insurance_docs_confirmed_by_driver_at`, `insurance_docs_confirmed_by_customer`, `insurance_docs_confirmed_by_customer_at` on `partner_bookings`
-- Insurance is delivery-only (not collection/return). Saved via `insurance_only: true` flag in customer update API so it doesn't interfere with fuel confirmation state.
-- Driver app auto-refreshes every 10s (silent fetch, does not reset fuel/insurance input state)
-
-### Fuel Confirmation Flow
-- Driver records fuel at delivery (`collection` stage) and collection (`return` stage)
-- Customer confirms each reading independently — copies driver's fuel level as customer fuel
-- Both must agree (same fuel level) to lock each stage
-- Partner has office override to correct driver reading if needed
-- Booking status: `collected` when delivery locked, `completed` when both locked
-- Fuel charge calculated automatically on completion
-
----
-
-## Current Stable State
-
-### Last Known Good Tag
-```bash
-git checkout v-stable-insurance-handover
-```
-**Tag:** `v-stable-insurance-handover`
-**Description:** Full insurance document handover flow. Driver must tick insurance checkbox before confirming delivery (hard blocker). Customer confirms receipt via dedicated card on booking page. Partner sees read-only status of both sides. Driver app shows both driver and customer confirmation status and auto-refreshes every 10s. All four insurance columns added to partner_bookings table. Insurance confirmation saved independently of fuel state via insurance_only flag.
-
-### Previous Stable Tags
-| Tag | Description |
-|-----|-------------|
-| `v-stable-live-status-checks` | Live status checks require fleet location, service radius, billing currency, at least one active fleet vehicle, and at least one active driver. Missing items shown on admin approvals, admin account management, partner account page, and partner dashboard. Partner login always goes to dashboard. Onboarding Go Live step fetches real counts on mount. |
-| `v-stable-fuel-flow-fixed` | Full fuel confirmation flow working end to end. Driver sets collected/returned status. Customer confirms each fuel stage independently. Booking only completes when both driver and customer confirm both stages. |
-| `v-stable-admin-booking-fixes` | Admin booking detail matches partner view. All three currencies shown everywhere. |
-| `v-stable-password-reset` | All three portals password reset fully working with branded emails. |
-| `v-stable-currency-reporting` | Full EUR/GBP/USD revenue reporting on partner and admin booking pages. |
-
-### What Is Working ✅
-- Customer booking flow (test-booking portal)
-- Partner bid submission and management
-- Driver job portal
-- Admin approval and account management
-- Full EUR / GBP / USD currency support throughout
-- Live exchange rates with fallback
-- Currency selector persisted in localStorage per user
-- Partner bookings page — per-currency revenue cards + breakdown table + date filter
-- Admin bookings page — full reconciliation table per currency + currency filter dropdown
-- Fuel level recording at collection and return
-- Fuel charge / refund calculation
-- Customer fuel confirmation flow
-- Partner and admin booking detail pages
-- Email notifications (application received, etc.)
-- Google Maps integration (pickup/dropoff, partner location)
-- Forgot password flow on all three login pages
-- Reset password pages for partner, driver and customer portals
-- Branded reset emails via Resend from Camel Global address
-- Correct post-reset redirects for all three portals
-- **Live status system** — 6 requirements, shown everywhere with missing items listed
-- **Partner login** — always goes to dashboard, no onboarding redirect loop
-- **Partner onboarding** — Go Live step shows real completion state even if steps were skipped
-- **Partner dashboard** — amber live status banner with clickable fix links
-- **Driver portal** — independent header with full name + company name, correct logout, login box properly positioned, 3 clickable tab cards, 10-per-page pagination, partner drivers page links to driver portal
-- **Insurance handover** — driver checkbox (hard blocker at delivery), customer confirmation card, partner read-only status, driver app shows both sides, auto-refresh every 10s
-
----
-
-## Session Log
-
-### Chat 1 (Initial build — filled)
-- Project created from scratch
-- Supabase schema built
-- All three portals scaffolded
-- Core booking flow implemented
-- Fuel level recording implemented
-
-### Chat 2 (Currency work — filled)
-- Added GBP support alongside EUR
-- Live exchange rate integration (frankfurter.app)
-- Currency selector component built
-- Dual currency display on booking pages
-- Partner profile currency detection by country
-- Admin and partner booking list pages updated for currency
-
-### Chat 3 (filled)
-- Added `formatUSD` to `lib/currency.ts`
-- Updated `formatCurrency()` to handle USD
-- Fixed `app/test-booking/requests/[id]/page.tsx` — USD support
-- Updated `app/partner/bookings/page.tsx` — full EUR/GBP/USD revenue summary
-- Updated `app/admin/bookings/page.tsx` — full reconciliation table per currency
-- Stable tag: `v-stable-currency-reporting`
-
-### Chat 4 (Completed)
-- Fixed Supabase redirect URL config
-- Built reset-password pages for all three portals
-- Fixed TypeScript errors in reset-password pages
-- Added `app/api/auth/send-reset-email/route.ts`
-- Added `app/api/auth/send-customer-reset-email/route.ts`
-- Added `app/api/auth/exchange-reset-code/route.ts`
-- Added `lib/supabase/auth-client.ts`
-- All three portals password reset fully working
-- Stable tag: `v-stable-password-reset`
-
-### Chat 5 (Completed)
-- Restored partner requests detail page from git history
-- Fixed rate badge to always show EUR/GBP/USD on customer and partner booking pages
-- Fixed USD rate fetch — now uses live frankfurter.app rate
-- Fixed `Amt` component to show all three currency conversions
-- Admin booking detail page rebuilt to match partner view
-- Added partner company name to booking detail API response
-- Admin request detail — duration in days, bid currency displayed correctly
-- Stable tag: `v-stable-admin-booking-fixes`
-
-### Chat 6 (Completed)
-- Built full annotated file structure breakdown
-- Fixed `lib/portal/refreshPartnerLiveStatus.ts` — added driver and currency checks
-- Updated admin approvals, admin accounts, partner account, partner dashboard — live status banners
-- Updated partner onboarding — Go Live step fetches real counts on mount
-- Updated partner login — removed onboarding redirect, all approved partners go to dashboard
-- Updated driver portal — independent header, correct layout, 3 tab cards, pagination
-- Stable tag: `v-stable-live-status-checks`
-
-### Chat 7 (Completed)
-- Fixed driver confirm API — return stage sets `booking_status = "returned"` not `"completed"`
-- Fixed customer page fuel lock flicker
-- Fixed driver jobs page — jobs start collapsed, correct labels, clickable tab cards, 10 per page
-- Fixed driver layout — independent header, full name + company name, correct logout
-- Fixed partner booking detail — correct fuel stage labels
-- Fixed partner bookings list — confirmed status now blue
-- Added driver portal link card to partner drivers page
-- Stable tag: `v-stable-fuel-flow-fixed`
-
-### Chat 8 (Completed)
-- Added insurance document handover flow across all three portals
-- Added 4 columns to `partner_bookings`: `insurance_docs_confirmed_by_driver`, `insurance_docs_confirmed_by_driver_at`, `insurance_docs_confirmed_by_customer`, `insurance_docs_confirmed_by_customer_at`
-- **Driver confirm API** — insurance is hard blocker at delivery; 400 error if not ticked
-- **Driver jobs page** — insurance checkbox at delivery, confirm button disabled until ticked; summary card shows both driver and customer status; auto-refresh every 10s (silent, doesn't reset input state)
-- **Driver jobs API** — added insurance columns to select and response map
-- **Customer update API** — `insurance_only: true` flag saves insurance independently of fuel state; `now` variable hoisted before insurance-only block (fixed TS build error)
-- **Customer request page** — `InsuranceConfirmCard` always visible once booking exists, independent of fuel lock state; full clean rewrite to fix JSX structure
-- **Partner booking detail** — `InsuranceStatusCard` always visible, read-only, shows driver + customer status separately; full clean rewrite to fix JSX structure
-- **Both GET API routes** fixed to include insurance columns in Supabase select + response mapping: `app/api/test-booking/requests/[id]/route.ts` and `app/api/partner/bookings/[id]/route.ts`
-- Stable tag: `v-stable-insurance-handover`
-
----
-
-## Business Model & Roadmap
-
-### Revenue Model
-Camel Global operates as a **marketplace facilitator**. Customers pay Camel Global directly (not the partner). Camel takes its commission and passes the remainder to the partner automatically via Stripe Connect.
-
-**Commission Structure:**
-- 15% of car hire price (not fuel) for first 10 completed bookings per partner
-- Drops to 10% after 10 successful completed bookings
-- Fuel charges pass through at 100% to partner — Camel takes no cut on fuel
-- Commission is deducted automatically at point of payment split — no chasing partners
-
-**Alternative model under consideration:** Flat monthly subscription fee (£99–£199/month) with zero commission. To be decided before launch.
-
----
-
-### Payment Architecture — Stripe Connect (To Build)
-**Status:** Not yet built.
-
-- Customer card held by Stripe at booking acceptance
-- On completion: automatic split — partner share + Camel commission
-- Partner bank details in Stripe only — never in Camel DB
-- Files to create: `app/api/stripe/`, `lib/stripe.ts`, `app/partner/payments/`
-
----
-
-### Invoicing & Tax (To Build)
-**Status:** Not yet built.
-
-- Auto-generated monthly PDF commission invoices per partner
-- VAT/IVA handling (UK 20%, Spain 21%)
-- Files to create: `app/api/invoicing/generate/route.ts`, `lib/invoice.ts`, `app/partner/invoices/`, `app/admin/invoices/`
-
----
-
-### Insurance (To Build)
-**Status:** Handover confirmation done. Certificate upload not yet built.
-
-- Partners upload insurance certificate to profile
-- Certificate expiry alerts (30 days warning)
-- Expired = auto not-live
-- Files to update: `app/partner/profile/page.tsx`, `app/admin/approvals/`
-
----
-
-### Terms & Conditions (To Build)
-**Status:** Not yet built.
-
-- Customer T&Cs with versioned acceptance (`customer_tc_acceptances` table)
-- Partner T&Cs with versioned acceptance (`partner_tc_acceptances` table)
-- Re-acceptance required on update
-
----
-
-### Partner Onboarding Polish (To Build)
-**Status:** Functional but not slick.
-
-- Progress bar wizard already exists at `/partner/onboarding`
-- Needs: insurance upload step, branded confirmation email, Spanish translation
-
----
-
-### Multilingual Support — English & Spanish (To Build)
-**Status:** Marketing homepage has EN/ES/IT/FR/DE. Portals are English only.
-
-- Recommended approach: Option B (simple JSON + context, consistent with marketing page)
-- Files to create: `lib/i18n.ts`, `messages/en.json`, `messages/es.json`
-
----
-
-### Reviews & Ratings (To Build)
-**Status:** Not yet built.
-
-- Post-booking review prompt for customers
-- 1–5 star + written review, public on bid cards
-- Files to create: `partner_reviews` table, review UI on booking completion, `app/partner/reviews/`, `app/admin/reviews/`
-
----
-
-## Outstanding TODOs
-- [ ] `partner_profiles` table missing columns: `currency`, `fleet_size`, `description` — add when ready
-- [ ] Reports pages (`/partner/reports` and `/admin/reports`) — not yet updated for multi-currency
-- [ ] CSV export on admin bookings page
-- [ ] Security headers in `next.config.ts` (CSP, HSTS, X-Frame-Options)
-- [ ] Full RLS audit on all Supabase tables
-- [ ] Rate limiting on `/api/auth/` routes
-- [ ] GDPR data deletion endpoint
-- [ ] `app/partner/bids/` — folder exists, no page.tsx (unused/WIP)
-- [ ] `app/api/admin/admin/requests/` — looks like legacy duplicate, review and remove
-- [ ] Clean up stray files: `main`, `camel-portal/camel-portal/`, `public/Screenshot *.png`
-
----
-
-## Useful Commands
-
-```bash
-# Push changes
-git add .
-git commit -m "your message"
-git push origin main
-
-# Show full file tree (paste to Claude at start of each chat)
-find ~/camel-portal -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/.next/*' | sort
-
-# Cat multiple files for Claude
-cat ~/camel-portal/app/partner/login/page.tsx
-cat ~/camel-portal/app/partner/dashboard/page.tsx
-
-# Create a stable rollback tag
-git tag -a v-tag-name -m "description"
-git push origin v-tag-name
-
-# Roll back to a tag
-git checkout v-tag-name
-
-# List all tags
-git tag
-
-# Check what's changed
-git status
-git diff
-```
-
----
-
-## Environment
-- `.env.local` — Supabase keys, Google Maps API key, email config
-- Never commit `.env.local` — it is in `.gitignore`
-- Vercel environment variables set separately in Vercel dashboard
-
----
-
-*Last updated: Chat 8 — Insurance document handover flow fully working across all portals*
+*Last updated: Chat 8 — Commission system, Business & Billing, reporting and Excel exports fully working*
