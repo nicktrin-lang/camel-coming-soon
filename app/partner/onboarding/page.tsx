@@ -412,13 +412,16 @@ function StepBilling({ profile, onDone, onBack }: { profile: Profile | null; onD
 
   async function save() {
     if (!legalName.trim()) { setError("Legal company name is required."); return; }
-    if (!vatNumber.trim()) { setError("VAT number is required. Your account cannot go live without this."); return; }
+    if (!vatNumber.trim()) { setError("VAT / NIF number is required. Your account cannot go live without this."); return; }
     setSaving(true); setError("");
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not signed in");
+      const { data: existing } = await supabase.from("partner_profiles").select("company_name,contact_name").eq("user_id", user.id).maybeSingle();
       const { error: e } = await supabase.from("partner_profiles").upsert({
         user_id: user.id,
+        company_name: existing?.company_name ?? "",
+        contact_name: existing?.contact_name ?? null,
         legal_company_name: legalName.trim(),
         company_registration_number: regNumber.trim() || null,
         vat_number: vatNumber.trim(),
