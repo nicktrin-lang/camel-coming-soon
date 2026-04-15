@@ -236,7 +236,7 @@ function downloadOperatingRulesPDF(companyName: string) {
     </div>
   `).join("");
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Camel Global — Partner Operating Rules</title>
-  <style>* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: Arial, sans-serif; padding: 40px; color: #1e293b; background: #fff; }
+  <style>@page { margin: 1cm; } @page :first { margin-top: 1cm; } * { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: Arial, sans-serif; padding: 40px; color: #1e293b; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #003768; padding-bottom: 16px; margin-bottom: 24px; }
   .logo { font-size: 22px; font-weight: 900; color: #003768; letter-spacing: -1px; } .logo span { color: #ff7a00; }
   .meta { text-align: right; font-size: 11px; color: #64748b; } h1 { font-size: 20px; color: #003768; font-weight: 800; margin-bottom: 4px; }
