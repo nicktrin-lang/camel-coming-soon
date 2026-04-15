@@ -252,7 +252,7 @@ async function downloadTermsPDF(companyName?: string) {
     doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.3);
     doc.line(margin, pageH - 10, pageW - margin, pageH - 10);
     doc.setFontSize(7); doc.setTextColor(148, 163, 184); doc.setFont("helvetica", "normal");
-    doc.text(`Camel Global Partner Terms and Conditions — Version ${VERSION} — Effective ${EFFECTIVE_DATE} — camelglobal.com`, margin, pageH - 6);
+    doc.text(`Camel Global Partner Terms and Conditions — Version ${VERSION} — Effective ${EFFECTIVE_DATE} — camel-global.com`, margin, pageH - 6);
     doc.text(`Page ${p} of ${totalPages}`, pageW - margin, pageH - 6, { align: "right" });
   }
 
