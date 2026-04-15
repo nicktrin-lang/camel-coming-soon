@@ -130,7 +130,9 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
       <PortalTopbar onMenuClick={() => setSidebarOpen(true)} />
       <PortalSidebar role={role} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="pt-20 lg:pl-[290px]">
-        <div className={pathname === "/partner/onboarding" ? "p-0" : "px-4 py-5 md:px-8 md:py-8"}>{children}</div>
+        <div className={pathname === "/partner/onboarding" ? "p-0" : "px-4 py-5 md:px-8 md:py-8"}>
+          {children}
+        </div>
       </div>
     </div>
   );
