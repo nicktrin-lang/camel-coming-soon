@@ -10,6 +10,7 @@
 - **Before any rewrite**, Claude will tell you which files to paste, or give you a command to cat them.
 - **Always ask Claude to check the actual file** before rewriting — never assume the artifact is current.
 - **Always provide the git push command** at the end of every change.
+- **Claude must always write full files** — no partial diffs, no "change X to Y" instructions.
 
 ---
 
@@ -59,11 +60,17 @@
 | `app/api/currency/rate/route.ts` | Live rate API — fetches EUR→GBP,USD from frankfurter.app |
 | `app/api/partner/refresh-live-status/route.ts` | POST endpoint — runs live status check |
 | `app/api/partner/requests/[id]/route.ts` | Returns commissionRate + minimumCommission to bid form |
+| `app/partner/terms/page.tsx` | Partner T&Cs page — public, no auth required |
 
 ### Currency System
 - **Supported:** `EUR | GBP | USD`
 - **Rates:** Live from `frankfurter.app`, cached 1 hour, fallback GBP 0.85 / USD 1.08
 - **Storage:** All prices stored in the currency the booking was made in
+
+### PDF Downloads
+- All PDF exports use **jsPDF** (`npm install jspdf`) — real `.pdf` files, direct download, no print dialog
+- Operating Rules PDF: `downloadOperatingRulesPDF()` in `app/partner/account/page.tsx`
+- Partner T&Cs PDF: `downloadTermsPDF()` in `app/partner/terms/page.tsx` and `app/partner/signup/page.tsx`
 
 ---
 
@@ -143,6 +150,33 @@ A partner account is **live** only when ALL are true:
 
 ---
 
+## Partner Terms & Conditions System
+
+### How It Works
+- T&Cs live at `/partner/terms` — public page, no auth required, renders with sidebar when logged in
+- Partners accept T&Cs during signup (Step 5 checkbox)
+- Acceptance is recorded in `partner_applications` at the point of account creation
+- The T&Cs link on the signup form triggers an inline PDF download (no navigation away)
+
+### DB Columns (partner_applications)
+- `terms_accepted_at` (timestamptz) — when the partner accepted
+- `terms_version` (text) — version string e.g. `"2026-04"`
+
+### Current Version
+- Version: `2026-04`
+- Effective: `1 April 2026`
+
+### Where T&Cs Acceptance Is Shown
+- **Partner account page** (`/partner/account`) — Terms & Conditions card in sidebar
+- **Admin account page** (`/admin/accounts/[id]`) — Terms & Conditions card in sidebar
+
+### T&Cs vs Operating Rules
+- **Operating Rules** = day-to-day conduct (bidding, vehicles, fuel, drivers) — shown on `/partner/account`
+- **Partner T&Cs** = legal agreement (intermediary position, commission, liability, GDPR, governing law) — shown on `/partner/terms`
+- Operating Rules are incorporated by reference into the T&Cs
+
+---
+
 ## Business & Billing Details
 Collected in onboarding step 3. Stored on `partner_profiles`:
 - `legal_company_name` — on commission invoices
@@ -199,6 +233,17 @@ After sign-in checks: `base_lat`, `base_lng`, `default_currency`, `vat_number` a
 
 ---
 
+## Partner Layout — Public Routes
+The following routes bypass auth in `app/partner/layout.tsx` (`isPublicPartnerPage`):
+- `/partner/login`
+- `/partner/reset-password`
+- `/partner/application-submitted`
+- `/partner/signup` and `/partner/signup/*`
+
+Note: `/partner/terms` is **not** in the public list — logged-in partners see it with the sidebar. Unauthenticated users are redirected to login (fine — the signup form uses inline PDF download, not the terms page URL).
+
+---
+
 ## DB Columns Added Chat 8
 **`partner_profiles`:** `legal_company_name`, `vat_number`, `company_registration_number`, `stripe_account_id`, `stripe_onboarding_status`, `commission_rate`
 
@@ -206,19 +251,23 @@ After sign-in checks: `base_lat`, `base_lng`, `default_currency`, `vat_number` a
 
 **`platform_settings`** (new table): `default_commission_rate`, `minimum_commission_amount`
 
+## DB Columns Added Chat 9
+**`partner_applications`:** `terms_accepted_at`, `terms_version`
+
 ---
 
 ## Current Stable State
 
 ### Last Known Good Tag
 ```bash
-git checkout v-stable-commission-reporting
+git checkout v-stable-partner-terms
 ```
-**Description:** Full commission and billing system. Business & Billing onboarding step. VAT as 7th live status check. Commission on bid form with live payout preview. Commission rate, amount and payout on all reporting pages and Excel exports. Partner login redirects to onboarding if incomplete. Admin can edit billing details and override commission rate. Unified table columns across all reporting pages. Actual pickup/dropoff timestamps in Excel from driver confirmation.
+**Description:** Partner T&Cs page, versioned acceptance recorded at signup, T&Cs card on partner account page and admin account page, jsPDF real PDF downloads for T&Cs and Operating Rules, currency check removed from approvals Setup Summary.
 
 ### All Stable Tags
 | Tag | Description |
 |-----|-------------|
+| `v-stable-partner-terms` | Partner T&Cs, versioned acceptance, PDF downloads, admin T&Cs card |
 | `v-stable-commission-reporting` | Full commission system, billing details, reporting, Excel exports |
 | `v-stable-partner-reviews` | Partner review system, admin moderation, 7-day reminder cron |
 | `v-stable-admin-insurance-live-status` | Admin booking detail with insurance and driver audit trail |
@@ -254,12 +303,30 @@ git checkout v-stable-commission-reporting
 - Partner review system — ratings, replies, admin moderation, cron reminder
 - Commission system — 20% default, min €10, per-partner override, shown everywhere
 - Business & Billing — onboarding, read-only for partners, editable by admin
+- Partner T&Cs — full legal document at `/partner/terms`, versioned acceptance at signup
+- T&Cs acceptance recorded in DB with timestamp and version
+- T&Cs card on partner account page and admin account page
+- Real PDF downloads (jsPDF) for T&Cs and Operating Rules — no print dialog
+- Admin approvals Setup Summary — currency check removed (set during onboarding not signup)
 
 ---
 
 ## Session Log
 
-### Chat 8 (Current — Commission & Payments)
+### Chat 9 (Current — Partner T&Cs)
+- `app/partner/terms/page.tsx` — full T&Cs page, public route, jsPDF download
+- `app/partner/signup/page.tsx` — T&Cs link triggers inline PDF download, no navigation
+- `app/partner/layout.tsx` — terms page handled correctly (sidebar for logged-in, login redirect for unauthed)
+- `app/partner/account/page.tsx` — T&Cs card in sidebar showing version + date accepted
+- `app/admin/accounts/[id]/page.tsx` — T&Cs card in sidebar
+- `app/api/admin/accounts/[id]/route.ts` — added `terms_accepted_at`, `terms_version` to select
+- `app/api/partner/complete-signup/route.ts` — records `terms_accepted_at` and `terms_version` on signup
+- DB migration: `alter table partner_applications add column terms_accepted_at timestamptz, add column terms_version text`
+- jsPDF installed for real PDF downloads across all three download functions
+- Fixed: currency showing "Yes" on approvals Setup Summary before onboarding
+- Stable tag: `v-stable-partner-terms`
+
+### Chat 8 (Completed — Commission & Payments)
 - `platform_settings` table, commission columns on `partner_profiles` and `partner_bookings`
 - `lib/portal/calculateCommission.ts`
 - Business & Billing onboarding step (step 3)
@@ -351,8 +418,7 @@ git checkout v-stable-commission-reporting
 - [ ] `/partner/finance` and `/admin/finance` pages
 - [ ] Xero monthly commission data endpoint
 - [ ] Partner Stripe onboarding flow in portal
-- [ ] Insurance certificate upload to partner profile
-- [ ] Terms & Conditions with versioned acceptance
+- [ ] Terms & Conditions versioned re-acceptance flow (notify partners when T&Cs update)
 - [ ] Security headers in `next.config.ts`
 - [ ] Full RLS audit on all Supabase tables
 - [ ] Rate limiting on `/api/auth/` routes
@@ -399,4 +465,9 @@ git tag | grep stable
 
 ---
 
-*Last updated: Chat 8 — Commission system, Business & Billing, reporting and Excel exports complete*
+## Dependencies Added Chat 9
+- `jspdf` — real PDF generation and download (`npm install jspdf`)
+
+---
+
+*Last updated: Chat 9 — Partner T&Cs, versioned acceptance, jsPDF downloads, admin T&Cs card*
