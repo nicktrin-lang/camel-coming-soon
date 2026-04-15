@@ -234,7 +234,10 @@ function downloadTermsPDF(companyName?: string) {
   const win = window.open(url, "_blank");
   if (win) {
     win.onload = () => {
-      setTimeout(() => { win.print(); URL.revokeObjectURL(url); }, 500);
+      setTimeout(() => {
+        win.print();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }, 500);
     };
   }
 }

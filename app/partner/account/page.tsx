@@ -253,7 +253,14 @@ function downloadOperatingRulesPDF(companyName: string) {
   const blob = new Blob([html], { type: "text/html;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const win = window.open(url, "_blank");
-  if (win) { win.onload = () => { setTimeout(() => { win.print(); URL.revokeObjectURL(url); }, 500); }; }
+  if (win) {
+    win.onload = () => {
+      setTimeout(() => {
+        win.print();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }, 500);
+    };
+  }
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
