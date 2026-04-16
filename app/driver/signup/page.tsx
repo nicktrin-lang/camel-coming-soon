@@ -60,7 +60,7 @@ export default function DriverSignupPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-120px)] max-w-7xl items-center px-4 py-10">
+    <div className="mx-auto max-w-7xl px-4 py-10">
       <div className="mx-auto w-full max-w-xl rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)] md:p-10">
         <h1 className="text-3xl font-semibold text-[#003768]">Set Your Password</h1>
         <p className="mt-2 text-slate-600">Create your driver login to access assigned jobs.</p>

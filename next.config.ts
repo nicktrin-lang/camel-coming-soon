@@ -36,7 +36,7 @@ const securityHeaders = [
       // Frames: hCaptcha (ready for item 4)
       "frame-src https://hcaptcha.com https://*.hcaptcha.com",
       // Connections: Supabase, Google Maps geocoding, frankfurter (currency), hCaptcha
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://maps.googleapis.com https://api.frankfurter.app https://hcaptcha.com https://*.hcaptcha.com https://va.vercel-scripts.com",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://maps.googleapis.com https://api.frankfurter.app https://hcaptcha.com https://*.hcaptcha.com https://va.vercel-scripts.com https://nominatim.openstreetmap.org",
       // Workers (Next.js)
       "worker-src 'self' blob:",
     ].join("; "),
