@@ -51,15 +51,19 @@ export default function TestBookingSignupPage() {
       const userId = data.user?.id;
       if (!userId) throw new Error("Could not create customer account.");
 
-      const { error: profileErr } = await supabase
-        .from("customer_profiles")
-        .upsert({
+      const profileRes = await fetch("/api/test-booking/customer-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           user_id:   userId,
           full_name: fullName.trim() || null,
           phone:     phone.trim() || null,
-        });
-
-      if (profileErr) throw profileErr;
+        }),
+      });
+      if (!profileRes.ok) {
+        const profileJson = await profileRes.json().catch(() => null);
+        throw new Error(profileJson?.error || "Failed to create profile.");
+      }
 
       router.push("/test-booking/requests");
       router.refresh();
