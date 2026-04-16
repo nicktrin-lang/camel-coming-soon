@@ -1,29 +1,49 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
 import { createCustomerAuthSupabaseClient } from "@/lib/supabase/auth-client";
+import HCaptcha from "@/app/components/HCaptcha";
+
+async function verifyCaptcha(token: string): Promise<boolean> {
+  const res = await fetch("/api/auth/verify-captcha", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  return res.ok;
+}
 
 export default function TestBookingLoginPage() {
-  const supabase = useMemo(() => createCustomerBrowserClient(), []);
+  const supabase   = useMemo(() => createCustomerBrowserClient(), []);
   const authClient = useMemo(() => createCustomerAuthSupabaseClient(), []);
-  const router = useRouter();
+  const router     = useRouter();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<"login" | "forgot">("login");
-  const [resetSent, setResetSent] = useState(false);
+  const [email,        setEmail]        = useState("");
+  const [password,     setPassword]     = useState("");
+  const [loading,      setLoading]      = useState(false);
+  const [error,        setError]        = useState<string | null>(null);
+  const [mode,         setMode]         = useState<"login" | "forgot">("login");
+  const [resetSent,    setResetSent]    = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
-  const [resetError, setResetError] = useState("");
+  const [resetError,   setResetError]   = useState("");
+
+  const [loginToken,  setLoginToken]  = useState("");
+  const [forgotToken, setForgotToken] = useState("");
+
+  const handleLoginToken  = useCallback((t: string) => setLoginToken(t), []);
+  const handleForgotToken = useCallback((t: string) => setForgotToken(t), []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true); setError(null);
     try {
+      if (!loginToken) { setError("Please complete the CAPTCHA."); setLoading(false); return; }
+      const captchaOk = await verifyCaptcha(loginToken);
+      if (!captchaOk) { setError("CAPTCHA verification failed. Please try again."); setLoading(false); return; }
+
       const { error: signInErr } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(), password,
       });
@@ -41,14 +61,15 @@ export default function TestBookingLoginPage() {
     e.preventDefault();
     setResetLoading(true); setResetError("");
     try {
+      if (!forgotToken) { setResetError("Please complete the CAPTCHA."); setResetLoading(false); return; }
+      const captchaOk = await verifyCaptcha(forgotToken);
+      if (!captchaOk) { setResetError("CAPTCHA verification failed. Please try again."); setResetLoading(false); return; }
+
       document.cookie = "resetPortal=customer; domain=.camel-global.com; path=/; max-age=3600";
-      const res = await fetch("/api/auth/send-customer-reset-email", {
+      const res  = await fetch("/api/auth/send-customer-reset-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim().toLowerCase(),
-          redirectTo: `${window.location.origin}/?portal=customer`,
-        }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), redirectTo: `${window.location.origin}/?portal=customer` }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to send reset email.");
@@ -76,8 +97,7 @@ export default function TestBookingLoginPage() {
             <form onSubmit={onSubmit} className="mt-8 space-y-5">
               <div>
                 <label className="text-sm font-medium text-[#003768]">Email</label>
-                <input type="email" required
-                  value={email} onChange={e => setEmail(e.target.value)}
+                <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
                   className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a]" />
               </div>
               <div>
@@ -88,10 +108,10 @@ export default function TestBookingLoginPage() {
                     Forgot password?
                   </button>
                 </div>
-                <input type="password" required
-                  value={password} onChange={e => setPassword(e.target.value)}
+                <input type="password" required value={password} onChange={e => setPassword(e.target.value)}
                   className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a]" />
               </div>
+              <HCaptcha onVerify={handleLoginToken} onExpire={() => setLoginToken("")} />
               <button type="submit" disabled={loading}
                 className="rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60">
                 {loading ? "Signing in..." : "Log In"}
@@ -124,11 +144,11 @@ export default function TestBookingLoginPage() {
                 <form onSubmit={handleForgotPassword} className="mt-8 space-y-5">
                   <div>
                     <label className="text-sm font-medium text-[#003768]">Email address</label>
-                    <input type="email" required
-                      value={email} onChange={e => setEmail(e.target.value)}
+                    <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
                       className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a]"
                       placeholder="your@email.com" />
                   </div>
+                  <HCaptcha onVerify={handleForgotToken} onExpire={() => setForgotToken("")} />
                   <button type="submit" disabled={resetLoading}
                     className="rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60">
                     {resetLoading ? "Sending..." : "Send reset link"}

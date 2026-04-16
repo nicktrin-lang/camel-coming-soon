@@ -1,28 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
+import HCaptcha from "@/app/components/HCaptcha";
 
 export default function TestBookingSignupPage() {
   const supabase = useMemo(() => createCustomerBrowserClient(), []);
-  const router = useRouter();
+  const router   = useRouter();
 
   const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
+  const [phone,    setPhone]    = useState("");
+  const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState("");
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState("");
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const handleCaptcha = useCallback((t: string) => setCaptchaToken(t), []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
 
     try {
+      if (!captchaToken) { setError("Please complete the CAPTCHA."); setLoading(false); return; }
+      const captchaRes = await fetch("/api/auth/verify-captcha", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: captchaToken }),
+      });
+      if (!captchaRes.ok) { setError("CAPTCHA verification failed. Please try again."); setLoading(false); return; }
+
       const cleanEmail = email.trim().toLowerCase();
 
       const { data, error: signUpErr } = await supabase.auth.signUp({
@@ -40,16 +49,14 @@ export default function TestBookingSignupPage() {
       if (signUpErr) throw signUpErr;
 
       const userId = data.user?.id;
-      if (!userId) {
-        throw new Error("Could not create customer account.");
-      }
+      if (!userId) throw new Error("Could not create customer account.");
 
       const { error: profileErr } = await supabase
         .from("customer_profiles")
         .upsert({
-          user_id: userId,
+          user_id:   userId,
           full_name: fullName.trim() || null,
-          phone: phone.trim() || null,
+          phone:     phone.trim() || null,
         });
 
       if (profileErr) throw profileErr;
@@ -71,68 +78,46 @@ export default function TestBookingSignupPage() {
           Create a separate customer account for booking flow testing.
         </p>
 
-        {error ? (
+        {error && (
           <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             {error}
           </div>
-        ) : null}
+        )}
 
         <form onSubmit={onSubmit} className="mt-8 space-y-5">
           <div>
             <label className="text-sm font-medium text-[#003768]">Full name</label>
-            <input
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+            <input value={fullName} onChange={e => setFullName(e.target.value)}
               className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a]"
-              required
-            />
+              required />
           </div>
-
           <div>
             <label className="text-sm font-medium text-[#003768]">Phone</label>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a]"
-            />
+            <input value={phone} onChange={e => setPhone(e.target.value)}
+              className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a]" />
           </div>
-
           <div>
             <label className="text-sm font-medium text-[#003768]">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
               className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a]"
-              required
-            />
+              required />
           </div>
-
           <div>
             <label className="text-sm font-medium text-[#003768]">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
               className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a]"
-              required
-            />
+              required />
           </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60"
-          >
+          <HCaptcha onVerify={handleCaptcha} onExpire={() => setCaptchaToken("")} />
+          <button type="submit" disabled={loading}
+            className="rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60">
             {loading ? "Creating..." : "Create Customer Account"}
           </button>
         </form>
 
         <p className="mt-6 text-sm text-slate-600">
           Already have an account?{" "}
-          <Link href="/test-booking/login" className="font-semibold text-[#003768]">
-            Log in
-          </Link>
+          <Link href="/test-booking/login" className="font-semibold text-[#003768]">Log in</Link>
         </p>
       </div>
     </div>

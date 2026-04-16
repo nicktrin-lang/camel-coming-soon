@@ -2,9 +2,19 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import { createAuthSupabaseClient } from "@/lib/supabase/auth-client";
+import HCaptcha from "@/app/components/HCaptcha";
+
+async function verifyCaptcha(token: string): Promise<boolean> {
+  const res = await fetch("/api/auth/verify-captcha", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  return res.ok;
+}
 
 export default function DriverLoginPage() {
   const router     = useRouter();
@@ -20,10 +30,20 @@ export default function DriverLoginPage() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError,   setResetError]   = useState("");
 
+  const [loginToken,  setLoginToken]  = useState("");
+  const [forgotToken, setForgotToken] = useState("");
+
+  const handleLoginToken  = useCallback((t: string) => setLoginToken(t), []);
+  const handleForgotToken = useCallback((t: string) => setForgotToken(t), []);
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true); setError(null);
     try {
+      if (!loginToken) { setError("Please complete the CAPTCHA."); setLoading(false); return; }
+      const captchaOk = await verifyCaptcha(loginToken);
+      if (!captchaOk) { setError("CAPTCHA verification failed. Please try again."); setLoading(false); return; }
+
       const { error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (signInError) throw new Error(signInError.message || "Failed to sign in.");
       router.push("/driver/jobs");
@@ -39,14 +59,15 @@ export default function DriverLoginPage() {
     e.preventDefault();
     setResetLoading(true); setResetError("");
     try {
+      if (!forgotToken) { setResetError("Please complete the CAPTCHA."); setResetLoading(false); return; }
+      const captchaOk = await verifyCaptcha(forgotToken);
+      if (!captchaOk) { setResetError("CAPTCHA verification failed. Please try again."); setResetLoading(false); return; }
+
       document.cookie = "resetPortal=driver; domain=.camel-global.com; path=/; max-age=3600";
       const res  = await fetch("/api/auth/send-reset-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim(),
-          redirectTo: `${window.location.origin}/?portal=driver`,
-        }),
+        body: JSON.stringify({ email: email.trim(), redirectTo: `${window.location.origin}/?portal=driver` }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to send reset email.");
@@ -92,6 +113,7 @@ export default function DriverLoginPage() {
                   className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a]"
                   placeholder="Enter your password" />
               </div>
+              <HCaptcha onVerify={handleLoginToken} onExpire={() => setLoginToken("")} />
               <button type="submit" disabled={loading}
                 className="w-full rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60">
                 {loading ? "Signing in..." : "Sign In"}
@@ -129,6 +151,7 @@ export default function DriverLoginPage() {
                       className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a]"
                       placeholder="your@email.com" />
                   </div>
+                  <HCaptcha onVerify={handleForgotToken} onExpire={() => setForgotToken("")} />
                   <button type="submit" disabled={resetLoading}
                     className="w-full rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60">
                     {resetLoading ? "Sending..." : "Send reset link"}

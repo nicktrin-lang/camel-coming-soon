@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import HCaptcha from "@/app/components/HCaptcha";
 
 const TERMS_VERSION = "2026-04";
 const TERMS_EFFECTIVE = "1 April 2026";
@@ -141,12 +142,9 @@ async function downloadTermsPDF() {
   const margin = 15;
   const usableW = pageW - margin * 2;
   let y = margin;
-
   function checkPage(needed = 8) {
     if (y + needed > pageH - margin) { doc.addPage(); y = margin; }
   }
-
-  // Header bar
   doc.setFillColor(15, 79, 138);
   doc.rect(0, 0, pageW, 18, "F");
   doc.setTextColor(255, 255, 255);
@@ -158,7 +156,6 @@ async function downloadTermsPDF() {
   doc.text(`Version: ${TERMS_VERSION} — Effective: ${TERMS_EFFECTIVE}`, pageW - margin, 11, { align: "right" });
   doc.text(`Generated: ${dateStr}`, pageW - margin, 15, { align: "right" });
   y = 26;
-
   doc.setTextColor(0, 55, 104);
   doc.setFontSize(16); doc.setFont("helvetica", "bold");
   doc.text("Partner Terms and Conditions", margin, y); y += 7;
@@ -167,7 +164,6 @@ async function downloadTermsPDF() {
   doc.text(subtitle, margin, y); y += subtitle.length * 4 + 6;
   doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.3);
   doc.line(margin, y, pageW - margin, y); y += 6;
-
   for (const { title, clauses } of TERMS_SECTIONS) {
     checkPage(12);
     doc.setFillColor(243, 248, 255);
@@ -183,7 +179,6 @@ async function downloadTermsPDF() {
     });
     y += 4;
   }
-
   const totalPages = (doc.internal as any).getNumberOfPages();
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
@@ -193,7 +188,6 @@ async function downloadTermsPDF() {
     doc.text(`Camel Global Partner Terms and Conditions — Version ${TERMS_VERSION} — camelglobal.com`, margin, pageH - 6);
     doc.text(`Page ${p} of ${totalPages}`, pageW - margin, pageH - 6, { align: "right" });
   }
-
   doc.save(`Camel-Global-Partner-Terms-${TERMS_VERSION}.pdf`);
 }
 
@@ -507,13 +501,25 @@ function Step4({ data, onChange, onNext, onBack }: { data: FormData; onChange: (
   );
 }
 
-function Step5({ data, onChange, onBack, onSubmit, submitting, error }: { data: FormData; onChange: (k: keyof FormData, v: boolean) => void; onBack: () => void; onSubmit: () => void; submitting: boolean; error: string; }) {
-  const bizAddress = [data.address1, data.address2, data.city, data.province, data.postcode, data.country].filter(Boolean).join(", ");
+function Step5({ data, onChange, onBack, onSubmit, submitting, error, onCaptchaVerify }: {
+  data: FormData;
+  onChange: (k: keyof FormData, v: boolean) => void;
+  onBack: () => void;
+  onSubmit: () => void;
+  submitting: boolean;
+  error: string;
+  onCaptchaVerify: (token: string) => void;
+}) {
+  const bizAddress   = [data.address1, data.address2, data.city, data.province, data.postcode, data.country].filter(Boolean).join(", ");
   const fleetAddress = [data.fleetAddress1, data.fleetAddress2, data.fleetCity, data.fleetProvince, data.fleetPostcode, data.fleetCountry].filter(Boolean).join(", ");
   const rows: [string, string][] = [
-    ["Company", data.companyName], ["Contact", data.contactName], ["Email", data.email],
-    ["Phone", data.phone], ["Website", data.website || "—"],
-    ["Business Address", bizAddress], ["Fleet Address", fleetAddress],
+    ["Company",          data.companyName],
+    ["Contact",          data.contactName],
+    ["Email",            data.email],
+    ["Phone",            data.phone],
+    ["Website",          data.website || "—"],
+    ["Business Address", bizAddress],
+    ["Fleet Address",    fleetAddress],
   ];
   return (
     <div className="space-y-5">
@@ -539,6 +545,7 @@ function Step5({ data, onChange, onBack, onSubmit, submitting, error }: { data: 
           </span>
         </label>
       </InfoBox>
+      <HCaptcha onVerify={onCaptchaVerify} onExpire={() => onCaptchaVerify("")} />
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
         <p className="font-semibold">What happens next?</p>
         <p className="mt-1">Your application will be reviewed by our team. You will receive an email confirmation shortly, and we will be in touch once your account has been approved.</p>
@@ -556,20 +563,30 @@ function Step5({ data, onChange, onBack, onSubmit, submitting, error }: { data: 
 
 export default function PartnerSignupPage() {
   const router = useRouter();
-  const [step, setStep] = useState(1);
-  const [data, setData] = useState<FormData>(EMPTY);
+  const [step,       setStep]       = useState(1);
+  const [data,       setData]       = useState<FormData>(EMPTY);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  const [error,      setError]      = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
+
+  const handleCaptcha = useCallback((t: string) => setCaptchaToken(t), []);
 
   function setField(k: keyof FormData, v: string | number | boolean | null) {
     setData(prev => ({ ...prev, [k]: v }));
   }
 
   async function submit() {
+    if (!captchaToken) { setError("Please complete the CAPTCHA."); return; }
+    const captchaRes = await fetch("/api/auth/verify-captcha", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: captchaToken }),
+    });
+    if (!captchaRes.ok) { setError("CAPTCHA verification failed. Please try again."); return; }
+
     setSubmitting(true); setError("");
     try {
       const fleetAddress = [data.fleetAddress1, data.fleetAddress2, data.fleetCity, data.fleetProvince, data.fleetPostcode, data.fleetCountry].filter(Boolean).join(", ");
-      const bizAddress = [data.address1, data.address2, data.city, data.province, data.postcode, data.country].filter(Boolean).join(", ");
+      const bizAddress   = [data.address1, data.address2, data.city, data.province, data.postcode, data.country].filter(Boolean).join(", ");
       const res = await fetch("/api/partner/complete-signup", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -611,7 +628,7 @@ export default function PartnerSignupPage() {
             {step === 2 && <Step2 data={data} onChange={(k, v) => setField(k, v)} onNext={() => { setError(""); setStep(3); }} onBack={() => setStep(1)} />}
             {step === 3 && <Step3 data={data} onChange={(k, v) => setField(k, v)} onNext={() => { setError(""); setStep(4); }} onBack={() => setStep(2)} />}
             {step === 4 && <Step4 data={data} onChange={(k, v) => setField(k, v as string)} onNext={() => { setError(""); setStep(5); }} onBack={() => setStep(3)} />}
-            {step === 5 && <Step5 data={data} onChange={(k, v) => setField(k, v as boolean)} onBack={() => setStep(4)} onSubmit={submit} submitting={submitting} error={error} />}
+            {step === 5 && <Step5 data={data} onChange={(k, v) => setField(k, v as boolean)} onBack={() => setStep(4)} onSubmit={submit} submitting={submitting} error={error} onCaptchaVerify={handleCaptcha} />}
           </div>
           <p className="mt-6 text-center text-sm text-slate-500">
             Already have an account?{" "}

@@ -2,10 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import { createAuthSupabaseClient } from "@/lib/supabase/auth-client";
+import HCaptcha from "@/app/components/HCaptcha";
 
 function reasonMessage(reason: string | null) {
   switch (reason) {
@@ -29,6 +30,15 @@ function clearStaleSupabaseLocks() {
   } catch {}
 }
 
+async function verifyCaptcha(token: string): Promise<boolean> {
+  const res = await fetch("/api/auth/verify-captcha", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  return res.ok;
+}
+
 function PartnerLoginInner() {
   const supabase   = useMemo(() => createBrowserSupabaseClient(), []);
   const authClient = useMemo(() => createAuthSupabaseClient(), []);
@@ -44,14 +54,24 @@ function PartnerLoginInner() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError,   setResetError]   = useState("");
 
+  const [loginToken,  setLoginToken]  = useState("");
+  const [forgotToken, setForgotToken] = useState("");
+
+  const handleLoginToken  = useCallback((t: string) => setLoginToken(t), []);
+  const handleForgotToken = useCallback((t: string) => setForgotToken(t), []);
+
   const reason      = searchParams.get("reason");
   const infoMessage = reasonMessage(reason);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true); setError("");
-    clearStaleSupabaseLocks();
     try {
+      if (!loginToken) { setError("Please complete the CAPTCHA."); setLoading(false); return; }
+      const captchaOk = await verifyCaptcha(loginToken);
+      if (!captchaOk) { setError("CAPTCHA verification failed. Please try again."); setLoading(false); return; }
+
+      clearStaleSupabaseLocks();
       const signInPromise  = supabase.auth.signInWithPassword({ email: email.trim(), password });
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("Login timed out. Please try again.")), 30000)
@@ -59,7 +79,6 @@ function PartnerLoginInner() {
       const { error: signInError } = await Promise.race([signInPromise, timeoutPromise]);
       if (signInError) throw signInError;
 
-      // Check if admin — send to admin portal
       try {
         const meRes = await fetch("/api/admin/me", { cache: "no-store", credentials: "include" });
         if (meRes.ok) {
@@ -73,9 +92,6 @@ function PartnerLoginInner() {
         }
       } catch {}
 
-      // Check if partner has completed onboarding.
-      // Onboarding is considered complete when fleet location, currency and
-      // VAT number have all been saved. If any are missing, send to onboarding.
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
@@ -86,10 +102,8 @@ function PartnerLoginInner() {
             .maybeSingle();
 
           const hasOnboarded = !!(
-            profile?.base_lat &&
-            profile?.base_lng &&
-            profile?.default_currency &&
-            profile?.vat_number
+            profile?.base_lat && profile?.base_lng &&
+            profile?.default_currency && profile?.vat_number
           );
 
           if (!hasOnboarded) {
@@ -100,7 +114,6 @@ function PartnerLoginInner() {
         }
       } catch {}
 
-      // Onboarding complete — go to dashboard
       router.replace("/partner/dashboard");
       router.refresh();
     } catch (e: any) {
@@ -113,6 +126,10 @@ function PartnerLoginInner() {
     e.preventDefault();
     setResetLoading(true); setResetError("");
     try {
+      if (!forgotToken) { setResetError("Please complete the CAPTCHA."); setResetLoading(false); return; }
+      const captchaOk = await verifyCaptcha(forgotToken);
+      if (!captchaOk) { setResetError("CAPTCHA verification failed. Please try again."); setResetLoading(false); return; }
+
       document.cookie = "resetPortal=partner; domain=.camel-global.com; path=/; max-age=3600";
       const res  = await fetch("/api/auth/send-reset-email", {
         method: "POST",
@@ -175,6 +192,7 @@ function PartnerLoginInner() {
                     className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
                     value={password} onChange={e => setPassword(e.target.value)} />
                 </div>
+                <HCaptcha onVerify={handleLoginToken} onExpire={() => setLoginToken("")} />
                 <button type="submit" disabled={loading}
                   className="w-full rounded-full bg-[#ff7a00] px-6 py-4 text-lg font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60">
                   {loading ? "Logging in..." : "Log in"}
@@ -209,6 +227,7 @@ function PartnerLoginInner() {
                         className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 text-black outline-none transition focus:border-[#0f4f8a]"
                         value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" />
                     </div>
+                    <HCaptcha onVerify={handleForgotToken} onExpire={() => setForgotToken("")} />
                     <button type="submit" disabled={resetLoading}
                       className="w-full rounded-full bg-[#ff7a00] px-6 py-4 text-lg font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60">
                       {resetLoading ? "Sending..." : "Send reset link"}
