@@ -32,9 +32,14 @@ export default function DriverLoginPage() {
 
   const [loginToken,  setLoginToken]  = useState("");
   const [forgotToken, setForgotToken] = useState("");
+  const [loginKey,    setLoginKey]    = useState(0);
+  const [forgotKey,   setForgotKey]   = useState(0);
 
   const handleLoginToken  = useCallback((t: string) => setLoginToken(t), []);
   const handleForgotToken = useCallback((t: string) => setForgotToken(t), []);
+
+  function resetLoginCaptcha()  { setLoginToken("");  setLoginKey(k => k + 1); }
+  function resetForgotCaptcha() { setForgotToken(""); setForgotKey(k => k + 1); }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -42,7 +47,7 @@ export default function DriverLoginPage() {
     try {
       if (!loginToken) { setError("Please complete the CAPTCHA."); setLoading(false); return; }
       const captchaOk = await verifyCaptcha(loginToken);
-      if (!captchaOk) { setError("CAPTCHA verification failed. Please try again."); setLoading(false); return; }
+      if (!captchaOk) { setError("CAPTCHA verification failed. Please try again."); resetLoginCaptcha(); setLoading(false); return; }
 
       const { error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (signInError) throw new Error(signInError.message || "Failed to sign in.");
@@ -50,6 +55,7 @@ export default function DriverLoginPage() {
       router.refresh();
     } catch (e: any) {
       setError(e?.message || "Failed to sign in.");
+      resetLoginCaptcha();
     } finally {
       setLoading(false);
     }
@@ -61,7 +67,7 @@ export default function DriverLoginPage() {
     try {
       if (!forgotToken) { setResetError("Please complete the CAPTCHA."); setResetLoading(false); return; }
       const captchaOk = await verifyCaptcha(forgotToken);
-      if (!captchaOk) { setResetError("CAPTCHA verification failed. Please try again."); setResetLoading(false); return; }
+      if (!captchaOk) { setResetError("CAPTCHA verification failed. Please try again."); resetForgotCaptcha(); setResetLoading(false); return; }
 
       document.cookie = "resetPortal=driver; domain=.camel-global.com; path=/; max-age=3600";
       const res  = await fetch("/api/auth/send-reset-email", {
@@ -74,6 +80,7 @@ export default function DriverLoginPage() {
       setResetSent(true);
     } catch (e: any) {
       setResetError(e?.message || "Failed to send reset email.");
+      resetForgotCaptcha();
     } finally {
       setResetLoading(false);
     }
@@ -113,7 +120,7 @@ export default function DriverLoginPage() {
                   className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a]"
                   placeholder="Enter your password" />
               </div>
-              <HCaptcha onVerify={handleLoginToken} onExpire={() => setLoginToken("")} />
+              <HCaptcha key={loginKey} onVerify={handleLoginToken} onExpire={() => setLoginToken("")} />
               <button type="submit" disabled={loading}
                 className="w-full rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60">
                 {loading ? "Signing in..." : "Sign In"}
@@ -151,7 +158,7 @@ export default function DriverLoginPage() {
                       className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a]"
                       placeholder="your@email.com" />
                   </div>
-                  <HCaptcha onVerify={handleForgotToken} onExpire={() => setForgotToken("")} />
+                  <HCaptcha key={forgotKey} onVerify={handleForgotToken} onExpire={() => setForgotToken("")} />
                   <button type="submit" disabled={resetLoading}
                     className="w-full rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60">
                     {resetLoading ? "Sending..." : "Send reset link"}

@@ -15,8 +15,11 @@ export default function DriverSignupPage() {
   const [error,    setError]    = useState<string | null>(null);
   const [success,  setSuccess]  = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaKey,   setCaptchaKey]   = useState(0);
 
   const handleCaptcha = useCallback((t: string) => setCaptchaToken(t), []);
+
+  function resetCaptcha() { setCaptchaToken(""); setCaptchaKey(k => k + 1); }
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
@@ -28,7 +31,7 @@ export default function DriverSignupPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: captchaToken }),
       });
-      if (!captchaRes.ok) { setError("CAPTCHA verification failed. Please try again."); setLoading(false); return; }
+      if (!captchaRes.ok) { setError("CAPTCHA verification failed. Please try again."); resetCaptcha(); setLoading(false); return; }
 
       const res  = await fetch("/api/driver/check", {
         method: "POST",
@@ -54,6 +57,7 @@ export default function DriverSignupPage() {
       setTimeout(() => router.push("/driver/login"), 1500);
     } catch (e: any) {
       setError(e?.message || "Failed to create account.");
+      resetCaptcha();
     } finally {
       setLoading(false);
     }
@@ -87,7 +91,7 @@ export default function DriverSignupPage() {
               className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4"
               placeholder="Create password" required />
           </div>
-          <HCaptcha onVerify={handleCaptcha} onExpire={() => setCaptchaToken("")} />
+          <HCaptcha key={captchaKey} onVerify={handleCaptcha} onExpire={() => setCaptchaToken("")} />
           <button type="submit" disabled={loading}
             className="w-full rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white">
             {loading ? "Creating account..." : "Create Account"}
