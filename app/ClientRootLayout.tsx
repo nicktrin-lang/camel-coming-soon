@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import GoogleAnalytics from "@/app/components/GoogleAnalytics";
 import CurrencySelector from "@/app/components/CurrencySelector";
+import CookieBanner from "@/app/components/CookieBanner";
 
 export default function ClientRootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -16,11 +17,14 @@ export default function ClientRootLayout({ children }: { children: React.ReactNo
     pathname === "/partner/signup" ||
     pathname === "/partner/application-submitted";
   const isPortalAppPage =
-  (pathname?.startsWith("/partner") && !isPartnerAuthPage) ||
-  pathname?.startsWith("/admin") ||
-  pathname?.startsWith("/driver");
+    (pathname?.startsWith("/partner") && !isPartnerAuthPage) ||
+    pathname?.startsWith("/admin") ||
+    pathname?.startsWith("/driver");
   const isTestBookingArea = pathname?.startsWith("/test-booking");
   const showGlobalHeader = !isHomepage && !isPartnerAuthPage && !isPortalAppPage;
+
+  // Cookie banner hidden on internal portal pages — staff/partners don't need it
+  const showCookieBanner = !isPortalAppPage;
 
   const [isPartnerLoggedIn, setIsPartnerLoggedIn] = useState(false);
   const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState(false);
@@ -138,6 +142,7 @@ export default function ClientRootLayout({ children }: { children: React.ReactNo
           </>
         )}
         <main>{children}</main>
+        {showCookieBanner && <CookieBanner />}
       </body>
     </html>
   );
