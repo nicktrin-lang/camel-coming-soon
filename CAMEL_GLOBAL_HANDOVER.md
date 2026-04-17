@@ -57,9 +57,14 @@
 | `lib/portal/syncBookingStatuses.ts` | Booking status sync logic |
 | `lib/portal/refreshPartnerLiveStatus.ts` | Core live status — checks all 7 requirements |
 | `lib/portal/triggerPartnerLiveRefresh.ts` | Triggers the live status refresh |
+| `lib/rateLimit.ts` | In-memory rate limiter — 3 req / 15 min per IP |
+| `lib/hcaptcha.ts` | Server-side hCaptcha token verification |
+| `app/components/HCaptcha.tsx` | Reusable hCaptcha React widget (explicit render) |
+| `app/api/auth/verify-captcha/route.ts` | POST endpoint — verifies hCaptcha token server-side |
 | `app/api/currency/rate/route.ts` | Live rate API — fetches EUR→GBP,USD from frankfurter.app |
 | `app/api/partner/refresh-live-status/route.ts` | POST endpoint — runs live status check |
 | `app/api/partner/requests/[id]/route.ts` | Returns commissionRate + minimumCommission to bid form |
+| `app/api/test-booking/customer-profile/route.ts` | Service role upsert for customer profiles (bypasses RLS) |
 | `app/partner/terms/page.tsx` | Partner T&Cs page — public, no auth required |
 
 ### Currency System
@@ -152,14 +157,33 @@ A partner account is **live** only when ALL are true:
 - Version: `2026-04`
 - Effective: `1 April 2026`
 
-### Where T&Cs Acceptance Is Shown
-- **Partner account page** (`/partner/account`) — Terms & Conditions card in sidebar
-- **Admin account page** (`/admin/accounts/[id]`) — Terms & Conditions card in sidebar
+---
 
-### T&Cs vs Operating Rules
-- **Operating Rules** = day-to-day conduct (bidding, vehicles, fuel, drivers) — shown on `/partner/account`
-- **Partner T&Cs** = legal agreement (intermediary position, commission, liability, GDPR, governing law) — shown on `/partner/terms`
-- Operating Rules are incorporated by reference into the T&Cs
+## Security
+
+### Rate Limiting
+- `lib/rateLimit.ts` — in-memory, 3 requests per IP per 15 minutes
+- Applied to: `send-reset-email`, `send-customer-reset-email`, `verify-captcha`
+
+### hCaptcha
+- Free tier, checkbox widget with invisible risk analysis
+- Site key: `NEXT_PUBLIC_HCAPTCHA_SITE_KEY` (in `.env.local` and Vercel)
+- Secret key: `HCAPTCHA_SECRET_KEY` (in `.env.local` and Vercel)
+- Applied to all login, forgot password, and signup forms across all three portals
+- Uses `render=explicit` + `onload` callback to prevent premature render
+- CAPTCHA widget resets (via `key` prop increment) after every failed attempt
+
+### Security Headers (`next.config.ts`)
+- `X-Frame-Options: SAMEORIGIN`
+- `X-Content-Type-Options: nosniff`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Permissions-Policy: camera=(), microphone=(), geolocation=(self), payment=()`
+- `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`
+- `Content-Security-Policy` — covers self, Google Maps, hCaptcha, Supabase, Frankfurter, Nominatim, Vercel Analytics
+
+### Supabase RLS
+- `customer_profiles` table has RLS enabled with insert/update/select policies
+- Customer profile upsert on signup uses service role via `/api/test-booking/customer-profile` to bypass session timing issue
 
 ---
 
@@ -170,9 +194,6 @@ Collected in onboarding step 3. Stored on `partner_profiles`:
 - `vat_number` — required for live status
 - `commission_rate` — per-partner override
 - `stripe_account_id`, `stripe_onboarding_status`
-
-**Partner profile page:** Read-only. Contact support@camel-global.com to change.
-**Admin account page:** Inline ✏️ Edit with amber warning — only update if partner has contacted Camel Global.
 
 ---
 
@@ -226,8 +247,6 @@ The following routes bypass auth in `app/partner/layout.tsx` (`isPublicPartnerPa
 - `/partner/application-submitted`
 - `/partner/signup` and `/partner/signup/*`
 
-Note: `/partner/terms` is **not** in the public list — logged-in partners see it with the sidebar. Unauthenticated users are redirected to login (the signup form uses inline PDF download, not the terms page URL).
-
 ---
 
 ## DB Columns Added Chat 8
@@ -240,19 +259,23 @@ Note: `/partner/terms` is **not** in the public list — logged-in partners see 
 ## DB Columns Added Chat 9
 **`partner_applications`:** `terms_accepted_at`, `terms_version`
 
+## DB Changes Chat 10
+**`customer_profiles`:** RLS enabled with insert/update/select policies added
+
 ---
 
 ## Current Stable State
 
 ### Last Known Good Tag
 ```bash
-git checkout v-stable-partner-terms
+git checkout v-stable-captcha
 ```
-**Description:** Partner T&Cs page, versioned acceptance recorded at signup, T&Cs card on partner account page and admin account page, jsPDF real PDF downloads for T&Cs and Operating Rules, currency check removed from approvals Setup Summary.
+**Description:** Security headers, code cleanup, rate limiting on auth routes, hCaptcha on all login/signup forms across all three portals, customer profile RLS fix, Nominatim added to CSP, partner signup page restored and working, partner login signup CTA made prominent.
 
 ### All Stable Tags
 | Tag | Description |
 |-----|-------------|
+| `v-stable-captcha` | Security headers, cleanup, rate limiting, hCaptcha all forms, RLS fix |
 | `v-stable-partner-terms` | Partner T&Cs, versioned acceptance, PDF downloads, admin T&Cs card |
 | `v-stable-commission-reporting` | Full commission system, billing details, reporting, Excel exports |
 | `v-stable-partner-reviews` | Partner review system, admin moderation, 7-day reminder cron |
@@ -293,27 +316,50 @@ git checkout v-stable-partner-terms
 - T&Cs acceptance recorded in DB with timestamp and version
 - T&Cs card on partner account page and admin account page
 - Real PDF downloads (jsPDF) for T&Cs and Operating Rules — no print dialog
-- Admin approvals Setup Summary — currency check removed (set during onboarding not signup)
+- **Security headers** — CSP, HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy
+- **Code cleanup** — orphaned files removed, empty dirs removed, stray junk removed
+- **Rate limiting** — 3 req / 15 min per IP on all auth email routes
+- **hCaptcha** — all login, forgot password, and signup forms across all three portals
+- **CAPTCHA reset** — widget resets after every failed attempt on all forms
+- **Customer profile RLS** — policies in place, service role used on signup
+- **Nominatim in CSP** — address search working on partner signup
 
 ---
 
 ## Session Log
 
+### Chat 10 (Completed — Pre-launch Security Items 1–4)
+
+**Item 1 — Security Headers**
+- `next.config.ts` — added full security header suite (CSP, HSTS, X-Frame-Options, etc.)
+- CSP covers: self, Google Maps, hCaptcha, Supabase, Frankfurter, Nominatim, Vercel Analytics
+
+**Item 2 — Code Cleanup**
+- Removed: `proxy.ts`, `app/components/page.tsx`, `app/partner/complete-signup/route.ts` (old duplicate)
+- Removed: `env.download`, `git-backup.rtf`, `.vercel-redeploy`, 9 screenshot files from `/public`
+- Removed: empty dirs `camel-portal/camel-portal`, `camel-portal/main`, `app/partner/bids`
+
+**Item 3 — Rate Limiting**
+- `lib/rateLimit.ts` — new in-memory rate limiter
+- `app/api/auth/send-reset-email/route.ts` — rate limited
+- `app/api/auth/send-customer-reset-email/route.ts` — rate limited
+
+**Item 4 — hCaptcha**
+- `lib/hcaptcha.ts` — server-side verification
+- `app/components/HCaptcha.tsx` — reusable widget, explicit render with onload
+- `app/api/auth/verify-captcha/route.ts` — verification endpoint
+- All 6 auth pages updated with hCaptcha + captcha reset on error
+- `app/api/test-booking/customer-profile/route.ts` — new service role profile upsert
+- Fixed: Nominatim blocked by CSP (added to connect-src)
+- Fixed: customer_profiles RLS blocking signup (service role API route)
+- Fixed: partner signup page overwritten with login page (restored from stable tag)
+- Fixed: partner login signup CTA made prominent (full-width box with button)
+- Stable tag: `v-stable-captcha`
+
 ### Chat 9 (Completed — Partner T&Cs)
-- `app/partner/terms/page.tsx` — full T&Cs page, public route, jsPDF download
-- `app/partner/signup/page.tsx` — T&Cs link triggers inline PDF download, no navigation
-- `app/partner/layout.tsx` — terms page handled correctly
-- `app/partner/account/page.tsx` — T&Cs card in sidebar
-- `app/admin/accounts/[id]/page.tsx` — T&Cs card in sidebar
-- `app/api/admin/accounts/[id]/route.ts` — added terms fields to select
-- `app/api/partner/complete-signup/route.ts` — records terms acceptance on signup
-- DB migration: `alter table partner_applications add column terms_accepted_at timestamptz, add column terms_version text`
-- jsPDF installed for real PDF downloads
-- Fixed: currency showing "Yes" on approvals Setup Summary before onboarding
 - Stable tag: `v-stable-partner-terms`
 
 ### Chat 8 (Completed — Commission & Payments)
-- Full commission system, billing, reporting, Excel exports
 - Stable tag: `v-stable-commission-reporting`
 
 ### Chats 1–7 (Completed)
@@ -323,14 +369,12 @@ git checkout v-stable-partner-terms
 
 ## Pre-Launch Build Plan
 
-Ordered by quickest first. Items 12–14 deferred to post-launch.
-
 | # | Task | Est. Time | Status |
 |---|------|-----------|--------|
-| 1 | Security headers (`next.config.ts`) | 30 min | ⬜ Todo |
-| 2 | Code cleanup (stray files, legacy routes, unused components) | 1 hr | ⬜ Todo |
-| 3 | Rate limiting on `/api/auth/` routes | 1–2 hrs | ⬜ Todo |
-| 4 | CAPTCHA at all sign-in points (hCaptcha, free) | 2–3 hrs | ⬜ Todo |
+| 1 | Security headers (`next.config.ts`) | 30 min | ✅ Done |
+| 2 | Code cleanup (stray files, legacy routes, unused components) | 1 hr | ✅ Done |
+| 3 | Rate limiting on `/api/auth/` routes | 1–2 hrs | ✅ Done |
+| 4 | CAPTCHA at all sign-in points (hCaptcha, free) | 2–3 hrs | ✅ Done |
 | 5 | Cookie acceptance banner (GDPR) | 2–3 hrs | ⬜ Todo |
 | 6 | Partner & Admin finance pages | 2–3 hrs | ⬜ Todo |
 | 7 | RLS audit (Supabase row-level security) | 2–3 hrs | ⬜ Todo |
@@ -341,16 +385,6 @@ Ordered by quickest first. Items 12–14 deferred to post-launch.
 | 12 | Stripe Connect integration | 8–10 hrs | ⬜ Deferred |
 | 13 | Xero monthly commission endpoint | 3–4 hrs | ⬜ Deferred |
 | 14 | DAC7 EU platform reporting | 3–4 hrs | ⬜ Deferred |
-
-### Notes on Key Items
-
-**GDPR (item 6):** EU law requiring deletion of a user's personal data on request within 30 days. Needs "delete my account" in partner portal, admin delete tool, and process to wipe bookings/profile/application data.
-
-**DAC7 (item 12):** EU law requiring platforms to report partner earnings to tax authorities annually if they exceed €2,000 or 30 transactions. NIF collection already in place. Needs annual report generation per partner.
-
-**Spanish translation (item 13):** Use `next-intl` (free). Extract all UI strings from partner + driver portal pages into `en.json` / `es.json`. Add language toggle to portal header. Initial Spanish via Google Translate, reviewed by native speaker. ~20+ partner pages + 4 driver pages — every string needs touching.
-
-**Customer booking site (item 14):** The `/test-booking` flow is functional but needs a full professional UI overhaul in the style of Uber — clean, minimal, confidence-inspiring. Covers: landing page with hero + how it works, booking request form, request tracking page, bid selection page, active booking page, consistent header/footer. All backend APIs already exist — purely frontend work. Must not break existing booking flow.
 
 ---
 
@@ -420,9 +454,13 @@ git tag | grep stable
 ---
 
 ## Environment
-- `.env.local` — Supabase keys, Google Maps API key, Resend, CRON_SECRET
+- `.env.local` — Supabase keys, Google Maps API key, Resend, CRON_SECRET, hCaptcha keys
 - Never commit `.env.local`
 - Vercel env vars set separately in Vercel dashboard
+
+### hCaptcha Keys
+- `NEXT_PUBLIC_HCAPTCHA_SITE_KEY` — public, used in browser
+- `HCAPTCHA_SECRET_KEY` — private, server-side only
 
 ---
 
@@ -431,4 +469,4 @@ git tag | grep stable
 
 ---
 
-*Last updated: Chat 9 — Partner T&Cs complete. Pre-launch build plan reordered by quickest first. Items 12–14 deferred.*
+*Last updated: Chat 10 — Items 1–4 complete (security headers, code cleanup, rate limiting, hCaptcha). Next: Item 5 (cookie banner).*
