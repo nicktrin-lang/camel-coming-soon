@@ -20,6 +20,7 @@ const partnerNavItems = [
   { href: "/partner/drivers",   label: "Drivers" },
   { href: "/partner/fleet",     label: "Car Fleet" },
   { href: "/partner/reviews",   label: "Reviews" },
+  { href: "/partner/settings",  label: "Settings" },
 ];
 
 function getAdminNavItems(role: PortalRole) {

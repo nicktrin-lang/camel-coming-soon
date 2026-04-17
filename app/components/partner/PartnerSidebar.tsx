@@ -12,7 +12,8 @@ const navItems = [
   { href: "/partner/fleet",    label: "Car Fleet" },
   { href: "/partner/reports",  label: "Report Management" },
   { href: "/partner/requests", label: "Requests" },
-  { href: "/partner/reviews", label: "Reviews" },
+  { href: "/partner/reviews",  label: "Reviews" },
+  { href: "/partner/settings", label: "Settings" },
 ];
 
 function isActive(pathname: string, href: string) {

@@ -23,7 +23,6 @@ export default function ClientRootLayout({ children }: { children: React.ReactNo
   const isTestBookingArea = pathname?.startsWith("/test-booking");
   const showGlobalHeader = !isHomepage && !isPartnerAuthPage && !isPortalAppPage;
 
-  // Cookie banner hidden on internal portal pages — staff/partners don't need it
   const showCookieBanner = !isPortalAppPage;
 
   const [isPartnerLoggedIn, setIsPartnerLoggedIn] = useState(false);
@@ -116,6 +115,7 @@ export default function ClientRootLayout({ children }: { children: React.ReactNo
                           <>
                             <Link href="/test-booking/new" className="rounded-full bg-[#ff7a00] px-4 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 text-xs">New Booking</Link>
                             <Link href="/test-booking/requests" className="hover:opacity-90 text-xs">My Bookings</Link>
+                            <Link href="/test-booking/settings" className="hover:opacity-90 text-xs">Settings</Link>
                             {customerName && <span className="hidden text-xs text-white/70 md:block">Welcome: {customerName}</span>}
                             <button type="button" onClick={handleCustomerLogout} className="rounded-full border border-white/20 px-4 py-2 text-xs font-semibold text-white hover:bg-white/10">Logout</button>
                           </>
