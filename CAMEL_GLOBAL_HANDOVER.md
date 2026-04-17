@@ -60,12 +60,17 @@
 | `lib/rateLimit.ts` | In-memory rate limiter — 3 req / 15 min per IP |
 | `lib/hcaptcha.ts` | Server-side hCaptcha token verification |
 | `app/components/HCaptcha.tsx` | Reusable hCaptcha React widget (explicit render) |
+| `app/components/CookieBanner.tsx` | GDPR cookie consent banner (localStorage) |
 | `app/api/auth/verify-captcha/route.ts` | POST endpoint — verifies hCaptcha token server-side |
 | `app/api/currency/rate/route.ts` | Live rate API — fetches EUR→GBP,USD from frankfurter.app |
 | `app/api/partner/refresh-live-status/route.ts` | POST endpoint — runs live status check |
 | `app/api/partner/requests/[id]/route.ts` | Returns commissionRate + minimumCommission to bid form |
+| `app/api/partner/delete-account/route.ts` | POST — soft deletes partner account (stamps deleted_at) |
 | `app/api/test-booking/customer-profile/route.ts` | Service role upsert for customer profiles (bypasses RLS) |
+| `app/api/test-booking/delete-account/route.ts` | POST — soft deletes customer account (stamps deleted_at) |
+| `app/partner/settings/page.tsx` | Partner settings page — delete account flow |
 | `app/partner/terms/page.tsx` | Partner T&Cs page — public, no auth required |
+| `app/test-booking/settings/page.tsx` | Customer settings page — delete account flow |
 
 ### Currency System
 - **Supported:** `EUR | GBP | USD`
@@ -159,6 +164,30 @@ A partner account is **live** only when ALL are true:
 
 ---
 
+## GDPR — Account Deletion
+
+### How It Works
+- **Soft delete** — stamps `deleted_at` on the profile row, retains all booking/financial data
+- Partner: `partner_profiles.deleted_at`
+- Customer: `customer_profiles.deleted_at`
+- Both sign the user out immediately after deletion
+- Deleted partners are blocked from logging back in — login page detects `deleted_at` and shows amber notice, hides the login form
+- `reason=account_deleted` on the login URL triggers the notice
+
+### Where It Lives
+- Partner: `/partner/settings` — linked from partner sidebar
+- Customer: `/test-booking/settings` — linked from customer header nav
+
+### API Routes
+- `POST /api/partner/delete-account` — requires partner session, stamps `deleted_at`
+- `POST /api/test-booking/delete-account` — requires customer session, stamps `deleted_at`
+
+### DB Columns Added Chat 11
+- `partner_profiles.deleted_at` (timestamptz)
+- `customer_profiles.deleted_at` (timestamptz)
+
+---
+
 ## Security
 
 ### Rate Limiting
@@ -182,8 +211,14 @@ A partner account is **live** only when ALL are true:
 - `Content-Security-Policy` — covers self, Google Maps, hCaptcha, Supabase, Frankfurter, Nominatim, Vercel Analytics
 
 ### Supabase RLS
-- `customer_profiles` table has RLS enabled with insert/update/select policies
-- Customer profile upsert on signup uses service role via `/api/test-booking/customer-profile` to bypass session timing issue
+- All tables have RLS enabled
+- `customer_profiles` — insert/update/select policies, service role used on signup
+- `partner_profiles` — insert/update/select policies
+- `partner_reviews` — RLS enabled, partner/customer/admin scoped policies
+- `platform_settings` — RLS enabled, authenticated read, admin-only write
+- `partner_drivers` / `partner_fleet` — DELETE/UPDATE scoped to `authenticated` role
+- `customer_requests`, `partner_bids`, `partner_bookings`, `request_partner_matches` — RLS ON, no policies (intentional — service role only via API routes)
+- `admin_users` — wide-open SELECT policy removed, only own-row and admin-list policies remain
 
 ---
 
@@ -224,8 +259,9 @@ Collected in onboarding step 3. Stored on `partner_profiles`:
 ---
 
 ## Partner Login Flow
-After sign-in checks: `base_lat`, `base_lng`, `default_currency`, `vat_number` all set.
-- Missing any → `/partner/onboarding`
+After sign-in checks: `deleted_at`, `base_lat`, `base_lng`, `default_currency`, `vat_number` all set.
+- `deleted_at` set → blocked, amber notice shown, form hidden
+- Missing onboarding fields → `/partner/onboarding`
 - All set → `/partner/dashboard`
 
 ---
@@ -249,6 +285,16 @@ The following routes bypass auth in `app/partner/layout.tsx` (`isPublicPartnerPa
 
 ---
 
+## Cookie Consent (GDPR)
+- `app/components/CookieBanner.tsx` — fixed bottom bar, Camel brand colours
+- Stored in `localStorage` as `cookie_consent: "accepted" | "rejected"`
+- **Accept All** → fires `gtag consent update` to unblock GA
+- **Reject Non-Essential** → GA stays blocked
+- Hidden on portal pages (`/partner`, `/admin`, `/driver`)
+- Links to `/cookies` and `/privacy` (to be built in Item 9)
+
+---
+
 ## DB Columns Added Chat 8
 **`partner_profiles`:** `legal_company_name`, `vat_number`, `company_registration_number`, `stripe_account_id`, `stripe_onboarding_status`, `commission_rate`
 
@@ -262,19 +308,24 @@ The following routes bypass auth in `app/partner/layout.tsx` (`isPublicPartnerPa
 ## DB Changes Chat 10
 **`customer_profiles`:** RLS enabled with insert/update/select policies added
 
+## DB Changes Chat 11
+**`partner_profiles`:** `deleted_at` (timestamptz)
+**`customer_profiles`:** `deleted_at` (timestamptz)
+
 ---
 
 ## Current Stable State
 
 ### Last Known Good Tag
 ```bash
-git checkout v-stable-captcha
+git checkout v-stable-gdpr-delete
 ```
-**Description:** Security headers, code cleanup, rate limiting on auth routes, hCaptcha on all login/signup forms across all three portals, customer profile RLS fix, Nominatim added to CSP, partner signup page restored and working, partner login signup CTA made prominent.
+**Description:** GDPR soft delete account flow for partners and customers, settings pages, sidebar nav updated, deleted account login block, cookie consent banner, RLS audit fixes.
 
 ### All Stable Tags
 | Tag | Description |
 |-----|-------------|
+| `v-stable-gdpr-delete` | GDPR soft delete, settings pages, cookie banner, RLS audit |
 | `v-stable-captcha` | Security headers, cleanup, rate limiting, hCaptcha all forms, RLS fix |
 | `v-stable-partner-terms` | Partner T&Cs, versioned acceptance, PDF downloads, admin T&Cs card |
 | `v-stable-commission-reporting` | Full commission system, billing details, reporting, Excel exports |
@@ -306,6 +357,7 @@ git checkout v-stable-captcha
 - Google Maps integration
 - Live status system — 7 checks
 - Partner login → onboarding redirect if incomplete
+- Partner login → blocked with amber notice if account deleted
 - Partner onboarding — 6 steps including Business & Billing
 - Driver portal — independent header, auto-refresh, insurance checkbox
 - Insurance handover — all three portals
@@ -323,37 +375,48 @@ git checkout v-stable-captcha
 - **CAPTCHA reset** — widget resets after every failed attempt on all forms
 - **Customer profile RLS** — policies in place, service role used on signup
 - **Nominatim in CSP** — address search working on partner signup
+- **Cookie consent banner** — GDPR compliant, accept/reject, persisted in localStorage
+- **RLS audit** — all tables reviewed, tightened, documented
+- **GDPR account deletion** — soft delete for partners and customers, settings pages, login block
 
 ---
 
 ## Session Log
 
+### Chat 11 (Completed — Items 5, 7, 8)
+
+**Item 5 — Cookie Banner**
+- `app/components/CookieBanner.tsx` — new GDPR cookie consent banner
+- `app/ClientRootLayout.tsx` — banner added, hidden on portal pages
+- Stable tag: `v-stable-cookie-banner` (superseded by `v-stable-gdpr-delete`)
+
+**Item 6 — Finance Pages — DEFERRED**
+- Reports pages already cover financial visibility
+- Xero will handle invoices in Phase 3
+- Revisit after Stripe integration
+
+**Item 7 — RLS Audit**
+- `admin_users` — removed wide-open SELECT policy
+- `partner_applications` — removed duplicate policies
+- `partner_drivers` + `partner_fleet` — fixed `{public}` → `{authenticated}` on DELETE/UPDATE
+- `platform_settings` — RLS enabled, admin-only write, authenticated read
+- `partner_reviews` — RLS enabled with partner/customer/admin policies
+- No code changes — SQL only
+- Stable tag: included in `v-stable-gdpr-delete`
+
+**Item 8 — GDPR Account Deletion**
+- `app/partner/settings/page.tsx` — new, delete account with TYPE DELETE confirmation
+- `app/test-booking/settings/page.tsx` — new, same for customers
+- `app/api/partner/delete-account/route.ts` — new, soft delete API
+- `app/api/test-booking/delete-account/route.ts` — new, soft delete API
+- `app/components/partner/PartnerSidebar.tsx` — Settings nav item added
+- `app/components/portal/PortalSidebar.tsx` — Settings nav item added to partner nav
+- `app/ClientRootLayout.tsx` — Settings link added to customer header nav
+- `app/partner/login/page.tsx` — blocks deleted accounts, amber notice, hides form
+- DB: `partner_profiles.deleted_at`, `customer_profiles.deleted_at`
+- Stable tag: `v-stable-gdpr-delete`
+
 ### Chat 10 (Completed — Pre-launch Security Items 1–4)
-
-**Item 1 — Security Headers**
-- `next.config.ts` — added full security header suite (CSP, HSTS, X-Frame-Options, etc.)
-- CSP covers: self, Google Maps, hCaptcha, Supabase, Frankfurter, Nominatim, Vercel Analytics
-
-**Item 2 — Code Cleanup**
-- Removed: `proxy.ts`, `app/components/page.tsx`, `app/partner/complete-signup/route.ts` (old duplicate)
-- Removed: `env.download`, `git-backup.rtf`, `.vercel-redeploy`, 9 screenshot files from `/public`
-- Removed: empty dirs `camel-portal/camel-portal`, `camel-portal/main`, `app/partner/bids`
-
-**Item 3 — Rate Limiting**
-- `lib/rateLimit.ts` — new in-memory rate limiter
-- `app/api/auth/send-reset-email/route.ts` — rate limited
-- `app/api/auth/send-customer-reset-email/route.ts` — rate limited
-
-**Item 4 — hCaptcha**
-- `lib/hcaptcha.ts` — server-side verification
-- `app/components/HCaptcha.tsx` — reusable widget, explicit render with onload
-- `app/api/auth/verify-captcha/route.ts` — verification endpoint
-- All 6 auth pages updated with hCaptcha + captcha reset on error
-- `app/api/test-booking/customer-profile/route.ts` — new service role profile upsert
-- Fixed: Nominatim blocked by CSP (added to connect-src)
-- Fixed: customer_profiles RLS blocking signup (service role API route)
-- Fixed: partner signup page overwritten with login page (restored from stable tag)
-- Fixed: partner login signup CTA made prominent (full-width box with button)
 - Stable tag: `v-stable-captcha`
 
 ### Chat 9 (Completed — Partner T&Cs)
@@ -375,10 +438,10 @@ git checkout v-stable-captcha
 | 2 | Code cleanup (stray files, legacy routes, unused components) | 1 hr | ✅ Done |
 | 3 | Rate limiting on `/api/auth/` routes | 1–2 hrs | ✅ Done |
 | 4 | CAPTCHA at all sign-in points (hCaptcha, free) | 2–3 hrs | ✅ Done |
-| 5 | Cookie acceptance banner (GDPR) | 2–3 hrs | ⬜ Todo |
-| 6 | Partner & Admin finance pages | 2–3 hrs | ⬜ Todo |
-| 7 | RLS audit (Supabase row-level security) | 2–3 hrs | ⬜ Todo |
-| 8 | GDPR data deletion — "delete my account" flow | 3–4 hrs | ⬜ Todo |
+| 5 | Cookie acceptance banner (GDPR) | 2–3 hrs | ✅ Done |
+| 6 | Partner & Admin finance pages | 2–3 hrs | ⏸ Deferred (post-Stripe) |
+| 7 | RLS audit (Supabase row-level security) | 2–3 hrs | ✅ Done |
+| 8 | GDPR data deletion — "delete my account" flow | 3–4 hrs | ✅ Done |
 | 9 | Footer + policy pages (Privacy, Cookie, Terms of Use, About) | 3–4 hrs | ⬜ Todo |
 | 10 | Spanish translation (partner + driver portals, `next-intl`) | 15–20 hrs | ⬜ Todo |
 | 11 | Customer booking site full UI overhaul | 15–20 hrs | ⬜ Todo |
@@ -469,4 +532,4 @@ git tag | grep stable
 
 ---
 
-*Last updated: Chat 10 — Items 1–4 complete (security headers, code cleanup, rate limiting, hCaptcha). Next: Item 5 (cookie banner).*
+*Last updated: Chat 11 — Items 5, 7, 8 complete (cookie banner, RLS audit, GDPR account deletion). Item 6 deferred. Next: Item 9 (footer + policy pages).*
