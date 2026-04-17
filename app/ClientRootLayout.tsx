@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import GoogleAnalytics from "@/app/components/GoogleAnalytics";
 import CurrencySelector from "@/app/components/CurrencySelector";
 import CookieBanner from "@/app/components/CookieBanner";
+import Footer from "@/app/components/Footer";
 
 export default function ClientRootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -96,7 +97,7 @@ export default function ClientRootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en">
-      <body className="min-h-screen bg-[#e3f4ff]">
+      <body className="min-h-screen bg-[#e3f4ff] flex flex-col">
         <GoogleAnalytics />
         {showGlobalHeader && (
           <>
@@ -141,7 +142,8 @@ export default function ClientRootLayout({ children }: { children: React.ReactNo
             <div className="h-[105px] md:h-[115px]" />
           </>
         )}
-        <main>{children}</main>
+        <main className="flex-1">{children}</main>
+        <Footer />
         {showCookieBanner && <CookieBanner />}
       </body>
     </html>
