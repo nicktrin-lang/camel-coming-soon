@@ -110,7 +110,7 @@ function DriverFooter() {
 }
 
 // ── Admin footer ──────────────────────────────────────────────────────────────
-// /admin/* — all links stay within admin layout using /admin/* routes
+// /admin/* — every link stays inside the admin layout, no new tabs
 function AdminFooter() {
   return (
     <FooterBase>
@@ -119,15 +119,15 @@ function AdminFooter() {
         <div className="flex flex-wrap gap-10 text-sm">
           <div className="flex flex-col gap-2">
             <span className="mb-1 text-xs font-semibold uppercase tracking-wider text-white/40">Company</span>
-            <Link href="/about" {...NT} className="text-white/80 hover:text-white transition-colors">About Us</Link>
-            <Link href="/contact" {...NT} className="text-white/80 hover:text-white transition-colors">Contact</Link>
+            <Link href="/admin/about" className="text-white/80 hover:text-white transition-colors">About Us</Link>
+            <Link href="/admin/contact" className="text-white/80 hover:text-white transition-colors">Contact</Link>
           </div>
           <div className="flex flex-col gap-2">
             <span className="mb-1 text-xs font-semibold uppercase tracking-wider text-white/40">Legal</span>
             <Link href="/admin/terms" className="text-white/80 hover:text-white transition-colors">Partner Terms</Link>
             <Link href="/admin/operating-rules" className="text-white/80 hover:text-white transition-colors">Operating Agreement</Link>
-            <Link href="/privacy" {...NT} className="text-white/80 hover:text-white transition-colors">Privacy Policy</Link>
-            <Link href="/cookies" {...NT} className="text-white/80 hover:text-white transition-colors">Cookie Policy</Link>
+            <Link href="/admin/privacy" className="text-white/80 hover:text-white transition-colors">Privacy Policy</Link>
+            <Link href="/admin/cookies" className="text-white/80 hover:text-white transition-colors">Cookie Policy</Link>
           </div>
         </div>
       </div>
