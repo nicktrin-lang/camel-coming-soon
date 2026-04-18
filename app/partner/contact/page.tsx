@@ -109,10 +109,11 @@ export default function PartnerContactPage() {
               <div>
                 <p className="font-semibold text-[#003768]">Useful links</p>
                 <div className="mt-2 space-y-1.5">
-                  <a href="/partner/terms" className="flex items-center gap-2 text-[#005b9f] hover:underline text-xs">
+                  {/* Open in new tab — these are public bypass pages with no layout when navigated to directly */}
+                  <a href="/partner/terms" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[#005b9f] hover:underline text-xs">
                     <span>→</span> Partner Terms
                   </a>
-                  <a href="/partner/operating-rules" className="flex items-center gap-2 text-[#005b9f] hover:underline text-xs">
+                  <a href="/partner/operating-rules" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[#005b9f] hover:underline text-xs">
                     <span>→</span> Operating Agreement
                   </a>
                   <a href="/partner/account" className="flex items-center gap-2 text-[#005b9f] hover:underline text-xs">

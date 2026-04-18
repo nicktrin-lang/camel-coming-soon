@@ -6,12 +6,10 @@ export const metadata: Metadata = {
 };
 
 // TODO: Update company registration number and registered address before going live.
-
 const EFFECTIVE_DATE = "1 April 2026";
 const COMPANY_NAME = "Camel Global Ltd";
 const COMPANY_REG = "XXXXXXXX"; // TODO: Replace with real registration number once company is formed
 const COMPANY_ADDRESS = "123 Placeholder Street, London, EC1A 1BB, United Kingdom"; // TODO: Replace with real address
-const CONTACT_EMAIL = "contact@camel-global.com";
 
 export default function PrivacyPage() {
   return (
@@ -33,7 +31,7 @@ export default function PrivacyPage() {
           <p>
             This policy explains what personal data {COMPANY_NAME} collects, why we collect it, how we use it,
             and what your rights are. We&apos;ve written it in plain English — if anything isn&apos;t clear,
-            just email us at <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#005b9f] hover:underline">{CONTACT_EMAIL}</a>.
+            use our <a href="/contact" className="text-[#005b9f] hover:underline">contact form</a>.
           </p>
 
           <hr className="border-slate-200" />
@@ -141,8 +139,8 @@ export default function PrivacyPage() {
               <li><strong>Withdrawal of consent</strong> — withdraw cookie consent at any time via the banner</li>
             </ul>
             <p className="mt-3">
-              To exercise any of these rights, email us at{" "}
-              <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#005b9f] hover:underline">{CONTACT_EMAIL}</a>.
+              To exercise any of these rights, use our{" "}
+              <a href="/contact" className="text-[#005b9f] hover:underline">contact form</a>.
               We&apos;ll respond within 30 days. You also have the right to complain to the ICO (ico.org.uk) if you
               believe we&apos;ve mishandled your data.
             </p>
@@ -176,8 +174,8 @@ export default function PrivacyPage() {
           <div>
             <h2 className="text-xl font-bold text-[#003768] mb-3">10. Contact</h2>
             <p>
-              Questions? Email us at{" "}
-              <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#005b9f] hover:underline">{CONTACT_EMAIL}</a>.
+              Questions? Use our{" "}
+              <a href="/contact" className="text-[#005b9f] hover:underline">contact form</a>.
             </p>
           </div>
 
