@@ -110,15 +110,31 @@ function DriverFooter() {
 }
 
 // ── Admin footer ──────────────────────────────────────────────────────────────
-// /admin/* — minimal, all links new tab
+// /admin/* — same links as partner footer but legal pages open in new tab
+// to avoid partner layout auth redirect
 function AdminFooter() {
+  async function handleOperatingRules() {
+    const { downloadOperatingRulesPDF } = await import("@/lib/portal/operatingRules");
+    downloadOperatingRulesPDF("Partner");
+  }
+
   return (
     <FooterBase>
       <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
         <FooterLogo linkProps={NT} />
         <div className="flex flex-wrap gap-10 text-sm">
           <div className="flex flex-col gap-2">
+            <span className="mb-1 text-xs font-semibold uppercase tracking-wider text-white/40">Company</span>
+            <Link href="/about" {...NT} className="text-white/80 hover:text-white transition-colors">About Us</Link>
+            <Link href="/contact" {...NT} className="text-white/80 hover:text-white transition-colors">Contact</Link>
+          </div>
+          <div className="flex flex-col gap-2">
             <span className="mb-1 text-xs font-semibold uppercase tracking-wider text-white/40">Legal</span>
+            <Link href="/partner/terms" {...NT} className="text-white/80 hover:text-white transition-colors">Partner Terms</Link>
+            <button type="button" onClick={handleOperatingRules}
+              className="text-left text-white/80 hover:text-white transition-colors">
+              Operating Agreement
+            </button>
             <Link href="/privacy" {...NT} className="text-white/80 hover:text-white transition-colors">Privacy Policy</Link>
             <Link href="/cookies" {...NT} className="text-white/80 hover:text-white transition-colors">Cookie Policy</Link>
           </div>
@@ -132,7 +148,7 @@ function AdminFooter() {
 export default function Footer() {
   const pathname = usePathname();
 
-  if (pathname?.startsWith("/admin"))   return <PartnerFooter />;
+  if (pathname?.startsWith("/admin"))   return <AdminFooter />;
   if (pathname?.startsWith("/driver"))  return <DriverFooter />;
   if (pathname?.startsWith("/partner")) return <PartnerFooter />;
   return <CustomerFooter />;
