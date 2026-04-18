@@ -9,10 +9,8 @@ export const metadata: Metadata = {
 
 const EFFECTIVE_DATE = "1 April 2026";
 const COMPANY_NAME = "Camel Global Ltd";
-// TODO: Replace with real registration number once company is formed
-const COMPANY_REG = "XXXXXXXX";
-// TODO: Replace with real registered address once company is formed
-const COMPANY_ADDRESS = "123 Placeholder Street, London, EC1A 1BB, United Kingdom";
+const COMPANY_REG = "XXXXXXXX"; // TODO: Replace with real registration number once company is formed
+const COMPANY_ADDRESS = "123 Placeholder Street, London, EC1A 1BB, United Kingdom"; // TODO: Replace with real address
 const CONTACT_EMAIL = "contact@camel-global.com";
 
 export default function PrivacyPage() {
@@ -30,142 +28,158 @@ export default function PrivacyPage() {
 
       {/* Content */}
       <section className="w-full bg-white px-6 py-16">
-        <div className="mx-auto max-w-4xl prose prose-slate prose-headings:text-[#003768] prose-a:text-[#005b9f] max-w-none">
+        <div className="mx-auto max-w-4xl space-y-8 text-[#475569] leading-relaxed">
 
-          <p className="text-[#475569] leading-relaxed">
+          <p>
             This policy explains what personal data {COMPANY_NAME} collects, why we collect it, how we use it,
             and what your rights are. We&apos;ve written it in plain English — if anything isn&apos;t clear,
             just email us at <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#005b9f] hover:underline">{CONTACT_EMAIL}</a>.
           </p>
 
-          <hr className="my-8 border-slate-200" />
+          <hr className="border-slate-200" />
 
-          <h2 className="text-xl font-bold text-[#003768] mt-8 mb-3">1. Who we are</h2>
-          <p className="text-[#475569] leading-relaxed">
-            {COMPANY_NAME} is the operator of the Camel Global platform. We&apos;re registered in England &amp; Wales
-            (company number {COMPANY_REG}) with a registered address at {COMPANY_ADDRESS}.
-            {/* TODO: Update registration number and address before go-live */}
-          </p>
-          <p className="text-[#475569] leading-relaxed mt-3">
-            For the purposes of UK and EU data protection law, we are the data controller for the personal data
-            described in this policy.
-          </p>
+          <div>
+            <h2 className="text-xl font-bold text-[#003768] mb-3">1. Who we are</h2>
+            <p>
+              {COMPANY_NAME} is the operator of the Camel Global platform. We&apos;re registered in England &amp; Wales
+              (company number {COMPANY_REG}) with a registered address at {COMPANY_ADDRESS}.
+              {/* TODO: Update registration number and address before go-live */}
+            </p>
+            <p className="mt-3">
+              For the purposes of UK and EU data protection law, we are the data controller for the personal data
+              described in this policy.
+            </p>
+          </div>
 
-          <h2 className="text-xl font-bold text-[#003768] mt-8 mb-3">2. What data we collect</h2>
+          <div>
+            <h2 className="text-xl font-bold text-[#003768] mb-3">2. What data we collect</h2>
 
-          <h3 className="text-base font-semibold text-[#003768] mt-5 mb-2">Customers</h3>
-          <p className="text-[#475569] leading-relaxed">When you create an account or make a booking we collect:</p>
-          <ul className="mt-2 space-y-1 text-[#475569] text-sm leading-relaxed list-disc list-inside">
-            <li>Your name and email address</li>
-            <li>Pickup and drop-off locations (including GPS coordinates where you provide them)</li>
-            <li>Booking details — dates, car type, duration</li>
-            <li>Fuel usage recorded at delivery and collection</li>
-            <li>Any reviews you submit</li>
-            <li>Technical data — IP address, browser type, pages visited (via cookies — see our <a href="/cookies" className="text-[#005b9f] hover:underline">Cookie Policy</a>)</li>
-          </ul>
+            <h3 className="text-base font-semibold text-[#003768] mt-5 mb-2">Customers</h3>
+            <p>When you create an account or make a booking we collect:</p>
+            <ul className="mt-2 space-y-1 text-sm list-disc list-inside">
+              <li>Your name and email address</li>
+              <li>Pickup and drop-off locations (including GPS coordinates where you provide them)</li>
+              <li>Booking details — dates, car type, duration</li>
+              <li>Fuel usage recorded at delivery and collection</li>
+              <li>Any reviews you submit</li>
+              <li>Technical data — IP address, browser type, pages visited (via cookies — see our <a href="/cookies" className="text-[#005b9f] hover:underline">Cookie Policy</a>)</li>
+            </ul>
 
-          <h3 className="text-base font-semibold text-[#003768] mt-5 mb-2">Partners (car hire companies)</h3>
-          <p className="text-[#475569] leading-relaxed">When you apply as a partner we collect:</p>
-          <ul className="mt-2 space-y-1 text-[#475569] text-sm leading-relaxed list-disc list-inside">
-            <li>Business name, legal company name, and registration number</li>
-            <li>VAT / NIF number</li>
-            <li>Fleet base address and GPS coordinates</li>
-            <li>Contact email address</li>
-            <li>Driver names and contact details you add to your account</li>
-            <li>Fleet vehicle details</li>
-            <li>Booking and financial data related to your account</li>
-          </ul>
+            <h3 className="text-base font-semibold text-[#003768] mt-5 mb-2">Partners (car hire companies)</h3>
+            <p>When you apply as a partner we collect:</p>
+            <ul className="mt-2 space-y-1 text-sm list-disc list-inside">
+              <li>Business name, legal company name, and registration number</li>
+              <li>VAT / NIF number</li>
+              <li>Fleet base address and GPS coordinates</li>
+              <li>Contact email address</li>
+              <li>Driver names and contact details you add to your account</li>
+              <li>Fleet vehicle details</li>
+              <li>Booking and financial data related to your account</li>
+            </ul>
 
-          <h3 className="text-base font-semibold text-[#003768] mt-5 mb-2">Drivers</h3>
-          <p className="text-[#475569] leading-relaxed">
-            Driver accounts are created by partners. We collect the name and login email you&apos;re given, along
-            with job confirmation records linked to the bookings you complete.
-          </p>
+            <h3 className="text-base font-semibold text-[#003768] mt-5 mb-2">Drivers</h3>
+            <p>
+              Driver accounts are created by partners. We collect the name and login email you&apos;re given, along
+              with job confirmation records linked to the bookings you complete.
+            </p>
+          </div>
 
-          <h2 className="text-xl font-bold text-[#003768] mt-8 mb-3">3. Why we collect it</h2>
-          <p className="text-[#475569] leading-relaxed">We use your data to:</p>
-          <ul className="mt-2 space-y-1 text-[#475569] text-sm leading-relaxed list-disc list-inside">
-            <li>Process and manage your bookings</li>
-            <li>Match customer requests with nearby partners</li>
-            <li>Send booking confirmations and status updates by email</li>
-            <li>Calculate fuel charges and partner payouts</li>
-            <li>Display reviews and ratings on partner profiles</li>
-            <li>Improve and maintain the platform</li>
-            <li>Comply with our legal obligations (e.g. financial record-keeping)</li>
-          </ul>
-          <p className="text-[#475569] leading-relaxed mt-3">
-            Our legal basis is primarily <strong>contract performance</strong> (we need your data to deliver the
-            service you signed up for) and <strong>legitimate interests</strong> (maintaining and improving the platform).
-            Where we rely on your consent (e.g. analytics cookies), you can withdraw it at any time.
-          </p>
+          <div>
+            <h2 className="text-xl font-bold text-[#003768] mb-3">3. Why we collect it</h2>
+            <p>We use your data to:</p>
+            <ul className="mt-2 space-y-1 text-sm list-disc list-inside">
+              <li>Process and manage your bookings</li>
+              <li>Match customer requests with nearby partners</li>
+              <li>Send booking confirmations and status updates by email</li>
+              <li>Calculate fuel charges and partner payouts</li>
+              <li>Display reviews and ratings on partner profiles</li>
+              <li>Improve and maintain the platform</li>
+              <li>Comply with our legal obligations (e.g. financial record-keeping)</li>
+            </ul>
+            <p className="mt-3">
+              Our legal basis is primarily <strong>contract performance</strong> (we need your data to deliver the
+              service you signed up for) and <strong>legitimate interests</strong> (maintaining and improving the platform).
+              Where we rely on your consent (e.g. analytics cookies), you can withdraw it at any time.
+            </p>
+          </div>
 
-          <h2 className="text-xl font-bold text-[#003768] mt-8 mb-3">4. Who we share your data with</h2>
-          <p className="text-[#475569] leading-relaxed">
-            We don&apos;t sell your data. We share it only where necessary to run the service:
-          </p>
-          <ul className="mt-2 space-y-1 text-[#475569] text-sm leading-relaxed list-disc list-inside">
-            <li><strong>Partners</strong> — when you accept a bid, the partner receives your pickup/drop-off location and booking details to fulfil the hire</li>
-            <li><strong>Supabase</strong> — our database and authentication provider (data stored in the EU)</li>
-            <li><strong>Resend</strong> — transactional email delivery</li>
-            <li><strong>Google Maps</strong> — location search and mapping (subject to Google&apos;s privacy policy)</li>
-            <li><strong>Stripe</strong> — payment processing (when integrated)</li>
-            <li><strong>Vercel</strong> — hosting and infrastructure</li>
-            <li><strong>Google Analytics</strong> — aggregate site usage analytics (only if you accept analytics cookies)</li>
-          </ul>
+          <div>
+            <h2 className="text-xl font-bold text-[#003768] mb-3">4. Who we share your data with</h2>
+            <p>We don&apos;t sell your data. We share it only where necessary to run the service:</p>
+            <ul className="mt-2 space-y-1 text-sm list-disc list-inside">
+              <li><strong>Partners</strong> — when you accept a bid, the partner receives your pickup/drop-off location and booking details to fulfil the hire</li>
+              <li><strong>Supabase</strong> — our database and authentication provider (data stored in the EU)</li>
+              <li><strong>Resend</strong> — transactional email delivery</li>
+              <li><strong>Google Maps</strong> — location search and mapping (subject to Google&apos;s privacy policy)</li>
+              <li><strong>Stripe</strong> — payment processing (when integrated)</li>
+              <li><strong>Vercel</strong> — hosting and infrastructure</li>
+              <li><strong>Google Analytics</strong> — aggregate site usage analytics (only if you accept analytics cookies)</li>
+            </ul>
+          </div>
 
-          <h2 className="text-xl font-bold text-[#003768] mt-8 mb-3">5. How long we keep your data</h2>
-          <p className="text-[#475569] leading-relaxed">
-            We keep your account and booking data for as long as your account is active and for a reasonable
-            period afterwards to comply with legal and financial obligations (typically 7 years for financial records).
-          </p>
-          <p className="text-[#475569] leading-relaxed mt-3">
-            If you delete your account, we immediately remove your ability to log in and flag your profile as deleted.
-            Your booking and financial records are retained for the period required by law, then deleted.
-          </p>
+          <div>
+            <h2 className="text-xl font-bold text-[#003768] mb-3">5. How long we keep your data</h2>
+            <p>
+              We keep your account and booking data for as long as your account is active and for a reasonable
+              period afterwards to comply with legal and financial obligations (typically 7 years for financial records).
+            </p>
+            <p className="mt-3">
+              If you delete your account, we immediately remove your ability to log in and flag your profile as deleted.
+              Your booking and financial records are retained for the period required by law, then deleted.
+            </p>
+          </div>
 
-          <h2 className="text-xl font-bold text-[#003768] mt-8 mb-3">6. Your rights</h2>
-          <p className="text-[#475569] leading-relaxed">
-            Under UK GDPR you have the right to:
-          </p>
-          <ul className="mt-2 space-y-1 text-[#475569] text-sm leading-relaxed list-disc list-inside">
-            <li><strong>Access</strong> — request a copy of the data we hold about you</li>
-            <li><strong>Correction</strong> — ask us to fix inaccurate data</li>
-            <li><strong>Erasure</strong> — ask us to delete your data (subject to legal retention obligations)</li>
-            <li><strong>Portability</strong> — receive your data in a structured, machine-readable format</li>
-            <li><strong>Objection</strong> — object to processing based on legitimate interests</li>
-            <li><strong>Withdrawal of consent</strong> — withdraw cookie consent at any time via the banner</li>
-          </ul>
-          <p className="text-[#475569] leading-relaxed mt-3">
-            To exercise any of these rights, email us at{" "}
-            <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#005b9f] hover:underline">{CONTACT_EMAIL}</a>.
-            We&apos;ll respond within 30 days. You also have the right to complain to the ICO (ico.org.uk) if you
-            believe we&apos;ve mishandled your data.
-          </p>
+          <div>
+            <h2 className="text-xl font-bold text-[#003768] mb-3">6. Your rights</h2>
+            <p>Under UK GDPR you have the right to:</p>
+            <ul className="mt-2 space-y-1 text-sm list-disc list-inside">
+              <li><strong>Access</strong> — request a copy of the data we hold about you</li>
+              <li><strong>Correction</strong> — ask us to fix inaccurate data</li>
+              <li><strong>Erasure</strong> — ask us to delete your data (subject to legal retention obligations)</li>
+              <li><strong>Portability</strong> — receive your data in a structured, machine-readable format</li>
+              <li><strong>Objection</strong> — object to processing based on legitimate interests</li>
+              <li><strong>Withdrawal of consent</strong> — withdraw cookie consent at any time via the banner</li>
+            </ul>
+            <p className="mt-3">
+              To exercise any of these rights, email us at{" "}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#005b9f] hover:underline">{CONTACT_EMAIL}</a>.
+              We&apos;ll respond within 30 days. You also have the right to complain to the ICO (ico.org.uk) if you
+              believe we&apos;ve mishandled your data.
+            </p>
+          </div>
 
-          <h2 className="text-xl font-bold text-[#003768] mt-8 mb-3">7. Cookies</h2>
-          <p className="text-[#475569] leading-relaxed">
-            We use cookies for essential site functionality and, with your consent, for analytics.
-            See our <a href="/cookies" className="text-[#005b9f] hover:underline">Cookie Policy</a> for full details.
-          </p>
+          <div>
+            <h2 className="text-xl font-bold text-[#003768] mb-3">7. Cookies</h2>
+            <p>
+              We use cookies for essential site functionality and, with your consent, for analytics.
+              See our <a href="/cookies" className="text-[#005b9f] hover:underline">Cookie Policy</a> for full details.
+            </p>
+          </div>
 
-          <h2 className="text-xl font-bold text-[#003768] mt-8 mb-3">8. Security</h2>
-          <p className="text-[#475569] leading-relaxed">
-            We use industry-standard security measures including encrypted connections (HTTPS), row-level database
-            security, rate limiting on all authentication endpoints, and CAPTCHA on all sign-in and sign-up forms.
-            No system is completely immune to attack, but we take reasonable precautions to protect your data.
-          </p>
+          <div>
+            <h2 className="text-xl font-bold text-[#003768] mb-3">8. Security</h2>
+            <p>
+              We use industry-standard security measures including encrypted connections (HTTPS), row-level database
+              security, rate limiting on all authentication endpoints, and CAPTCHA on all sign-in and sign-up forms.
+              No system is completely immune to attack, but we take reasonable precautions to protect your data.
+            </p>
+          </div>
 
-          <h2 className="text-xl font-bold text-[#003768] mt-8 mb-3">9. Changes to this policy</h2>
-          <p className="text-[#475569] leading-relaxed">
-            We may update this policy from time to time. When we do, we&apos;ll update the effective date at the top.
-            If changes are significant, we&apos;ll notify you by email.
-          </p>
+          <div>
+            <h2 className="text-xl font-bold text-[#003768] mb-3">9. Changes to this policy</h2>
+            <p>
+              We may update this policy from time to time. When we do, we&apos;ll update the effective date at the top.
+              If changes are significant, we&apos;ll notify you by email.
+            </p>
+          </div>
 
-          <h2 className="text-xl font-bold text-[#003768] mt-8 mb-3">10. Contact</h2>
-          <p className="text-[#475569] leading-relaxed">
-            Questions? Email us at{" "}
-            <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#005b9f] hover:underline">{CONTACT_EMAIL}</a>.
-          </p>
+          <div>
+            <h2 className="text-xl font-bold text-[#003768] mb-3">10. Contact</h2>
+            <p>
+              Questions? Email us at{" "}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#005b9f] hover:underline">{CONTACT_EMAIL}</a>.
+            </p>
+          </div>
 
         </div>
       </section>
