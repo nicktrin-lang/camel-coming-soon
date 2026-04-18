@@ -45,7 +45,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* How it works — steps */}
+      {/* How it works */}
       <section className="w-full bg-[#e3f4ff] px-6 py-16">
         <div className="mx-auto max-w-4xl">
           <h2 className="mb-10 text-2xl font-bold text-[#003768]">How it works</h2>
@@ -55,8 +55,8 @@ export default function AboutPage() {
               { n: "02", title: "Receive bids", body: "Verified local car hire partners near you see your request and place bids. You get to compare them side by side." },
               { n: "03", title: "Accept an offer", body: "Choose the bid that works for you. The booking is confirmed immediately and the partner is notified." },
               { n: "04", title: "Car delivered to you", body: "A driver delivers your car to your chosen location at the agreed time. Insurance documents are confirmed on handover." },
-              { n: "05", title: "Drive", body: "Enjoy your hire. When you&apos;re done, let us know where you&apos;ll be and a driver will come and collect the car." },
-              { n: "06", title: "Pay only for fuel used", body: "Fuel is recorded at delivery and collection. You pay only for what you&apos;ve used, rounded to the nearest quarter tank." },
+              { n: "05", title: "Drive", body: "Enjoy your hire. When you're done, let us know where you'll be and a driver will come and collect the car." },
+              { n: "06", title: "Pay only for fuel used", body: "Fuel is recorded at delivery and collection. You pay only for what you've used, rounded to the nearest quarter tank." },
             ].map(({ n, title, body }) => (
               <div key={n} className="rounded-2xl bg-white p-6 shadow-sm">
                 <p className="mb-2 text-3xl font-bold text-[#ff7a00]/30">{n}</p>
@@ -110,14 +110,14 @@ export default function AboutPage() {
       <section className="w-full bg-[#e3f4ff] px-6 py-16">
         <div className="mx-auto max-w-4xl">
           <h2 className="mb-4 text-2xl font-bold text-[#003768]">Get in touch</h2>
-          <p className="mb-2 text-[#334155] leading-relaxed">
+          <p className="mb-6 text-[#334155] leading-relaxed">
             Got a question, a partnership enquiry, or just want to say hello?
           </p>
           <a
-            href="mailto:contact@camel-global.com"
-            className="text-[#005b9f] font-semibold hover:underline"
+            href="/contact"
+            className="inline-block rounded-full bg-[#ff7a00] px-8 py-3 font-semibold text-white shadow-lg hover:opacity-90 transition-opacity"
           >
-            contact@camel-global.com
+            Contact us →
           </a>
         </div>
       </section>

@@ -67,7 +67,7 @@ const TERMS: Section[] = [
       "Camel Global will use reasonable endeavours to make the Platform available 24 hours a day, 7 days a week, subject to planned maintenance and events outside our control.",
       "Camel Global will process Bookings, payments, and notifications in accordance with the functionality described in the Platform.",
       "Camel Global will notify Partners of new customer requests within their service radius in a timely manner.",
-      "Camel Global will provide Partner support via support@camel-global.com and will use reasonable endeavours to respond to enquiries within 2 business days.",
+      "Camel Global will provide Partner support via the contact form and will use reasonable endeavours to respond to enquiries within 2 business days.",
       "Camel Global will give Partners at least 14 days' written notice of any material changes to these Terms or the Operating Rules, except where immediate changes are required by law or to protect the safety of the Platform.",
       "Camel Global does not guarantee any minimum volume of Bookings or revenue to any Partner.",
     ],
@@ -156,7 +156,7 @@ const TERMS: Section[] = [
       "Camel Global may suspend a Partner account immediately and without notice in the event of: a serious customer complaint; breach of vehicle or driver standards; failure to fulfil a confirmed Booking; misrepresentation of pricing or services; or any act that Camel Global reasonably believes puts Customers at risk.",
       "Following suspension, the Partner will be notified by email and given the opportunity to respond within 5 business days.",
       "Camel Global may permanently terminate this Agreement for repeated breaches, a single serious violation, or where the Partner is subject to insolvency proceedings.",
-      "The Partner may terminate this Agreement at any time by providing 30 days' written notice to support@camel-global.com, provided no active Bookings remain outstanding.",
+      "The Partner may terminate this Agreement at any time by providing 30 days' written notice via the contact form, provided no active Bookings remain outstanding.",
       "On termination for any reason: (a) the Partner's access to the Platform will be revoked; (b) all outstanding amounts owed to Camel Global become immediately payable; (c) the Partner must delete all Customer personal data within 30 days; and (d) the Partner must cease using any Camel Global branding or trademarks.",
       "Termination does not affect any accrued rights or liabilities of either party.",
     ],
@@ -198,7 +198,6 @@ async function downloadTermsPDF(companyName?: string) {
     if (y + needed > pageH - margin) { doc.addPage(); y = margin; }
   }
 
-  // Header bar
   doc.setFillColor(15, 79, 138);
   doc.rect(0, 0, pageW, 18, "F");
   doc.setTextColor(255, 255, 255);
@@ -212,7 +211,6 @@ async function downloadTermsPDF(companyName?: string) {
   else doc.text(`Generated: ${dateStr}`, pageW - margin, 15, { align: "right" });
   y = 26;
 
-  // Title
   doc.setTextColor(0, 55, 104);
   doc.setFontSize(16); doc.setFont("helvetica", "bold");
   doc.text("Partner Terms and Conditions", margin, y); y += 7;
@@ -222,19 +220,15 @@ async function downloadTermsPDF(companyName?: string) {
     usableW
   );
   doc.text(subtitle, margin, y); y += subtitle.length * 4 + 6;
-
-  // Divider
   doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.3);
   doc.line(margin, y, pageW - margin, y); y += 6;
 
-  // Sections
   for (const { title, clauses } of TERMS) {
     checkPage(12);
     doc.setFillColor(243, 248, 255);
     doc.roundedRect(margin, y - 4, usableW, 9, 2, 2, "F");
     doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(0, 55, 104);
     doc.text(title, margin + 3, y + 2); y += 9;
-
     clauses.forEach((clause, i) => {
       checkPage(8);
       const lines = doc.splitTextToSize(`${i + 1}.  ${clause}`, usableW - 6);
@@ -245,7 +239,6 @@ async function downloadTermsPDF(companyName?: string) {
     y += 4;
   }
 
-  // Footer on every page
   const totalPages = (doc.internal as any).getNumberOfPages();
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
@@ -266,6 +259,7 @@ export default function PartnerTermsPage() {
       <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#ff7a00]">Legal</p>
             <h1 className="text-3xl font-bold text-[#003768]">Partner Terms and Conditions</h1>
             <p className="mt-2 text-slate-500 text-sm">Version {VERSION} — Effective {EFFECTIVE_DATE}</p>
             <p className="mt-3 text-sm text-slate-600 leading-relaxed max-w-2xl">
@@ -327,8 +321,8 @@ export default function PartnerTermsPage() {
         </p>
       </div>
 
-      <p className="text-xs text-slate-400 text-center">
-        Camel Global Partner Terms and Conditions — Version {VERSION} — Effective {EFFECTIVE_DATE} — Subject to change with 14 days' notice.
+      <p className="text-xs text-slate-400 text-center pb-4">
+        Camel Global Partner Terms and Conditions — Version {VERSION} — Effective {EFFECTIVE_DATE} — Subject to change with 14 days&apos; notice.
       </p>
     </div>
   );

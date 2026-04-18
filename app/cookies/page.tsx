@@ -6,7 +6,6 @@ export const metadata: Metadata = {
 };
 
 const EFFECTIVE_DATE = "1 April 2026";
-const CONTACT_EMAIL = "contact@camel-global.com";
 
 export default function CookiesPage() {
   return (
@@ -27,9 +26,8 @@ export default function CookiesPage() {
 
           <p>
             This page explains what cookies are, which ones we use on the Camel Global platform,
-            and how you can control them. We&apos;ve kept it as clear as possible — if you have
-            questions, email us at{" "}
-            <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#005b9f] hover:underline">{CONTACT_EMAIL}</a>.
+            and how you can control them. If you have questions, use our{" "}
+            <a href="/contact" className="text-[#005b9f] hover:underline">contact form</a>.
           </p>
 
           <hr className="border-slate-200" />
@@ -77,9 +75,8 @@ export default function CookiesPage() {
                   <p className="text-[#64748b]">
                     These help us understand how people use the site — which pages are popular,
                     how long people spend on each page, and where they come from. The data is
-                    aggregated and anonymous. We use it to improve the platform. Google&apos;s privacy
-                    policy applies:{" "}
-                    <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-[#005b9f] hover:underline">policies.google.com/privacy</a>.
+                    aggregated and anonymous. We use it to improve the platform.
+                    Google&apos;s own privacy policy governs how Google handles this data.
                   </p>
                   <p className="text-[#64748b] mt-1">Expires: up to 2 years.</p>
                 </div>
@@ -96,7 +93,7 @@ export default function CookiesPage() {
             <ul className="list-disc list-inside space-y-1 text-sm">
               <li>Clear your browser&apos;s local storage for camel-global.com and the banner will reappear</li>
               <li>Use your browser&apos;s built-in cookie settings to delete or block cookies at any time</li>
-              <li>Visit <a href="https://www.youronlinechoices.com" target="_blank" rel="noopener noreferrer" className="text-[#005b9f] hover:underline">youronlinechoices.com</a> to manage advertising and analytics preferences across sites</li>
+              <li>Visit your browser&apos;s privacy settings to manage advertising and analytics preferences</li>
             </ul>
             <p className="mt-3 text-sm">
               Note: blocking essential cookies will break the login functionality of the platform.
@@ -106,10 +103,10 @@ export default function CookiesPage() {
           <div>
             <h2 className="text-xl font-bold text-[#003768] mb-3">Third-party cookies</h2>
             <p>
-              Some features on this site use third-party services that may set their own cookies.
-              These include Google Maps (for location features) and hCaptcha (for bot prevention on
+              Some features on this site use third-party services that may set their own cookies —
+              including Google Maps (for location features) and hCaptcha (for bot prevention on
               sign-in forms). These services have their own privacy and cookie policies which we
-              encourage you to review.
+              encourage you to review directly with those providers.
             </p>
           </div>
 
@@ -124,8 +121,7 @@ export default function CookiesPage() {
           <div>
             <h2 className="text-xl font-bold text-[#003768] mb-3">Questions?</h2>
             <p>
-              Email us at{" "}
-              <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#005b9f] hover:underline">{CONTACT_EMAIL}</a>.
+              Use our <a href="/contact" className="text-[#005b9f] hover:underline">contact form</a> and we&apos;ll get back to you.
             </p>
           </div>
 
