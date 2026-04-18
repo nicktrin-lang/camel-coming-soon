@@ -132,7 +132,7 @@ function AdminFooter() {
 export default function Footer() {
   const pathname = usePathname();
 
-  if (pathname?.startsWith("/admin"))   return <AdminFooter />;
+  if (pathname?.startsWith("/admin"))   return <PartnerFooter />;
   if (pathname?.startsWith("/driver"))  return <DriverFooter />;
   if (pathname?.startsWith("/partner")) return <PartnerFooter />;
   return <CustomerFooter />;
