@@ -34,7 +34,6 @@ export default function ContactPage() {
       setError("Please complete the CAPTCHA.");
       return;
     }
-
     setLoading(true);
     try {
       const res = await fetch("/api/contact", {
@@ -84,12 +83,6 @@ export default function ContactPage() {
               <h2 className="mb-4 text-lg font-semibold text-[#003768]">Other ways to reach us</h2>
               <div className="space-y-4 text-sm text-[#475569]">
                 <div>
-                  <p className="font-semibold text-[#003768]">Email</p>
-                  <a href="mailto:contact@camel-global.com" className="text-[#005b9f] hover:underline">
-                    contact@camel-global.com
-                  </a>
-                </div>
-                <div>
                   <p className="font-semibold text-[#003768]">Response time</p>
                   <p>Within one business day</p>
                 </div>
@@ -137,7 +130,6 @@ export default function ContactPage() {
                 )}
 
                 <div className="grid gap-5 sm:grid-cols-2">
-                  {/* Name */}
                   <div>
                     <label className="mb-1.5 block text-sm font-semibold text-[#003768]">
                       Your name <span className="text-red-500">*</span>
@@ -151,8 +143,6 @@ export default function ContactPage() {
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#005b9f] focus:outline-none focus:ring-2 focus:ring-[#005b9f]/20"
                     />
                   </div>
-
-                  {/* Email */}
                   <div>
                     <label className="mb-1.5 block text-sm font-semibold text-[#003768]">
                       Email address <span className="text-red-500">*</span>
@@ -168,7 +158,6 @@ export default function ContactPage() {
                   </div>
                 </div>
 
-                {/* Subject */}
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-[#003768]">
                     Subject <span className="text-red-500">*</span>
@@ -183,7 +172,6 @@ export default function ContactPage() {
                   </select>
                 </div>
 
-                {/* Message */}
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-[#003768]">
                     Message <span className="text-red-500">*</span>
@@ -199,7 +187,6 @@ export default function ContactPage() {
                   <p className="mt-1 text-right text-xs text-slate-400">{message.length}/5000</p>
                 </div>
 
-                {/* hCaptcha */}
                 <div>
                   <HCaptcha
                     key={captchaKey}

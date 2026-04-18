@@ -6,14 +6,10 @@ export const metadata: Metadata = {
 };
 
 // TODO: Update company registration number and registered address before going live.
-
 const EFFECTIVE_DATE = "1 April 2026";
 const COMPANY_NAME = "Camel Global Ltd";
-// TODO: Replace with real registration number once company is formed
-const COMPANY_REG = "XXXXXXXX";
-// TODO: Replace with real registered address once company is formed
-const COMPANY_ADDRESS = "123 Placeholder Street, London, EC1A 1BB, United Kingdom";
-const CONTACT_EMAIL = "contact@camel-global.com";
+const COMPANY_REG = "XXXXXXXX"; // TODO: Replace with real registration number
+const COMPANY_ADDRESS = "123 Placeholder Street, London, EC1A 1BB, United Kingdom"; // TODO: Replace with real address
 
 export default function CustomerTermsPage() {
   return (
@@ -35,8 +31,8 @@ export default function CustomerTermsPage() {
           <p>
             These terms apply when you use the Camel Global platform as a customer to request and book a
             hire car. Please read them — they explain how the platform works, what we&apos;re responsible for,
-            and what we&apos;re not. If anything isn&apos;t clear, email us at{" "}
-            <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#005b9f] hover:underline">{CONTACT_EMAIL}</a>.
+            and what we&apos;re not. If anything isn&apos;t clear, use our{" "}
+            <a href="/contact" className="text-[#005b9f] hover:underline">contact form</a>.
           </p>
 
           <hr className="border-slate-200" />
@@ -130,8 +126,8 @@ export default function CustomerTermsPage() {
               will apply those terms when processing any cancellation or refund request.
             </p>
             <p>
-              To cancel a booking, use the platform or contact us at{" "}
-              <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#005b9f] hover:underline">{CONTACT_EMAIL}</a>.
+              To cancel a booking, use the platform or use our{" "}
+              <a href="/contact" className="text-[#005b9f] hover:underline">contact form</a>.
             </p>
           </div>
 
@@ -180,7 +176,7 @@ export default function CustomerTermsPage() {
 
           <div>
             <h2 className="text-xl font-bold text-[#003768] mb-3">10. Reviews</h2>
-            <p className="mb-3">
+            <p>
               After a booking completes, you may be invited to leave a review of the partner. Reviews
               must be honest and based on your actual experience. We reserve the right to remove reviews
               that are abusive, false, or in breach of these terms.
@@ -189,7 +185,7 @@ export default function CustomerTermsPage() {
 
           <div>
             <h2 className="text-xl font-bold text-[#003768] mb-3">11. Your account and data</h2>
-            <p className="mb-3">
+            <p>
               You can delete your account at any time from your settings page. We&apos;ll remove your login
               access immediately. Booking and financial records are retained as required by law.
               See our <a href="/privacy" className="text-[#005b9f] hover:underline">Privacy Policy</a> for full details.
@@ -216,8 +212,8 @@ export default function CustomerTermsPage() {
           <div>
             <h2 className="text-xl font-bold text-[#003768] mb-3">14. Contact</h2>
             <p>
-              Questions or complaints: email{" "}
-              <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#005b9f] hover:underline">{CONTACT_EMAIL}</a>.
+              Questions or complaints? Use our{" "}
+              <a href="/contact" className="text-[#005b9f] hover:underline">contact form</a>.
             </p>
           </div>
 

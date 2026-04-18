@@ -111,7 +111,7 @@ export default function AboutPage() {
         <div className="mx-auto max-w-4xl">
           <h2 className="mb-4 text-2xl font-bold text-[#003768]">Get in touch</h2>
           <p className="mb-6 text-[#334155] leading-relaxed">
-            Got a question, a partnership enquiry, or just want to say hello?
+            Got a question or a partnership enquiry?
           </p>
           <a
             href="/contact"
