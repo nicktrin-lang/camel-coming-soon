@@ -43,7 +43,12 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
     pathname === "/partner/reset-password" ||
     pathname === "/partner/application-submitted" ||
     pathname === "/partner/signup" ||
-    pathname.startsWith("/partner/signup/");
+    pathname.startsWith("/partner/signup/") ||
+    // Public-facing info pages — accessible by anyone including admins and
+    // unauthenticated users. No auth check should run on these routes.
+    pathname === "/partner/terms" ||
+    pathname === "/partner/operating-rules" ||
+    pathname === "/partner/contact";
 
   useEffect(() => {
     let mounted = true;
