@@ -11,7 +11,6 @@ import CurrencySelector from "@/app/components/CurrencySelector";
 type Lang = keyof typeof translations;
 type AddressResult = { display_name: string; lat: number; lng: number };
 
-// ── Sport equipment options ───────────────────────────────────────────────────
 const SPORT_OPTIONS = [
   { value: "none",        label: "None" },
   { value: "golf_single", label: "Golf clubs — 1 bag" },
@@ -54,9 +53,9 @@ function CustomerHome() {
 
   useEffect(() => {
     if (window.location.hash.includes("access_token")) {
-      const hash   = window.location.hash;
-      const params = new URLSearchParams(window.location.search);
-      const portal = params.get("portal");
+      const hash = window.location.hash;
+      const p    = new URLSearchParams(window.location.search);
+      const portal = p.get("portal");
       if (portal === "customer")    window.location.replace("/reset-password" + hash);
       else if (portal === "driver") window.location.replace("/driver/reset-password" + hash);
       else                          window.location.replace("/partner/reset-password" + hash);
@@ -87,86 +86,86 @@ function CustomerHome() {
 
   function handleBookNow() {
     sessionStorage.setItem("camel_booking_draft", JSON.stringify({
-      pickupAddress, pickupLat, pickupLng,
-      dropoffAddress, dropoffLat, dropoffLng,
+      pickupAddress, pickupLat, pickupLng, dropoffAddress, dropoffLat, dropoffLng,
       pickupAt, dropoffAt, passengers, suitcases, vehicleSlug, sportEquipment,
     }));
     router.push("/book");
   }
 
-  // Shared input classes — less rounded, more modern
-  const inputCls = "w-full border border-black/10 px-3 py-2.5 text-sm outline-none focus:border-[#003768] focus:ring-2 focus:ring-[#003768]/10 rounded-lg bg-white";
-  const labelCls = "block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1.5";
+  const inputCls = "w-full border border-black/15 px-3 py-2.5 text-sm outline-none focus:border-black focus:ring-1 focus:ring-black/20 rounded-lg bg-white transition-colors";
+  const labelCls = "block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1";
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
 
       {/* ── Navbar ── */}
-      <nav className="fixed left-0 top-0 z-50 w-full bg-gradient-to-br from-[#003768] to-[#005b9f] shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
+      <nav className="fixed left-0 top-0 z-50 w-full bg-white border-b border-black/8 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
           <Link href="/">
-            <Image src="/camel-logo.png" alt="Camel" width={180} height={64} priority className="h-14 w-auto" />
+            <Image src="/camel-logo.png" alt="Camel" width={160} height={56} priority className="h-12 w-auto" />
           </Link>
-          <div className="flex items-center gap-3">
-            <Link href="/login" className="border border-white/30 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors rounded-lg">
+          <div className="flex items-center gap-2">
+            <Link href="/login"
+              className="border border-black/20 px-4 py-2 text-sm font-semibold text-black hover:bg-black/5 transition-colors rounded-lg">
               Log In
             </Link>
-            <Link href="/signup" className="bg-[#ff7a00] px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_12px_rgba(255,122,0,0.4)] hover:opacity-95 transition-opacity rounded-lg">
-              Create Account
+            <Link href="/signup"
+              className="bg-black text-white px-4 py-2 text-sm font-semibold hover:bg-black/80 transition-colors rounded-lg">
+              Sign Up
             </Link>
           </div>
         </div>
       </nav>
-      <div className="h-[72px]" />
+      <div className="h-[60px]" />
 
       {/* ── Hero + Booking Widget ── */}
-      <section className="bg-white py-14 lg:py-20">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="grid gap-10 lg:grid-cols-2 lg:items-start">
+      <section className="bg-white py-10 lg:py-16">
+        <div className="mx-auto max-w-7xl px-4 lg:px-6">
+          <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
 
-            {/* Left */}
-            <div className="lg:pt-4">
-              <h1 className="text-4xl font-black leading-tight text-[#003768] sm:text-5xl">
+            {/* Left — headline */}
+            <div className="lg:pt-3">
+              <h1 className="text-3xl font-black leading-tight text-black sm:text-4xl lg:text-5xl">
                 Book your meet &amp; greet car hire
               </h1>
-              <p className="mt-4 text-lg text-slate-600 leading-relaxed max-w-lg">
+              <p className="mt-3 text-base text-slate-500 leading-relaxed max-w-lg">
                 Car delivered to you, wherever you are. No queues. No hidden costs. Full insurance included.
               </p>
-              <div className="mt-6 grid grid-cols-2 gap-2 max-w-md">
+              <div className="mt-5 grid grid-cols-2 gap-2 max-w-sm">
                 {[
                   ["🚗", "Car delivered to you"],
                   ["🛡️", "Full insurance, zero excess"],
                   ["⛽", "Pay only for fuel used"],
                   ["✅", "No airport queues"],
                 ].map(([icon, text]) => (
-                  <div key={text} className="flex items-center gap-2 border border-[#003768]/10 bg-[#f3f8ff] px-3 py-2.5 rounded-lg">
-                    <span className="text-base">{icon}</span>
-                    <span className="text-xs font-semibold text-[#003768]">{text}</span>
+                  <div key={text} className="flex items-center gap-2 border border-black/10 bg-slate-50 px-3 py-2 rounded-lg">
+                    <span className="text-sm">{icon}</span>
+                    <span className="text-xs font-semibold text-slate-700">{text}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Booking widget */}
-            <div className="border border-black/5 bg-white p-6 shadow-[0_16px_48px_rgba(0,55,104,0.12)] rounded-xl">
-              <h2 className="text-lg font-black text-[#003768] mb-1">Where do you need your car?</h2>
-              <p className="text-xs text-slate-500 mb-5">No account needed to start — sign in when you're ready to confirm</p>
+            <div className="border border-black/10 bg-white p-5 shadow-[0_4px_24px_rgba(0,0,0,0.08)] rounded-xl">
+              <h2 className="text-base font-black text-black mb-4">Where do you need your car?</h2>
 
               {/* Pickup */}
               <div className="relative mb-3">
                 <label className={labelCls}>Pickup location</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#ff7a00]">📍</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#ff7a00] text-sm">📍</span>
                   <input value={pickupAddress} onChange={e => searchPickup(e.target.value)}
                     placeholder="Airport, hotel, address…"
-                    className={inputCls + " pl-9"} />
+                    className={inputCls + " pl-8"} />
                   {pickupLoading && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">…</span>}
                 </div>
                 {pickupResults.length > 0 && (
-                  <div className="absolute z-30 left-0 right-0 mt-1 border border-black/10 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden rounded-lg">
+                  <div className="absolute z-30 left-0 right-0 mt-1 border border-black/10 bg-white shadow-lg overflow-hidden rounded-lg">
                     {pickupResults.map((r, i) => (
-                      <button key={i} type="button" onClick={() => { setPickupAddress(r.display_name); setPickupLat(r.lat); setPickupLng(r.lng); setPickupResults([]); }}
-                        className="w-full text-left px-4 py-3 text-sm hover:bg-[#f3f8ff] border-b border-black/5 last:border-b-0">{r.display_name}</button>
+                      <button key={i} type="button"
+                        onClick={() => { setPickupAddress(r.display_name); setPickupLat(r.lat); setPickupLng(r.lng); setPickupResults([]); }}
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 border-b border-black/5 last:border-b-0">{r.display_name}</button>
                     ))}
                   </div>
                 )}
@@ -176,17 +175,18 @@ function CustomerHome() {
               <div className="relative mb-3">
                 <label className={labelCls}>Drop-off location</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🏁</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🏁</span>
                   <input value={dropoffAddress} onChange={e => searchDropoff(e.target.value)}
                     placeholder="Return location (if different)"
-                    className={inputCls + " pl-9"} />
+                    className={inputCls + " pl-8"} />
                   {dropoffLoading && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">…</span>}
                 </div>
                 {dropoffResults.length > 0 && (
-                  <div className="absolute z-30 left-0 right-0 mt-1 border border-black/10 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden rounded-lg">
+                  <div className="absolute z-30 left-0 right-0 mt-1 border border-black/10 bg-white shadow-lg overflow-hidden rounded-lg">
                     {dropoffResults.map((r, i) => (
-                      <button key={i} type="button" onClick={() => { setDropoffAddress(r.display_name); setDropoffLat(r.lat); setDropoffLng(r.lng); setDropoffResults([]); }}
-                        className="w-full text-left px-4 py-3 text-sm hover:bg-[#f3f8ff] border-b border-black/5 last:border-b-0">{r.display_name}</button>
+                      <button key={i} type="button"
+                        onClick={() => { setDropoffAddress(r.display_name); setDropoffLat(r.lat); setDropoffLng(r.lng); setDropoffResults([]); }}
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 border-b border-black/5 last:border-b-0">{r.display_name}</button>
                     ))}
                   </div>
                 )}
@@ -237,30 +237,31 @@ function CustomerHome() {
               </div>
 
               {/* Currency */}
-              <div className="mb-5">
+              <div className="mb-4">
                 <label className={labelCls}>Select your booking currency</label>
                 <CurrencySelector variant="light" />
               </div>
 
               <button type="button" onClick={handleBookNow}
-                className="w-full bg-[#ff7a00] py-4 text-base font-black text-white shadow-[0_8px_24px_rgba(255,122,0,0.35)] hover:opacity-95 active:scale-[0.99] transition-all rounded-lg">
+                className="w-full bg-[#ff7a00] py-3.5 text-sm font-black text-white hover:opacity-95 active:scale-[0.99] transition-all rounded-lg">
                 Book Now →
               </button>
+              <p className="mt-2 text-center text-xs text-slate-400">
+                No account needed to start — sign in when you're ready to confirm
+              </p>
             </div>
           </div>
         </div>
       </section>
 
       {/* ── How Camel Works ── */}
-      <section className="bg-[#f7f9fc] py-20">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="text-center mb-14">
-            <span className="inline-block border border-[#ff7a00]/30 bg-[#ff7a00]/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-[#ff7a00] rounded">Simple &amp; Transparent</span>
-            <h2 className="mt-3 text-3xl font-black text-[#003768] sm:text-4xl">How Camel works</h2>
-            <p className="mt-3 text-slate-600 max-w-xl mx-auto">Three simple steps to get a car hire company delivering to you — no airport desk, no queuing, no surprises.</p>
+      <section className="bg-slate-50 py-12 lg:py-16">
+        <div className="mx-auto max-w-7xl px-4 lg:px-6">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl font-black text-black sm:text-3xl">How Camel works</h2>
+            <p className="mt-2 text-slate-500 max-w-lg mx-auto text-sm">Three steps to get a car hire company delivering to you — no airport desk, no queuing.</p>
           </div>
-
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="grid gap-4 lg:grid-cols-3">
             {[
               {
                 step: "01", icon: "📋",
@@ -269,7 +270,7 @@ function CustomerHome() {
                 points: [
                   "Enter your pickup and drop-off location",
                   "Choose your dates, passengers and vehicle type",
-                  "Your request is instantly sent to local car hire companies",
+                  "Your request is sent to local car hire companies",
                   "Takes less than 2 minutes",
                 ],
               },
@@ -279,7 +280,7 @@ function CustomerHome() {
                 bg: "bg-[#ff7a00]",
                 points: [
                   "Local car hire companies within range are notified",
-                  "Each car hire company submits their best price for car hire and fuel",
+                  "Each company submits their best price for car hire and fuel",
                   "You see full price breakdowns — no hidden extras",
                   "Compare ratings and reviews from real customers",
                 ],
@@ -290,25 +291,25 @@ function CustomerHome() {
                 bg: "bg-[#1a9e5c]",
                 points: [
                   "Choose the offer that suits you best",
-                  "The full fuel deposit is taken upon booking — you will be refunded what you don't use",
+                  "The full fuel deposit is taken upon booking — refunded for what you don't use",
                   "Your driver meets you at the agreed location",
-                  "Confirm the fuel tank level and insurance, take the keys and go",
+                  "Confirm fuel level and insurance, take the keys and go",
                 ],
               },
             ].map((s, i) => (
-              <div key={i} className="border border-black/5 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.06)] overflow-hidden flex flex-col rounded-xl">
-                <div className={`${s.bg} p-6 text-white`}>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-4xl font-black opacity-30">{s.step}</span>
-                    <span className="text-3xl">{s.icon}</span>
+              <div key={i} className="border border-black/8 bg-white shadow-sm overflow-hidden flex flex-col rounded-xl">
+                <div className={`${s.bg} p-5 text-white`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-3xl font-black opacity-25">{s.step}</span>
+                    <span className="text-2xl">{s.icon}</span>
                   </div>
-                  <h3 className="text-xl font-black">{s.title}</h3>
+                  <h3 className="text-lg font-black">{s.title}</h3>
                 </div>
-                <div className="p-6 flex-1">
-                  <ul className="space-y-3">
+                <div className="p-5 flex-1">
+                  <ul className="space-y-2.5">
                     {s.points.map((p, j) => (
-                      <li key={j} className="flex items-start gap-3 text-sm text-slate-700">
-                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-[#003768]/10 text-[#003768] text-xs font-bold rounded">{j+1}</span>
+                      <li key={j} className="flex items-start gap-2.5 text-sm text-slate-600">
+                        <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center bg-black/8 text-black text-[10px] font-bold rounded">{j+1}</span>
                         <span>{p}</span>
                       </li>
                     ))}
@@ -321,16 +322,15 @@ function CustomerHome() {
       </section>
 
       {/* ── What's included ── */}
-      <section className="bg-white py-20">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+      <section className="bg-white py-12 lg:py-16">
+        <div className="mx-auto max-w-7xl px-4 lg:px-6">
+          <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
             <div>
-              <span className="inline-block border border-[#ff7a00]/30 bg-[#ff7a00]/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-[#ff7a00] rounded">Everything included</span>
-              <h2 className="mt-3 text-3xl font-black text-[#003768] sm:text-4xl">No surprises when you arrive</h2>
-              <p className="mt-4 text-slate-600 leading-relaxed max-w-lg">
+              <h2 className="text-2xl font-black text-black sm:text-3xl">No surprises when you arrive</h2>
+              <p className="mt-3 text-slate-500 leading-relaxed max-w-lg text-sm">
                 Payment including fuel deposit is taken in full at the time of booking. When your driver arrives there is nothing left to do except confirm the fuel tank level, confirm you received your insurance documents, take the keys and go.
               </p>
-              <ul className="mt-6 space-y-3">
+              <ul className="mt-5 space-y-2.5">
                 {[
                   ["🚗", "Car delivered to your exact location — hotel, apartment, airport exit"],
                   ["🛡️", "Full insurance with zero excess included in the price"],
@@ -338,8 +338,8 @@ function CustomerHome() {
                   ["📄", "All paperwork completed at booking — nothing to sign on arrival"],
                   ["⭐", "Reviews from real customers so you can choose with confidence"],
                 ].map(([icon, text]) => (
-                  <li key={text as string} className="flex items-start gap-3 text-sm text-slate-700">
-                    <span className="text-xl shrink-0">{icon}</span>
+                  <li key={text as string} className="flex items-start gap-3 text-sm text-slate-600">
+                    <span className="text-lg shrink-0">{icon}</span>
                     <span>{text}</span>
                   </li>
                 ))}
@@ -347,44 +347,38 @@ function CustomerHome() {
             </div>
 
             {/* Camel difference */}
-            <div className="overflow-hidden border border-black/5 shadow-[0_8px_24px_rgba(0,0,0,0.08)] rounded-xl">
-              <div className="bg-[#003768] px-6 py-5">
-                <h3 className="text-xl font-black text-white">The Camel difference</h3>
-                <p className="mt-1 text-sm text-white/60">How we compare to traditional car hire</p>
+            <div className="overflow-hidden border border-black/10 shadow-sm rounded-xl">
+              <div className="bg-black px-6 py-4">
+                <h3 className="text-lg font-black text-white">The Camel difference</h3>
+                <p className="mt-0.5 text-xs text-white/50">How we compare to traditional car hire</p>
               </div>
-              <div className="bg-slate-50 px-6 py-5 border-b border-black/5">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="inline-flex h-6 w-6 items-center justify-center bg-slate-200 text-slate-500 text-xs font-bold rounded">✗</span>
-                  <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Traditional car hire</p>
-                </div>
-                <ul className="space-y-2.5">
+              <div className="bg-slate-50 px-6 py-4 border-b border-black/8">
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Traditional car hire</p>
+                <ul className="space-y-2">
                   {[
                     "Queue at airport desk — often 30–60 minutes",
                     "Surprise extras added on arrival",
                     "Fuel penalties if not returned full",
                     "Hidden insurance charges and excess fees",
                   ].map(p => (
-                    <li key={p} className="flex items-center gap-3 text-sm text-slate-600">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center bg-red-100 text-red-500 text-xs font-bold rounded">✗</span>
+                    <li key={p} className="flex items-center gap-2.5 text-sm text-slate-500">
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center bg-red-100 text-red-500 text-[10px] font-bold rounded">✗</span>
                       {p}
                     </li>
                   ))}
                 </ul>
               </div>
-              <div className="bg-white px-6 py-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="inline-flex h-6 w-6 items-center justify-center bg-[#ff7a00] text-white text-xs font-bold rounded">✓</span>
-                  <p className="text-xs font-bold uppercase tracking-widest text-[#ff7a00]">Camel Global</p>
-                </div>
-                <ul className="space-y-2.5">
+              <div className="bg-white px-6 py-4">
+                <p className="text-xs font-bold uppercase tracking-widest text-[#ff7a00] mb-3">Camel Global</p>
+                <ul className="space-y-2">
                   {[
                     "Car delivered directly to you — no queuing",
                     "Price fixed and confirmed at booking",
                     "Pay only for the fuel you actually use",
                     "Full insurance with zero excess, always included",
                   ].map(p => (
-                    <li key={p} className="flex items-center gap-3 text-sm text-slate-700">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center bg-green-100 text-green-600 text-xs font-bold rounded">✓</span>
+                    <li key={p} className="flex items-center gap-2.5 text-sm text-slate-700">
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center bg-green-100 text-green-600 text-[10px] font-bold rounded">✓</span>
                       {p}
                     </li>
                   ))}
@@ -396,27 +390,26 @@ function CustomerHome() {
       </section>
 
       {/* ── Fuel system ── */}
-      <section className="bg-[#f7f9fc] py-20">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="text-center mb-12">
-            <span className="inline-block border border-[#ff7a00]/30 bg-[#ff7a00]/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-[#ff7a00] rounded">Transparent fuel policy</span>
-            <h2 className="mt-3 text-3xl font-black text-[#003768] sm:text-4xl">You only pay for the fuel you use</h2>
-            <p className="mt-3 text-slate-600 max-w-2xl mx-auto">Your booking includes a full tank as a deposit. When you return the car, the driver records the remaining fuel level — you pay only for the quarters used and the rest is refunded.</p>
+      <section className="bg-slate-50 py-12 lg:py-16">
+        <div className="mx-auto max-w-7xl px-4 lg:px-6">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-black text-black sm:text-3xl">You only pay for the fuel you use</h2>
+            <p className="mt-2 text-slate-500 max-w-xl mx-auto text-sm">Your booking includes a full tank as a deposit. You pay only for the quarters used — the rest is refunded.</p>
           </div>
-          <div className="grid gap-4 sm:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-4">
             {[
               { level: "Full",    bar: 4, label: "Returned full",      desc: "Full refund of fuel deposit" },
-              { level: "¾ Tank", bar: 3, label: "Returned ¾ full",    desc: "You pay for ¼ tank only" },
-              { level: "½ Tank", bar: 2, label: "Returned half full",  desc: "You pay for ½ tank" },
-              { level: "¼ Tank", bar: 1, label: "Returned ¼ full",    desc: "You pay for ¾ tank" },
+              { level: "¾ Tank", bar: 3, label: "Returned ¾ full",    desc: "Pay for ¼ tank only" },
+              { level: "½ Tank", bar: 2, label: "Returned half full",  desc: "Pay for ½ tank" },
+              { level: "¼ Tank", bar: 1, label: "Returned ¼ full",    desc: "Pay for ¾ tank" },
             ].map(f => (
-              <div key={f.level} className="bg-white p-6 shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-black/5 text-center rounded-xl">
-                <p className="text-2xl font-black text-[#003768] mb-3">{f.level}</p>
-                <div className="flex gap-1 justify-center mb-3">
-                  {[0,1,2,3].map(i => <div key={i} className={`h-3 w-8 rounded-sm ${i < f.bar ? "bg-green-500" : "bg-slate-200"}`} />)}
+              <div key={f.level} className="bg-white p-4 border border-black/8 text-center rounded-xl">
+                <p className="text-xl font-black text-black mb-2">{f.level}</p>
+                <div className="flex gap-1 justify-center mb-2">
+                  {[0,1,2,3].map(i => <div key={i} className={`h-2.5 w-7 rounded-sm ${i < f.bar ? "bg-green-500" : "bg-slate-200"}`} />)}
                 </div>
                 <p className="text-xs font-semibold text-slate-700">{f.label}</p>
-                <p className="mt-1 text-xs text-slate-400">{f.desc}</p>
+                <p className="mt-0.5 text-xs text-slate-400">{f.desc}</p>
               </div>
             ))}
           </div>
@@ -424,16 +417,17 @@ function CustomerHome() {
       </section>
 
       {/* ── CTA ── */}
-      <section className="bg-[#003768] py-16">
-        <div className="mx-auto max-w-3xl px-6 text-center">
-          <h2 className="text-3xl font-black text-white sm:text-4xl">Ready to book your car?</h2>
-          <p className="mt-3 text-white/70">No account needed to start. Enter your details above or click below.</p>
-          <Link href="/book" className="mt-8 inline-block bg-[#ff7a00] px-10 py-4 text-base font-black text-white shadow-[0_8px_24px_rgba(255,122,0,0.4)] hover:opacity-95 transition-opacity rounded-lg">
+      <section className="bg-black py-12">
+        <div className="mx-auto max-w-2xl px-4 text-center">
+          <h2 className="text-2xl font-black text-white sm:text-3xl">Ready to book your car?</h2>
+          <p className="mt-2 text-white/50 text-sm">No account needed to start.</p>
+          <Link href="/book"
+            className="mt-6 inline-block bg-[#ff7a00] px-8 py-3.5 text-sm font-black text-white hover:opacity-95 transition-opacity rounded-lg">
             Book Now →
           </Link>
-          <p className="mt-4 text-sm text-white/50">
+          <p className="mt-3 text-sm text-white/40">
             Already have an account?{" "}
-            <Link href="/login" className="text-white/80 underline hover:text-white">Sign in</Link>
+            <Link href="/login" className="text-white/70 underline hover:text-white">Sign in</Link>
           </p>
         </div>
       </section>
@@ -510,7 +504,7 @@ function PartnerMarketingHome() {
         .hero-highlight{font-weight:600;text-transform:uppercase;letter-spacing:.12em;font-size:.85rem;opacity:.9}
         .hero-badges{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1rem}
         .badge{padding:.35rem .9rem;border-radius:6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.4);font-size:.8rem;text-transform:uppercase;white-space:nowrap}
-        .hero-cta{margin-top:1.5rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
+        .hero-cta{margin-top:1.5rem}
         .partner-btn{display:inline-block;padding:.8rem 1.4rem;border-radius:8px;font-weight:600;border:none;cursor:pointer;font-size:.95rem;text-align:center}
         .partner-btn-primary{background:var(--camel-orange);color:#fff;box-shadow:0 8px 18px rgba(0,0,0,.18)}
         .hero-card{background:rgba(255,255,255,.97);color:var(--text-main);border-radius:10px;padding:1.5rem;box-shadow:0 18px 45px rgba(0,0,0,.16)}
@@ -578,34 +572,34 @@ function PartnerMarketingHome() {
             <p data-i18n="hero_p1">Camel Global Ltd is a UK company formed as a result of real car-hire experiences in Spain.</p>
             <p data-i18n="hero_p2">Think of Camel Global as <strong>"UBER for car hire"</strong> – connecting customers with trusted, off-airport car hire partners.</p>
             <div className="hero-badges">
-              <div className="badge" data-i18n="hero_badge1">Multi-million-pound UK marketing rollout</div>
-              <div className="badge" data-i18n="hero_badge2">Off-airport partners only</div>
-              <div className="badge" data-i18n="hero_badge3">App + Web Admin Platform</div>
+              <div className="badge">Multi-million-pound UK marketing rollout</div>
+              <div className="badge">Off-airport partners only</div>
+              <div className="badge">App + Web Admin Platform</div>
             </div>
             <div className="hero-cta"><a className="partner-btn partner-btn-primary" href="/partner/login">Join the System</a></div>
           </div>
           <aside className="hero-card">
-            <h2 data-i18n="hero_box_title">Why customers choose Camel Global</h2>
+            <h2>Why customers choose Camel Global</h2>
             <ul>
-              <li data-i18n="hero_box_li1">Meet &amp; greet at the agreed location – no queues at airport desks.</li>
-              <li data-i18n="hero_box_li2">Full insurance with <strong>no excess</strong> included.</li>
-              <li data-i18n="hero_box_li3">Full tank of fuel on arrival – pay only for the fuel actually used.</li>
-              <li data-i18n="hero_box_li4">All paperwork &amp; payment completed at time of booking.</li>
-              <li data-i18n="hero_box_li5">Location tracking in-app to make meeting the agent effortless.</li>
+              <li>Meet &amp; greet at the agreed location – no queues at airport desks.</li>
+              <li>Full insurance with <strong>no excess</strong> included.</li>
+              <li>Full tank of fuel on arrival – pay only for the fuel actually used.</li>
+              <li>All paperwork &amp; payment completed at time of booking.</li>
+              <li>Location tracking in-app to make meeting the agent effortless.</li>
             </ul>
-            <p data-i18n="hero_box_p">Camel Global distributes bookings to smaller, off-airport car hire companies.</p>
+            <p>Camel Global distributes bookings to smaller, off-airport car hire companies.</p>
           </aside>
         </div>
       </section>
       <main>
         <section id="intro">
           <div className="section-inner">
-            <h2 className="section-title" data-i18n="intro_title">Introduction</h2>
-            <p className="section-subtitle" data-i18n="intro_subtitle">Camel Global &amp; the UK meet-and-greet opportunity</p>
+            <h2 className="section-title">Introduction</h2>
+            <p className="section-subtitle">Camel Global &amp; the UK meet-and-greet opportunity</p>
             <div className="two-col">
               <div>
-                <p data-i18n="intro_p1">Camel Global Ltd is a UK-based meet-and-greet car hire platform born from real customer frustrations with traditional airport car hire.</p>
-                <div className="highlight-bar" data-i18n="intro_highlight">Provide a <strong>meet-and-greet car hire service</strong> with <strong>no paperwork, no queuing and no hidden costs</strong>.</div>
+                <p>Camel Global Ltd is a UK-based meet-and-greet car hire platform born from real customer frustrations with traditional airport car hire.</p>
+                <div className="highlight-bar">Provide a <strong>meet-and-greet car hire service</strong> with <strong>no paperwork, no queuing and no hidden costs</strong>.</div>
               </div>
               <div>
                 <ul className="pill-list">
@@ -643,8 +637,8 @@ export default function Page() {
   useEffect(() => {
     if (window.location.hash.includes("access_token")) {
       const hash = window.location.hash;
-      const params = new URLSearchParams(window.location.search);
-      const portal = params.get("portal");
+      const p    = new URLSearchParams(window.location.search);
+      const portal = p.get("portal");
       if (portal === "customer")    window.location.replace("/reset-password" + hash);
       else if (portal === "driver") window.location.replace("/driver/reset-password" + hash);
       else                          window.location.replace("/partner/reset-password" + hash);
