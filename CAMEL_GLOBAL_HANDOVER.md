@@ -36,7 +36,7 @@
 ### Portals
 | Portal | Path | Users |
 |--------|------|-------|
-| Customer | `/test-booking` | End customers |
+| Customer | `/` (root) | End customers |
 | Partner | `/partner` | Car hire companies |
 | Driver | `/driver` | Delivery drivers |
 | Admin | `/admin` | Camel Global staff |
@@ -70,21 +70,33 @@
 | `app/api/partner/delete-account/route.ts` | POST — soft deletes partner account (stamps deleted_at) |
 | `app/api/test-booking/customer-profile/route.ts` | Service role upsert for customer profiles (bypasses RLS) |
 | `app/api/test-booking/delete-account/route.ts` | POST — soft deletes customer account (stamps deleted_at) |
-| `app/api/contact/route.ts` | POST — contact form handler, Resend email, hCaptcha, rate limited. Accepts optional `source` and `company` fields |
+| `app/api/contact/route.ts` | POST — contact form handler, Resend email, hCaptcha, rate limited |
 | `app/partner/settings/page.tsx` | Partner settings page — delete account flow |
 | `app/partner/terms/page.tsx` | Full partner T&Cs — versioned, PDF download, Legal label |
 | `app/partner/operating-rules/page.tsx` | Partner Operating Agreement web page + PDF download |
-| `app/partner/contact/page.tsx` | Partner contact form — name, company, email, subject, message, hCaptcha |
-| `app/partner/privacy/page.tsx` | Privacy policy inside partner layout — all links `/partner/*` |
-| `app/partner/cookies/page.tsx` | Cookie policy inside partner layout — all links `/partner/*` |
-| `app/partner/about/page.tsx` | About Us inside partner layout — all links `/partner/*` |
+| `app/partner/contact/page.tsx` | Partner contact form |
+| `app/partner/privacy/page.tsx` | Privacy policy inside partner layout |
+| `app/partner/cookies/page.tsx` | Cookie policy inside partner layout |
+| `app/partner/about/page.tsx` | About Us inside partner layout |
 | `app/admin/terms/page.tsx` | Partner T&Cs inside admin layout |
 | `app/admin/operating-rules/page.tsx` | Operating Agreement inside admin layout |
-| `app/admin/contact/page.tsx` | Contact form inside admin layout — all links `/admin/*` |
-| `app/admin/privacy/page.tsx` | Privacy policy inside admin layout — all links `/admin/*` |
-| `app/admin/cookies/page.tsx` | Cookie policy inside admin layout — all links `/admin/*` |
-| `app/admin/about/page.tsx` | About Us inside admin layout — all links `/admin/*` |
-| `app/test-booking/settings/page.tsx` | Customer settings page — delete account flow |
+| `app/admin/contact/page.tsx` | Contact form inside admin layout |
+| `app/admin/privacy/page.tsx` | Privacy policy inside admin layout |
+| `app/admin/cookies/page.tsx` | Cookie policy inside admin layout |
+| `app/admin/about/page.tsx` | About Us inside admin layout |
+| `app/test-booking/settings/page.tsx` | Customer settings page — delete account flow (legacy, keep) |
+
+### API Routes — Customer Booking Engine
+All internal API routes stay at `/api/test-booking/*` — do not rename these.
+| Route | Purpose |
+|-------|---------|
+| `app/api/test-booking/requests/route.ts` | Create / list customer requests |
+| `app/api/test-booking/requests/[id]/route.ts` | Get single request + bids + booking |
+| `app/api/test-booking/bids/accept/route.ts` | Accept a partner bid |
+| `app/api/test-booking/bookings/[id]/update/route.ts` | Customer fuel/insurance confirmations |
+| `app/api/test-booking/reviews/route.ts` | Submit / fetch reviews |
+| `app/api/test-booking/customer-profile/route.ts` | Upsert customer profile (service role) |
+| `app/api/test-booking/delete-account/route.ts` | Soft delete customer account |
 
 ### Currency System
 - **Supported:** `EUR | GBP | USD`
@@ -92,8 +104,8 @@
 - **Storage:** All prices stored in the currency the booking was made in
 
 ### PDF Downloads
-- All PDF exports use **jsPDF** (`npm install jspdf`) — real `.pdf` files, direct download, no print dialog
-- Operating Rules PDF: `downloadOperatingRulesPDF()` in `lib/portal/operatingRules.ts` (shared)
+- All PDF exports use **jsPDF** — real `.pdf` files, direct download, no print dialog
+- Operating Rules PDF: `downloadOperatingRulesPDF()` in `lib/portal/operatingRules.ts`
 - Partner T&Cs PDF: `downloadTermsPDF()` in `app/partner/terms/page.tsx`
 
 ---
@@ -101,214 +113,129 @@
 ## Footer System
 
 ### Four Distinct Footers (`app/components/Footer.tsx`)
-The footer detects the current pathname and renders the correct variant:
-
 | Portal | Footer | All links |
 |--------|--------|-----------|
-| `/partner/*` | PartnerFooter | `/partner/*` — stay in portal, no new tabs |
-| `/admin/*` | AdminFooter | `/admin/*` — stay in portal, no new tabs |
+| `/partner/*` | PartnerFooter | `/partner/*` |
+| `/admin/*` | AdminFooter | `/admin/*` |
 | `/driver/*` | DriverFooter | Driver Login link only |
 | Everything else | CustomerFooter | Standard public links |
-
-### Partner Footer Links
-About Us → `/partner/about`, Contact → `/partner/contact`, Partner Terms → `/partner/terms`, Operating Agreement → `/partner/operating-rules`, Privacy Policy → `/partner/privacy`, Cookie Policy → `/partner/cookies`
-
-### Admin Footer Links
-About Us → `/admin/about`, Contact → `/admin/contact`, Partner Terms → `/admin/terms`, Operating Agreement → `/admin/operating-rules`, Privacy Policy → `/admin/privacy`, Cookie Policy → `/admin/cookies`
-
-### Customer Footer Links
-About Us → `/about`, Become a Partner → `/partner/signup`, Contact → `/contact`, Customer Terms → `/terms`, Privacy Policy → `/privacy`, Cookie Policy → `/cookies`
-
-### Portal Layout Rules
-- **Partner layout** (`app/partner/layout.tsx`): unauthenticated public pages (login, signup, reset, application-submitted) bypass auth and render with NO layout. All other `/partner/*` pages including info pages (about, contact, privacy, cookies, terms, operating-rules) go through auth and render WITH full sidebar + topbar. If an admin hits a `/partner/info` page they are redirected to the `/admin/` equivalent automatically.
-- **Admin layout**: all `/admin/*` pages render with full sidebar + topbar.
 
 ---
 
 ## Commission & Payments Model
-
-### The Model
-Camel is a **platform intermediary**, not a seller.
-- **Partner** = supplier → issues VAT invoice to customer
-- **Camel** = intermediary → earns commission → invoices partner
-- **Customer** = pays full booking price once
-
-### Money Flow
-```
-Customer pays £200
-       ↓
-   Stripe (splits instantly)
-       ↓              ↓
-  £160 → Partner   £40 → Camel
-  Stripe balance   Stripe balance
-```
-
-### Commission Structure
-| Rule | Value |
-|------|-------|
-| Default rate | 20% of hire price only |
-| Minimum per booking | €/£10 floor |
-| Fuel charges | 0% — passes through 100% to partner |
-| Per-partner override | Admin can set custom rate |
-
-### Payout Formula
-```
-Partner Payout = (Car Hire − Commission) + Fuel Charge
-```
-
-### VAT & Tax
-| Transaction | Treatment |
-|-------------|-----------|
-| Customer pays partner (via Camel) | Spanish VAT — partner's responsibility |
-| Camel invoices partner for commission | Reverse charge — no UK VAT added |
+- Partner = supplier, issues VAT invoice to customer
+- Camel = intermediary, earns 20% commission (min €10 floor), invoices partner
+- Fuel charges pass through 100% to partner
 
 ---
 
 ## Live Status System (7 checks)
-A partner account is **live** only when ALL are true:
-1. Fleet base address set (`base_address`)
-2. Fleet base GPS set (`base_lat`, `base_lng`)
-3. Service radius set (`service_radius_km > 0`)
+1. Fleet base address set
+2. Fleet base GPS set
+3. Service radius set
 4. At least one active fleet vehicle
 5. At least one active driver
-6. Billing currency set (`default_currency`)
-7. VAT / NIF number set (`vat_number`)
-
----
-
-## Partner Terms & Conditions System
-
-### How It Works
-- T&Cs live at `/partner/terms` — renders inside partner layout with sidebar
-- Partners accept T&Cs during signup (Step 5 checkbox)
-- Acceptance recorded in `partner_applications` at account creation
-
-### DB Columns (partner_applications)
-- `terms_accepted_at` (timestamptz)
-- `terms_version` (text) — e.g. `"2026-04"`
-
-### Current Version
-- Version: `2026-04` — Effective: `1 April 2026`
+6. Billing currency set
+7. VAT / NIF number set
 
 ---
 
 ## GDPR — Account Deletion
-
-### How It Works
-- **Soft delete** — stamps `deleted_at`, retains all booking/financial data
-- Both portals sign user out immediately after deletion
-- Deleted partners blocked from logging back in
-
-### API Routes
-- `POST /api/partner/delete-account`
-- `POST /api/test-booking/delete-account`
-
-### DB Columns
-- `partner_profiles.deleted_at` (timestamptz)
-- `customer_profiles.deleted_at` (timestamptz)
-
----
-
-## Contact Form System
-
-### Public customer contact (`/contact`, `app/api/contact/route.ts`)
-- Fields: name, email, subject, message, hCaptcha
-- Rate limited: 3 req / 15 min per IP
-- Sends email to `contact@camel-global.com` via Resend
-- Sends auto-reply to sender
-
-### Partner contact (`/partner/contact`)
-- Fields: name, company name, email, subject, message, hCaptcha
-- Same API route with `source: "partner-portal"` — inbox email prefixed `[Partner]`
-- All sidebar links point to `/partner/*`
-
-### Admin contact (`/admin/contact`)
-- Same form as partner contact with `source: "admin-portal"`
-- All sidebar links point to `/admin/*`
+- Soft delete — stamps `deleted_at`, retains all booking/financial data
+- `partner_profiles.deleted_at`, `customer_profiles.deleted_at`
 
 ---
 
 ## Security
-
-### Rate Limiting
-- `lib/rateLimit.ts` — in-memory, 3 requests per IP per 15 minutes
-- Applied to: `send-reset-email`, `send-customer-reset-email`, `verify-captcha`, `contact-form`
-
-### hCaptcha
-- Free tier, checkbox widget
-- `NEXT_PUBLIC_HCAPTCHA_SITE_KEY` + `HCAPTCHA_SECRET_KEY`
-- Applied to all login, forgot password, signup, and contact forms
-- Server function: `verifyHCaptcha(token)` in `lib/hcaptcha.ts`
-
-### Security Headers (`next.config.ts`)
-- CSP, HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy
-
-### Supabase RLS
-- All tables have RLS enabled and documented in Chat 11
+- CSP, HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy in `next.config.ts`
+- CSP includes: OpenStreetMap tiles (`*.tile.openstreetmap.org`), unpkg (Leaflet), hCaptcha, Supabase, Google Maps, frankfurter
+- Rate limiting: 3 req / 15 min per IP
+- hCaptcha on all login, signup, forgot password, contact forms
 
 ---
 
-## Policy Pages
-
-### TODO before go-live
-- Update company registration number (currently `XXXXXXXX`) in `app/privacy/page.tsx`, `app/terms/page.tsx`, `app/partner/privacy/page.tsx`, `app/partner/terms/page.tsx`, `app/admin/privacy/page.tsx`
-- Update registered address (currently placeholder) in same files
-
-### Page locations
-| Page | Customer | Partner | Admin |
-|------|----------|---------|-------|
-| Privacy Policy | `/privacy` | `/partner/privacy` | `/admin/privacy` |
-| Cookie Policy | `/cookies` | `/partner/cookies` | `/admin/cookies` |
-| Customer Terms | `/terms` | — | — |
-| Partner Terms | — | `/partner/terms` | `/admin/terms` |
-| Operating Agreement | — | `/partner/operating-rules` | `/admin/operating-rules` |
-| About Us | `/about` | `/partner/about` | `/admin/about` |
-| Contact | `/contact` | `/partner/contact` | `/admin/contact` |
-
-### No email addresses exposed
-All policy and terms pages use contact form links, not mailto: links, to prevent email harvesting.
+## Map System (Leaflet / OpenStreetMap)
+- All maps use react-leaflet with SSR disabled
+- Pattern: thin shell component (`dynamic(() => import('./Inner'), { ssr: false })`) + inner component with all Leaflet code
+- Files: `app/partner/profile/MapPicker.tsx` (shell) + `MapPickerInner.tsx` (full code)
+- `app/components/CustomerMap.tsx` + `CustomerMapWrapper.tsx` (already ssr:false wrapped)
+- Marker icons loaded from unpkg — fix applied in all inner files
 
 ---
 
-## Partner Login Flow
-After sign-in checks: `deleted_at`, `base_lat`, `base_lng`, `default_currency`, `vat_number`
-- `deleted_at` set → blocked, amber notice shown, form hidden
-- Missing onboarding fields → `/partner/onboarding`
-- All set → `/partner/dashboard`
+## Customer Site — Full Spec (Item 11)
+
+### Overview
+Complete UI overhaul of the customer-facing booking site. New clean pages at root URLs. Old `/test-booking/*` pages kept in place (not deleted, not redirected) — new pages are built fresh alongside them.
+
+### URL Structure (New)
+| Page | New URL | Old URL (kept, not deleted) |
+|------|---------|----------------------------|
+| Homepage + booking widget | `/` | — |
+| Create booking | `/book` | `/test-booking/new` |
+| My bookings dashboard | `/bookings` | `/test-booking/requests` |
+| Booking detail | `/bookings/[id]` | `/test-booking/requests/[id]` |
+| Login | `/login` | `/test-booking/login` |
+| Sign up | `/signup` | `/test-booking/signup` |
+| Reset password | `/reset-password` | `/test-booking/reset-password` |
+| Account / profile | `/account` | `/test-booking/settings` |
+
+### Design Spec
+- **Colours:** Navy `#003768`, Orange `#ff7a00`, White background
+- **Navbar:** Full-width white, Camel logo left, currency selector centre, Login + Book Now (orange) right. Authenticated: My Bookings, Account, Logout
+- **Footer:** Full-width, matches existing customer footer
+- **Mobile + tablet:** Fully responsive throughout
+- **Typography:** Clean, modern — large bold headlines
+
+### Homepage (`/`)
+- Full-width white navbar
+- Hero section: large bold "Book your meet & greet car hire" headline + subline "Car delivered to you, wherever you are"
+- Booking widget card (prominent, above the fold):
+  - Pickup address input (with autocomplete)
+  - Dropoff address input (with autocomplete)
+  - Pickup date + time
+  - Dropoff date + time
+  - Passengers, suitcases selectors
+  - "Book Now" orange CTA button
+  - Guest-first: no login required to fill in widget
+- "How Camel Works" section below fold:
+  - Step 1: Submit your request
+  - Step 2: Receive bids from local car hire companies
+  - Step 3: Accept the best bid and confirm
+  - Good for SEO — thorough explanation of the platform
+- Clean full-width footer
+
+### Booking Flow (Guest-first)
+1. Customer fills in widget on homepage → clicks Book Now
+2. If not logged in → redirect to `/login?next=/book` with widget state preserved (localStorage or URL params)
+3. After login/signup → `/book` with pre-filled details → confirm and submit
+4. Redirected to `/bookings/[id]` to track bids
+
+### My Bookings (`/bookings`)
+- Dashboard style
+- Summary cards: Active bookings, Pending bids, Completed
+- Full list of bookings with status badges, job numbers, dates
+- Click through to `/bookings/[id]`
+
+### Booking Detail (`/bookings/[id]`)
+- Same functionality as existing `/test-booking/requests/[id]`
+- Auth guard: unauthenticated → `/login?next=/bookings/[id]`
+- Review section anchored with `id="review"` for email link deep-linking
+
+### Account (`/account`)
+- Editable profile: name, email, phone
+- Delete account section (calls existing `/api/test-booking/delete-account`)
+
+### API Routes
+All existing `/api/test-booking/*` routes used as-is — no renaming.
 
 ---
 
-## Partner Onboarding Steps (6 steps)
-1. Fleet Location
-2. Currency
-3. Business & Billing (legal name, reg no, VAT/NIF)
-4. Car Fleet
-5. Drivers
-6. Go Live (7-check progress bar)
-
----
-
-## Cookie Consent (GDPR)
-- `app/components/CookieBanner.tsx` — fixed bottom bar
-- Stored in `localStorage` as `cookie_consent: "accepted" | "rejected"`
-- Hidden on portal pages (`/partner`, `/admin`, `/driver`)
-
----
-
-## DB Columns Added Chat 8
-**`partner_profiles`:** `legal_company_name`, `vat_number`, `company_registration_number`, `stripe_account_id`, `stripe_onboarding_status`, `commission_rate`
-**`partner_bookings`:** `commission_rate`, `commission_amount`, `partner_payout_amount`, `invoice_period`
-**`platform_settings`** (new table): `default_commission_rate`, `minimum_commission_amount`
-
-## DB Columns Added Chat 9
-**`partner_applications`:** `terms_accepted_at`, `terms_version`
-
-## DB Changes Chat 10
-**`customer_profiles`:** RLS enabled with insert/update/select policies added
-
-## DB Changes Chat 11
-**`partner_profiles`:** `deleted_at` (timestamptz)
-**`customer_profiles`:** `deleted_at` (timestamptz)
+## DB Columns Reference
+**Chat 8:** `partner_profiles`: legal_company_name, vat_number, company_registration_number, stripe_account_id, stripe_onboarding_status, commission_rate. `partner_bookings`: commission_rate, commission_amount, partner_payout_amount, invoice_period. `platform_settings`: default_commission_rate, minimum_commission_amount.
+**Chat 9:** `partner_applications`: terms_accepted_at, terms_version
+**Chat 10:** `customer_profiles`: RLS enabled
+**Chat 11:** `partner_profiles`: deleted_at. `customer_profiles`: deleted_at
 
 ---
 
@@ -316,13 +243,14 @@ After sign-in checks: `deleted_at`, `base_lat`, `base_lng`, `default_currency`, 
 
 ### Last Known Good Tag
 ```bash
-git checkout v-stable-footer-policy-pages-complete
+git checkout v-stable-pre-customer-ui
 ```
-**Description:** Full footer system — 4 portal-aware footers, all policy/about/contact pages exist for customer, partner and admin contexts, all links stay within correct portal, no email addresses exposed, customer public pages show correct customer header.
+**Description:** All portals working, maps fixed (CSP + Leaflet SSR), review email link fixed, login auth redirect working. Safe rollback point before customer UI overhaul.
 
 ### All Stable Tags
 | Tag | Description |
 |-----|-------------|
+| `v-stable-pre-customer-ui` | Safe rollback before customer UI overhaul — everything working |
 | `v-stable-footer-policy-pages-complete` | Full footer system, all portal policy pages, customer header fix |
 | `v-stable-footer-contact` | Split footers, contact page, operating rules shared lib |
 | `v-stable-footer-policy-pages` | Footer, About, Privacy, Cookie Policy, Customer Terms |
@@ -343,7 +271,7 @@ git checkout v-stable-footer-policy-pages-complete
 ---
 
 ## What Is Working ✅
-- Customer booking flow (functional, needs UI overhaul)
+- Customer booking flow (functional at `/test-booking/*` — UI overhaul in progress)
 - Partner bid submission and management
 - Driver job portal
 - Admin approval and account management
@@ -359,71 +287,43 @@ git checkout v-stable-footer-policy-pages-complete
 - Driver portal — independent header, auto-refresh, insurance checkbox
 - Insurance handover — all three portals
 - Partner review system — ratings, replies, admin moderation, cron reminder
+- Review email link — uses correct request_id, auth redirect to login then back
 - Business & Billing — onboarding, read-only for partners, editable by admin
 - Partner T&Cs — full legal document, versioned acceptance at signup, PDF download
 - Partner Operating Rules — web page + PDF download, shared lib
 - Real PDF downloads (jsPDF) — no print dialog
-- Security headers — CSP, HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy
-- Rate limiting — 3 req / 15 min per IP on all auth email routes + contact form
+- Security headers — CSP includes OpenStreetMap, unpkg, hCaptcha, Supabase, Google Maps
+- Rate limiting — 3 req / 15 min per IP
 - hCaptcha — all login, forgot password, signup, and contact forms
 - Customer profile RLS — policies in place, service role used on signup
-- Cookie consent banner — GDPR compliant, accept/reject, persisted in localStorage
-- RLS audit — all tables reviewed, tightened, documented
-- GDPR account deletion — soft delete for partners and customers, settings pages, login block
-- **Footer system** — 4 portal-aware footers (Customer, Partner, Admin, Driver)
-- **Policy pages** — Privacy, Cookies, Terms, About, Contact for all three portals
-- **No email addresses exposed** — all contact links use contact form
-- **Customer public pages** — show correct customer header (Customer Sign Up / Login)
-- **Partner footer pages** — all render inside partner layout with sidebar
-- **Admin footer pages** — all render inside admin layout with sidebar
-- **Admin → partner page redirect** — admin visiting `/partner/info` page redirected to `/admin/` equivalent
+- Cookie consent banner — GDPR compliant
+- RLS audit — all tables reviewed
+- GDPR account deletion — soft delete for partners and customers
+- Footer system — 4 portal-aware footers
+- Policy pages — Privacy, Cookies, Terms, About, Contact for all three portals
+- Maps — Leaflet/OpenStreetMap working on all pages (CSP fixed, SSR fixed)
 
 ---
 
 ## Session Log
 
-### Chat 12 (Completed — Item 9: Footer + Policy Pages)
+### Chat 13 (In Progress — Bugs + Customer UI Overhaul)
 
-**Footer system**
-- `app/components/Footer.tsx` — 4 distinct footers: CustomerFooter, PartnerFooter, AdminFooter, DriverFooter
-- All portal footers link to portal-namespaced routes — no new tabs, no escaping the portal
-- Driver footer — Driver Login link only
+**Bugs fixed**
+- Review email link: cron was passing `booking.id` to URL — fixed to pass `booking.request_id`
+- Request detail page: added auth guard — unauthenticated users redirected to `/test-booking/login?next=...`
+- Login page: added `useSearchParams` + `next=` redirect support, wrapped in `<Suspense>`
+- Maps: all Leaflet maps broken due to CSP blocking tile requests — fixed `next.config.ts` to allow `*.tile.openstreetmap.org` and `unpkg.com`
+- Maps: Leaflet SSR crash — split `MapPicker` into shell (`MapPicker.tsx`) + inner (`MapPickerInner.tsx`)
 
-**Public policy pages (customer-facing)**
-- `app/about/page.tsx` — About Us, contact section uses button not email
-- `app/privacy/page.tsx` — Privacy Policy, contact form links not email addresses
-- `app/cookies/page.tsx` — Cookie Policy, no external links, contact form links
-- `app/terms/page.tsx` — Customer Terms of Use, contact form links not email addresses
-- `app/contact/page.tsx` — Contact form, no email address in sidebar
+**Customer UI overhaul — spec agreed, build starting**
+- New pages at root URLs (see Customer Site spec above)
+- Old `/test-booking/*` pages kept in place — not deleted, not redirected
+- All `/api/test-booking/*` API routes unchanged
+- Safe rollback tag: `v-stable-pre-customer-ui`
 
-**Partner portal pages**
-- `app/partner/about/page.tsx` — About Us inside partner layout
-- `app/partner/privacy/page.tsx` — Privacy Policy inside partner layout, all links `/partner/*`
-- `app/partner/cookies/page.tsx` — Cookie Policy inside partner layout, all links `/partner/*`
-- `app/partner/contact/page.tsx` — Contact form inside partner layout, all links `/partner/*`
-- `app/partner/operating-rules/page.tsx` — Operating Agreement inside partner layout
-- `app/partner/terms/page.tsx` — Partner T&Cs, Legal label added
-
-**Admin portal pages**
-- `app/admin/about/page.tsx` — About Us inside admin layout
-- `app/admin/privacy/page.tsx` — Privacy Policy inside admin layout, all links `/admin/*`
-- `app/admin/cookies/page.tsx` — Cookie Policy inside admin layout, all links `/admin/*`
-- `app/admin/contact/page.tsx` — Contact form inside admin layout, all links `/admin/*`
-- `app/admin/terms/page.tsx` — Partner T&Cs inside admin layout
-- `app/admin/operating-rules/page.tsx` — Operating Agreement inside admin layout
-
-**Shared lib**
-- `lib/portal/operatingRules.ts` — OPERATING_RULES + downloadOperatingRulesPDF() extracted from account page, shared across partner and admin
-
-**Layout fixes**
-- `app/partner/layout.tsx` — unauthenticated pages bypass auth with no layout; all other partner pages (including info pages) render with full sidebar; admins hitting `/partner/info` pages redirected to `/admin/` equivalents
-- `app/ClientRootLayout.tsx` — `isCustomerPublicPage` added so `/about`, `/contact`, `/privacy`, `/cookies`, `/terms` show customer nav not partner nav
-
-**API**
-- `app/api/contact/route.ts` — accepts `source` (partner-portal / admin-portal) and `company` fields; inbox emails tagged `[Partner]` or `[Admin]`
-
-### Chats 1–11 (Completed)
-- Core booking flow, fuel, drivers, insurance, reviews, currency, password reset, commission, T&Cs, security, GDPR
+### Chats 1–12 (Completed)
+- Core booking flow, fuel, drivers, insurance, reviews, currency, password reset, commission, T&Cs, security, GDPR, footer, policy pages
 
 ---
 
@@ -441,7 +341,7 @@ git checkout v-stable-footer-policy-pages-complete
 | 8 | GDPR data deletion | 3–4 hrs | ✅ Done |
 | 9 | Footer + policy pages | 3–4 hrs | ✅ Done |
 | 10 | Spanish translation (partner + driver portals, `next-intl`) | 15–20 hrs | ⬜ Todo |
-| 11 | Customer booking site full UI overhaul | 15–20 hrs | ⬜ Todo |
+| 11 | Customer booking site full UI overhaul | 15–20 hrs | 🔄 In progress |
 | 12 | Stripe Connect integration | 8–10 hrs | ⬜ Deferred |
 | 13 | Xero monthly commission endpoint | 3–4 hrs | ⬜ Deferred |
 | 14 | DAC7 EU platform reporting | 3–4 hrs | ⬜ Deferred |
@@ -453,7 +353,7 @@ git checkout v-stable-footer-policy-pages-complete
 - [ ] Update registered address in privacy/terms pages (currently placeholder)
 - [ ] Stripe Connect integration (Phase 2)
 - [ ] Spanish translation (Item 10)
-- [ ] Customer UI overhaul (Item 11)
+- [ ] Customer UI overhaul (Item 11) — in progress
 
 ---
 
@@ -461,15 +361,6 @@ git checkout v-stable-footer-policy-pages-complete
 - `.env.local` — Supabase keys, Google Maps API key, Resend, CRON_SECRET, hCaptcha keys
 - Never commit `.env.local`
 - Vercel env vars set separately in Vercel dashboard
-
-### hCaptcha Keys
-- `NEXT_PUBLIC_HCAPTCHA_SITE_KEY` — public, used in browser
-- `HCAPTCHA_SECRET_KEY` — private, server-side only
-
----
-
-## Dependencies Added Chat 9
-- `jspdf` — real PDF generation and download (`npm install jspdf`)
 
 ---
 
@@ -500,4 +391,4 @@ git tag | grep stable
 
 ---
 
-*Last updated: Chat 12 — Item 9 complete (footer system, all portal policy pages, customer header fix). Next: Item 10 (Spanish translation) or Item 11 (Customer UI overhaul).*
+*Last updated: Chat 13 — bugs fixed (maps CSP, review link, auth redirect), customer UI overhaul spec agreed, safe rollback tag created. Next: build new customer pages at root URLs.*
