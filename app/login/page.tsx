@@ -100,7 +100,7 @@ function LoginForm() {
       </div>
 
       {/* Form */}
-      <div className="w-full bg-[#f0f0f0] flex-1 px-6 py-12">
+      <div className="w-full bg-[#f0f0f0] px-6 py-12">
         <div className="mx-auto max-w-md">
           <div className="bg-white p-8 space-y-5">
 

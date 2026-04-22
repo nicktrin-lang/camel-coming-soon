@@ -41,8 +41,12 @@ export default function ClientRootLayout({ children, fontClass }: { children: Re
     pathname === "/cookies" ||
     pathname === "/terms";
 
-  // Currency selector only on booking-related pages, NOT homepage (widget has it)
-  const showCurrencyInHeader = (isNewCustomerArea || isTestBookingArea) && !isHomepage;
+  // Currency selector only on booking pages — NOT on login/signup/account/reset
+  const isBookingPage =
+    pathname?.startsWith("/bookings") ||
+    pathname?.startsWith("/book");
+
+  const showCurrencyInHeader = (isBookingPage || isTestBookingArea) && !isHomepage;
 
   const showGlobalHeader = !isHomepage && !isPartnerAuthPage && !isPortalAppPage;
   const showCookieBanner = !isPortalAppPage;
@@ -150,6 +154,7 @@ export default function ClientRootLayout({ children, fontClass }: { children: Re
                 <nav className="flex items-center gap-4">
                   {showCustomerNav ? (
                     <>
+                      {/* Currency only on booking pages */}
                       {showCurrencyInHeader && (
                         <div className="hidden sm:block">
                           <CurrencySelector />
@@ -186,7 +191,7 @@ export default function ClientRootLayout({ children, fontClass }: { children: Re
                             Sign Up
                           </Link>
                           <Link href={loginHref}
-                            className="border border-white/30 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                            className="bg-[#ff7a00] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity">
                             Log In
                           </Link>
                         </>
@@ -212,7 +217,6 @@ export default function ClientRootLayout({ children, fontClass }: { children: Re
                 </nav>
               </div>
             </header>
-            {/* Spacer matches logo height */}
             <div className="h-[76px]" />
           </>
         )}
