@@ -369,7 +369,7 @@ export default function BookPage() {
             </button>
 
             <p className="text-center text-sm font-semibold text-black/40">
-              Your request goes to local car hire partners — you'll receive bids and can choose the best one.
+              Your request goes to local car hire companies — you'll receive bids and can choose the best one.
             </p>
 
           </form>
