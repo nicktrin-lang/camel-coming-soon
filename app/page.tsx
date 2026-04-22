@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { translations } from "./marketing/translations";
+import CurrencySelector from "@/app/components/CurrencySelector";
+import { FLEET_CATEGORIES } from "@/app/components/portal/fleetCategories";
 
 type Lang = keyof typeof translations;
 
@@ -15,7 +17,6 @@ type AddressResult = { display_name: string; lat: number; lng: number };
 function CustomerHome() {
   const router = useRouter();
 
-  // Booking widget state
   const [pickupAddress,  setPickupAddress]  = useState("");
   const [pickupLat,      setPickupLat]      = useState<number | null>(null);
   const [pickupLng,      setPickupLng]      = useState<number | null>(null);
@@ -26,6 +27,7 @@ function CustomerHome() {
   const [dropoffAt,      setDropoffAt]      = useState("");
   const [passengers,     setPassengers]     = useState(2);
   const [suitcases,      setSuitcases]      = useState(1);
+  const [vehicleSlug,    setVehicleSlug]    = useState(FLEET_CATEGORIES[0]?.slug || "");
 
   const [pickupResults,  setPickupResults]  = useState<AddressResult[]>([]);
   const [dropoffResults, setDropoffResults] = useState<AddressResult[]>([]);
@@ -35,200 +37,186 @@ function CustomerHome() {
   const pickupTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropoffTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Handle password reset token redirect
   useEffect(() => {
     if (window.location.hash.includes("access_token")) {
       const hash   = window.location.hash;
       const params = new URLSearchParams(window.location.search);
       const portal = params.get("portal");
-      if (portal === "customer") {
-        window.location.replace("/reset-password" + hash);
-      } else if (portal === "driver") {
-        window.location.replace("/driver/reset-password" + hash);
-      } else {
-        window.location.replace("/partner/reset-password" + hash);
-      }
+      if (portal === "customer")     window.location.replace("/reset-password" + hash);
+      else if (portal === "driver")  window.location.replace("/driver/reset-password" + hash);
+      else                           window.location.replace("/partner/reset-password" + hash);
     }
   }, []);
 
   async function searchPickup(q: string) {
-    setPickupAddress(q);
-    setPickupLat(null); setPickupLng(null);
+    setPickupAddress(q); setPickupLat(null); setPickupLng(null);
     if (pickupTimer.current) clearTimeout(pickupTimer.current);
     if (q.length < 3) { setPickupResults([]); return; }
     pickupTimer.current = setTimeout(async () => {
       setPickupLoading(true);
-      try {
-        const res  = await fetch(`/api/maps/search?q=${encodeURIComponent(q)}`, { cache: "no-store" });
-        const json = await res.json().catch(() => null);
-        setPickupResults(json?.data || []);
-      } catch { setPickupResults([]); }
-      finally { setPickupLoading(false); }
+      try { const r = await fetch(`/api/maps/search?q=${encodeURIComponent(q)}`,{cache:"no-store"}); const j = await r.json().catch(()=>null); setPickupResults(j?.data||[]); }
+      catch { setPickupResults([]); } finally { setPickupLoading(false); }
     }, 300);
   }
 
   async function searchDropoff(q: string) {
-    setDropoffAddress(q);
-    setDropoffLat(null); setDropoffLng(null);
+    setDropoffAddress(q); setDropoffLat(null); setDropoffLng(null);
     if (dropoffTimer.current) clearTimeout(dropoffTimer.current);
     if (q.length < 3) { setDropoffResults([]); return; }
     dropoffTimer.current = setTimeout(async () => {
       setDropoffLoading(true);
-      try {
-        const res  = await fetch(`/api/maps/search?q=${encodeURIComponent(q)}`, { cache: "no-store" });
-        const json = await res.json().catch(() => null);
-        setDropoffResults(json?.data || []);
-      } catch { setDropoffResults([]); }
-      finally { setDropoffLoading(false); }
+      try { const r = await fetch(`/api/maps/search?q=${encodeURIComponent(q)}`,{cache:"no-store"}); const j = await r.json().catch(()=>null); setDropoffResults(j?.data||[]); }
+      catch { setDropoffResults([]); } finally { setDropoffLoading(false); }
     }, 300);
   }
 
-  function selectPickup(r: AddressResult) {
-    setPickupAddress(r.display_name);
-    setPickupLat(r.lat); setPickupLng(r.lng);
-    setPickupResults([]);
-  }
-
-  function selectDropoff(r: AddressResult) {
-    setDropoffAddress(r.display_name);
-    setDropoffLat(r.lat); setDropoffLng(r.lng);
-    setDropoffResults([]);
-  }
-
   function handleBookNow() {
-    // Save widget state to sessionStorage so /book page can pre-fill
     sessionStorage.setItem("camel_booking_draft", JSON.stringify({
       pickupAddress, pickupLat, pickupLng,
       dropoffAddress, dropoffLat, dropoffLng,
-      pickupAt, dropoffAt, passengers, suitcases,
+      pickupAt, dropoffAt, passengers, suitcases, vehicleSlug,
     }));
     router.push("/book");
   }
 
+  const selectedCategory = FLEET_CATEGORIES.find(c => c.slug === vehicleSlug);
+
   return (
-    <>
+    <div className="min-h-screen bg-white flex flex-col">
       {/* ── Navbar ── */}
-      <nav className="fixed left-0 top-0 z-50 w-full bg-white shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
+      <nav className="fixed left-0 top-0 z-50 w-full bg-gradient-to-br from-[#003768] to-[#005b9f] shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
           <Link href="/">
-            <Image src="/camel-logo.png" alt="Camel" width={160} height={56} priority className="h-12 w-auto" />
+            <Image src="/camel-logo.png" alt="Camel" width={180} height={64} priority className="h-14 w-auto" />
           </Link>
           <div className="flex items-center gap-3">
-            <Link href="/login" className="rounded-full border border-[#003768]/20 px-4 py-2 text-sm font-semibold text-[#003768] hover:bg-[#003768]/5 transition-colors">
+            <CurrencySelector />
+            <Link href="/login" className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors">
               Log In
             </Link>
-            <Link href="/signup" className="rounded-full bg-[#ff7a00] px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_12px_rgba(255,122,0,0.3)] hover:opacity-95 transition-opacity">
+            <Link href="/signup" className="rounded-full bg-[#ff7a00] px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_12px_rgba(255,122,0,0.4)] hover:opacity-95 transition-opacity">
               Create Account
             </Link>
           </div>
         </div>
       </nav>
 
+      {/* Spacer for fixed nav */}
+      <div className="h-[72px]" />
+
       {/* ── Hero + Booking Widget ── */}
-      <section className="bg-white pt-20">
-        <div className="mx-auto max-w-7xl px-6 py-16 lg:py-24">
-          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+      <section className="bg-white py-16 lg:py-24">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="grid gap-12 lg:grid-cols-2 lg:items-start">
 
             {/* Left — headline */}
-            <div>
-              <p className="text-sm font-bold uppercase tracking-widest text-[#ff7a00]">Meet &amp; Greet Car Hire</p>
-              <h1 className="mt-3 text-4xl font-black leading-tight text-[#003768] sm:text-5xl lg:text-6xl">
+            <div className="lg:pt-4">
+              <span className="inline-block rounded-full bg-[#ff7a00]/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-[#ff7a00]">Meet &amp; Greet Car Hire</span>
+              <h1 className="mt-4 text-4xl font-black leading-tight text-[#003768] sm:text-5xl lg:text-6xl">
                 Book your meet &amp; greet car hire
               </h1>
-              <p className="mt-5 text-lg text-slate-600 leading-relaxed">
+              <p className="mt-5 text-lg text-slate-600 leading-relaxed max-w-lg">
                 Car delivered to you, wherever you are. No queues. No hidden costs. Full insurance included.
               </p>
-              <div className="mt-8 flex flex-wrap gap-4 text-sm text-slate-600">
-                {["✓ Car delivered to your location", "✓ Full insurance, zero excess", "✓ Pay only for fuel used", "✓ No airport queues"].map(f => (
-                  <span key={f} className="font-medium">{f}</span>
+              <div className="mt-6 grid grid-cols-2 gap-3 max-w-md">
+                {[
+                  ["🚗", "Car delivered to you"],
+                  ["🛡️", "Full insurance, zero excess"],
+                  ["⛽", "Pay only for fuel used"],
+                  ["✅", "No airport queues"],
+                ].map(([icon, text]) => (
+                  <div key={text} className="flex items-center gap-2 rounded-xl border border-[#003768]/10 bg-[#f3f8ff] px-3 py-2.5">
+                    <span className="text-base">{icon}</span>
+                    <span className="text-xs font-semibold text-[#003768]">{text}</span>
+                  </div>
                 ))}
               </div>
             </div>
 
             {/* Right — booking widget */}
-            <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_24px_60px_rgba(0,55,104,0.12)]">
-              <h2 className="text-xl font-bold text-[#003768] mb-5">Where do you need your car?</h2>
+            <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_24px_60px_rgba(0,55,104,0.14)]">
+              <h2 className="text-lg font-black text-[#003768] mb-1">Where do you need your car?</h2>
+              <p className="text-xs text-slate-500 mb-5">Start your booking — no account needed until you confirm</p>
 
               {/* Pickup */}
-              <div className="relative mb-4">
-                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Pickup location</label>
+              <div className="relative mb-3">
+                <label className="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1.5">Pickup location</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#ff7a00] text-lg">📍</span>
-                  <input
-                    value={pickupAddress}
-                    onChange={e => searchPickup(e.target.value)}
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#ff7a00]">📍</span>
+                  <input value={pickupAddress} onChange={e => searchPickup(e.target.value)}
                     placeholder="Airport, hotel, address…"
-                    className="w-full rounded-xl border border-black/10 py-3 pl-9 pr-4 text-sm outline-none focus:border-[#003768] focus:ring-2 focus:ring-[#003768]/10"
-                  />
-                  {pickupLoading && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">Searching…</span>}
+                    className="w-full rounded-xl border border-black/10 py-3 pl-9 pr-4 text-sm outline-none focus:border-[#003768] focus:ring-2 focus:ring-[#003768]/10" />
+                  {pickupLoading && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">…</span>}
                 </div>
                 {pickupResults.length > 0 && (
-                  <div className="absolute z-20 left-0 right-0 mt-1 rounded-2xl border border-black/10 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden">
+                  <div className="absolute z-30 left-0 right-0 mt-1 rounded-2xl border border-black/10 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden">
                     {pickupResults.map((r, i) => (
-                      <button key={i} type="button" onClick={() => selectPickup(r)}
-                        className="w-full text-left px-4 py-3 text-sm hover:bg-[#f3f8ff] border-b border-black/5 last:border-b-0">
-                        {r.display_name}
-                      </button>
+                      <button key={i} type="button" onClick={() => { setPickupAddress(r.display_name); setPickupLat(r.lat); setPickupLng(r.lng); setPickupResults([]); }}
+                        className="w-full text-left px-4 py-3 text-sm hover:bg-[#f3f8ff] border-b border-black/5 last:border-b-0">{r.display_name}</button>
                     ))}
                   </div>
                 )}
               </div>
 
               {/* Dropoff */}
-              <div className="relative mb-4">
-                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Drop-off location</label>
+              <div className="relative mb-3">
+                <label className="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1.5">Drop-off location</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">🏁</span>
-                  <input
-                    value={dropoffAddress}
-                    onChange={e => searchDropoff(e.target.value)}
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🏁</span>
+                  <input value={dropoffAddress} onChange={e => searchDropoff(e.target.value)}
                     placeholder="Return location (if different)"
-                    className="w-full rounded-xl border border-black/10 py-3 pl-9 pr-4 text-sm outline-none focus:border-[#003768] focus:ring-2 focus:ring-[#003768]/10"
-                  />
-                  {dropoffLoading && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">Searching…</span>}
+                    className="w-full rounded-xl border border-black/10 py-3 pl-9 pr-4 text-sm outline-none focus:border-[#003768] focus:ring-2 focus:ring-[#003768]/10" />
+                  {dropoffLoading && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">…</span>}
                 </div>
                 {dropoffResults.length > 0 && (
-                  <div className="absolute z-20 left-0 right-0 mt-1 rounded-2xl border border-black/10 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden">
+                  <div className="absolute z-30 left-0 right-0 mt-1 rounded-2xl border border-black/10 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden">
                     {dropoffResults.map((r, i) => (
-                      <button key={i} type="button" onClick={() => selectDropoff(r)}
-                        className="w-full text-left px-4 py-3 text-sm hover:bg-[#f3f8ff] border-b border-black/5 last:border-b-0">
-                        {r.display_name}
-                      </button>
+                      <button key={i} type="button" onClick={() => { setDropoffAddress(r.display_name); setDropoffLat(r.lat); setDropoffLng(r.lng); setDropoffResults([]); }}
+                        className="w-full text-left px-4 py-3 text-sm hover:bg-[#f3f8ff] border-b border-black/5 last:border-b-0">{r.display_name}</button>
                     ))}
                   </div>
                 )}
               </div>
 
               {/* Dates */}
-              <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="grid grid-cols-2 gap-2 mb-3">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Pickup date &amp; time</label>
+                  <label className="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1.5">Pickup date &amp; time</label>
                   <input type="datetime-local" value={pickupAt} onChange={e => setPickupAt(e.target.value)}
-                    className="w-full rounded-xl border border-black/10 px-3 py-3 text-sm outline-none focus:border-[#003768]" />
+                    className="w-full rounded-xl border border-black/10 px-3 py-2.5 text-sm outline-none focus:border-[#003768]" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Drop-off date &amp; time</label>
+                  <label className="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1.5">Drop-off date &amp; time</label>
                   <input type="datetime-local" value={dropoffAt} onChange={e => setDropoffAt(e.target.value)}
-                    className="w-full rounded-xl border border-black/10 px-3 py-3 text-sm outline-none focus:border-[#003768]" />
+                    className="w-full rounded-xl border border-black/10 px-3 py-2.5 text-sm outline-none focus:border-[#003768]" />
                 </div>
               </div>
 
-              {/* Passengers + bags */}
-              <div className="grid grid-cols-2 gap-3 mb-6">
+              {/* Passengers + bags + vehicle */}
+              <div className="grid grid-cols-2 gap-2 mb-3">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Passengers</label>
+                  <label className="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1.5">Passengers</label>
                   <select value={passengers} onChange={e => setPassengers(Number(e.target.value))}
-                    className="w-full rounded-xl border border-black/10 px-3 py-3 text-sm bg-white outline-none focus:border-[#003768]">
-                    {[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>{n} passenger{n > 1 ? "s" : ""}</option>)}
+                    className="w-full rounded-xl border border-black/10 px-3 py-2.5 text-sm bg-white outline-none focus:border-[#003768]">
+                    {[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>{n} passenger{n>1?"s":""}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Suitcases</label>
+                  <label className="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1.5">Suitcases</label>
                   <select value={suitcases} onChange={e => setSuitcases(Number(e.target.value))}
-                    className="w-full rounded-xl border border-black/10 px-3 py-3 text-sm bg-white outline-none focus:border-[#003768]">
-                    {[0,1,2,3,4,5,6].map(n => <option key={n} value={n}>{n} suitcase{n !== 1 ? "s" : ""}</option>)}
+                    className="w-full rounded-xl border border-black/10 px-3 py-2.5 text-sm bg-white outline-none focus:border-[#003768]">
+                    {[0,1,2,3,4,5,6].map(n => <option key={n} value={n}>{n} suitcase{n!==1?"s":""}</option>)}
                   </select>
                 </div>
+              </div>
+
+              {/* Vehicle category */}
+              <div className="mb-5">
+                <label className="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1.5">Vehicle type</label>
+                <select value={vehicleSlug} onChange={e => setVehicleSlug(e.target.value)}
+                  className="w-full rounded-xl border border-black/10 px-3 py-2.5 text-sm bg-white outline-none focus:border-[#003768]">
+                  {FLEET_CATEGORIES.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+                </select>
               </div>
 
               {/* CTA */}
@@ -236,7 +224,7 @@ function CustomerHome() {
                 className="w-full rounded-2xl bg-[#ff7a00] py-4 text-base font-black text-white shadow-[0_8px_24px_rgba(255,122,0,0.35)] hover:opacity-95 active:scale-[0.99] transition-all">
                 Book Now →
               </button>
-              <p className="mt-3 text-center text-xs text-slate-400">No account needed to start — sign in when you're ready to confirm</p>
+              <p className="mt-3 text-center text-xs text-slate-400">No account needed to start — sign in when ready to confirm</p>
             </div>
           </div>
         </div>
@@ -245,24 +233,80 @@ function CustomerHome() {
       {/* ── How Camel Works ── */}
       <section className="bg-[#f7f9fc] py-20">
         <div className="mx-auto max-w-7xl px-6">
-          <div className="text-center mb-14">
-            <p className="text-sm font-bold uppercase tracking-widest text-[#ff7a00]">Simple &amp; transparent</p>
-            <h2 className="mt-2 text-3xl font-black text-[#003768] sm:text-4xl">How Camel works</h2>
-            <p className="mt-3 text-slate-600 max-w-xl mx-auto">Three simple steps to get a car hire company delivering to you — no airport desk, no queuing.</p>
+          <div className="text-center mb-16">
+            <span className="inline-block rounded-full bg-[#ff7a00]/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-[#ff7a00]">Simple &amp; Transparent</span>
+            <h2 className="mt-3 text-3xl font-black text-[#003768] sm:text-4xl">How Camel works</h2>
+            <p className="mt-3 text-slate-600 max-w-xl mx-auto">Three simple steps to get a car hire company delivering to you — no airport desk, no queuing, no surprises.</p>
           </div>
-          <div className="grid gap-8 sm:grid-cols-3">
+
+          <div className="grid gap-6 lg:grid-cols-3">
             {[
-              { step: "1", icon: "📋", title: "Submit your request", desc: "Tell us where and when you need your car. Enter your pickup location, drop-off, dates, and the number of passengers. It takes less than 2 minutes." },
-              { step: "2", icon: "💬", title: "Receive bids", desc: "Local, trusted car hire companies within range of your location are notified and send you their best prices. You see the full breakdown — car hire, fuel deposit, insurance." },
-              { step: "3", icon: "✅", title: "Accept &amp; confirm", desc: "Choose the offer that suits you best, accept it, and your booking is confirmed. Your driver will meet you at the agreed location with the keys ready to go." },
-            ].map(s => (
-              <div key={s.step} className="rounded-3xl bg-white p-8 shadow-[0_8px_24px_rgba(0,0,0,0.06)] border border-black/5">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#003768] text-2xl font-black text-[#ff7a00] mb-5">{s.step}</div>
-                <div className="text-3xl mb-3">{s.icon}</div>
-                <h3 className="text-lg font-bold text-[#003768] mb-2">{s.title}</h3>
-                <p className="text-sm text-slate-600 leading-relaxed" dangerouslySetInnerHTML={{ __html: s.desc }} />
+              {
+                step: "01",
+                icon: "📋",
+                title: "Submit your request",
+                colour: "from-[#003768] to-[#005b9f]",
+                points: [
+                  "Enter your pickup and drop-off location",
+                  "Choose your dates, passengers and vehicle type",
+                  "Takes less than 2 minutes — no account needed",
+                  "Your request is instantly sent to local partners",
+                ],
+              },
+              {
+                step: "02",
+                icon: "💬",
+                title: "Receive competitive bids",
+                colour: "from-[#005b9f] to-[#0076d2]",
+                points: [
+                  "Local car hire companies within range are notified",
+                  "Each partner submits their best price for car hire and fuel",
+                  "You see full price breakdowns — no hidden extras",
+                  "Compare ratings and reviews from real customers",
+                ],
+              },
+              {
+                step: "03",
+                icon: "✅",
+                title: "Accept & confirm",
+                colour: "from-[#ff7a00] to-[#ff9a3c]",
+                points: [
+                  "Choose the offer that suits you best",
+                  "Confirm your booking — payment taken in full",
+                  "Your driver meets you at the agreed location",
+                  "Keys in hand, nothing left to sign — just go",
+                ],
+              },
+            ].map((s, i) => (
+              <div key={i} className="relative rounded-3xl bg-white border border-black/5 shadow-[0_8px_24px_rgba(0,0,0,0.06)] overflow-hidden flex flex-col">
+                {/* Top bar */}
+                <div className={`bg-gradient-to-r ${s.colour} p-6 text-white`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-4xl font-black opacity-30">{s.step}</span>
+                    <span className="text-3xl">{s.icon}</span>
+                  </div>
+                  <h3 className="text-xl font-black">{s.title}</h3>
+                </div>
+                {/* Points */}
+                <div className="p-6 flex-1">
+                  <ul className="space-y-3">
+                    {s.points.map((p, j) => (
+                      <li key={j} className="flex items-start gap-3 text-sm text-slate-700">
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#003768]/10 text-[#003768] text-xs font-bold">{j+1}</span>
+                        <span>{p}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             ))}
+          </div>
+
+          {/* Connector arrow on large screens */}
+          <div className="mt-10 hidden lg:flex items-center justify-center gap-4 text-slate-300">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
+            <span className="text-sm font-semibold text-slate-400">From request to keys in hand — typically same day</span>
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
           </div>
         </div>
       </section>
@@ -272,16 +316,16 @@ function CustomerHome() {
         <div className="mx-auto max-w-7xl px-6">
           <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
             <div>
-              <p className="text-sm font-bold uppercase tracking-widest text-[#ff7a00]">Everything included</p>
-              <h2 className="mt-2 text-3xl font-black text-[#003768] sm:text-4xl">No surprises when you arrive</h2>
-              <p className="mt-4 text-slate-600 leading-relaxed">
-                Every Camel booking includes everything upfront. Payment is taken in full at the time of booking, so when your driver arrives there is nothing left to do except take the keys and go.
+              <span className="inline-block rounded-full bg-[#ff7a00]/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-[#ff7a00]">Everything included</span>
+              <h2 className="mt-3 text-3xl font-black text-[#003768] sm:text-4xl">No surprises when you arrive</h2>
+              <p className="mt-4 text-slate-600 leading-relaxed max-w-lg">
+                Every Camel booking includes everything upfront. Payment is taken in full at the time of booking — when your driver arrives there is nothing left to do except take the keys.
               </p>
               <ul className="mt-6 space-y-3">
                 {[
                   ["🚗", "Car delivered to your exact location — hotel, apartment, airport exit"],
                   ["🛡️", "Full insurance with zero excess included in the price"],
-                  ["⛽", "Full tank on delivery — you pay only for the fuel you actually use"],
+                  ["⛽", "Full tank on delivery — pay only for the fuel you actually use"],
                   ["📄", "All paperwork completed at booking — nothing to sign on arrival"],
                   ["⭐", "Reviews from real customers so you can choose with confidence"],
                 ].map(([icon, text]) => (
@@ -296,15 +340,15 @@ function CustomerHome() {
               <h3 className="text-xl font-bold mb-6">The Camel difference</h3>
               <div className="space-y-4">
                 {[
-                  { label: "Traditional car hire", bad: true, points: ["Queue at airport desk", "Surprise extras on arrival", "Fuel penalties", "Hidden insurance charges"] },
-                  { label: "Camel Global", bad: false, points: ["Car delivered to you", "Price fixed at booking", "Pay only fuel used", "Full insurance included"] },
+                  { label: "Traditional car hire", bad: true,  points: ["Queue at airport desk", "Surprise extras on arrival", "Fuel penalties", "Hidden insurance charges"] },
+                  { label: "Camel Global",          bad: false, points: ["Car delivered to you", "Price fixed at booking", "Pay only fuel used", "Full insurance included"] },
                 ].map(col => (
                   <div key={col.label} className={`rounded-2xl p-5 ${col.bad ? "bg-white/10" : "bg-[#ff7a00]/20 border border-[#ff7a00]/40"}`}>
-                    <p className={`text-xs font-bold uppercase tracking-wide mb-3 ${col.bad ? "text-white/60" : "text-[#ff7a00]"}`}>{col.label}</p>
+                    <p className={`text-xs font-bold uppercase tracking-wide mb-3 ${col.bad ? "text-white/50" : "text-[#ff7a00]"}`}>{col.label}</p>
                     <ul className="space-y-1.5">
                       {col.points.map(p => (
                         <li key={p} className="flex items-center gap-2 text-sm">
-                          <span>{col.bad ? "✗" : "✓"}</span>
+                          <span className={col.bad ? "text-red-400" : "text-green-400"}>{col.bad ? "✗" : "✓"}</span>
                           <span>{p}</span>
                         </li>
                       ))}
@@ -317,32 +361,28 @@ function CustomerHome() {
         </div>
       </section>
 
-      {/* ── Fuel system explained ── */}
+      {/* ── Fuel system ── */}
       <section className="bg-[#f7f9fc] py-20">
         <div className="mx-auto max-w-7xl px-6">
           <div className="text-center mb-12">
-            <p className="text-sm font-bold uppercase tracking-widest text-[#ff7a00]">Transparent fuel policy</p>
-            <h2 className="mt-2 text-3xl font-black text-[#003768] sm:text-4xl">You only pay for the fuel you use</h2>
-            <p className="mt-3 text-slate-600 max-w-2xl mx-auto">
-              Your car hire price includes a full tank of fuel as a deposit. When you return the car, the driver records the remaining fuel level. You pay only for the quarters used — the rest is refunded.
-            </p>
+            <span className="inline-block rounded-full bg-[#ff7a00]/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-[#ff7a00]">Transparent fuel policy</span>
+            <h2 className="mt-3 text-3xl font-black text-[#003768] sm:text-4xl">You only pay for the fuel you use</h2>
+            <p className="mt-3 text-slate-600 max-w-2xl mx-auto">Your booking includes a full tank as a deposit. When you return the car, the driver records the remaining fuel level — you pay only for the quarters used.</p>
           </div>
-          <div className="grid gap-6 sm:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-4">
             {[
-              { level: "Full", bar: 4, label: "Returned full", desc: "Full refund of fuel deposit" },
-              { level: "¾ Tank", bar: 3, label: "Returned ¾ full", desc: "You pay for ¼ tank only" },
+              { level: "Full",    bar: 4, label: "Returned full",    desc: "Full refund of fuel deposit" },
+              { level: "¾ Tank", bar: 3, label: "Returned ¾ full",  desc: "You pay for ¼ tank only" },
               { level: "½ Tank", bar: 2, label: "Returned half full", desc: "You pay for ½ tank" },
-              { level: "¼ Tank", bar: 1, label: "Returned ¼ full", desc: "You pay for ¾ tank" },
+              { level: "¼ Tank", bar: 1, label: "Returned ¼ full",  desc: "You pay for ¾ tank" },
             ].map(f => (
               <div key={f.level} className="rounded-2xl bg-white p-6 shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-black/5 text-center">
                 <p className="text-2xl font-black text-[#003768] mb-3">{f.level}</p>
                 <div className="flex gap-1 justify-center mb-3">
-                  {[0,1,2,3].map(i => (
-                    <div key={i} className={`h-3 w-8 rounded-full ${i < f.bar ? "bg-green-500" : "bg-slate-200"}`} />
-                  ))}
+                  {[0,1,2,3].map(i => <div key={i} className={`h-3 w-8 rounded-full ${i < f.bar ? "bg-green-500" : "bg-slate-200"}`} />)}
                 </div>
                 <p className="text-xs font-semibold text-slate-700">{f.label}</p>
-                <p className="mt-1 text-xs text-slate-500">{f.desc}</p>
+                <p className="mt-1 text-xs text-slate-400">{f.desc}</p>
               </div>
             ))}
           </div>
@@ -358,56 +398,18 @@ function CustomerHome() {
             Book Now →
           </Link>
           <p className="mt-4 text-sm text-white/50">
-            Already have an account? <Link href="/login" className="text-white/80 underline hover:text-white">Sign in</Link>
+            Already have an account?{" "}
+            <Link href="/login" className="text-white/80 underline hover:text-white">Sign in</Link>
           </p>
         </div>
       </section>
 
-      {/* ── Footer ── */}
-      <footer className="bg-[#02182d] text-[#c4d0e5] py-10">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-            <div>
-              <Image src="/camel-logo.png" alt="Camel" width={120} height={40} className="h-10 w-auto mb-3 brightness-0 invert" />
-              <p className="text-sm text-white/60">Meet &amp; greet car hire, delivered to your door.</p>
-            </div>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-white/40 mb-3">Company</p>
-              <ul className="space-y-2 text-sm">
-                <li><Link href="/about" className="hover:text-white transition-colors">About Us</Link></li>
-                <li><Link href="/partner/signup" className="hover:text-white transition-colors">Become a Partner</Link></li>
-                <li><Link href="/contact" className="hover:text-white transition-colors">Contact</Link></li>
-              </ul>
-            </div>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-white/40 mb-3">Legal</p>
-              <ul className="space-y-2 text-sm">
-                <li><Link href="/terms" className="hover:text-white transition-colors">Customer Terms</Link></li>
-                <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
-                <li><Link href="/cookies" className="hover:text-white transition-colors">Cookie Policy</Link></li>
-              </ul>
-            </div>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-white/40 mb-3">Account</p>
-              <ul className="space-y-2 text-sm">
-                <li><Link href="/login" className="hover:text-white transition-colors">Sign In</Link></li>
-                <li><Link href="/signup" className="hover:text-white transition-colors">Create Account</Link></li>
-                <li><Link href="/bookings" className="hover:text-white transition-colors">My Bookings</Link></li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-white/10 pt-6 flex flex-wrap items-center justify-between gap-4 text-xs text-white/40">
-            <span>© {new Date().getFullYear()} Camel Global Ltd. All rights reserved.</span>
-            <span>Registered in England &amp; Wales — registration details to be updated</span>
-          </div>
-        </div>
-      </footer>
-    </>
+      {/* Footer rendered by ClientRootLayout — do NOT add one here */}
+    </div>
   );
 }
 
 // ── Partner Marketing Homepage (camel-global.com) ────────────────────────────
-// (unchanged from original — keeping full implementation)
 
 function PartnerMarketingHome() {
   const [lang, setLang] = useState<Lang>("en");
@@ -451,7 +453,7 @@ function PartnerMarketingHome() {
   return (
     <>
       <style>{`
-        :root { --camel-blue:#005b9f;--camel-blue-dark:#003768;--camel-orange:#ff7a00;--camel-light:#e3f4ff;--camel-grey:#f5f7fa;--text-main:#1a1a1a; }
+        :root{--camel-blue:#005b9f;--camel-blue-dark:#003768;--camel-orange:#ff7a00;--camel-light:#e3f4ff;--camel-grey:#f5f7fa;--text-main:#1a1a1a}
         *{box-sizing:border-box}
         body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--text-main);background:var(--camel-light);line-height:1.6;padding-top:115px}
         img{max-width:100%;height:auto;display:block}
@@ -506,10 +508,6 @@ function PartnerMarketingHome() {
         .steps li{counter-increment:steps;margin-bottom:1rem;padding-left:2.5rem;position:relative;font-size:.96rem}
         .steps li::before{content:counter(steps);position:absolute;left:0;top:.15rem;width:1.6rem;height:1.6rem;border-radius:999px;background:var(--camel-orange);color:#fff;font-size:.9rem;display:flex;align-items:center;justify-content:center;font-weight:600}
         .highlight-bar{padding:1rem 1.2rem;border-radius:.9rem;background:#fff7ed;border:1px solid #ffd8a6;font-size:.95rem}
-        .screens-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.5rem;margin-top:1.5rem}
-        figure{margin:0;background:#fff;border-radius:.9rem;overflow:hidden;box-shadow:0 10px 26px rgba(0,0,0,.07);border:1px solid rgba(0,0,0,.04);display:flex;flex-direction:column;height:100%}
-        figure img{flex:1 1 auto;object-fit:cover}
-        figcaption{padding:.7rem .9rem;font-size:.9rem;background:var(--camel-grey)}
         .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-top:1.5rem}
         .kpi{padding:1rem 1.1rem;border-radius:.9rem;background:var(--camel-blue-dark);color:#fff;font-size:.9rem}
         .kpi strong{display:block;font-size:1.05rem;margin-bottom:.3rem}
@@ -536,28 +534,16 @@ function PartnerMarketingHome() {
       <header>
         <div className="nav-wrapper">
           <div className="nav">
-            <div className="logo-wrap">
-              <a href="#top" className="logo-link" onClick={closeMobileNavIfOpen}>
-                <img src="/camel-logo.png" alt="Camel Global Ltd logo" />
-              </a>
-            </div>
+            <div className="logo-wrap"><a href="#top" className="logo-link" onClick={closeMobileNavIfOpen}><img src="/camel-logo.png" alt="Camel Global Ltd logo" /></a></div>
             <div className="nav-right">
               <div className="lang-switch">
                 <select id="lang-select" className="lang-select" aria-label="Language selector" value={lang}
                   onChange={e => { setLanguage(e.target.value as Lang); closeMobileNavIfOpen(); }}>
-                  <option value="en">EN</option>
-                  <option value="es">ES</option>
-                  <option value="it">IT</option>
-                  <option value="fr">FR</option>
-                  <option value="de">DE</option>
+                  <option value="en">EN</option><option value="es">ES</option><option value="it">IT</option><option value="fr">FR</option><option value="de">DE</option>
                 </select>
               </div>
               <button className="nav-toggle" aria-label="Toggle navigation" aria-expanded="false" onClick={toggleMobileNav}>
-                <span className="nav-toggle-box">
-                  <span className="nav-toggle-line"></span>
-                  <span className="nav-toggle-line"></span>
-                  <span className="nav-toggle-line"></span>
-                </span>
+                <span className="nav-toggle-box"><span className="nav-toggle-line"></span><span className="nav-toggle-line"></span><span className="nav-toggle-line"></span></span>
               </button>
             </div>
             <nav className="nav-links">
@@ -584,9 +570,7 @@ function PartnerMarketingHome() {
               <div className="badge" data-i18n="hero_badge2">Off-airport partners only</div>
               <div className="badge" data-i18n="hero_badge3">App + Web Admin Platform</div>
             </div>
-            <div className="hero-cta">
-              <a className="partner-btn partner-btn-primary" href="/partner/login" onClick={closeMobileNavIfOpen}>Join the System</a>
-            </div>
+            <div className="hero-cta"><a className="partner-btn partner-btn-primary" href="/partner/login" onClick={closeMobileNavIfOpen}>Join the System</a></div>
           </div>
           <aside className="hero-card">
             <h2 data-i18n="hero_box_title">Why customers choose Camel Global</h2>
@@ -609,23 +593,16 @@ function PartnerMarketingHome() {
             <p className="section-subtitle" data-i18n="intro_subtitle">Camel Global &amp; the UK meet-and-greet opportunity</p>
             <div className="two-col">
               <div>
-                <p data-i18n="intro_p1">Camel Global Ltd is a UK-based meet-and-greet car hire platform born from real customer frustrations with traditional airport car hire – long queues, piles of paperwork, and unexpected extra costs on arrival.</p>
-                <div className="highlight-bar" data-i18n="intro_highlight">Provide a <strong>meet-and-greet car hire service</strong> with <strong>no paperwork, no queuing and no hidden costs</strong>, where customers are willing to pay a premium for simplicity and transparency.</div>
-                <p style={{ marginTop: "1rem" }} data-i18n="intro_p2">The platform has been built to bring car hire customers and car hire partners together. Customers enjoy the frictionless experience they want, while partners gain a powerful new channel for quality business.</p>
+                <p data-i18n="intro_p1">Camel Global Ltd is a UK-based meet-and-greet car hire platform born from real customer frustrations with traditional airport car hire.</p>
+                <div className="highlight-bar" data-i18n="intro_highlight">Provide a <strong>meet-and-greet car hire service</strong> with <strong>no paperwork, no queuing and no hidden costs</strong>.</div>
               </div>
               <div>
-                <p data-i18n="intro_defs_title"><strong>Key definitions used throughout this site:</strong></p>
-                <ul>
-                  <li data-i18n="intro_def_partners"><strong>Partners</strong> – Car hire companies.</li>
-                  <li data-i18n="intro_def_agents"><strong>Agents</strong> – Partner delivery / collection drivers.</li>
-                </ul>
                 <ul className="pill-list">
                   <li data-i18n="intro_pill1">UK-headquartered</li>
                   <li data-i18n="intro_pill2">Off-airport partners only</li>
                   <li data-i18n="intro_pill3">Customer &amp; Partner Apps</li>
                   <li data-i18n="intro_pill4">Partner Web Admin Portal</li>
                   <li data-i18n="intro_pill5">Feedback-driven system</li>
-                  <li data-i18n="intro_pill6">European Law–compliant client accounts</li>
                 </ul>
               </div>
             </div>
@@ -635,20 +612,18 @@ function PartnerMarketingHome() {
         <section id="join" className="cta">
           <div className="cta-inner">
             <h2 data-i18n="join_title">Summary &amp; Join the Camel Global System</h2>
-            <p data-i18n="join_p1">A multi-million-pound marketing budget is in place to roll this out across the UK in the coming months. Sign up and be part of the Camel Global meet and greet car hire system.</p>
             <p data-i18n="join_p2">It's free for you to use, and if you're not part of it… <strong>your competitors will be!</strong></p>
             <div style={{ margin: "1.5rem 0" }}>
-              <a className="partner-btn partner-btn-primary" href="https://www.camel-global.com" target="_blank" rel="noreferrer" data-i18n="join_button">Visit www.camel-global.com</a>
+              <a className="partner-btn partner-btn-primary" href="https://www.camel-global.com" target="_blank" rel="noreferrer">Visit www.camel-global.com</a>
             </div>
-            <p style={{ fontSize: ".9rem", opacity: 0.9 }} data-i18n="join_footer">Partners = Car hire companies &nbsp;|&nbsp; Agents = Car hire company delivery drivers</p>
           </div>
         </section>
       </main>
 
       <footer>
         <div className="footer-inner">
-          <div>&copy; <span id="year"></span> Camel Global Ltd. <span data-i18n="footer_rights">All rights reserved.</span></div>
-          <div><span data-i18n="footer_website_label">Website:</span> <a href="https://www.camel-global.com" target="_blank" rel="noreferrer">www.camel-global.com</a></div>
+          <div>&copy; <span id="year"></span> Camel Global Ltd. All rights reserved.</div>
+          <div><a href="https://www.camel-global.com" target="_blank" rel="noreferrer">www.camel-global.com</a></div>
         </div>
       </footer>
     </>
@@ -665,21 +640,14 @@ export default function Page() {
       const hash   = window.location.hash;
       const params = new URLSearchParams(window.location.search);
       const portal = params.get("portal");
-      if (portal === "customer") {
-        window.location.replace("/reset-password" + hash);
-      } else if (portal === "driver") {
-        window.location.replace("/driver/reset-password" + hash);
-      } else {
-        window.location.replace("/partner/reset-password" + hash);
-      }
+      if (portal === "customer")    window.location.replace("/reset-password" + hash);
+      else if (portal === "driver") window.location.replace("/driver/reset-password" + hash);
+      else                          window.location.replace("/partner/reset-password" + hash);
       return;
     }
     setHost(window.location.hostname);
   }, []);
 
-  if (host === "test.camel-global.com" || host.includes("localhost")) {
-    return <CustomerHome />;
-  }
-
+  if (host === "test.camel-global.com" || host.includes("localhost")) return <CustomerHome />;
   return <PartnerMarketingHome />;
 }
