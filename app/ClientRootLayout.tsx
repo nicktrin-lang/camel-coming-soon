@@ -158,7 +158,7 @@ export default function ClientRootLayout({ children, fontClass }: { children: Re
                             </Link>
                             <Link href={bookingsHref} className="text-white/70 hover:text-white transition-colors text-xs hidden md:block">My Bookings</Link>
                             <Link href={settingsHref} className="text-white/70 hover:text-white transition-colors text-xs hidden md:block">Account</Link>
-                            {customerName && <span className="hidden text-xs text-white/40 lg:block">Hi, {customerName}</span>}
+                            {customerName && <span className="hidden text-sm font-bold text-white lg:block">Hi, {customerName}</span>}
                             <button type="button" onClick={handleCustomerLogout}
                               className="border border-white/20 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 transition-colors">
                               Logout
