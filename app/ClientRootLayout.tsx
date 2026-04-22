@@ -129,48 +129,44 @@ export default function ClientRootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en">
-      <body className={`min-h-screen flex flex-col ${isHomepage ? "bg-white" : "bg-[#e3f4ff]"}`}>
+      <body className={`min-h-screen flex flex-col ${isHomepage || isNewCustomerArea || isCustomerPublicPage ? "bg-white" : "bg-[#e3f4ff]"}`}>
         <GoogleAnalytics />
 
         {showGlobalHeader && (
           <>
-            <header className="fixed left-0 top-0 z-50 w-full shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
-              <div className="bg-white border-b border-black/8">
-                <div className="mx-auto flex max-w-7xl items-center gap-4 px-6 py-3">
+            <header className="fixed left-0 top-0 z-50 w-full shadow-[0_2px_8px_rgba(0,0,0,0.3)]">
+              <div className={showCustomerNav ? "bg-black" : "bg-gradient-to-br from-[#003768] to-[#005b9f]"}>
+                <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
                   <Link href="/" className="flex items-center">
-                    <Image src="/camel-logo.png" alt="Camel Global" width={160} height={56} priority className="h-12 w-auto" />
+                    <Image src="/camel-logo.png" alt="Camel Global" width={140} height={48} priority
+                      className={`h-10 w-auto ${showCustomerNav ? "brightness-0 invert" : ""}`} />
                   </Link>
 
                   <nav className="ml-auto flex items-center gap-3 text-sm font-medium">
-                    <Link href="/" className="text-slate-600 hover:text-black transition-colors hidden sm:block">Home</Link>
-
                     {showCustomerNav ? (
                       <>
-                        {/* Currency selector only on booking pages, not info pages */}
                         {showCurrencyInHeader && <CurrencySelector />}
-
                         {isCustomerLoggedIn ? (
                           <>
                             <Link href={newBookingHref}
-                              className="bg-black text-white px-4 py-2 text-xs font-bold hover:bg-black/80 transition-colors rounded-lg">
+                              className="bg-[#ff7a00] text-white px-3 py-2 text-xs font-bold hover:opacity-90 transition-opacity">
                               New Booking
                             </Link>
-                            <Link href={bookingsHref} className="text-slate-600 hover:text-black transition-colors text-xs hidden md:block">My Bookings</Link>
-                            <Link href={settingsHref} className="text-slate-600 hover:text-black transition-colors text-xs hidden md:block">Account</Link>
-                            {customerName && <span className="hidden text-xs text-slate-400 lg:block">Hi, {customerName}</span>}
+                            <Link href={bookingsHref} className="text-white/70 hover:text-white transition-colors text-xs hidden md:block">My Bookings</Link>
+                            <Link href={settingsHref} className="text-white/70 hover:text-white transition-colors text-xs hidden md:block">Account</Link>
+                            {customerName && <span className="hidden text-xs text-white/40 lg:block">Hi, {customerName}</span>}
                             <button type="button" onClick={handleCustomerLogout}
-                              className="border border-black/20 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-black/5 transition-colors rounded-lg">
+                              className="border border-white/20 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 transition-colors">
                               Logout
                             </button>
                           </>
                         ) : (
                           <>
-                            <Link href={signupHref}
-                              className="text-slate-600 hover:text-black transition-colors text-sm font-semibold">
+                            <Link href={signupHref} className="text-white/70 hover:text-white transition-colors text-sm font-semibold hidden sm:block">
                               Sign Up
                             </Link>
                             <Link href={loginHref}
-                              className="bg-black text-white px-4 py-2 text-sm font-semibold hover:bg-black/80 transition-colors rounded-lg">
+                              className="border border-white/30 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors">
                               Log In
                             </Link>
                           </>
@@ -178,15 +174,15 @@ export default function ClientRootLayout({ children }: { children: React.ReactNo
                       </>
                     ) : !isPartnerLoggedIn ? (
                       <>
-                        <Link href="/partner/signup" className="text-slate-600 hover:text-black transition-colors">Partner Sign Up</Link>
+                        <Link href="/partner/signup" className="text-white/80 hover:text-white transition-colors">Partner Sign Up</Link>
                         <Link href="/partner/login"
-                          className="bg-black text-white px-4 py-2 font-semibold hover:bg-black/80 transition-colors rounded-lg">
+                          className="bg-[#ff7a00] text-white px-4 py-2 font-semibold hover:opacity-90 transition-opacity">
                           Partner Login
                         </Link>
                       </>
                     ) : (
                       <button type="button" onClick={handlePartnerLogout}
-                        className="bg-[#ff7a00] px-5 py-2 font-semibold text-white hover:opacity-95 rounded-lg">
+                        className="bg-[#ff7a00] px-5 py-2 font-semibold text-white hover:opacity-95">
                         Logout
                       </button>
                     )}

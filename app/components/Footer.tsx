@@ -6,10 +6,9 @@ import { usePathname } from "next/navigation";
 
 const year = new Date().getFullYear();
 
-// All portal footer links open in a new tab so the user never navigates away.
-const NT = { target: "_blank", rel: "noopener noreferrer" } as const;
+// ── Portal footers — blue gradient, unchanged ─────────────────────────────────
 
-function FooterBase({ children }: { children: React.ReactNode }) {
+function PortalFooterBase({ children }: { children: React.ReactNode }) {
   return (
     <footer className="w-full border-t border-white/10 bg-gradient-to-br from-[#003768] to-[#005b9f] text-white">
       <div className="mx-auto max-w-7xl px-6 py-10">
@@ -23,54 +22,22 @@ function FooterBase({ children }: { children: React.ReactNode }) {
   );
 }
 
-function FooterLogo({ linkProps }: { linkProps?: object }) {
+function PortalFooterLogo() {
   return (
     <div className="flex flex-col gap-3">
-      <Link href="/" {...linkProps}>
-        <Image src="/camel-logo.png" alt="Camel Global Ltd" width={160} height={58}
-          className="h-[48px] w-auto brightness-0 invert" />
+      <Link href="/">
+        <Image src="/camel-logo.png" alt="Camel Global Ltd" width={160} height={58} className="h-[48px] w-auto brightness-0 invert" />
       </Link>
-      <p className="max-w-[220px] text-xs leading-relaxed text-white/60">
-        Meet &amp; greet car hire, delivered to your door.
-      </p>
+      <p className="max-w-[220px] text-xs leading-relaxed text-white/60">Meet &amp; greet car hire, delivered to your door.</p>
     </div>
   );
 }
 
-// ── Customer footer ───────────────────────────────────────────────────────────
-// /test-booking/*, /about, /privacy, /cookies, /terms, /contact, /
-// All links are standard internal navigation — no new tabs.
-function CustomerFooter() {
-  return (
-    <FooterBase>
-      <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
-        <FooterLogo />
-        <div className="flex flex-wrap gap-10 text-sm">
-          <div className="flex flex-col gap-2">
-            <span className="mb-1 text-xs font-semibold uppercase tracking-wider text-white/40">Company</span>
-            <Link href="/about" className="text-white/80 hover:text-white transition-colors">About Us</Link>
-            <Link href="/partner/signup" className="text-white/80 hover:text-white transition-colors">Become a Partner</Link>
-            <Link href="/contact" className="text-white/80 hover:text-white transition-colors">Contact</Link>
-          </div>
-          <div className="flex flex-col gap-2">
-            <span className="mb-1 text-xs font-semibold uppercase tracking-wider text-white/40">Legal</span>
-            <Link href="/terms" className="text-white/80 hover:text-white transition-colors">Customer Terms</Link>
-            <Link href="/privacy" className="text-white/80 hover:text-white transition-colors">Privacy Policy</Link>
-            <Link href="/cookies" className="text-white/80 hover:text-white transition-colors">Cookie Policy</Link>
-          </div>
-        </div>
-      </div>
-    </FooterBase>
-  );
-}
-
-// ── Partner footer ────────────────────────────────────────────────────────────
-// /partner/* — every link stays inside the partner layout, no new tabs
 function PartnerFooter() {
   return (
-    <FooterBase>
+    <PortalFooterBase>
       <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
-        <FooterLogo />
+        <PortalFooterLogo />
         <div className="flex flex-wrap gap-10 text-sm">
           <div className="flex flex-col gap-2">
             <span className="mb-1 text-xs font-semibold uppercase tracking-wider text-white/40">Company</span>
@@ -86,35 +53,26 @@ function PartnerFooter() {
           </div>
         </div>
       </div>
-    </FooterBase>
+    </PortalFooterBase>
   );
 }
 
-// ── Driver footer ─────────────────────────────────────────────────────────────
-// /driver/* — single link only
 function DriverFooter() {
   return (
-    <FooterBase>
+    <PortalFooterBase>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <FooterLogo linkProps={NT} />
-        <Link
-          href="/driver/login"
-          className="text-sm text-white/80 hover:text-white transition-colors"
-        >
-          Driver Login
-        </Link>
+        <PortalFooterLogo />
+        <Link href="/driver/login" className="text-sm text-white/80 hover:text-white transition-colors">Driver Login</Link>
       </div>
-    </FooterBase>
+    </PortalFooterBase>
   );
 }
 
-// ── Admin footer ──────────────────────────────────────────────────────────────
-// /admin/* — every link stays inside the admin layout, no new tabs
 function AdminFooter() {
   return (
-    <FooterBase>
+    <PortalFooterBase>
       <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
-        <FooterLogo />
+        <PortalFooterLogo />
         <div className="flex flex-wrap gap-10 text-sm">
           <div className="flex flex-col gap-2">
             <span className="mb-1 text-xs font-semibold uppercase tracking-wider text-white/40">Company</span>
@@ -130,14 +88,59 @@ function AdminFooter() {
           </div>
         </div>
       </div>
-    </FooterBase>
+    </PortalFooterBase>
+  );
+}
+
+// ── Customer footer — black, matching new customer site design ────────────────
+
+function CustomerFooter() {
+  return (
+    <footer className="w-full bg-black text-white">
+      <div className="mx-auto max-w-7xl px-6 py-10">
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+          <div>
+            <Image src="/camel-logo.png" alt="Camel" width={120} height={40}
+              className="h-9 w-auto mb-3 brightness-0 invert" />
+            <p className="text-xs text-white/40 leading-relaxed">Meet &amp; greet car hire, delivered to your door.</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-3">Company</p>
+            <ul className="space-y-2 text-sm">
+              <li><Link href="/about" className="text-white/70 hover:text-white transition-colors">About Us</Link></li>
+              <li><Link href="/partner/signup" className="text-white/70 hover:text-white transition-colors">Become a Partner</Link></li>
+              <li><Link href="/contact" className="text-white/70 hover:text-white transition-colors">Contact</Link></li>
+            </ul>
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-3">Legal</p>
+            <ul className="space-y-2 text-sm">
+              <li><Link href="/terms" className="text-white/70 hover:text-white transition-colors">Customer Terms</Link></li>
+              <li><Link href="/privacy" className="text-white/70 hover:text-white transition-colors">Privacy Policy</Link></li>
+              <li><Link href="/cookies" className="text-white/70 hover:text-white transition-colors">Cookie Policy</Link></li>
+            </ul>
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-3">Account</p>
+            <ul className="space-y-2 text-sm">
+              <li><Link href="/login" className="text-white/70 hover:text-white transition-colors">Sign In</Link></li>
+              <li><Link href="/signup" className="text-white/70 hover:text-white transition-colors">Create Account</Link></li>
+              <li><Link href="/bookings" className="text-white/70 hover:text-white transition-colors">My Bookings</Link></li>
+            </ul>
+          </div>
+        </div>
+        <div className="border-t border-white/10 pt-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between text-xs text-white/30">
+          <p>© {year} Camel Global Ltd. All rights reserved.</p>
+          <p>Registered in England &amp; Wales — <span className="italic">registration details to be updated</span></p>
+        </div>
+      </div>
+    </footer>
   );
 }
 
 // ── Export: picks correct footer from pathname ────────────────────────────────
 export default function Footer() {
   const pathname = usePathname();
-
   if (pathname?.startsWith("/admin"))   return <AdminFooter />;
   if (pathname?.startsWith("/driver"))  return <DriverFooter />;
   if (pathname?.startsWith("/partner")) return <PartnerFooter />;

@@ -26,7 +26,6 @@ const SPORT_OPTIONS = [
   { value: "other",       label: "Other large equipment" },
 ];
 
-// ── Customer Homepage ─────────────────────────────────────────────────────────
 function CustomerHome() {
   const router = useRouter();
 
@@ -92,108 +91,90 @@ function CustomerHome() {
     router.push("/book");
   }
 
-  const inputCls = "w-full border border-black/15 px-3 py-2.5 text-sm outline-none focus:border-black focus:ring-1 focus:ring-black/20 rounded-lg bg-white transition-colors";
-  const labelCls = "block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1";
+  const inputCls = "w-full border border-black/20 px-3 py-2.5 text-sm outline-none focus:border-black focus:ring-1 focus:ring-black/10 bg-white text-black transition-colors";
+  const labelCls = "block text-[10px] font-bold uppercase tracking-widest text-black/40 mb-1";
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
 
       {/* ── Navbar ── */}
-      <nav className="fixed left-0 top-0 z-50 w-full bg-white border-b border-black/8 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
+      <nav className="fixed left-0 top-0 z-50 w-full bg-black border-b border-black">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
           <Link href="/">
-            <Image src="/camel-logo.png" alt="Camel" width={160} height={56} priority className="h-12 w-auto" />
+            <Image src="/camel-logo.png" alt="Camel" width={140} height={48} priority className="h-10 w-auto brightness-0 invert" />
           </Link>
           <div className="flex items-center gap-2">
-            <Link href="/login"
-              className="border border-black/20 px-4 py-2 text-sm font-semibold text-black hover:bg-black/5 transition-colors rounded-lg">
+            <Link href="/login" className="border border-white/30 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors">
               Log In
             </Link>
-            <Link href="/signup"
-              className="bg-black text-white px-4 py-2 text-sm font-semibold hover:bg-black/80 transition-colors rounded-lg">
+            <Link href="/signup" className="bg-[#ff7a00] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity">
               Sign Up
             </Link>
           </div>
         </div>
       </nav>
-      <div className="h-[60px]" />
+      <div className="h-[56px]" />
 
       {/* ── Hero + Booking Widget ── */}
-      <section className="bg-white py-10 lg:py-16">
-        <div className="mx-auto max-w-7xl px-4 lg:px-6">
-          <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
+      <section className="bg-white py-8 lg:py-12">
+        <div className="mx-auto max-w-7xl px-4">
+          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
 
-            {/* Left — headline */}
-            <div className="lg:pt-3">
+            {/* Left — headline only */}
+            <div className="lg:pt-2">
               <h1 className="text-3xl font-black leading-tight text-black sm:text-4xl lg:text-5xl">
-                Book your meet &amp; greet car hire
+                Meet &amp; Greet Car Hire
               </h1>
-              <p className="mt-3 text-base text-slate-500 leading-relaxed max-w-lg">
-                Car delivered to you, wherever you are. No queues. No hidden costs. Full insurance included.
-              </p>
-              <div className="mt-5 grid grid-cols-2 gap-2 max-w-sm">
-                {[
-                  ["🚗", "Car delivered to you"],
-                  ["🛡️", "Full insurance, zero excess"],
-                  ["⛽", "Pay only for fuel used"],
-                  ["✅", "No airport queues"],
-                ].map(([icon, text]) => (
-                  <div key={text} className="flex items-center gap-2 border border-black/10 bg-slate-50 px-3 py-2 rounded-lg">
-                    <span className="text-sm">{icon}</span>
-                    <span className="text-xs font-semibold text-slate-700">{text}</span>
-                  </div>
-                ))}
-              </div>
             </div>
 
             {/* Booking widget */}
-            <div className="border border-black/10 bg-white p-5 shadow-[0_4px_24px_rgba(0,0,0,0.08)] rounded-xl">
-              <h2 className="text-base font-black text-black mb-4">Where do you need your car?</h2>
+            <div className="border border-black bg-white p-4">
+              <p className="text-xs font-bold uppercase tracking-widest text-black/40 mb-3">Where do you need your car?</p>
 
               {/* Pickup */}
-              <div className="relative mb-3">
+              <div className="relative mb-2">
                 <label className={labelCls}>Pickup location</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#ff7a00] text-sm">📍</span>
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm">📍</span>
                   <input value={pickupAddress} onChange={e => searchPickup(e.target.value)}
                     placeholder="Airport, hotel, address…"
                     className={inputCls + " pl-8"} />
-                  {pickupLoading && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">…</span>}
+                  {pickupLoading && <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-black/30">…</span>}
                 </div>
                 {pickupResults.length > 0 && (
-                  <div className="absolute z-30 left-0 right-0 mt-1 border border-black/10 bg-white shadow-lg overflow-hidden rounded-lg">
+                  <div className="absolute z-30 left-0 right-0 mt-0.5 border border-black bg-white shadow-lg overflow-hidden">
                     {pickupResults.map((r, i) => (
                       <button key={i} type="button"
                         onClick={() => { setPickupAddress(r.display_name); setPickupLat(r.lat); setPickupLng(r.lng); setPickupResults([]); }}
-                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 border-b border-black/5 last:border-b-0">{r.display_name}</button>
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-black hover:text-white border-b border-black/10 last:border-b-0 transition-colors">{r.display_name}</button>
                     ))}
                   </div>
                 )}
               </div>
 
               {/* Dropoff */}
-              <div className="relative mb-3">
+              <div className="relative mb-2">
                 <label className={labelCls}>Drop-off location</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🏁</span>
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm">🏁</span>
                   <input value={dropoffAddress} onChange={e => searchDropoff(e.target.value)}
                     placeholder="Return location (if different)"
                     className={inputCls + " pl-8"} />
-                  {dropoffLoading && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">…</span>}
+                  {dropoffLoading && <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-black/30">…</span>}
                 </div>
                 {dropoffResults.length > 0 && (
-                  <div className="absolute z-30 left-0 right-0 mt-1 border border-black/10 bg-white shadow-lg overflow-hidden rounded-lg">
+                  <div className="absolute z-30 left-0 right-0 mt-0.5 border border-black bg-white shadow-lg overflow-hidden">
                     {dropoffResults.map((r, i) => (
                       <button key={i} type="button"
                         onClick={() => { setDropoffAddress(r.display_name); setDropoffLat(r.lat); setDropoffLng(r.lng); setDropoffResults([]); }}
-                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 border-b border-black/5 last:border-b-0">{r.display_name}</button>
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-black hover:text-white border-b border-black/10 last:border-b-0 transition-colors">{r.display_name}</button>
                     ))}
                   </div>
                 )}
               </div>
 
               {/* Dates */}
-              <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="grid grid-cols-2 gap-2 mb-2">
                 <div>
                   <label className={labelCls}>Pickup date &amp; time</label>
                   <input type="datetime-local" value={pickupAt} onChange={e => setPickupAt(e.target.value)} className={inputCls} />
@@ -205,7 +186,7 @@ function CustomerHome() {
               </div>
 
               {/* Passengers + bags */}
-              <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="grid grid-cols-2 gap-2 mb-2">
                 <div>
                   <label className={labelCls}>Passengers</label>
                   <select value={passengers} onChange={e => setPassengers(Number(e.target.value))} className={inputCls}>
@@ -221,7 +202,7 @@ function CustomerHome() {
               </div>
 
               {/* Vehicle + sport */}
-              <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="grid grid-cols-2 gap-2 mb-2">
                 <div>
                   <label className={labelCls}>Vehicle type</label>
                   <select value={vehicleSlug} onChange={e => setVehicleSlug(e.target.value)} className={inputCls}>
@@ -237,36 +218,50 @@ function CustomerHome() {
               </div>
 
               {/* Currency */}
-              <div className="mb-4">
-                <label className={labelCls}>Select your booking currency</label>
+              <div className="mb-3">
+                <label className={labelCls}>Booking currency</label>
                 <CurrencySelector variant="light" />
               </div>
 
               <button type="button" onClick={handleBookNow}
-                className="w-full bg-[#ff7a00] py-3.5 text-sm font-black text-white hover:opacity-95 active:scale-[0.99] transition-all rounded-lg">
+                className="w-full bg-[#ff7a00] py-3 text-sm font-black text-white hover:opacity-90 transition-opacity">
                 Book Now →
               </button>
-              <p className="mt-2 text-center text-xs text-slate-400">
+              <p className="mt-2 text-center text-xs text-black/30">
                 No account needed to start — sign in when you're ready to confirm
               </p>
             </div>
+          </div>
+
+          {/* Below widget — what's included strip */}
+          <div className="mt-6 grid grid-cols-2 gap-2 lg:grid-cols-4">
+            {[
+              ["🚗", "Car delivered to your door"],
+              ["🛡️", "Full insurance, zero excess"],
+              ["⛽", "Pay only for fuel used"],
+              ["✅", "No airport queues"],
+            ].map(([icon, text]) => (
+              <div key={text} className="flex items-center gap-2 border border-black px-3 py-2.5 bg-black">
+                <span className="text-sm">{icon}</span>
+                <span className="text-xs font-semibold text-white">{text}</span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* ── How Camel Works ── */}
-      <section className="bg-slate-50 py-12 lg:py-16">
-        <div className="mx-auto max-w-7xl px-4 lg:px-6">
-          <div className="text-center mb-10">
+      <section className="bg-white border-t border-black/10 py-10 lg:py-14">
+        <div className="mx-auto max-w-7xl px-4">
+          <div className="mb-8">
             <h2 className="text-2xl font-black text-black sm:text-3xl">How Camel works</h2>
-            <p className="mt-2 text-slate-500 max-w-lg mx-auto text-sm">Three steps to get a car hire company delivering to you — no airport desk, no queuing.</p>
+            <p className="mt-1 text-sm text-black/50 max-w-lg">Three steps to get a car hire company delivering to you — no airport desk, no queuing.</p>
           </div>
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-3 lg:grid-cols-3">
             {[
               {
                 step: "01", icon: "📋",
                 title: "Submit your request",
-                bg: "bg-[#003768]",
                 points: [
                   "Enter your pickup and drop-off location",
                   "Choose your dates, passengers and vehicle type",
@@ -277,7 +272,6 @@ function CustomerHome() {
               {
                 step: "02", icon: "💬",
                 title: "Receive competitive bids",
-                bg: "bg-[#ff7a00]",
                 points: [
                   "Local car hire companies within range are notified",
                   "Each company submits their best price for car hire and fuel",
@@ -288,7 +282,6 @@ function CustomerHome() {
               {
                 step: "03", icon: "✅",
                 title: "Accept & confirm",
-                bg: "bg-[#1a9e5c]",
                 points: [
                   "Choose the offer that suits you best",
                   "The full fuel deposit is taken upon booking — refunded for what you don't use",
@@ -297,19 +290,19 @@ function CustomerHome() {
                 ],
               },
             ].map((s, i) => (
-              <div key={i} className="border border-black/8 bg-white shadow-sm overflow-hidden flex flex-col rounded-xl">
-                <div className={`${s.bg} p-5 text-white`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-3xl font-black opacity-25">{s.step}</span>
-                    <span className="text-2xl">{s.icon}</span>
+              <div key={i} className="border border-black overflow-hidden flex flex-col">
+                <div className="bg-black p-4 text-white">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-2xl font-black text-white/20">{s.step}</span>
+                    <span className="text-xl">{s.icon}</span>
                   </div>
-                  <h3 className="text-lg font-black">{s.title}</h3>
+                  <h3 className="text-base font-black text-white">{s.title}</h3>
                 </div>
-                <div className="p-5 flex-1">
-                  <ul className="space-y-2.5">
+                <div className="p-4 flex-1 bg-white">
+                  <ul className="space-y-2">
                     {s.points.map((p, j) => (
-                      <li key={j} className="flex items-start gap-2.5 text-sm text-slate-600">
-                        <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center bg-black/8 text-black text-[10px] font-bold rounded">{j+1}</span>
+                      <li key={j} className="flex items-start gap-2 text-sm text-black/70">
+                        <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center bg-black text-white text-[9px] font-black">{j+1}</span>
                         <span>{p}</span>
                       </li>
                     ))}
@@ -322,15 +315,15 @@ function CustomerHome() {
       </section>
 
       {/* ── What's included ── */}
-      <section className="bg-white py-12 lg:py-16">
-        <div className="mx-auto max-w-7xl px-4 lg:px-6">
-          <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+      <section className="bg-white border-t border-black/10 py-10 lg:py-14">
+        <div className="mx-auto max-w-7xl px-4">
+          <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
             <div>
               <h2 className="text-2xl font-black text-black sm:text-3xl">No surprises when you arrive</h2>
-              <p className="mt-3 text-slate-500 leading-relaxed max-w-lg text-sm">
+              <p className="mt-2 text-sm text-black/50 leading-relaxed max-w-lg">
                 Payment including fuel deposit is taken in full at the time of booking. When your driver arrives there is nothing left to do except confirm the fuel tank level, confirm you received your insurance documents, take the keys and go.
               </p>
-              <ul className="mt-5 space-y-2.5">
+              <ul className="mt-4 space-y-2">
                 {[
                   ["🚗", "Car delivered to your exact location — hotel, apartment, airport exit"],
                   ["🛡️", "Full insurance with zero excess included in the price"],
@@ -338,8 +331,8 @@ function CustomerHome() {
                   ["📄", "All paperwork completed at booking — nothing to sign on arrival"],
                   ["⭐", "Reviews from real customers so you can choose with confidence"],
                 ].map(([icon, text]) => (
-                  <li key={text as string} className="flex items-start gap-3 text-sm text-slate-600">
-                    <span className="text-lg shrink-0">{icon}</span>
+                  <li key={text as string} className="flex items-start gap-3 text-sm text-black/70">
+                    <span className="text-base shrink-0">{icon}</span>
                     <span>{text}</span>
                   </li>
                 ))}
@@ -347,13 +340,13 @@ function CustomerHome() {
             </div>
 
             {/* Camel difference */}
-            <div className="overflow-hidden border border-black/10 shadow-sm rounded-xl">
-              <div className="bg-black px-6 py-4">
-                <h3 className="text-lg font-black text-white">The Camel difference</h3>
-                <p className="mt-0.5 text-xs text-white/50">How we compare to traditional car hire</p>
+            <div className="border border-black overflow-hidden">
+              <div className="bg-black px-5 py-4">
+                <h3 className="text-base font-black text-white">The Camel difference</h3>
+                <p className="mt-0.5 text-xs text-white/40">How we compare to traditional car hire</p>
               </div>
-              <div className="bg-slate-50 px-6 py-4 border-b border-black/8">
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Traditional car hire</p>
+              <div className="bg-white px-5 py-4 border-b border-black/10">
+                <p className="text-[10px] font-black uppercase tracking-widest text-black/30 mb-3">Traditional car hire</p>
                 <ul className="space-y-2">
                   {[
                     "Queue at airport desk — often 30–60 minutes",
@@ -361,15 +354,15 @@ function CustomerHome() {
                     "Fuel penalties if not returned full",
                     "Hidden insurance charges and excess fees",
                   ].map(p => (
-                    <li key={p} className="flex items-center gap-2.5 text-sm text-slate-500">
-                      <span className="flex h-4 w-4 shrink-0 items-center justify-center bg-red-100 text-red-500 text-[10px] font-bold rounded">✗</span>
+                    <li key={p} className="flex items-center gap-2.5 text-sm text-black/60">
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center bg-black/10 text-black/40 text-[9px] font-black">✗</span>
                       {p}
                     </li>
                   ))}
                 </ul>
               </div>
-              <div className="bg-white px-6 py-4">
-                <p className="text-xs font-bold uppercase tracking-widest text-[#ff7a00] mb-3">Camel Global</p>
+              <div className="bg-black px-5 py-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#ff7a00] mb-3">Camel Global</p>
                 <ul className="space-y-2">
                   {[
                     "Car delivered directly to you — no queuing",
@@ -377,8 +370,8 @@ function CustomerHome() {
                     "Pay only for the fuel you actually use",
                     "Full insurance with zero excess, always included",
                   ].map(p => (
-                    <li key={p} className="flex items-center gap-2.5 text-sm text-slate-700">
-                      <span className="flex h-4 w-4 shrink-0 items-center justify-center bg-green-100 text-green-600 text-[10px] font-bold rounded">✓</span>
+                    <li key={p} className="flex items-center gap-2.5 text-sm text-white">
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center bg-[#ff7a00] text-white text-[9px] font-black">✓</span>
                       {p}
                     </li>
                   ))}
@@ -390,26 +383,26 @@ function CustomerHome() {
       </section>
 
       {/* ── Fuel system ── */}
-      <section className="bg-slate-50 py-12 lg:py-16">
-        <div className="mx-auto max-w-7xl px-4 lg:px-6">
-          <div className="text-center mb-8">
+      <section className="bg-white border-t border-black/10 py-10 lg:py-14">
+        <div className="mx-auto max-w-7xl px-4">
+          <div className="mb-6">
             <h2 className="text-2xl font-black text-black sm:text-3xl">You only pay for the fuel you use</h2>
-            <p className="mt-2 text-slate-500 max-w-xl mx-auto text-sm">Your booking includes a full tank as a deposit. You pay only for the quarters used — the rest is refunded.</p>
+            <p className="mt-1 text-sm text-black/50 max-w-xl">Your booking includes a full tank as a deposit. You pay only for the quarters used — the rest is refunded.</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div className="grid gap-2 sm:grid-cols-4">
             {[
-              { level: "Full",    bar: 4, label: "Returned full",      desc: "Full refund of fuel deposit" },
+              { level: "Full",    bar: 4, label: "Returned full",      desc: "Full refund of deposit" },
               { level: "¾ Tank", bar: 3, label: "Returned ¾ full",    desc: "Pay for ¼ tank only" },
               { level: "½ Tank", bar: 2, label: "Returned half full",  desc: "Pay for ½ tank" },
               { level: "¼ Tank", bar: 1, label: "Returned ¼ full",    desc: "Pay for ¾ tank" },
             ].map(f => (
-              <div key={f.level} className="bg-white p-4 border border-black/8 text-center rounded-xl">
-                <p className="text-xl font-black text-black mb-2">{f.level}</p>
+              <div key={f.level} className="border border-black p-4 text-center bg-white">
+                <p className="text-lg font-black text-black mb-2">{f.level}</p>
                 <div className="flex gap-1 justify-center mb-2">
-                  {[0,1,2,3].map(i => <div key={i} className={`h-2.5 w-7 rounded-sm ${i < f.bar ? "bg-green-500" : "bg-slate-200"}`} />)}
+                  {[0,1,2,3].map(i => <div key={i} className={`h-2 w-7 ${i < f.bar ? "bg-black" : "bg-black/10"}`} />)}
                 </div>
-                <p className="text-xs font-semibold text-slate-700">{f.label}</p>
-                <p className="mt-0.5 text-xs text-slate-400">{f.desc}</p>
+                <p className="text-xs font-semibold text-black">{f.label}</p>
+                <p className="mt-0.5 text-xs text-black/40">{f.desc}</p>
               </div>
             ))}
           </div>
@@ -417,20 +410,22 @@ function CustomerHome() {
       </section>
 
       {/* ── CTA ── */}
-      <section className="bg-black py-12">
-        <div className="mx-auto max-w-2xl px-4 text-center">
-          <h2 className="text-2xl font-black text-white sm:text-3xl">Ready to book your car?</h2>
-          <p className="mt-2 text-white/50 text-sm">No account needed to start.</p>
+      <section className="bg-black py-10">
+        <div className="mx-auto max-w-xl px-4 text-center">
+          <h2 className="text-2xl font-black text-white sm:text-3xl">Ready to book?</h2>
+          <p className="mt-1 text-sm text-white/40">No account needed to start.</p>
           <Link href="/book"
-            className="mt-6 inline-block bg-[#ff7a00] px-8 py-3.5 text-sm font-black text-white hover:opacity-95 transition-opacity rounded-lg">
+            className="mt-5 inline-block bg-[#ff7a00] px-8 py-3 text-sm font-black text-white hover:opacity-90 transition-opacity">
             Book Now →
           </Link>
-          <p className="mt-3 text-sm text-white/40">
+          <p className="mt-3 text-xs text-white/30">
             Already have an account?{" "}
-            <Link href="/login" className="text-white/70 underline hover:text-white">Sign in</Link>
+            <Link href="/login" className="text-white/60 underline hover:text-white">Sign in</Link>
           </p>
         </div>
       </section>
+
+      {/* Footer rendered by ClientRootLayout — see Footer.tsx CustomerFooter */}
     </div>
   );
 }
@@ -460,8 +455,8 @@ function PartnerMarketingHome() {
   function toggleMobileNav() {
     const nl = document.querySelector(".nav-links"), nt = document.querySelector(".nav-toggle");
     if (!nl || !nt) return;
-    const open = nl.classList.toggle("open");
-    nt.setAttribute("aria-expanded", open ? "true" : "false");
+    nl.classList.toggle("open");
+    nt.setAttribute("aria-expanded", nl.classList.contains("open") ? "true" : "false");
   }
 
   function closeMobileNavIfOpen() {
@@ -489,13 +484,13 @@ function PartnerMarketingHome() {
         .logo-link{display:inline-flex;align-items:center}
         .logo-wrap img{height:80px;width:auto}
         .nav-right{margin-left:auto;display:flex;align-items:center;gap:.5rem;flex-shrink:0}
-        .lang-select{background:rgba(0,0,0,.2);color:#fff;border:1px solid rgba(255,255,255,.5);border-radius:6px;padding:.25rem .8rem;font-size:.8rem;cursor:pointer;outline:none;appearance:none}
+        .lang-select{background:rgba(0,0,0,.2);color:#fff;border:1px solid rgba(255,255,255,.5);border-radius:4px;padding:.25rem .8rem;font-size:.8rem;cursor:pointer;outline:none;appearance:none}
         .lang-select option{color:#000}
         .nav-toggle{display:none;background:none;border:none;cursor:pointer;padding:.3rem}
         .nav-toggle-box{width:24px;height:18px;display:flex;flex-direction:column;justify-content:space-between}
-        .nav-toggle-line{height:3px;border-radius:2px;background:#fff;width:100%}
+        .nav-toggle-line{height:3px;background:#fff;width:100%}
         .nav-links{display:flex;flex-wrap:nowrap;gap:.75rem;font-size:.9rem;justify-content:flex-end;margin-left:1.2rem}
-        .nav-links a{color:#fff;padding:.3rem .7rem;border-radius:6px;border:1px solid transparent;white-space:nowrap}
+        .nav-links a{color:#fff;padding:.3rem .7rem;border:1px solid transparent;white-space:nowrap}
         .nav-links a:hover{border-color:rgba(255,255,255,.4);text-decoration:none}
         .hero{background:linear-gradient(135deg,rgba(0,91,159,.95),rgba(0,118,210,.95));color:#fff;padding:3.3rem 1.5rem 3rem}
         .hero-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:2.5rem;align-items:center}
@@ -503,11 +498,11 @@ function PartnerMarketingHome() {
         .hero p{margin:0 0 1.25rem;font-size:1.05rem}
         .hero-highlight{font-weight:600;text-transform:uppercase;letter-spacing:.12em;font-size:.85rem;opacity:.9}
         .hero-badges{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1rem}
-        .badge{padding:.35rem .9rem;border-radius:6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.4);font-size:.8rem;text-transform:uppercase;white-space:nowrap}
+        .badge{padding:.35rem .9rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.4);font-size:.8rem;text-transform:uppercase;white-space:nowrap}
         .hero-cta{margin-top:1.5rem}
-        .partner-btn{display:inline-block;padding:.8rem 1.4rem;border-radius:8px;font-weight:600;border:none;cursor:pointer;font-size:.95rem;text-align:center}
+        .partner-btn{display:inline-block;padding:.8rem 1.4rem;font-weight:600;border:none;cursor:pointer;font-size:.95rem;text-align:center}
         .partner-btn-primary{background:var(--camel-orange);color:#fff;box-shadow:0 8px 18px rgba(0,0,0,.18)}
-        .hero-card{background:rgba(255,255,255,.97);color:var(--text-main);border-radius:10px;padding:1.5rem;box-shadow:0 18px 45px rgba(0,0,0,.16)}
+        .hero-card{background:rgba(255,255,255,.97);color:var(--text-main);padding:1.5rem;box-shadow:0 18px 45px rgba(0,0,0,.16)}
         .hero-card h2{font-size:1.1rem;margin-top:0;margin-bottom:.75rem;color:var(--camel-blue-dark)}
         .hero-card ul{list-style:none;padding:0;margin:0 0 1rem;font-size:.9rem}
         .hero-card li::before{content:"✓";color:var(--camel-orange);font-weight:700;margin-right:.35rem}
@@ -520,8 +515,8 @@ function PartnerMarketingHome() {
         .section-subtitle{margin:0 0 1.5rem;color:#555;font-size:.95rem;text-transform:uppercase;letter-spacing:.15em}
         .two-col{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:2rem;align-items:start}
         .pill-list{display:flex;flex-wrap:wrap;gap:.6rem;margin:1.25rem 0 0;padding:0;list-style:none;font-size:.85rem}
-        .pill-list li{padding:.3rem .7rem;border-radius:6px;border:1px solid rgba(0,0,0,.08);background:var(--camel-grey)}
-        .highlight-bar{padding:1rem 1.2rem;border-radius:8px;background:#fff7ed;border:1px solid #ffd8a6;font-size:.95rem}
+        .pill-list li{padding:.3rem .7rem;border:1px solid rgba(0,0,0,.08);background:var(--camel-grey)}
+        .highlight-bar{padding:1rem 1.2rem;background:#fff7ed;border:1px solid #ffd8a6;font-size:.95rem}
         .cta{background:var(--camel-blue-dark);color:#fff;text-align:center;padding:3rem 1.5rem 2.5rem}
         .cta-inner{max-width:800px;margin:0 auto}
         .cta h2{margin-top:0;font-size:1.9rem}
@@ -534,7 +529,7 @@ function PartnerMarketingHome() {
           .nav-toggle{display:block}
           .nav-links{position:absolute;top:100%;left:0;right:0;background:linear-gradient(135deg,var(--camel-blue-dark),var(--camel-blue));display:none;flex-direction:column;gap:.4rem;padding:.7rem 1.3rem 1rem;margin-left:0}
           .nav-links.open{display:flex}
-          .nav-links a{padding:.55rem .8rem;border-radius:6px;background:rgba(0,0,0,.18)}
+          .nav-links a{padding:.55rem .8rem;background:rgba(0,0,0,.18)}
           .hero-inner{grid-template-columns:minmax(0,1fr)}
           .hero-card{margin-top:1.5rem}
           .two-col{grid-template-columns:minmax(0,1fr)}
@@ -630,7 +625,6 @@ function PartnerMarketingHome() {
   );
 }
 
-// ── Root page ─────────────────────────────────────────────────────────────────
 export default function Page() {
   const [host, setHost] = useState("");
 
