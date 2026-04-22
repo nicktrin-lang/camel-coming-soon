@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
 import HCaptcha from "@/app/components/HCaptcha";
 
+const inputCls = "w-full bg-[#f0f0f0] px-4 py-4 text-base font-medium text-black outline-none focus:bg-[#e8e8e8] transition-colors placeholder:text-black/40";
+const labelCls = "block text-xs font-black uppercase tracking-widest text-black mb-2";
+
 export default function SignupPage() {
   const supabase = useMemo(() => createCustomerBrowserClient(), []);
   const router   = useRouter();
@@ -61,52 +64,69 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f9fc] flex items-center justify-center py-10 px-4">
-      <div className="w-full max-w-md">
-        <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-          <h1 className="text-3xl font-black text-[#003768]">Create your account</h1>
-          <p className="mt-1 text-slate-500">Start booking meet &amp; greet car hire in minutes.</p>
+    <div className="min-h-screen bg-white flex flex-col">
 
-          {error && <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
-
-          <form onSubmit={onSubmit} className="mt-6 space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-[#003768] mb-1.5">Full name</label>
-              <input value={fullName} onChange={e => setFullName(e.target.value)} required
-                className="w-full rounded-xl border border-black/10 px-4 py-3 outline-none focus:border-[#003768]"
-                placeholder="Your full name" />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-[#003768] mb-1.5">Phone <span className="text-slate-400 font-normal">(optional)</span></label>
-              <input value={phone} onChange={e => setPhone(e.target.value)}
-                className="w-full rounded-xl border border-black/10 px-4 py-3 outline-none focus:border-[#003768]"
-                placeholder="+44 7700 000000" />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-[#003768] mb-1.5">Email address</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-                className="w-full rounded-xl border border-black/10 px-4 py-3 outline-none focus:border-[#003768]"
-                placeholder="your@email.com" />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-[#003768] mb-1.5">Password</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
-                className="w-full rounded-xl border border-black/10 px-4 py-3 outline-none focus:border-[#003768]"
-                placeholder="Min. 8 characters" />
-            </div>
-            <HCaptcha key={captchaKey} onVerify={handleCaptcha} onExpire={() => setCaptchaToken("")} />
-            <button type="submit" disabled={loading}
-              className="w-full rounded-xl bg-[#ff7a00] py-3 font-bold text-white shadow-[0_8px_18px_rgba(255,122,0,0.3)] hover:opacity-95 disabled:opacity-60">
-              {loading ? "Creating account…" : "Create Account"}
-            </button>
-          </form>
-
-          <p className="mt-5 text-center text-sm text-slate-500">
-            Already have an account?{" "}
-            <Link href="/login" className="font-semibold text-[#003768] hover:underline">Sign in</Link>
+      {/* Hero / top black band */}
+      <div className="w-full bg-black px-6 py-16 text-white">
+        <div className="mx-auto max-w-md">
+          <p className="mb-2 text-sm font-black uppercase tracking-widest text-[#ff7a00]">My Account</p>
+          <h1 className="text-4xl font-black text-white md:text-5xl">Create your account.</h1>
+          <p className="mt-3 text-base font-semibold text-white/70">
+            Start booking meet &amp; greet car hire in minutes.
           </p>
         </div>
       </div>
+
+      {/* Form */}
+      <div className="w-full bg-[#f0f0f0] px-6 py-12">
+        <div className="mx-auto max-w-md">
+          <div className="bg-white p-8 space-y-5">
+
+            {error && (
+              <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={onSubmit} className="space-y-4">
+              <div>
+                <label className={labelCls}>Full name</label>
+                <input value={fullName} onChange={e => setFullName(e.target.value)} required
+                  className={inputCls} placeholder="Your full name" />
+              </div>
+              <div>
+                <label className={labelCls}>
+                  Phone <span className="text-black/40 font-semibold normal-case tracking-normal">(optional)</span>
+                </label>
+                <input value={phone} onChange={e => setPhone(e.target.value)}
+                  className={inputCls} placeholder="+44 7700 000000" />
+              </div>
+              <div>
+                <label className={labelCls}>Email address</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
+                  className={inputCls} placeholder="your@email.com" />
+              </div>
+              <div>
+                <label className={labelCls}>Password</label>
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
+                  className={inputCls} placeholder="Min. 8 characters" />
+              </div>
+              <HCaptcha key={captchaKey} onVerify={handleCaptcha} onExpire={() => setCaptchaToken("")} />
+              <button type="submit" disabled={loading}
+                className="w-full bg-[#ff7a00] py-5 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                {loading ? "Creating account…" : "Create Account →"}
+              </button>
+            </form>
+
+            <p className="text-center text-sm font-semibold text-black">
+              Already have an account?{" "}
+              <Link href="/login" className="font-black text-[#ff7a00] hover:underline">Sign in</Link>
+            </p>
+
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }
