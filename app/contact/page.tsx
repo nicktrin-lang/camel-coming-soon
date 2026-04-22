@@ -64,9 +64,9 @@ export default function ContactPage() {
   return (
     <div className="w-full">
 
-      {/* Hero */}
+      {/* Hero — left-aligned, same max-w as form below */}
       <section className="w-full bg-black px-6 py-20 text-white">
-        <div className="mx-auto max-w-4xl">
+        <div className="mx-auto max-w-6xl">
           <p className="mb-3 text-sm font-black uppercase tracking-widest text-[#ff7a00]">Get in touch</p>
           <h1 className="mb-4 text-4xl font-black text-white md:text-6xl">Contact Us</h1>
           <p className="text-lg font-semibold text-white max-w-xl leading-relaxed">
@@ -81,13 +81,7 @@ export default function ContactPage() {
         <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-3">
 
           {/* Sidebar */}
-          <div className="space-y-4 lg:col-span-1">
-
-            <div className="bg-white p-6">
-              <p className="text-xs font-black uppercase tracking-widest text-black/50 mb-4">Response time</p>
-              <p className="text-base font-bold text-black">We will get back to you.</p>
-            </div>
-
+          <div className="lg:col-span-1">
             <div className="bg-black p-6">
               <p className="text-xs font-black uppercase tracking-widest text-white/50 mb-3">Are you a car hire company?</p>
               <p className="text-base font-semibold text-white mb-4 leading-relaxed">
@@ -98,7 +92,6 @@ export default function ContactPage() {
                 Become a Partner →
               </a>
             </div>
-
           </div>
 
           {/* Form */}
