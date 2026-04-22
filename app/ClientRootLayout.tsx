@@ -45,6 +45,8 @@ export default function ClientRootLayout({ children }: { children: React.ReactNo
   const showGlobalHeader = !isHomepage && !isPartnerAuthPage && !isPortalAppPage;
   const showCookieBanner = !isPortalAppPage;
   const showCustomerNav = isNewCustomerArea || isTestBookingArea || isCustomerPublicPage;
+  // Homepage manages its own nav — but still needs the customer footer from layout
+  const showFooter = !isPortalAppPage;
 
   const [isPartnerLoggedIn, setIsPartnerLoggedIn] = useState(false);
   const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState(false);
@@ -124,7 +126,7 @@ export default function ClientRootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en">
-      <body className="min-h-screen bg-[#e3f4ff] flex flex-col">
+      <body className={`min-h-screen flex flex-col ${isHomepage ? "bg-white" : "bg-[#e3f4ff]"}`}>
         <GoogleAnalytics />
         {showGlobalHeader && (
           <>
@@ -170,7 +172,7 @@ export default function ClientRootLayout({ children }: { children: React.ReactNo
           </>
         )}
         <main className="flex-1">{children}</main>
-        <Footer />
+        {showFooter && <Footer />}
         {showCookieBanner && <CookieBanner />}
       </body>
     </html>
