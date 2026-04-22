@@ -1,15 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
-import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  useMapEvents,
-  useMap,
-} from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import dynamic from "next/dynamic";
+
+// Leaflet must never run on the server.
+// All callers already wrap this in dynamic({ ssr: false }) but the inner
+// import of leaflet/dist/leaflet.css still crashes SSR — so we add a second
+// ssr:false boundary here to be safe across all import paths.
+const MapPickerInner = dynamic(() => import("./MapPickerInner"), { ssr: false });
 
 type Props = {
   lat: number | null;
@@ -17,70 +14,6 @@ type Props = {
   onPick: (lat: number, lng: number) => void;
 };
 
-const DefaultIcon = L.icon({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-});
-
-type ClickHandlerProps = {
-  onPick: (lat: number, lng: number) => void;
-};
-
-function ClickHandler({ onPick }: ClickHandlerProps) {
-  useMapEvents({
-    click(e) {
-      onPick(e.latlng.lat, e.latlng.lng);
-    },
-  });
-
-  return null;
-}
-
-type RecenterProps = {
-  lat: number | null;
-  lng: number | null;
-};
-
-function RecenterMap({ lat, lng }: RecenterProps) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (lat !== null && lng !== null) {
-      map.setView([lat, lng], map.getZoom());
-    }
-  }, [lat, lng, map]);
-
-  return null;
-}
-
-export default function MapPicker({ lat, lng, onPick }: Props) {
-  const defaultLat = lat ?? 37.9838;
-  const defaultLng = lng ?? 23.7275;
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-black/10">
-      <MapContainer
-        center={[defaultLat, defaultLng]}
-        zoom={13}
-        scrollWheelZoom={true}
-        className="h-[360px] w-full"
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-
-        <ClickHandler onPick={onPick} />
-        <RecenterMap lat={lat} lng={lng} />
-
-        {lat !== null && lng !== null ? (
-          <Marker position={[lat, lng]} icon={DefaultIcon} />
-        ) : null}
-      </MapContainer>
-    </div>
-  );
+export default function MapPicker(props: Props) {
+  return <MapPickerInner {...props} />;
 }

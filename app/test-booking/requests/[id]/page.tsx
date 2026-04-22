@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
 import { useCurrency } from "@/lib/useCurrency";
 import type { Currency } from "@/lib/currency";
@@ -591,7 +592,6 @@ function BidCard({ bid, currency, rates, requestStatus, acceptingId, expired, on
             <p className="text-xs text-slate-400">No reviews yet</p>
           )}
 
-          {/* Expanded reviews panel */}
           {showReviews && (
             <div className="rounded-2xl border border-black/5 bg-slate-50 p-4 space-y-4">
               {loadingRevs ? (
@@ -657,10 +657,12 @@ function BidCard({ bid, currency, rates, requestStatus, acceptingId, expired, on
 
 export default function TestBookingRequestDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = useMemo(() => createCustomerBrowserClient(), []);
+  const router   = useRouter();
   const { rates: hookRates, currency } = useCurrency();
   const [liveRates,        setLiveRates]        = useState<Rates>(hookRates ?? { GBP: 0.85, USD: 1.08 });
   const [rateIsLive,       setRateIsLive]       = useState(false);
   const [requestId,        setRequestId]        = useState("");
+  const [authChecked,      setAuthChecked]      = useState(false);
   const [loading,          setLoading]          = useState(true);
   const [acceptingId,      setAcceptingId]      = useState<string | null>(null);
   const [savingConfirm,    setSavingConfirm]    = useState<ConfirmSection | "insurance" | null>(null);
@@ -674,6 +676,22 @@ export default function TestBookingRequestDetailPage({ params }: { params: Promi
   const [insuranceChecked, setInsuranceChecked] = useState(false);
   const [accessToken,      setAccessToken]      = useState<string>("");
 
+  // ── Resolve params ──────────────────────────────────────────────────────────
+  useEffect(() => { params.then(r => setRequestId(r.id)); }, [params]);
+
+  // ── Auth guard — redirect to login if not signed in ─────────────────────────
+  useEffect(() => {
+    if (!requestId) return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        // Preserve the destination so login can redirect back
+        router.replace(`/test-booking/login?next=/test-booking/requests/${requestId}`);
+      } else {
+        setAuthChecked(true);
+      }
+    });
+  }, [requestId, supabase, router]);
+
   useEffect(() => {
     fetch("/api/currency/rate", { cache: "no-store" }).then(r => r.json()).then(({ rates, live }) => {
       setLiveRates({ GBP: Number(rates?.GBP) || 0.85, USD: Number(rates?.USD) || 1.08 });
@@ -681,10 +699,8 @@ export default function TestBookingRequestDetailPage({ params }: { params: Promi
     }).catch(() => {});
   }, []);
 
-  useEffect(() => { params.then(r => setRequestId(r.id)); }, [params]);
-
   async function load(showSpinner = false) {
-    if (!requestId) return;
+    if (!requestId || !authChecked) return;
     if (showSpinner) setLoading(true);
     setError(null);
     try {
@@ -706,12 +722,12 @@ export default function TestBookingRequestDetailPage({ params }: { params: Promi
     finally { if (showSpinner) setLoading(false); }
   }
 
-  useEffect(() => { load(true); }, [requestId]);
+  useEffect(() => { load(true); }, [requestId, authChecked]);
   useEffect(() => {
-    if (!requestId) return;
+    if (!requestId || !authChecked) return;
     const t = setInterval(() => load(false), 10000);
     return () => clearInterval(t);
-  }, [requestId]);
+  }, [requestId, authChecked]);
 
   useEffect(() => {
     const exp = data?.request?.expires_at;
@@ -781,6 +797,11 @@ export default function TestBookingRequestDetailPage({ params }: { params: Promi
     } catch (e: any) { setError(e?.message || "Failed to save."); }
     finally { setSavingConfirm(null); }
   }
+
+  // ── Render guards ───────────────────────────────────────────────────────────
+
+  // Still resolving auth — show nothing to avoid flash
+  if (!authChecked) return null;
 
   if (loading) return (
     <div className="mx-auto max-w-6xl px-4 py-10">

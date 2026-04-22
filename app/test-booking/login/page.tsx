@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
 import { createCustomerAuthSupabaseClient } from "@/lib/supabase/auth-client";
 import HCaptcha from "@/app/components/HCaptcha";
@@ -17,9 +17,12 @@ async function verifyCaptcha(token: string): Promise<boolean> {
 }
 
 export default function TestBookingLoginPage() {
-  const supabase   = useMemo(() => createCustomerBrowserClient(), []);
-  const authClient = useMemo(() => createCustomerAuthSupabaseClient(), []);
-  const router     = useRouter();
+  const supabase      = useMemo(() => createCustomerBrowserClient(), []);
+  const authClient    = useMemo(() => createCustomerAuthSupabaseClient(), []);
+  const router        = useRouter();
+  const searchParams  = useSearchParams();
+  // After login, redirect to ?next= if present, otherwise to /test-booking/requests
+  const nextPath      = searchParams.get("next") || "/test-booking/requests";
 
   const [email,        setEmail]        = useState("");
   const [password,     setPassword]     = useState("");
@@ -53,7 +56,7 @@ export default function TestBookingLoginPage() {
         email: email.trim().toLowerCase(), password,
       });
       if (signInErr) throw signInErr;
-      router.push("/test-booking/requests");
+      router.push(nextPath);
       router.refresh();
     } catch (e: any) {
       setError(e?.message || "Failed to sign in.");
