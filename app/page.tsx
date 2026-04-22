@@ -92,9 +92,9 @@ function CustomerHome() {
   }
 
   // Input and label shared styles — clean, minimal, no borders on white bg
-  const inputCls = "w-full bg-[#f5f5f5] px-3 py-3 text-sm text-black outline-none focus:bg-[#ebebeb] transition-colors placeholder:text-black/40";
+  const inputCls = "w-full bg-[#f5f5f5] px-3 py-3 text-sm text-black outline-none focus:bg-[#ebebeb] transition-colors placeholder:text-black/50";
   const selectCls = "w-full bg-[#f5f5f5] px-3 py-3 text-sm text-black outline-none focus:bg-[#ebebeb] transition-colors appearance-none cursor-pointer";
-  const labelCls = "block text-[10px] font-bold uppercase tracking-widest text-black/40 mb-1";
+  const labelCls = "block text-[10px] font-bold uppercase tracking-widest text-black mb-1";
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -118,7 +118,7 @@ function CustomerHome() {
       <div className="h-[56px]" />
 
       {/* ── Hero: headline + full-width widget ── */}
-      <section className="bg-white py-8 lg:py-12">
+      <section className="bg-white pt-6 pb-4 lg:pt-10 lg:pb-6">
         <div className="mx-auto max-w-7xl px-4">
 
           {/* Headline */}
@@ -237,7 +237,7 @@ function CustomerHome() {
       </section>
 
       {/* ── How Camel Works — Uber style grey cards ── */}
-      <section className="bg-white py-10 lg:py-14">
+      <section className="bg-white pt-4 pb-6 lg:pt-6 lg:pb-10">
         <div className="mx-auto max-w-7xl px-4">
           <div className="mb-8">
             <h2 className="text-2xl font-extrabold text-black sm:text-3xl">How Camel works</h2>
@@ -312,7 +312,7 @@ function CustomerHome() {
       </section>
 
       {/* ── What's included ── */}
-      <section className="bg-white py-10 lg:py-14">
+      <section className="bg-white pt-4 pb-6 lg:pt-6 lg:pb-10">
         <div className="mx-auto max-w-7xl px-4">
           <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
             <div>
@@ -339,11 +339,11 @@ function CustomerHome() {
             {/* Camel difference — grey boxes, black text */}
             <div className="overflow-hidden">
               <div className="bg-[#f5f5f5] px-5 py-4">
-                <h3 className="text-base font-extrabold text-black">The Camel difference</h3>
-                <p className="mt-0.5 text-xs text-black/50">How we compare to traditional car hire</p>
+                <h3 className="text-2xl font-extrabold text-black sm:text-3xl">The Camel difference</h3>
+                <p className="mt-0.5 text-sm text-black/50">How we compare to traditional car hire</p>
               </div>
               <div className="bg-[#ebebeb] px-5 py-4">
-                <p className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-3">Traditional car hire</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-black mb-3">Traditional car hire</p>
                 <ul className="space-y-2">
                   {[
                     "Queue at airport desk — often 30–60 minutes",
@@ -359,7 +359,7 @@ function CustomerHome() {
                 </ul>
               </div>
               <div className="bg-[#f5f5f5] px-5 py-4">
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#ff7a00] mb-3">Camel Global</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-black mb-3">Camel Global</p>
                 <ul className="space-y-2">
                   {[
                     "Car delivered directly to you — no queuing",
@@ -368,7 +368,7 @@ function CustomerHome() {
                     "Full insurance with zero excess, always included",
                   ].map(p => (
                     <li key={p} className="flex items-center gap-2.5 text-sm text-black">
-                      <span className="flex h-4 w-4 shrink-0 items-center justify-center bg-[#ff7a00] text-white text-[9px] font-black">✓</span>
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center bg-green-500 text-white text-[9px] font-black">✓</span>
                       {p}
                     </li>
                   ))}
