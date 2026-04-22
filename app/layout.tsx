@@ -1,7 +1,15 @@
 import "./globals.css";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { headers } from "next/headers";
 import type { Metadata } from "next";
 import ClientRootLayout from "./ClientRootLayout";
+
+const font = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-sans",
+  display: "swap",
+});
 
 export async function generateMetadata(): Promise<Metadata> {
   const headerStore = await headers();
@@ -10,34 +18,17 @@ export async function generateMetadata(): Promise<Metadata> {
 
   if (isTestSite) {
     return {
-      title: "Camel Global Test",
-      description: "Customer staging environment",
+      title: "Camel Global",
+      description: "Meet & greet car hire, delivered to your door.",
       robots: {
-        index: false,
-        follow: false,
-        nocache: true,
-        googleBot: {
-          index: false,
-          follow: false,
-          noimageindex: true,
-          "max-video-preview": -1,
-          "max-image-preview": "none",
-          "max-snippet": -1,
-        },
+        index: false, follow: false, nocache: true,
+        googleBot: { index: false, follow: false, noimageindex: true, "max-video-preview": -1, "max-image-preview": "none", "max-snippet": -1 },
       },
     };
   }
-
-  return {
-    title: "Camel Global",
-    description: "Meet & greet car hire platform",
-  };
+  return { title: "Camel Global", description: "Meet & greet car hire platform" };
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return <ClientRootLayout>{children}</ClientRootLayout>;
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return <ClientRootLayout fontClass={font.variable}>{children}</ClientRootLayout>;
 }

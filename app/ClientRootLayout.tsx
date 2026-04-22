@@ -9,7 +9,7 @@ import CurrencySelector from "@/app/components/CurrencySelector";
 import CookieBanner from "@/app/components/CookieBanner";
 import Footer from "@/app/components/Footer";
 
-export default function ClientRootLayout({ children }: { children: React.ReactNode }) {
+export default function ClientRootLayout({ children, fontClass }: { children: React.ReactNode; fontClass?: string }) {
   const pathname = usePathname();
 
   const isHomepage = pathname === "/";
@@ -129,7 +129,7 @@ export default function ClientRootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en">
-      <body className={`min-h-screen flex flex-col ${isHomepage || isNewCustomerArea || isCustomerPublicPage ? "bg-white" : "bg-[#e3f4ff]"}`}>
+      <body className={`${fontClass || ""} min-h-screen flex flex-col ${isHomepage || isNewCustomerArea || isCustomerPublicPage ? "bg-white" : "bg-[#e3f4ff]"}`}>
         <GoogleAnalytics />
 
         {showGlobalHeader && (

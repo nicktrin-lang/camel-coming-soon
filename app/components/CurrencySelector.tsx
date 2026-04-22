@@ -20,23 +20,23 @@ export default function CurrencySelector({ variant = "dark" }: Props) {
 
   if (variant === "light") {
     return (
-      <div className="flex flex-col gap-2">
-        <div className="flex rounded-lg border border-black/10 overflow-hidden">
+      <div className="flex flex-col gap-1.5">
+        <div className="flex overflow-hidden">
           {CURRENCIES.map(c => (
             <button key={c.value} type="button" onClick={() => setCurrency(c.value)}
               className={[
-                "flex-1 py-2.5 text-sm font-bold transition-all border-r border-black/10 last:border-r-0",
+                "flex-1 py-3 text-sm font-bold transition-all",
                 currency === c.value
-                  ? "bg-[#003768] text-white"
-                  : "bg-white text-slate-600 hover:bg-[#f3f8ff] hover:text-[#003768]",
+                  ? "bg-black text-white"
+                  : "bg-[#f5f5f5] text-black hover:bg-[#e8e8e8]",
               ].join(" ")}>
               {c.label}
             </button>
           ))}
         </div>
         {!loading && gbpRate && rateIsLive && (
-          <span className="flex items-center gap-1 text-xs text-slate-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
+          <span className="flex items-center gap-1 text-xs text-black/40">
+            <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
             Live rate: 1€ = £{gbpRate.toFixed(4)}
           </span>
         )}
