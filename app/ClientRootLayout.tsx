@@ -41,10 +41,8 @@ export default function ClientRootLayout({ children, fontClass }: { children: Re
     pathname === "/cookies" ||
     pathname === "/terms";
 
-  // Currency selector only on booking pages — NOT on login/signup/account/reset
-  const isBookingPage =
-    pathname?.startsWith("/bookings") ||
-    pathname?.startsWith("/book");
+  // Currency selector only on the new booking form page
+  const isBookingPage = pathname === "/book" || pathname?.startsWith("/book/");
 
   const showCurrencyInHeader = (isBookingPage || isTestBookingArea) && !isHomepage;
 
