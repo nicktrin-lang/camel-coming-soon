@@ -13,15 +13,15 @@ const SUBJECTS = [
 ];
 
 export default function ContactPage() {
-  const [name, setName]         = useState("");
-  const [email, setEmail]       = useState("");
-  const [subject, setSubject]   = useState("");
-  const [message, setMessage]   = useState("");
+  const [name,         setName]         = useState("");
+  const [email,        setEmail]        = useState("");
+  const [subject,      setSubject]      = useState("");
+  const [message,      setMessage]      = useState("");
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const [captchaKey, setCaptchaKey]     = useState(0);
-  const [loading, setLoading]   = useState(false);
-  const [success, setSuccess]   = useState(false);
-  const [error, setError]       = useState<string | null>(null);
+  const [captchaKey,   setCaptchaKey]   = useState(0);
+  const [loading,      setLoading]      = useState(false);
+  const [success,      setSuccess]      = useState(false);
+  const [error,        setError]        = useState<string | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
   async function handleSubmit() {
@@ -36,7 +36,7 @@ export default function ContactPage() {
     }
     setLoading(true);
     try {
-      const res = await fetch("/api/contact", {
+      const res  = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, subject, message, captchaToken }),
@@ -58,55 +58,58 @@ export default function ContactPage() {
     }
   }
 
+  const inputCls = "w-full bg-[#f0f0f0] px-4 py-4 text-base font-medium text-black outline-none focus:bg-[#e8e8e8] transition-colors placeholder:text-black/40";
+  const labelCls = "block text-xs font-black uppercase tracking-widest text-black mb-2";
+
   return (
     <div className="w-full">
 
       {/* Hero */}
-      <section className="w-full bg-gradient-to-br from-[#003768] to-[#005b9f] px-6 py-16 text-white">
+      <section className="w-full bg-black px-6 py-20 text-white">
         <div className="mx-auto max-w-4xl">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[#ff7a00]">Get in touch</p>
-          <h1 className="mb-3 text-4xl font-bold">Contact Us</h1>
-          <p className="text-white/70 max-w-xl leading-relaxed">
+          <p className="mb-3 text-sm font-black uppercase tracking-widest text-[#ff7a00]">Get in touch</p>
+          <h1 className="mb-4 text-4xl font-black text-white md:text-6xl">Contact Us</h1>
+          <p className="text-lg font-semibold text-white max-w-xl leading-relaxed">
             Got a question, a partnership enquiry, or a technical issue? Fill in the form below and
-            we&apos;ll get back to you within one business day.
+            we&apos;ll get back to you.
           </p>
         </div>
       </section>
 
-      {/* Form + info */}
-      <section className="w-full bg-[#e3f4ff] px-6 py-16">
-        <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-3">
+      {/* Form + sidebar */}
+      <section className="w-full bg-[#f0f0f0] px-6 py-16">
+        <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-3">
 
-          {/* Info sidebar */}
-          <div className="space-y-6 lg:col-span-1">
-            <div className="rounded-3xl bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-              <h2 className="mb-4 text-lg font-semibold text-[#003768]">Other ways to reach us</h2>
-              <div className="space-y-4 text-sm text-[#475569]">
-                <div>
-                  <p className="font-semibold text-[#003768]">Response time</p>
-                  <p>Within one business day</p>
-                </div>
-                <div>
-                  <p className="font-semibold text-[#003768]">Are you a car hire company?</p>
-                  <p className="mb-2">Apply to join our partner network — no monthly fees, no lock-in.</p>
-                  <a href="/partner/signup"
-                    className="inline-block rounded-full bg-[#ff7a00] px-5 py-2 text-xs font-semibold text-white shadow hover:opacity-90 transition-opacity">
-                    Become a Partner →
-                  </a>
-                </div>
-              </div>
+          {/* Sidebar */}
+          <div className="space-y-4 lg:col-span-1">
+
+            <div className="bg-white p-6">
+              <p className="text-xs font-black uppercase tracking-widest text-black/50 mb-4">Response time</p>
+              <p className="text-base font-bold text-black">We will get back to you.</p>
             </div>
+
+            <div className="bg-black p-6">
+              <p className="text-xs font-black uppercase tracking-widest text-white/50 mb-3">Are you a car hire company?</p>
+              <p className="text-base font-semibold text-white mb-4 leading-relaxed">
+                Join the Camel Global partner network. No monthly fees. No lock-in.
+              </p>
+              <a href="/partner/signup"
+                className="inline-block bg-[#ff7a00] px-6 py-3 text-sm font-black text-white hover:opacity-90 transition-opacity">
+                Become a Partner →
+              </a>
+            </div>
+
           </div>
 
           {/* Form */}
           <div className="lg:col-span-2" ref={formRef}>
             {success ? (
-              <div className="rounded-3xl bg-white p-10 shadow-[0_18px_45px_rgba(0,0,0,0.08)] text-center">
+              <div className="bg-white p-10 text-center">
                 <div className="mb-4 text-5xl">✅</div>
-                <h2 className="mb-2 text-2xl font-bold text-[#003768]">Message sent</h2>
-                <p className="text-[#475569] leading-relaxed mb-6">
+                <h2 className="mb-2 text-2xl font-black text-black">Message sent</h2>
+                <p className="text-base font-semibold text-black/70 leading-relaxed mb-6">
                   Thanks for getting in touch. We&apos;ve sent a confirmation to <strong>{email}</strong> and
-                  will reply within one business day.
+                  will get back to you.
                 </p>
                 <button
                   type="button"
@@ -115,23 +118,23 @@ export default function ContactPage() {
                     setName(""); setEmail(""); setSubject(""); setMessage("");
                     setCaptchaToken(null); setCaptchaKey(k => k + 1);
                   }}
-                  className="rounded-full border border-[#003768] px-6 py-2.5 text-sm font-semibold text-[#003768] hover:bg-[#003768]/5"
+                  className="bg-[#f0f0f0] px-6 py-3 text-sm font-black text-black hover:bg-[#e8e8e8] transition-colors"
                 >
                   Send another message
                 </button>
               </div>
             ) : (
-              <div className="rounded-3xl bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)] space-y-5">
+              <div className="bg-white p-8 space-y-5">
 
                 {error && (
-                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
                     {error}
                   </div>
                 )}
 
-                <div className="grid gap-5 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-[#003768]">
+                    <label className={labelCls}>
                       Your name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -140,11 +143,11 @@ export default function ContactPage() {
                       onChange={e => setName(e.target.value)}
                       placeholder="Jane Smith"
                       maxLength={100}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#005b9f] focus:outline-none focus:ring-2 focus:ring-[#005b9f]/20"
+                      className={inputCls}
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-[#003768]">
+                    <label className={labelCls}>
                       Email address <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -153,19 +156,19 @@ export default function ContactPage() {
                       onChange={e => setEmail(e.target.value)}
                       placeholder="jane@example.com"
                       maxLength={200}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#005b9f] focus:outline-none focus:ring-2 focus:ring-[#005b9f]/20"
+                      className={inputCls}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-[#003768]">
+                  <label className={labelCls}>
                     Subject <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={subject}
                     onChange={e => setSubject(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:border-[#005b9f] focus:outline-none focus:ring-2 focus:ring-[#005b9f]/20"
+                    className={inputCls + " appearance-none cursor-pointer"}
                   >
                     <option value="">Select a subject…</option>
                     {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -173,40 +176,38 @@ export default function ContactPage() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-[#003768]">
+                  <label className={labelCls}>
                     Message <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     value={message}
                     onChange={e => setMessage(e.target.value)}
-                    rows={6}
+                    rows={7}
                     maxLength={5000}
                     placeholder="Tell us how we can help…"
-                    className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#005b9f] focus:outline-none focus:ring-2 focus:ring-[#005b9f]/20"
+                    className={inputCls + " resize-none"}
                   />
-                  <p className="mt-1 text-right text-xs text-slate-400">{message.length}/5000</p>
+                  <p className="mt-1 text-right text-xs font-semibold text-black/30">{message.length}/5000</p>
                 </div>
 
-                <div>
-                  <HCaptcha
-                    key={captchaKey}
-                    onVerify={token => setCaptchaToken(token)}
-                    onExpire={() => setCaptchaToken(null)}
-                  />
-                </div>
+                <HCaptcha
+                  key={captchaKey}
+                  onVerify={token => setCaptchaToken(token)}
+                  onExpire={() => setCaptchaToken(null)}
+                />
 
                 <button
                   type="button"
                   onClick={handleSubmit}
                   disabled={loading}
-                  className="w-full rounded-full bg-[#ff7a00] px-6 py-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-90 disabled:opacity-50 transition-opacity"
+                  className="w-full bg-[#ff7a00] py-5 text-base font-black text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
                 >
                   {loading ? "Sending…" : "Send Message"}
                 </button>
 
-                <p className="text-center text-xs text-slate-400">
+                <p className="text-center text-xs font-semibold text-black/30">
                   This site is protected by hCaptcha.{" "}
-                  <a href="/privacy" className="underline hover:text-slate-600">Privacy Policy</a>.
+                  <a href="/privacy" className="underline hover:text-black/60">Privacy Policy</a>.
                 </p>
               </div>
             )}
@@ -214,6 +215,7 @@ export default function ContactPage() {
 
         </div>
       </section>
+
     </div>
   );
 }
