@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import GoogleAnalytics from "@/app/components/GoogleAnalytics";
+import CurrencySelector from "@/app/components/CurrencySelector";
 import CookieBanner from "@/app/components/CookieBanner";
 import Footer from "@/app/components/Footer";
 
@@ -40,7 +41,7 @@ export default function ClientRootLayout({ children, fontClass }: { children: Re
     pathname === "/cookies" ||
     pathname === "/terms";
 
-  // Currency selector only on booking-related pages, NOT on homepage (it's in the widget)
+  // Currency selector only on booking-related pages, NOT homepage (widget has it)
   const showCurrencyInHeader = (isNewCustomerArea || isTestBookingArea) && !isHomepage;
 
   const showGlobalHeader = !isHomepage && !isPartnerAuthPage && !isPortalAppPage;
@@ -130,71 +131,89 @@ export default function ClientRootLayout({ children, fontClass }: { children: Re
 
         {showGlobalHeader && (
           <>
-            <header className="fixed left-0 top-0 z-50 w-full shadow-[0_2px_8px_rgba(0,0,0,0.3)]">
-              <div className={showCustomerNav ? "bg-black" : "bg-gradient-to-br from-[#003768] to-[#005b9f]"}>
-                <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
-                  <Link href="/" className="flex items-center">
-                    <Image src="/camel-logo.png" alt="Camel Global" width={180} height={64} priority
-                      className={`h-14 w-auto ${showCustomerNav ? "brightness-0 invert" : ""}`} />
-                  </Link>
+            <header className="fixed left-0 top-0 z-50 w-full bg-black shadow-[0_2px_8px_rgba(0,0,0,0.5)]">
+              <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5">
 
-                  <nav className="ml-auto flex items-center gap-3 text-sm font-medium">
-                    {showCustomerNav ? (
-                      <>
-                        {showCurrencyInHeader && (
-                          <div className="hidden sm:block">
-                            {/* Lazy import CurrencySelector only when needed */}
-                            {(() => {
-                              const CurrencySelector = require("@/app/components/CurrencySelector").default;
-                              return <CurrencySelector />;
-                            })()}
-                          </div>
-                        )}
-                        {isCustomerLoggedIn ? (
-                          <>
-                            <Link href={newBookingHref}
-                              className="bg-[#ff7a00] text-white px-3 py-2 text-xs font-bold hover:opacity-90 transition-opacity">
-                              New Booking
-                            </Link>
-                            <Link href={bookingsHref} className="text-white/70 hover:text-white transition-colors text-xs hidden md:block">My Bookings</Link>
-                            <Link href={settingsHref} className="text-white/70 hover:text-white transition-colors text-xs hidden md:block">Account</Link>
-                            {customerName && <span className="hidden text-sm font-bold text-white lg:block">Hi, {customerName}</span>}
-                            <button type="button" onClick={handleCustomerLogout}
-                              className="border border-white/20 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 transition-colors">
-                              Logout
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <Link href={signupHref} className="text-white/70 hover:text-white transition-colors text-sm font-semibold hidden sm:block">
-                              Sign Up
-                            </Link>
-                            <Link href={loginHref}
-                              className="border border-white/30 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors">
-                              Log In
-                            </Link>
-                          </>
-                        )}
-                      </>
-                    ) : !isPartnerLoggedIn ? (
-                      <>
-                        <Link href="/partner/signup" className="text-white/80 hover:text-white transition-colors">Partner Sign Up</Link>
-                        <Link href="/partner/login"
-                          className="bg-[#ff7a00] text-white px-4 py-2 font-semibold hover:opacity-90 transition-opacity">
-                          Partner Login
-                        </Link>
-                      </>
-                    ) : (
-                      <button type="button" onClick={handlePartnerLogout}
-                        className="bg-[#ff7a00] px-5 py-2 font-semibold text-white hover:opacity-95">
-                        Logout
-                      </button>
-                    )}
-                  </nav>
-                </div>
+                {/* Logo — same size as homepage */}
+                <Link href="/" className="flex items-center">
+                  <Image
+                    src="/camel-logo.png"
+                    alt="Camel Global"
+                    width={200}
+                    height={70}
+                    priority
+                    className="h-16 w-auto brightness-0 invert"
+                  />
+                </Link>
+
+                {/* Nav */}
+                <nav className="flex items-center gap-4">
+                  {showCustomerNav ? (
+                    <>
+                      {showCurrencyInHeader && (
+                        <div className="hidden sm:block">
+                          <CurrencySelector />
+                        </div>
+                      )}
+                      {isCustomerLoggedIn ? (
+                        <>
+                          <Link href={newBookingHref}
+                            className="bg-[#ff7a00] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity">
+                            New Booking
+                          </Link>
+                          <Link href={bookingsHref}
+                            className="hidden text-sm font-bold text-white hover:underline md:block">
+                            My Bookings
+                          </Link>
+                          <Link href={settingsHref}
+                            className="hidden text-sm font-bold text-white hover:underline md:block">
+                            Account
+                          </Link>
+                          {customerName && (
+                            <span className="hidden text-sm font-bold text-white lg:block">
+                              Hi, {customerName}
+                            </span>
+                          )}
+                          <button type="button" onClick={handleCustomerLogout}
+                            className="border border-white/30 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                            Logout
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <Link href={signupHref}
+                            className="hidden text-sm font-bold text-white hover:underline sm:block">
+                            Sign Up
+                          </Link>
+                          <Link href={loginHref}
+                            className="border border-white/30 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                            Log In
+                          </Link>
+                        </>
+                      )}
+                    </>
+                  ) : !isPartnerLoggedIn ? (
+                    <>
+                      <Link href="/partner/signup"
+                        className="text-sm font-bold text-white hover:underline">
+                        Partner Sign Up
+                      </Link>
+                      <Link href="/partner/login"
+                        className="bg-[#ff7a00] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity">
+                        Partner Login
+                      </Link>
+                    </>
+                  ) : (
+                    <button type="button" onClick={handlePartnerLogout}
+                      className="bg-[#ff7a00] px-4 py-2.5 text-sm font-bold text-white hover:opacity-95 transition-opacity">
+                      Logout
+                    </button>
+                  )}
+                </nav>
               </div>
             </header>
-            <div className="h-[72px]" />
+            {/* Spacer matches logo height */}
+            <div className="h-[76px]" />
           </>
         )}
 
