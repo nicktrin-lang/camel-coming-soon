@@ -103,7 +103,7 @@ function CustomerHome() {
       <nav className="fixed left-0 top-0 z-50 w-full bg-black">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5">
           <Link href="/">
-            <Image src="/camel-logo.png" alt="Camel" width={160} height={56} priority className="h-12 w-auto brightness-0 invert" />
+            <Image src="/camel-logo.png" alt="Camel" width={200} height={70} priority className="h-16 w-auto brightness-0 invert" />
           </Link>
           <div className="flex items-center gap-2">
             <Link href="/login" className="border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors">
@@ -232,25 +232,12 @@ function CustomerHome() {
             </div>
           </div>
 
-          {/* Feature tiles below widget */}
-          <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {[
-              ["🚗", "Car delivered to your door"],
-              ["🛡️", "Full insurance, zero excess"],
-              ["⛽", "Pay only for fuel used"],
-              ["✅", "No airport queues"],
-            ].map(([icon, text]) => (
-              <div key={text} className="flex items-center gap-2 bg-[#f5f5f5] px-3 py-3">
-                <span className="text-sm">{icon}</span>
-                <span className="text-xs font-semibold text-black">{text}</span>
-              </div>
-            ))}
-          </div>
+          {/* Feature tiles below widget — removed from here, now below How Camel Works */}
         </div>
       </section>
 
-      {/* ── How Camel Works ── */}
-      <section className="bg-[#f5f5f5] py-10 lg:py-14">
+      {/* ── How Camel Works — Uber style grey cards ── */}
+      <section className="bg-white py-10 lg:py-14">
         <div className="mx-auto max-w-7xl px-4">
           <div className="mb-8">
             <h2 className="text-2xl font-extrabold text-black sm:text-3xl">How Camel works</h2>
@@ -289,24 +276,35 @@ function CustomerHome() {
                 ],
               },
             ].map((s, i) => (
-              <div key={i} className="overflow-hidden flex flex-col bg-white">
-                <div className="bg-black p-4 text-white">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-2xl font-extrabold text-white/20">{s.step}</span>
-                    <span className="text-xl">{s.icon}</span>
-                  </div>
-                  <h3 className="text-base font-extrabold text-white">{s.title}</h3>
+              <div key={i} className="bg-[#f5f5f5] p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-2xl font-extrabold text-black/20">{s.step}</span>
+                  <span className="text-2xl">{s.icon}</span>
                 </div>
-                <div className="p-4 flex-1">
-                  <ul className="space-y-2">
-                    {s.points.map((p, j) => (
-                      <li key={j} className="flex items-start gap-2 text-sm text-black">
-                        <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center bg-black text-white text-[9px] font-black">{j+1}</span>
-                        <span>{p}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <h3 className="text-base font-extrabold text-black mb-3">{s.title}</h3>
+                <ul className="space-y-2">
+                  {s.points.map((p, j) => (
+                    <li key={j} className="flex items-start gap-2 text-sm text-black">
+                      <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center bg-black text-white text-[9px] font-black">{j+1}</span>
+                      <span>{p}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+
+          {/* Feature tiles — moved here from above widget */}
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[
+              ["🚗", "Car delivered to your door"],
+              ["🛡️", "Full insurance, zero excess"],
+              ["⛽", "Pay only for fuel used"],
+              ["✅", "No airport queues"],
+            ].map(([icon, text]) => (
+              <div key={text} className="flex items-center gap-2 bg-[#f5f5f5] px-3 py-3">
+                <span className="text-sm">{icon}</span>
+                <span className="text-xs font-semibold text-black">{text}</span>
               </div>
             ))}
           </div>
@@ -338,13 +336,13 @@ function CustomerHome() {
               </ul>
             </div>
 
-            {/* Camel difference — no keylines, grey/black sections */}
+            {/* Camel difference — grey boxes, black text */}
             <div className="overflow-hidden">
-              <div className="bg-black px-5 py-4">
-                <h3 className="text-base font-extrabold text-white">The Camel difference</h3>
-                <p className="mt-0.5 text-xs text-white/50">How we compare to traditional car hire</p>
-              </div>
               <div className="bg-[#f5f5f5] px-5 py-4">
+                <h3 className="text-base font-extrabold text-black">The Camel difference</h3>
+                <p className="mt-0.5 text-xs text-black/50">How we compare to traditional car hire</p>
+              </div>
+              <div className="bg-[#ebebeb] px-5 py-4">
                 <p className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-3">Traditional car hire</p>
                 <ul className="space-y-2">
                   {[
@@ -354,13 +352,13 @@ function CustomerHome() {
                     "Hidden insurance charges and excess fees",
                   ].map(p => (
                     <li key={p} className="flex items-center gap-2.5 text-sm text-black">
-                      <span className="flex h-4 w-4 shrink-0 items-center justify-center bg-black/10 text-black text-[9px] font-black">✗</span>
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center bg-black/15 text-black text-[9px] font-black">✗</span>
                       {p}
                     </li>
                   ))}
                 </ul>
               </div>
-              <div className="bg-black px-5 py-4">
+              <div className="bg-[#f5f5f5] px-5 py-4">
                 <p className="text-[10px] font-black uppercase tracking-widest text-[#ff7a00] mb-3">Camel Global</p>
                 <ul className="space-y-2">
                   {[
@@ -369,7 +367,7 @@ function CustomerHome() {
                     "Pay only for the fuel you actually use",
                     "Full insurance with zero excess, always included",
                   ].map(p => (
-                    <li key={p} className="flex items-center gap-2.5 text-sm text-white">
+                    <li key={p} className="flex items-center gap-2.5 text-sm text-black">
                       <span className="flex h-4 w-4 shrink-0 items-center justify-center bg-[#ff7a00] text-white text-[9px] font-black">✓</span>
                       {p}
                     </li>
@@ -412,14 +410,14 @@ function CustomerHome() {
       <section className="bg-black py-10">
         <div className="mx-auto max-w-xl px-4 text-center">
           <h2 className="text-2xl font-extrabold text-white sm:text-3xl">Ready to book?</h2>
-          <p className="mt-1 text-sm text-white/50">No account needed to start.</p>
+          <p className="mt-1 text-sm text-white">No account needed to start.</p>
           <Link href="/book"
             className="mt-5 inline-block bg-[#ff7a00] px-8 py-3 text-sm font-extrabold text-white hover:opacity-90 transition-opacity">
             Book Now →
           </Link>
-          <p className="mt-3 text-xs text-white/40">
+          <p className="mt-3 text-xs text-white">
             Already have an account?{" "}
-            <Link href="/login" className="text-white/60 underline hover:text-white">Sign in</Link>
+            <Link href="/login" className="underline hover:opacity-80">Sign in</Link>
           </p>
         </div>
       </section>

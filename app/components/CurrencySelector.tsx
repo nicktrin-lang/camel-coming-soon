@@ -35,9 +35,10 @@ export default function CurrencySelector({ variant = "dark" }: Props) {
           ))}
         </div>
         {!loading && gbpRate && rateIsLive && (
-          <span className="flex items-center gap-1 text-xs text-black/40">
-            <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-            Live rate: 1€ = £{gbpRate.toFixed(4)}
+          <span className="flex items-center gap-1.5 text-xs text-black/40">
+            <span className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
+            Live: 1€ = £{gbpRate.toFixed(4)}
+            {rates?.USD && <span>· 1€ = ${rates.USD.toFixed(4)}</span>}
           </span>
         )}
       </div>

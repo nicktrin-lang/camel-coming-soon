@@ -100,36 +100,36 @@ function CustomerFooter() {
       <div className="mx-auto max-w-7xl px-6 py-10">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4 mb-8">
           <div>
-            <Image src="/camel-logo.png" alt="Camel" width={120} height={40}
-              className="h-9 w-auto mb-3 brightness-0 invert" />
-            <p className="text-xs text-white/40 leading-relaxed">Meet &amp; greet car hire, delivered to your door.</p>
+            <Image src="/camel-logo.png" alt="Camel" width={140} height={48}
+              className="h-10 w-auto mb-3 brightness-0 invert" />
+            <p className="text-xs text-white leading-relaxed">Meet &amp; greet car hire, delivered to your door.</p>
           </div>
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-3">Company</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-3">Company</p>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/about" className="text-white/70 hover:text-white transition-colors">About Us</Link></li>
-              <li><Link href="/partner/signup" className="text-white/70 hover:text-white transition-colors">Become a Partner</Link></li>
-              <li><Link href="/contact" className="text-white/70 hover:text-white transition-colors">Contact</Link></li>
+              <li><Link href="/about" className="text-white hover:underline transition-colors">About Us</Link></li>
+              <li><Link href="/partner/signup" className="text-white hover:underline transition-colors">Become a Partner</Link></li>
+              <li><Link href="/contact" className="text-white hover:underline transition-colors">Contact</Link></li>
             </ul>
           </div>
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-3">Legal</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-3">Legal</p>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/terms" className="text-white/70 hover:text-white transition-colors">Customer Terms</Link></li>
-              <li><Link href="/privacy" className="text-white/70 hover:text-white transition-colors">Privacy Policy</Link></li>
-              <li><Link href="/cookies" className="text-white/70 hover:text-white transition-colors">Cookie Policy</Link></li>
+              <li><Link href="/terms" className="text-white hover:underline transition-colors">Customer Terms</Link></li>
+              <li><Link href="/privacy" className="text-white hover:underline transition-colors">Privacy Policy</Link></li>
+              <li><Link href="/cookies" className="text-white hover:underline transition-colors">Cookie Policy</Link></li>
             </ul>
           </div>
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-3">Account</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-3">Account</p>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/login" className="text-white/70 hover:text-white transition-colors">Sign In</Link></li>
-              <li><Link href="/signup" className="text-white/70 hover:text-white transition-colors">Create Account</Link></li>
-              <li><Link href="/bookings" className="text-white/70 hover:text-white transition-colors">My Bookings</Link></li>
+              <li><Link href="/login" className="text-white hover:underline transition-colors">Sign In</Link></li>
+              <li><Link href="/signup" className="text-white hover:underline transition-colors">Create Account</Link></li>
+              <li><Link href="/bookings" className="text-white hover:underline transition-colors">My Bookings</Link></li>
             </ul>
           </div>
         </div>
-        <div className="border-t border-white/10 pt-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between text-xs text-white/30">
+        <div className="border-t border-white/20 pt-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between text-xs text-white">
           <p>© {year} Camel Global Ltd. All rights reserved.</p>
           <p>Registered in England &amp; Wales — <span className="italic">registration details to be updated</span></p>
         </div>

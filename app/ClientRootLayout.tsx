@@ -138,8 +138,8 @@ export default function ClientRootLayout({ children, fontClass }: { children: Re
               <div className={showCustomerNav ? "bg-black" : "bg-gradient-to-br from-[#003768] to-[#005b9f]"}>
                 <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
                   <Link href="/" className="flex items-center">
-                    <Image src="/camel-logo.png" alt="Camel Global" width={140} height={48} priority
-                      className={`h-10 w-auto ${showCustomerNav ? "brightness-0 invert" : ""}`} />
+                    <Image src="/camel-logo.png" alt="Camel Global" width={180} height={64} priority
+                      className={`h-14 w-auto ${showCustomerNav ? "brightness-0 invert" : ""}`} />
                   </Link>
 
                   <nav className="ml-auto flex items-center gap-3 text-sm font-medium">
