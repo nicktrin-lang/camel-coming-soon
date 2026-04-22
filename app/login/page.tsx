@@ -14,6 +14,9 @@ async function verifyCaptcha(token: string): Promise<boolean> {
   return res.ok;
 }
 
+const inputCls = "w-full bg-[#f0f0f0] px-4 py-4 text-base font-medium text-black outline-none focus:bg-[#e8e8e8] transition-colors placeholder:text-black/40";
+const labelCls = "block text-xs font-black uppercase tracking-widest text-black mb-2";
+
 function LoginForm() {
   const supabase     = useMemo(() => createCustomerBrowserClient(), []);
   const router       = useRouter();
@@ -77,73 +80,113 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f9fc] flex items-center justify-center py-10 px-4">
-      <div className="w-full max-w-md">
-        <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-          {mode === "login" ? (
-            <>
-              <h1 className="text-3xl font-black text-[#003768]">Welcome back</h1>
-              <p className="mt-1 text-slate-500">Sign in to manage your bookings.</p>
-              {error && <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
-              <form onSubmit={onSubmit} className="mt-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-[#003768] mb-1.5">Email</label>
-                  <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
-                    className="w-full rounded-xl border border-black/10 px-4 py-3 outline-none focus:border-[#003768]" />
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-sm font-semibold text-[#003768]">Password</label>
-                    <button type="button" onClick={() => { setMode("forgot"); setError(null); }} className="text-xs text-[#ff7a00] hover:underline">Forgot password?</button>
-                  </div>
-                  <input type="password" required value={password} onChange={e => setPassword(e.target.value)}
-                    className="w-full rounded-xl border border-black/10 px-4 py-3 outline-none focus:border-[#003768]" />
-                </div>
-                <HCaptcha key={loginKey} onVerify={handleLoginToken} onExpire={() => setLoginToken("")} />
-                <button type="submit" disabled={loading}
-                  className="w-full rounded-xl bg-[#ff7a00] py-3 font-bold text-white shadow-[0_8px_18px_rgba(255,122,0,0.3)] hover:opacity-95 disabled:opacity-60">
-                  {loading ? "Signing in…" : "Sign In"}
-                </button>
-              </form>
-              <p className="mt-5 text-center text-sm text-slate-500">
-                New to Camel?{" "}
-                <Link href="/signup" className="font-semibold text-[#003768] hover:underline">Create an account</Link>
-              </p>
-            </>
-          ) : (
-            <>
-              <button type="button" onClick={() => { setMode("login"); setResetSent(false); setResetError(""); }}
-                className="mb-5 flex items-center gap-1 text-sm font-medium text-[#003768] hover:underline">← Back to login</button>
-              <h1 className="text-3xl font-black text-[#003768]">Reset Password</h1>
-              <p className="mt-1 text-slate-500">We'll send you a link to reset your password.</p>
-              {resetSent ? (
-                <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5 text-sm text-green-700">
-                  <p className="font-semibold">Reset email sent ✓</p>
-                  <p className="mt-1">Check your inbox — it may take a minute.</p>
-                  <button type="button" onClick={() => setMode("login")} className="mt-3 text-[#003768] underline font-medium">Back to login</button>
-                </div>
-              ) : (
-                <>
-                  {resetError && <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{resetError}</div>}
-                  <form onSubmit={handleForgotPassword} className="mt-6 space-y-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-[#003768] mb-1.5">Email address</label>
-                      <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
-                        placeholder="your@email.com"
-                        className="w-full rounded-xl border border-black/10 px-4 py-3 outline-none focus:border-[#003768]" />
-                    </div>
-                    <HCaptcha key={forgotKey} onVerify={handleForgotToken} onExpire={() => setForgotToken("")} />
-                    <button type="submit" disabled={resetLoading}
-                      className="w-full rounded-xl bg-[#ff7a00] py-3 font-bold text-white shadow-[0_8px_18px_rgba(255,122,0,0.3)] hover:opacity-95 disabled:opacity-60">
-                      {resetLoading ? "Sending…" : "Send reset link"}
-                    </button>
-                  </form>
-                </>
-              )}
-            </>
-          )}
+    <div className="min-h-screen bg-white flex flex-col">
+
+      {/* Hero / top black band */}
+      <div className="w-full bg-black px-6 py-16 text-white">
+        <div className="mx-auto max-w-md">
+          <p className="mb-2 text-sm font-black uppercase tracking-widest text-[#ff7a00]">
+            {mode === "login" ? "My Account" : "Password Reset"}
+          </p>
+          <h1 className="text-4xl font-black text-white md:text-5xl">
+            {mode === "login" ? "Welcome back." : "Reset Password"}
+          </h1>
+          <p className="mt-3 text-base font-semibold text-white/70">
+            {mode === "login"
+              ? "Sign in to manage your bookings."
+              : "We'll send you a link to reset your password."}
+          </p>
         </div>
       </div>
+
+      {/* Form */}
+      <div className="w-full bg-[#f0f0f0] flex-1 px-6 py-12">
+        <div className="mx-auto max-w-md">
+          <div className="bg-white p-8 space-y-5">
+
+            {mode === "login" ? (
+              <>
+                {error && (
+                  <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                    {error}
+                  </div>
+                )}
+                <form onSubmit={onSubmit} className="space-y-4">
+                  <div>
+                    <label className={labelCls}>Email</label>
+                    <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      className={inputCls} />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className={labelCls} style={{marginBottom:0}}>Password</label>
+                      <button type="button"
+                        onClick={() => { setMode("forgot"); setError(null); }}
+                        className="text-xs font-bold text-[#ff7a00] hover:underline">
+                        Forgot password?
+                      </button>
+                    </div>
+                    <input type="password" required value={password} onChange={e => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className={inputCls} />
+                  </div>
+                  <HCaptcha key={loginKey} onVerify={handleLoginToken} onExpire={() => setLoginToken("")} />
+                  <button type="submit" disabled={loading}
+                    className="w-full bg-[#ff7a00] py-5 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                    {loading ? "Signing in…" : "Sign In →"}
+                  </button>
+                </form>
+                <p className="text-center text-sm font-semibold text-black">
+                  New to Camel?{" "}
+                  <Link href="/signup" className="font-black text-[#ff7a00] hover:underline">Create an account</Link>
+                </p>
+              </>
+            ) : (
+              <>
+                <button type="button"
+                  onClick={() => { setMode("login"); setResetSent(false); setResetError(""); }}
+                  className="flex items-center gap-1 text-sm font-bold text-black hover:underline">
+                  ← Back to login
+                </button>
+
+                {resetSent ? (
+                  <div className="bg-[#f0f0f0] px-5 py-5 space-y-2">
+                    <p className="text-base font-black text-black">Reset email sent ✓</p>
+                    <p className="text-sm font-semibold text-black/70">Check your inbox — it may take a minute.</p>
+                    <button type="button" onClick={() => setMode("login")}
+                      className="text-sm font-black text-[#ff7a00] hover:underline">
+                      Back to login
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {resetError && (
+                      <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                        {resetError}
+                      </div>
+                    )}
+                    <form onSubmit={handleForgotPassword} className="space-y-4">
+                      <div>
+                        <label className={labelCls}>Email address</label>
+                        <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                          placeholder="your@email.com"
+                          className={inputCls} />
+                      </div>
+                      <HCaptcha key={forgotKey} onVerify={handleForgotToken} onExpire={() => setForgotToken("")} />
+                      <button type="submit" disabled={resetLoading}
+                        className="w-full bg-[#ff7a00] py-5 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                        {resetLoading ? "Sending…" : "Send Reset Link →"}
+                      </button>
+                    </form>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }
