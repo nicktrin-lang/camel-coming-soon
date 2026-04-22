@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
 import { createCustomerAuthSupabaseClient } from "@/lib/supabase/auth-client";
@@ -16,13 +16,14 @@ async function verifyCaptcha(token: string): Promise<boolean> {
   return res.ok;
 }
 
-export default function TestBookingLoginPage() {
-  const supabase      = useMemo(() => createCustomerBrowserClient(), []);
-  const authClient    = useMemo(() => createCustomerAuthSupabaseClient(), []);
-  const router        = useRouter();
-  const searchParams  = useSearchParams();
-  // After login, redirect to ?next= if present, otherwise to /test-booking/requests
-  const nextPath      = searchParams.get("next") || "/test-booking/requests";
+// ── Inner component uses useSearchParams — must be inside <Suspense> ──────────
+
+function LoginForm() {
+  const supabase     = useMemo(() => createCustomerBrowserClient(), []);
+  const authClient   = useMemo(() => createCustomerAuthSupabaseClient(), []);
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath     = searchParams.get("next") || "/test-booking/requests";
 
   const [email,        setEmail]        = useState("");
   const [password,     setPassword]     = useState("");
@@ -170,5 +171,15 @@ export default function TestBookingLoginPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// ── Page export wraps LoginForm in Suspense (required for useSearchParams) ────
+
+export default function TestBookingLoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }
