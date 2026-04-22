@@ -2,8 +2,19 @@ import { NextResponse } from "next/server";
 import { verifyHCaptcha } from "@/lib/hcaptcha";
 import { rateLimit, getIp } from "@/lib/rateLimit";
 
-const CONTACT_EMAIL = "contact@camel-global.com";
-const FROM_EMAIL    = "Camel Global <noreply@camel-global.com>";
+const FROM_EMAIL = "Camel Global <noreply@camel-global.com>";
+
+// Route each subject to the right inbox with a clean email subject prefix
+const SUBJECT_ROUTING: Record<string, { to: string; prefix: string }> = {
+  "General enquiry":               { to: "contact@camel-global.com",     prefix: "General Enquiry" },
+  "Booking question":              { to: "contact@camel-global.com",     prefix: "Booking Question" },
+  "Partnership / become a partner":{ to: "partners@camel-global.com",    prefix: "Partnership Enquiry" },
+  "Press or media":                { to: "press@camel-global.com",       prefix: "Press & Media" },
+  "Technical issue":               { to: "contact@camel-global.com",     prefix: "Technical Issue" },
+  "Other":                         { to: "contact@camel-global.com",     prefix: "General Enquiry" },
+};
+
+const FALLBACK_TO = "contact@camel-global.com";
 
 async function sendContactEmail({
   to,
@@ -43,7 +54,10 @@ export async function POST(req: Request) {
     );
   }
 
-  let body: { name?: string; company?: string; email?: string; subject?: string; message?: string; captchaToken?: string; source?: string };
+  let body: {
+    name?: string; company?: string; email?: string;
+    subject?: string; message?: string; captchaToken?: string; source?: string;
+  };
   try {
     body = await req.json();
   } catch {
@@ -75,15 +89,23 @@ export async function POST(req: Request) {
   const safeSubject = subject.trim().slice(0, 200);
   const safeMessage = message.trim().slice(0, 5000);
 
+  // Determine routing
+  const routing = SUBJECT_ROUTING[safeSubject] ?? { to: FALLBACK_TO, prefix: "Contact Form" };
+  const inboxTo  = routing.to;
+  const emailSubjectLine = source === "partner-portal"
+    ? `[Partner] ${routing.prefix}: ${safeName}`
+    : `${routing.prefix}: ${safeName}`;
+
   try {
-    // Email to Camel Global inbox
+    // Email to routed inbox
     await sendContactEmail({
-      to: CONTACT_EMAIL,
-      subject: `${source === "partner-portal" ? "[Partner] " : ""}Contact form: ${safeSubject}`,
+      to: inboxTo,
+      subject: emailSubjectLine,
       html: `
         <div style="font-family:system-ui,-apple-system,Arial;color:#222;line-height:1.6;max-width:600px;">
           <div style="background:#000;padding:20px 28px;">
-            <h2 style="color:#fff;margin:0;font-size:18px;">New Contact Form Submission</h2>
+            <h2 style="color:#fff;margin:0;font-size:18px;">${routing.prefix}</h2>
+            <p style="color:#ff7a00;margin:4px 0 0;font-size:13px;">Routed to: ${inboxTo}</p>
           </div>
           <div style="background:#f8fafc;padding:24px 28px;border:1px solid #e2e8f0;">
             <table style="width:100%;border-collapse:collapse;font-size:14px;">
@@ -103,7 +125,7 @@ export async function POST(req: Request) {
       `,
     });
 
-    // Auto-reply to the sender
+    // Auto-reply to sender
     await sendContactEmail({
       to: safeEmail,
       subject: "We've received your message — Camel Global",
