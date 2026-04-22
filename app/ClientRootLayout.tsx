@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import GoogleAnalytics from "@/app/components/GoogleAnalytics";
-import CurrencySelector from "@/app/components/CurrencySelector";
 import CookieBanner from "@/app/components/CookieBanner";
 import Footer from "@/app/components/Footer";
 
@@ -24,7 +23,6 @@ export default function ClientRootLayout({ children, fontClass }: { children: Re
     pathname?.startsWith("/admin") ||
     pathname?.startsWith("/driver");
 
-  // New customer booking URLs
   const isNewCustomerArea =
     pathname?.startsWith("/bookings") ||
     pathname?.startsWith("/book") ||
@@ -33,10 +31,8 @@ export default function ClientRootLayout({ children, fontClass }: { children: Re
     pathname === "/account" ||
     pathname === "/reset-password";
 
-  // Legacy test-booking area (kept as-is)
   const isTestBookingArea = pathname?.startsWith("/test-booking");
 
-  // Customer public info pages — header shown but NO currency selector
   const isCustomerPublicPage =
     pathname === "/about" ||
     pathname === "/contact" ||
@@ -44,8 +40,8 @@ export default function ClientRootLayout({ children, fontClass }: { children: Re
     pathname === "/cookies" ||
     pathname === "/terms";
 
-  // Show the currency selector only on booking-related pages, not info pages
-  const showCurrencyInHeader = isNewCustomerArea || isTestBookingArea;
+  // Currency selector only on booking-related pages, NOT on homepage (it's in the widget)
+  const showCurrencyInHeader = (isNewCustomerArea || isTestBookingArea) && !isHomepage;
 
   const showGlobalHeader = !isHomepage && !isPartnerAuthPage && !isPortalAppPage;
   const showCookieBanner = !isPortalAppPage;
@@ -145,7 +141,15 @@ export default function ClientRootLayout({ children, fontClass }: { children: Re
                   <nav className="ml-auto flex items-center gap-3 text-sm font-medium">
                     {showCustomerNav ? (
                       <>
-                        {showCurrencyInHeader && <CurrencySelector />}
+                        {showCurrencyInHeader && (
+                          <div className="hidden sm:block">
+                            {/* Lazy import CurrencySelector only when needed */}
+                            {(() => {
+                              const CurrencySelector = require("@/app/components/CurrencySelector").default;
+                              return <CurrencySelector />;
+                            })()}
+                          </div>
+                        )}
                         {isCustomerLoggedIn ? (
                           <>
                             <Link href={newBookingHref}

@@ -13,7 +13,7 @@ function PortalFooterBase({ children }: { children: React.ReactNode }) {
         {children}
         <div className="mt-8 border-t border-white/10 pt-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between text-xs text-white/40">
           <p>© {year} Camel Global Ltd. All rights reserved.</p>
-          <p>Registered in England &amp; Wales — <span className="italic">registration details to be updated</span></p>
+          <p>Registered in England &amp; Wales</p>
         </div>
       </div>
     </footer>
@@ -113,8 +113,8 @@ function CustomerFooter() {
       <div className="mx-auto max-w-7xl px-6 py-12">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4 mb-10">
           <div>
-            <Image src="/camel-logo.png" alt="Camel" width={160} height={56}
-              className="h-12 w-auto mb-4 brightness-0 invert" />
+            <Image src="/camel-logo.png" alt="Camel" width={200} height={70}
+              className="h-16 w-auto mb-4 brightness-0 invert" />
             <p className="text-sm font-bold text-white leading-relaxed">
               Meet &amp; greet car hire, delivered to your door.
             </p>
@@ -146,7 +146,7 @@ function CustomerFooter() {
         </div>
         <div className="border-t border-white/20 pt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm font-bold text-white">© {year} Camel Global Ltd. All rights reserved.</p>
-          <p className="text-sm font-bold text-white/50">Registered in England &amp; Wales — <span className="italic">registration details to be updated</span></p>
+          <p className="text-sm font-bold text-white">Registered in England &amp; Wales</p>
         </div>
       </div>
     </footer>

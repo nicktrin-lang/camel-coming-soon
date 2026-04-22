@@ -98,16 +98,13 @@ function CustomerHome() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
 
-      {/* Navbar */}
+      {/* Navbar — no currency selector here, it lives in the widget below */}
       <nav className="fixed left-0 top-0 z-50 w-full bg-black">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5">
           <Link href="/">
             <Image src="/camel-logo.png" alt="Camel" width={200} height={70} priority className="h-16 w-auto brightness-0 invert" />
           </Link>
           <div className="flex items-center gap-3">
-            <div className="hidden sm:block">
-              <CurrencySelector variant="dark" />
-            </div>
             <Link href="/login" className="border border-white/30 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/10 transition-colors">
               Log In
             </Link>
@@ -119,7 +116,7 @@ function CustomerHome() {
       </nav>
       <div className="h-[68px]" />
 
-      {/* Hero */}
+      {/* Hero + booking widget */}
       <section className="bg-white pt-8 pb-6 lg:pt-14 lg:pb-10">
         <div className="mx-auto max-w-7xl px-4">
           <div className="mb-8">
@@ -127,12 +124,11 @@ function CustomerHome() {
               Meet &amp; Greet Car Hire
             </h1>
             <p className="mt-3 text-lg font-semibold text-black/60 sm:text-xl">
-              Car delivered to you, wherever you are.
+              Your car delivered to you, wherever you are.
             </p>
           </div>
 
           <div className="bg-white">
-            {/* Big statement */}
             <p className="text-2xl font-black text-black mb-5 sm:text-3xl lg:text-4xl">
               Where do you need your car?
             </p>
@@ -219,22 +215,22 @@ function CustomerHome() {
               </div>
             </div>
 
-            {/* Row 4: currency + book now */}
+            {/* Row 4: currency + book now — aligned on same row */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 items-end">
               <div>
                 <label className={labelCls}>Booking currency</label>
                 <div className="bg-[#f0f0f0] px-4 py-3">
                   <CurrencySelector variant="light" />
                 </div>
-                <p className="mt-2 text-sm font-bold text-black">
-                  No account needed — sign in when you are ready to confirm
-                </p>
               </div>
-              <div>
+              <div className="flex flex-col gap-2">
                 <button type="button" onClick={handleBookNow}
                   className="w-full bg-[#ff7a00] py-5 text-base font-black text-white hover:opacity-90 transition-opacity">
                   Book Now →
                 </button>
+                <p className="text-sm font-bold text-black">
+                  No account needed — sign in when you are ready to confirm
+                </p>
               </div>
             </div>
           </div>
@@ -253,7 +249,7 @@ function CustomerHome() {
           <div className="grid gap-4 lg:grid-cols-3">
             {[
               {
-                step: "01", icon: "📋",
+                step: "01",
                 title: "Submit your request",
                 points: [
                   "Enter your pickup and drop-off location",
@@ -263,7 +259,7 @@ function CustomerHome() {
                 ],
               },
               {
-                step: "02", icon: "💬",
+                step: "02",
                 title: "Receive competitive bids",
                 points: [
                   "Local car hire companies within range are notified",
@@ -273,7 +269,7 @@ function CustomerHome() {
                 ],
               },
               {
-                step: "03", icon: "✅",
+                step: "03",
                 title: "Accept and confirm",
                 points: [
                   "Choose the offer that suits you best",
@@ -284,9 +280,8 @@ function CustomerHome() {
               },
             ].map((s, i) => (
               <div key={i} className="bg-[#f0f0f0] p-7">
-                <div className="flex items-center justify-between mb-4">
+                <div className="mb-4">
                   <span className="text-3xl font-black text-black/20">{s.step}</span>
-                  <span className="text-3xl">{s.icon}</span>
                 </div>
                 <h3 className="text-xl font-black text-black mb-4">{s.title}</h3>
                 <ul className="space-y-3">
@@ -318,35 +313,68 @@ function CustomerHome() {
         </div>
       </section>
 
-      {/* No surprises */}
-      <section className="bg-white pt-4 pb-8 lg:pt-6 lg:pb-14">
+      {/* Fuel system — moved above No surprises */}
+      <section className="bg-[#f0f0f0] py-12 lg:py-16">
         <div className="mx-auto max-w-7xl px-4">
-          <div className="grid gap-10 lg:grid-cols-2 lg:items-start">
-            <div>
-              <h2 className="text-3xl font-black text-black sm:text-4xl">No surprises when you arrive</h2>
-              <p className="mt-3 text-base font-semibold text-black leading-relaxed max-w-lg">
-                Payment including fuel deposit is taken in full at the time of booking. When your driver arrives there is nothing left to do except confirm the fuel tank level, confirm you received your insurance documents, take the keys and go.
-              </p>
-              <ul className="mt-5 space-y-4">
-                {[
-                  ["🚗", "Car delivered to your exact location — hotel, apartment, airport exit"],
-                  ["🛡️", "Full insurance with zero excess included in the price"],
-                  ["⛽", "Full tank on delivery — pay only for the fuel you actually use"],
-                  ["📄", "All paperwork completed at booking — nothing to sign on arrival"],
-                  ["⭐", "Reviews from real customers so you can choose with confidence"],
-                ].map(([icon, text]) => (
-                  <li key={text as string} className="flex items-start gap-4 text-base font-semibold text-black">
-                    <span className="text-xl shrink-0">{icon}</span>
-                    <span>{text}</span>
-                  </li>
-                ))}
-              </ul>
+          <div className="mb-8">
+            <h2 className="text-3xl font-black text-black sm:text-4xl">You only pay for the fuel you use</h2>
+            <p className="mt-3 text-base font-bold text-black max-w-xl">Your booking includes a full tank as a deposit. You pay only for the quarters used — the rest is refunded.</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-4">
+            {[
+              { level: "Full",    bar: 4, colour: "bg-green-500", label: "Returned full",     desc: "Full refund of deposit" },
+              { level: "¾ Tank", bar: 3, colour: "bg-amber-400",  label: "Returned ¾ full",   desc: "Pay for ¼ tank only" },
+              { level: "½ Tank", bar: 2, colour: "bg-orange-400", label: "Returned half full", desc: "Pay for ½ tank" },
+              { level: "¼ Tank", bar: 1, colour: "bg-red-400",    label: "Returned ¼ full",   desc: "Pay for ¾ tank" },
+            ].map(f => (
+              <div key={f.level} className="bg-white p-6 text-center">
+                <p className="text-2xl font-black text-black mb-3">{f.level}</p>
+                <div className="flex gap-1.5 justify-center mb-3">
+                  {[0,1,2,3].map(i => <div key={i} className={`h-3 w-10 ${i < f.bar ? f.colour : "bg-black/10"}`} />)}
+                </div>
+                <p className="text-sm font-black text-black">{f.label}</p>
+                <p className="mt-1 text-sm font-semibold text-black/50">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* No surprises + Why Book a Camel Car — two equal grey cards side by side */}
+      <section className="bg-white py-12 lg:py-16">
+        <div className="mx-auto max-w-7xl px-4">
+          <div className="grid gap-4 lg:grid-cols-2">
+
+            {/* No surprises card */}
+            <div className="bg-[#f0f0f0] overflow-hidden">
+              <div className="px-6 py-5">
+                <h2 className="text-3xl font-black text-black sm:text-4xl">No surprises when you arrive</h2>
+                <p className="mt-3 text-base font-semibold text-black leading-relaxed">
+                  Payment including fuel deposit is taken in full at the time of booking. When your driver arrives there is nothing left to do except confirm the fuel tank level, confirm you received your insurance documents, take the keys and go.
+                </p>
+              </div>
+              <div className="px-6 pb-6">
+                <ul className="space-y-4">
+                  {[
+                    ["🚗", "Car delivered to your exact location — hotel, apartment, airport exit"],
+                    ["🛡️", "Full insurance with zero excess included in the price"],
+                    ["⛽", "Full tank on delivery — pay only for the fuel you actually use"],
+                    ["📄", "All paperwork completed at booking — nothing to sign on arrival"],
+                    ["⭐", "Reviews from real customers so you can choose with confidence"],
+                  ].map(([icon, text]) => (
+                    <li key={text as string} className="flex items-start gap-4 text-base font-semibold text-black">
+                      <span className="text-xl shrink-0">{icon}</span>
+                      <span>{text}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
 
-            {/* The Camel difference */}
+            {/* Why Book a Camel Car card */}
             <div className="overflow-hidden">
               <div className="bg-[#f0f0f0] px-6 py-5">
-                <h3 className="text-3xl font-black text-black sm:text-4xl">The Camel difference</h3>
+                <h3 className="text-3xl font-black text-black sm:text-4xl">Why Book a Camel Car?</h3>
                 <p className="mt-1 text-sm font-bold text-black/50">How we compare to traditional car hire</p>
               </div>
               <div className="bg-[#e8e8e8] px-6 py-5">
@@ -382,33 +410,7 @@ function CustomerHome() {
                 </ul>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Fuel system */}
-      <section className="bg-[#f0f0f0] py-12 lg:py-16">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="mb-8">
-            <h2 className="text-3xl font-black text-black sm:text-4xl">You only pay for the fuel you use</h2>
-            <p className="mt-3 text-base font-bold text-black max-w-xl">Your booking includes a full tank as a deposit. You pay only for the quarters used — the rest is refunded.</p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-4">
-            {[
-              { level: "Full",    bar: 4, colour: "bg-green-500", label: "Returned full",     desc: "Full refund of deposit" },
-              { level: "¾ Tank", bar: 3, colour: "bg-amber-400",  label: "Returned ¾ full",   desc: "Pay for ¼ tank only" },
-              { level: "½ Tank", bar: 2, colour: "bg-orange-400", label: "Returned half full", desc: "Pay for ½ tank" },
-              { level: "¼ Tank", bar: 1, colour: "bg-red-400",    label: "Returned ¼ full",   desc: "Pay for ¾ tank" },
-            ].map(f => (
-              <div key={f.level} className="bg-white p-6 text-center">
-                <p className="text-2xl font-black text-black mb-3">{f.level}</p>
-                <div className="flex gap-1.5 justify-center mb-3">
-                  {[0,1,2,3].map(i => <div key={i} className={`h-3 w-10 ${i < f.bar ? f.colour : "bg-black/10"}`} />)}
-                </div>
-                <p className="text-sm font-black text-black">{f.label}</p>
-                <p className="mt-1 text-sm font-semibold text-black/50">{f.desc}</p>
-              </div>
-            ))}
           </div>
         </div>
       </section>
