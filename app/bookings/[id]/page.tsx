@@ -291,10 +291,10 @@ function InsuranceConfirmCard({ driverConfirmed,driverConfirmedAt,customerConfir
       <p className="text-xs font-black uppercase tracking-widest text-black mb-1">📄 Insurance Documents</p>
       <p className="text-sm font-semibold text-black/50 mb-4">The driver must hand you the insurance paperwork at delivery.</p>
       <div className={`px-4 py-3 mb-4 ${driverConfirmed?"bg-black":"bg-[#f0f0f0]"}`}>
-       <p className="text-xs font-black uppercase tracking-widest mb-1 text-white/50">Driver confirmed handover</p>
+        <p className={`text-xs font-black uppercase tracking-widest mb-1 ${driverConfirmed?"text-white":"text-black/50"}`}>Driver confirmed handover</p>
         {driverConfirmed
-          ? <><p className="text-base font-black text-white">✓ Driver confirmed</p><p className="text-xs text-white/40">{fmt(driverConfirmedAt)}</p></>
-          : <p className="text-sm font-semibold text-white/40">Waiting for driver…</p>}
+          ? <><p className="text-base font-black text-white">✓ Driver confirmed</p><p className="text-xs text-white/70">{fmt(driverConfirmedAt)}</p></>
+          : <p className="text-sm font-semibold text-black/40">Waiting for driver…</p>}
       </div>
       {locked ? (
         <div className="bg-green-100 px-4 py-3 text-sm font-black text-green-800">✓ Both you and the driver have confirmed insurance documents were handed over.</div>
@@ -333,9 +333,9 @@ function FuelConfirmCard({ title,driverConfirmed,driverFuel,driverConfirmedAt,cu
     <div className={`p-6 ${locked?"bg-green-50 border border-green-200":"bg-white"}`}>
       <p className="text-xs font-black uppercase tracking-widest text-black mb-4">{title}</p>
       <div className={`px-4 py-3 mb-4 ${driverConfirmed&&driverFuel?"bg-black":"bg-[#f0f0f0]"}`}>
-        <p className="text-xs font-black uppercase tracking-widest mb-1 text-white/50">Driver recorded</p>
+        <p className={`text-xs font-black uppercase tracking-widest mb-1 ${driverConfirmed&&driverFuel?"text-white":"text-black/50"}`}>Driver recorded</p>
         {driverConfirmed&&driverFuel
-          ? <><p className="text-2xl font-black text-white">{fuelLabel(driverFuel)}</p><FuelBar level={driverFuel} light /><p className="text-xs text-white/40 mt-1">{fmt(driverConfirmedAt)}</p></>
+          ? <><p className="text-2xl font-black text-white">{fuelLabel(driverFuel)}</p><FuelBar level={driverFuel} light /><p className="text-xs text-white/70 mt-1">{fmt(driverConfirmedAt)}</p></>
           : <p className="text-sm font-semibold text-black/40">Waiting for driver…</p>}
       </div>
       {locked ? (
@@ -571,9 +571,6 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             <p className="mb-2 text-sm font-black uppercase tracking-widest text-[#ff7a00]">My Bookings</p>
             <h1 className="text-4xl font-black text-white md:text-5xl">Booking #{req.job_number ?? "—"}</h1>
             <p className="mt-3 text-base font-semibold text-white/70">Review your booking and any bids received.</p>
-      <div className="mt-3 inline-flex items-center gap-1.5 bg-white/10 px-3 py-1.5 text-sm font-bold text-white">
-                {bk?.currency === "GBP" ? "£" : bk?.currency === "USD" ? "$" : "€"} Booking currency: {bk?.currency ?? "EUR"}
-              </div>
           </div>
           <Link href="/bookings" className="border border-white/30 px-5 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors self-start mt-1">
             ← My Bookings
