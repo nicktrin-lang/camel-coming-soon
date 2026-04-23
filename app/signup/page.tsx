@@ -5,6 +5,7 @@ import { Suspense, useCallback, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
 import HCaptcha from "@/app/components/HCaptcha";
+import { FLEET_CATEGORIES } from "@/app/components/portal/fleetCategories";
 
 const inputCls = "w-full bg-[#f0f0f0] px-4 py-4 text-base font-medium text-black outline-none focus:bg-[#e8e8e8] transition-colors placeholder:text-black/40";
 const labelCls = "block text-xs font-black uppercase tracking-widest text-black mb-2";
@@ -55,6 +56,53 @@ function SignupForm() {
       if (!profileRes.ok) {
         const j = await profileRes.json().catch(() => null);
         throw new Error(j?.error || "Failed to create profile.");
+      }
+
+      // If there's a booking draft and we're coming from /book, submit it now
+      // while we have the session — don't rely on /book picking it up
+      if (nextPath === "/book") {
+        let draft: Record<string, any> | null = null;
+        try {
+          const raw = sessionStorage.getItem("camel_booking_draft");
+          if (raw) draft = JSON.parse(raw);
+        } catch {}
+
+        if (draft?.pickupLat && draft?.pickupLng && draft?.dropoffLat && draft?.dropoffLng && draft?.pickupAt && draft?.dropoffAt) {
+          const pAt = draft.pickupAt, dAt = draft.dropoffAt;
+          const diffMs = new Date(dAt).getTime() - new Date(pAt).getTime();
+          const duration = diffMs > 0 ? Math.ceil(diffMs / (24 * 60 * 60 * 1000)) * 24 * 60 : null;
+
+          if (duration) {
+            // Get the session that was just created
+            const { data: { session: newSession } } = await supabase.auth.getSession();
+            const token = newSession?.access_token;
+
+            if (token) {
+              const bookRes = await fetch("/api/test-booking/requests", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({
+                  pickup_address: draft.pickupAddress, pickup_lat: draft.pickupLat, pickup_lng: draft.pickupLng,
+                  dropoff_address: draft.dropoffAddress, dropoff_lat: draft.dropoffLat, dropoff_lng: draft.dropoffLng,
+                  pickup_at: pAt, dropoff_at: dAt,
+                  journey_duration_minutes: duration,
+                  passengers: Number(draft.passengers || 2),
+                  suitcases: Number(draft.suitcases || 1),
+                  sport_equipment: draft.sportEquipment && draft.sportEquipment !== "none" ? draft.sportEquipment : null,
+                  vehicle_category_slug: draft.vehicleSlug || FLEET_CATEGORIES[0]?.slug,
+                  vehicle_category_name: (FLEET_CATEGORIES.find((c: any) => c.slug === draft!.vehicleSlug) || FLEET_CATEGORIES[0])?.name,
+                  notes: draft.notes || "",
+                }),
+              });
+              const bookJson = await bookRes.json().catch(() => null);
+              if (bookRes.ok && bookJson?.data?.id) {
+                sessionStorage.removeItem("camel_booking_draft");
+                router.push(`/bookings/${bookJson.data.id}`);
+                return;
+              }
+            }
+          }
+        }
       }
 
       router.push(nextPath);
