@@ -64,8 +64,10 @@ function SignupForm() {
         let draft: Record<string, any> | null = null;
         try {
           const raw = sessionStorage.getItem("camel_booking_draft");
+          console.log("[CAMEL DEBUG] nextPath is /book, raw draft:", raw);
           if (raw) draft = JSON.parse(raw);
         } catch {}
+        console.log("[CAMEL DEBUG] parsed draft:", draft);
 
         if (draft?.pickupLat && draft?.pickupLng && draft?.dropoffLat && draft?.dropoffLng && draft?.pickupAt && draft?.dropoffAt) {
           const pAt = draft.pickupAt, dAt = draft.dropoffAt;
@@ -76,6 +78,7 @@ function SignupForm() {
             // Get the session that was just created
             const { data: { session: newSession } } = await supabase.auth.getSession();
             const token = newSession?.access_token;
+            console.log("[CAMEL DEBUG] draft found, duration:", duration, "token present:", !!token, "session:", newSession);
 
             if (token) {
               const bookRes = await fetch("/api/test-booking/requests", {
@@ -95,6 +98,7 @@ function SignupForm() {
                 }),
               });
               const bookJson = await bookRes.json().catch(() => null);
+              console.log("[CAMEL DEBUG] booking API response:", bookRes.status, bookJson);
               if (bookRes.ok && bookJson?.data?.id) {
                 sessionStorage.removeItem("camel_booking_draft");
                 router.push(`/bookings/${bookJson.data.id}`);
