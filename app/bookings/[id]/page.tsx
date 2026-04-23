@@ -58,61 +58,52 @@ type ResponseShape = { request: RequestData; bids: BidRow[]; booking: BookingDat
 type ConfirmSection = "collection" | "return";
 type Rates = { GBP: number; USD: number };
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 function normalizeFuel(v: unknown): string | null {
   if (!v) return null;
   const s = String(v).toLowerCase().trim();
-  if (s === "empty") return "empty";
-  if (s === "quarter") return "quarter";
-  if (s === "half") return "half";
-  if (s === "three_quarter" || s === "3/4") return "3/4";
-  if (s === "full") return "full";
-  return null;
+  if (s==="empty") return "empty"; if (s==="quarter") return "quarter";
+  if (s==="half") return "half"; if (s==="three_quarter"||s==="3/4") return "3/4";
+  if (s==="full") return "full"; return null;
 }
 function fuelLabel(v: unknown): string {
-  switch (normalizeFuel(v)) {
-    case "empty":   return "Empty";
-    case "quarter": return "¼ Tank";
-    case "half":    return "½ Tank";
-    case "3/4":     return "¾ Tank";
-    case "full":    return "Full Tank";
-    default:        return "—";
+  switch(normalizeFuel(v)) {
+    case "empty": return "Empty"; case "quarter": return "¼ Tank";
+    case "half": return "½ Tank"; case "3/4": return "¾ Tank";
+    case "full": return "Full Tank"; default: return "—";
   }
 }
-const FUEL_BARS: Record<string, number> = { empty: 0, quarter: 1, half: 2, "3/4": 3, full: 4 };
+const FUEL_BARS: Record<string,number> = { empty:0, quarter:1, half:2, "3/4":3, full:4 };
+const QUARTER_LABELS: Record<number,string> = { 0:"Empty", 1:"¼ Tank", 2:"½ Tank", 3:"¾ Tank", 4:"Full Tank" };
 
-function FuelBar({ level }: { level: string | null }) {
-  const n = normalizeFuel(level);
-  const filled = n ? (FUEL_BARS[n] ?? 0) : 0;
+function FuelBar({ level, light }: { level: string | null; light?: boolean }) {
+  const n = normalizeFuel(level); const filled = n ? (FUEL_BARS[n]??0) : 0;
   return (
     <div className="flex gap-1 mt-2">
       {[0,1,2,3].map(i => (
-        <div key={i} className={`h-3 flex-1 ${i < filled ? filled >= 3 ? "bg-green-500" : filled === 2 ? "bg-yellow-400" : "bg-red-400" : "bg-[#f0f0f0]"}`} />
+        <div key={i} className={`h-3 flex-1 ${i<filled ? filled>=3?"bg-green-500":filled===2?"bg-yellow-400":"bg-red-400" : light?"bg-white/20":"bg-[#f0f0f0]"}`} />
       ))}
     </div>
   );
 }
 
-function fmt(v?: string | null) {
-  if (!v) return "—";
-  try { return new Date(v).toLocaleString(); } catch { return v; }
-}
+function fmt(v?: string | null) { if (!v) return "—"; try { return new Date(v).toLocaleString(); } catch { return v; } }
 function formatDuration(m?: number | null) {
   if (!m) return "—";
-  if (m >= 1440) return `${Math.ceil(m/1440)} day${Math.ceil(m/1440)===1?"":"s"}`;
-  if (m < 60) return `${m} min`;
-  const h = Math.floor(m/60), mins = m%60;
-  return mins ? `${h}h ${mins}m` : `${h}h`;
+  if (m>=1440) return `${Math.ceil(m/1440)} day${Math.ceil(m/1440)===1?"":"s"}`;
+  if (m<60) return `${m} min`;
+  const h=Math.floor(m/60), mins=m%60; return mins?`${h}h ${mins}m`:`${h}h`;
 }
 function getTimeRemaining(expiresAt?: string | null) {
   if (!expiresAt) return null;
-  const diff = new Date(expiresAt).getTime() - Date.now();
-  if (diff <= 0) return { expired: true, label: "Expired" };
-  const s = Math.floor(diff/1000);
-  const d = Math.floor(s/86400), h = Math.floor((s%86400)/3600), m = Math.floor((s%3600)/60), sec = s%60;
-  return { expired: false, label: d>0 ? `${d}d ${h}h ${m}m` : h>0 ? `${h}h ${m}m ${sec}s` : `${m}m ${sec}s` };
+  const diff = new Date(expiresAt).getTime()-Date.now();
+  if (diff<=0) return { expired:true, label:"Expired" };
+  const s=Math.floor(diff/1000), d=Math.floor(s/86400), h=Math.floor((s%86400)/3600), m=Math.floor((s%3600)/60), sec=s%60;
+  return { expired:false, label:d>0?`${d}d ${h}h ${m}m`:h>0?`${h}h ${m}m ${sec}s`:`${m}m ${sec}s` };
 }
 function bookingStatusLabel(s?: string | null) {
-  switch (String(s||"").toLowerCase()) {
+  switch(String(s||"").toLowerCase()) {
     case "confirmed": case "driver_assigned": case "en_route": case "arrived": return "Awaiting delivery";
     case "collected": case "returned": return "On Hire";
     case "completed": return "Completed";
@@ -121,50 +112,114 @@ function bookingStatusLabel(s?: string | null) {
   }
 }
 function sportEquipmentLabel(v: string | null): string {
-  if (!v || v === "none") return "None";
-  const map: Record<string, string> = {
-    golf_single: "Golf clubs — 1 bag", golf_two: "Golf clubs — 2 bags",
-    golf_three: "Golf clubs — 3 bags", golf_four: "Golf clubs — 4+ bags",
-    skis_pair: "Skis / snowboard — 1 set", skis_two: "Skis / snowboard — 2 sets",
-    skis_three: "Skis / snowboard — 3+ sets", bikes_one: "Bikes — 1",
-    bikes_two: "Bikes — 2", bikes_three: "Bikes — 3+", other: "Other large equipment",
+  if (!v||v==="none") return "None";
+  const map: Record<string,string> = {
+    golf_single:"Golf clubs — 1 bag", golf_two:"Golf clubs — 2 bags", golf_three:"Golf clubs — 3 bags", golf_four:"Golf clubs — 4+ bags",
+    skis_pair:"Skis / snowboard — 1 set", skis_two:"Skis / snowboard — 2 sets", skis_three:"Skis / snowboard — 3+ sets",
+    bikes_one:"Bikes — 1", bikes_two:"Bikes — 2", bikes_three:"Bikes — 3+", other:"Other large equipment",
   };
-  return map[v] || v;
+  return map[v]||v;
 }
 
-const LOCALE_MAP: Record<Currency, string> = { EUR:"es-ES", GBP:"en-GB", USD:"en-US" };
+const LOCALE_MAP: Record<Currency,string> = { EUR:"es-ES", GBP:"en-GB", USD:"en-US" };
 function fmtCurr(a: number, c: Currency) { return new Intl.NumberFormat(LOCALE_MAP[c],{style:"currency",currency:c}).format(a); }
 function convertAmount(a: number, from: Currency, to: Currency, r: Rates) {
   if (from===to) return a;
-  let eur = a;
-  if (from==="GBP") eur = Math.round((a/r.GBP)*100)/100;
-  if (from==="USD") eur = Math.round((a/r.USD)*100)/100;
+  let eur=a;
+  if (from==="GBP") eur=Math.round((a/r.GBP)*100)/100;
+  if (from==="USD") eur=Math.round((a/r.USD)*100)/100;
   if (to==="EUR") return eur;
   if (to==="GBP") return Math.round(eur*r.GBP*100)/100;
   return Math.round(eur*r.USD*100)/100;
 }
+
 function BidAmount({ amount, bidCurrency, customerCurrency, rates }: { amount:number|null|undefined; bidCurrency:Currency; customerCurrency:Currency; rates:Rates }) {
   if (amount==null||isNaN(amount)) return <span>—</span>;
-  const p = convertAmount(amount,bidCurrency,customerCurrency,rates);
-  const s = bidCurrency!==customerCurrency ? fmtCurr(amount,bidCurrency) : null;
+  const p=convertAmount(amount,bidCurrency,customerCurrency,rates);
+  const s=bidCurrency!==customerCurrency?fmtCurr(amount,bidCurrency):null;
   return <span>{fmtCurr(p,customerCurrency)}{s&&<span className="opacity-60 text-[0.85em] ml-1">({s})</span>}</span>;
 }
 function BookingAmount({ amount, storedCurrency, customerCurrency, rates }: { amount:number|null|undefined; storedCurrency:Currency; customerCurrency:Currency; rates:Rates }) {
   if (amount==null||isNaN(Number(amount))) return <span>—</span>;
-  const n = Number(amount);
-  const p = convertAmount(n,storedCurrency,customerCurrency,rates);
-  const o: Currency = customerCurrency==="EUR"?"GBP":"EUR";
+  const n=Number(amount), p=convertAmount(n,storedCurrency,customerCurrency,rates);
+  const o: Currency=customerCurrency==="EUR"?"GBP":"EUR";
   return <span>{fmtCurr(p,customerCurrency)} <span className="opacity-60 text-[0.85em]">({fmtCurr(convertAmount(n,storedCurrency,o,rates),o)})</span></span>;
 }
 
+// ── Booking Summary Card ──────────────────────────────────────────────────────
+
+function BookingSummaryCard({ bk, currency, rates }: { bk: BookingData; currency: Currency; rates: Rates }) {
+  const stored: Currency = bk.currency ?? "EUR";
+  const sec1: Currency   = stored==="USD"?"EUR":stored==="GBP"?"EUR":"GBP";
+  const sec2: Currency   = stored==="EUR"?"USD":stored==="GBP"?"USD":"GBP";
+  const carHireAmt  = Number(bk.car_hire_price||0);
+  const fullTankAmt = Number(bk.fuel_price||0);
+  const totalAmt    = Number(bk.amount||0);
+  const fuelCharge  = bk.fuel_charge ?? null;
+  const fuelRefund  = bk.fuel_refund ?? null;
+  const perQtrAmt   = fullTankAmt/4;
+  const usedQ       = bk.fuel_used_quarters ?? null;
+  const collFuel = normalizeFuel(bk.collection_fuel_level_partner)||normalizeFuel(bk.collection_fuel_level_driver)||normalizeFuel(bk.collection_fuel_level_customer);
+  const retFuel  = normalizeFuel(bk.return_fuel_level_partner)||normalizeFuel(bk.return_fuel_level_driver)||normalizeFuel(bk.return_fuel_level_customer);
+  const primary = (v: number) => fmtCurr(v, stored);
+  const sec = (v: number) => {
+    const inEur = convertAmount(v, stored, "EUR", rates);
+    return `(${fmtCurr(convertAmount(inEur,"EUR",sec1,rates),sec1)} · ${fmtCurr(convertAmount(inEur,"EUR",sec2,rates),sec2)})`;
+  };
+  return (
+    <div className="bg-[#003768] p-6">
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-xs font-black uppercase tracking-widest text-white/50">Booking Summary</p>
+        <span className="bg-green-400 px-3 py-1 text-xs font-black text-green-900">Finalised</span>
+      </div>
+      <div className="bg-white/10 p-4 mb-4">
+        <p className="text-xs font-black uppercase tracking-widest text-white/50 mb-1">Total booking value</p>
+        <p className="text-3xl font-black text-white">{primary(totalAmt)} <span className="text-lg font-normal opacity-60">{sec(totalAmt)}</span></p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="bg-white/10 px-3 py-2"><p className="text-xs font-black text-white/50 uppercase tracking-wide">Car hire</p><p className="font-bold text-white">{primary(carHireAmt)}</p><p className="text-xs text-white/40">{sec(carHireAmt)}</p></div>
+          <div className="bg-white/10 px-3 py-2"><p className="text-xs font-black text-white/50 uppercase tracking-wide">Full tank deposit</p><p className="font-bold text-white">{primary(fullTankAmt)}</p><p className="text-xs text-white/40">{sec(fullTankAmt)}</p></div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 mb-4">
+        {[
+          { label:"Delivery fuel",   value:fuelLabel(collFuel), bar:collFuel },
+          { label:"Collection fuel", value:fuelLabel(retFuel),  bar:retFuel },
+          { label:"Fuel used",       value:usedQ!==null?QUARTER_LABELS[usedQ]??`${usedQ}/4`:"—", bar:null },
+          { label:"Per quarter",     value:primary(perQtrAmt), bar:null },
+        ].map(({label,value,bar})=>(
+          <div key={label} className="bg-white/10 p-3">
+            <p className="text-xs font-black text-white/50 uppercase tracking-wide mb-1">{label}</p>
+            <p className="font-black text-white">{value}</p>
+            {bar && <FuelBar level={bar} light />}
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="bg-[#ff7a00]/20 border border-[#ff7a00]/40 p-4">
+          <p className="text-xs font-black text-white/70 uppercase tracking-wide mb-2">Fuel charge to you</p>
+          <p className="text-2xl font-black text-white">{fuelCharge!=null?primary(fuelCharge):"—"}</p>
+          {fuelCharge!=null&&<p className="text-xs text-white/50">{sec(fuelCharge)}</p>}
+        </div>
+        <div className="bg-green-500/20 border border-green-400/40 p-4">
+          <p className="text-xs font-black text-white/70 uppercase tracking-wide mb-2">Refund to you</p>
+          <p className="text-2xl font-black text-white">{fuelRefund!=null?primary(fuelRefund):"—"}</p>
+          {fuelRefund!=null&&<p className="text-xs text-white/50">{sec(fuelRefund)}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Review Card ───────────────────────────────────────────────────────────────
+
 const BAD_WORDS = ["fuck","shit","cunt","bastard","asshole","dick","bitch","wanker","puta","mierda","coño","joder","hostia","gilipollas"];
-function containsBadWords(t: string) { return BAD_WORDS.some(w => t.toLowerCase().includes(w)); }
+function containsBadWords(t: string) { return BAD_WORDS.some(w=>t.toLowerCase().includes(w)); }
 
 function StarPicker({ value, onChange }: { value:number; onChange:(v:number)=>void }) {
   const [hovered,setHovered] = useState(0);
   return (
     <div className="flex gap-1">
-      {[1,2,3,4,5].map(n => (
+      {[1,2,3,4,5].map(n=>(
         <button key={n} type="button" onMouseEnter={()=>setHovered(n)} onMouseLeave={()=>setHovered(0)} onClick={()=>onChange(n)} className="text-3xl leading-none transition-transform hover:scale-110">
           <span className={(hovered||value)>=n?"text-amber-400":"text-black/10"}>★</span>
         </button>
@@ -182,11 +237,11 @@ function ReviewCard({ bookingId, accessToken, existingReview, onReviewSubmitted 
 
   async function submit() {
     if (!rating) { setError("Please select a star rating."); return; }
-    if (comment && containsBadWords(comment)) { setError("Your review contains language that is not permitted."); return; }
+    if (comment&&containsBadWords(comment)) { setError("Your review contains language that is not permitted."); return; }
     setSaving(true); setError(null);
     try {
-      const res  = await fetch("/api/test-booking/reviews",{ method:"POST", headers:{"Content-Type":"application/json",Authorization:`Bearer ${accessToken}`}, body:JSON.stringify({booking_id:bookingId,rating,comment}) });
-      const json = await res.json().catch(()=>null);
+      const res=await fetch("/api/test-booking/reviews",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${accessToken}`},body:JSON.stringify({booking_id:bookingId,rating,comment})});
+      const json=await res.json().catch(()=>null);
       if (!res.ok) throw new Error(json?.error||"Failed to submit review");
       setSubmitted(true); onReviewSubmitted();
     } catch(e:any) { setError(e?.message); }
@@ -200,8 +255,8 @@ function ReviewCard({ bookingId, accessToken, existingReview, onReviewSubmitted 
       {submitted ? (
         <>
           <div className="flex gap-0.5 mb-3">{[1,2,3,4,5].map(n=><span key={n} className={`text-2xl ${n<=rating?"text-amber-400":"text-black/10"}`}>★</span>)}</div>
-          {comment && <p className="text-base font-semibold text-black">{comment}</p>}
-          {existingReview?.partner_reply && (
+          {comment&&<p className="text-base font-semibold text-black">{comment}</p>}
+          {existingReview?.partner_reply&&(
             <div className="mt-4 bg-[#f0f0f0] px-4 py-3">
               <p className="text-xs font-black uppercase tracking-widest text-black mb-1">Partner reply · {fmt(existingReview.partner_replied_at)}</p>
               <p className="text-sm font-semibold text-black">{existingReview.partner_reply}</p>
@@ -214,7 +269,7 @@ function ReviewCard({ bookingId, accessToken, existingReview, onReviewSubmitted 
           <textarea rows={3} value={comment} onChange={e=>setComment(e.target.value)}
             className="w-full bg-[#f0f0f0] px-4 py-3 text-sm font-medium text-black outline-none focus:bg-[#e8e8e8] placeholder:text-black/30 resize-none mb-3"
             placeholder="Tell us about your experience…" />
-          {error && <p className="text-sm font-semibold text-red-600 mb-3">{error}</p>}
+          {error&&<p className="text-sm font-semibold text-red-600 mb-3">{error}</p>}
           <button type="button" onClick={submit} disabled={saving||!rating}
             className="w-full bg-[#ff7a00] py-4 text-base font-black text-white hover:opacity-90 disabled:opacity-50 transition-opacity">
             {saving?"Submitting…":"Submit Review"}
@@ -224,6 +279,8 @@ function ReviewCard({ bookingId, accessToken, existingReview, onReviewSubmitted 
     </div>
   );
 }
+
+// ── Insurance Confirm Card ────────────────────────────────────────────────────
 
 function InsuranceConfirmCard({ driverConfirmed,driverConfirmedAt,customerConfirmed,customerConfirmedAt,insuranceChecked,onInsuranceChange,onConfirm,onUnconfirm,saving,locked }: { driverConfirmed:boolean;driverConfirmedAt:string|null;customerConfirmed:boolean;customerConfirmedAt:string|null;insuranceChecked:boolean;onInsuranceChange:(v:boolean)=>void;onConfirm:()=>void;onUnconfirm:()=>void;saving:boolean;locked:boolean }) {
   return (
@@ -240,8 +297,8 @@ function InsuranceConfirmCard({ driverConfirmed,driverConfirmedAt,customerConfir
         <div className="bg-green-100 px-4 py-3 text-sm font-black text-green-800">✓ Both you and the driver have confirmed insurance documents were handed over.</div>
       ) : (
         <>
-          {customerConfirmed && <div className="bg-[#f0f0f0] px-4 py-3 text-sm font-semibold text-black mb-4">You confirmed receipt at {fmt(customerConfirmedAt)}</div>}
-          {!customerConfirmed && (
+          {customerConfirmed&&<div className="bg-[#f0f0f0] px-4 py-3 text-sm font-semibold text-black mb-4">You confirmed receipt at {fmt(customerConfirmedAt)}</div>}
+          {!customerConfirmed&&(
             <label className={`flex items-start gap-3 p-3 cursor-pointer mb-4 border-2 transition ${insuranceChecked?"border-green-400 bg-green-50":"border-black/10 bg-[#f0f0f0]"}`}>
               <input type="checkbox" checked={insuranceChecked} onChange={e=>onInsuranceChange(e.target.checked)} disabled={!driverConfirmed||saving} className="mt-0.5 h-5 w-5 shrink-0" />
               <p className="text-sm font-bold text-black">I confirm I have received the insurance documents</p>
@@ -266,6 +323,8 @@ function InsuranceConfirmCard({ driverConfirmed,driverConfirmedAt,customerConfir
   );
 }
 
+// ── Fuel Confirm Card ─────────────────────────────────────────────────────────
+
 function FuelConfirmCard({ title,driverConfirmed,driverFuel,driverConfirmedAt,customerConfirmed,customerConfirmedAt,locked,notes,onNotesChange,onConfirm,onUnconfirm,saving }: { title:string;driverConfirmed:boolean;driverFuel:string|null;driverConfirmedAt:string|null;customerConfirmed:boolean;customerConfirmedAt:string|null;locked:boolean;notes:string;onNotesChange:(v:string)=>void;onConfirm:()=>void;onUnconfirm:()=>void;saving:boolean }) {
   return (
     <div className={`p-6 ${locked?"bg-green-50 border border-green-200":"bg-white"}`}>
@@ -273,14 +332,14 @@ function FuelConfirmCard({ title,driverConfirmed,driverFuel,driverConfirmedAt,cu
       <div className={`px-4 py-3 mb-4 ${driverConfirmed&&driverFuel?"bg-black":"bg-[#f0f0f0]"}`}>
         <p className={`text-xs font-black uppercase tracking-widest mb-1 ${driverConfirmed&&driverFuel?"text-white/50":"text-black/50"}`}>Driver recorded</p>
         {driverConfirmed&&driverFuel
-          ? <><p className="text-2xl font-black text-white">{fuelLabel(driverFuel)}</p><FuelBar level={driverFuel} /><p className="text-xs text-white/40 mt-1">{fmt(driverConfirmedAt)}</p></>
+          ? <><p className="text-2xl font-black text-white">{fuelLabel(driverFuel)}</p><FuelBar level={driverFuel} light /><p className="text-xs text-white/40 mt-1">{fmt(driverConfirmedAt)}</p></>
           : <p className="text-sm font-semibold text-black/40">Waiting for driver…</p>}
       </div>
       {locked ? (
         <div className="bg-green-100 px-4 py-3 text-sm font-black text-green-800">✓ Confirmed — you and the driver agree on {fuelLabel(driverFuel)}</div>
       ) : (
         <>
-          {customerConfirmed && <div className="bg-[#f0f0f0] px-4 py-3 text-sm font-semibold text-black mb-4">You confirmed this at {fmt(customerConfirmedAt)}</div>}
+          {customerConfirmed&&<div className="bg-[#f0f0f0] px-4 py-3 text-sm font-semibold text-black mb-4">You confirmed this at {fmt(customerConfirmedAt)}</div>}
           <textarea rows={3} value={notes} onChange={e=>onNotesChange(e.target.value)} disabled={locked}
             className="w-full bg-[#f0f0f0] px-4 py-3 text-sm font-medium text-black outline-none focus:bg-[#e8e8e8] disabled:opacity-50 resize-none mb-4"
             placeholder="Any notes…" />
@@ -303,6 +362,8 @@ function FuelConfirmCard({ title,driverConfirmed,driverFuel,driverConfirmedAt,cu
   );
 }
 
+// ── Bid Card ──────────────────────────────────────────────────────────────────
+
 type ReviewItem = { id:string;rating:number;comment:string|null;partner_reply:string|null;partner_replied_at:string|null;created_at:string };
 
 function BidCard({ bid,currency,rates,requestStatus,acceptingId,expired,onAccept }: { bid:BidRow;currency:Currency;rates:Rates;requestStatus:string;acceptingId:string|null;expired:boolean;onAccept:(id:string)=>void }) {
@@ -312,8 +373,7 @@ function BidCard({ bid,currency,rates,requestStatus,acceptingId,expired,onAccept
 
   async function toggleReviews() {
     if (showReviews) { setShowReviews(false); return; }
-    setShowReviews(true);
-    if (reviews.length>0) return;
+    setShowReviews(true); if (reviews.length>0) return;
     setLoadingRevs(true);
     try { const r=await fetch(`/api/test-booking/reviews?partner_user_id=${bid.partner_user_id}`); const j=await r.json().catch(()=>null); setReviews(j?.reviews||[]); } catch { setReviews([]); }
     finally { setLoadingRevs(false); }
@@ -333,13 +393,13 @@ function BidCard({ bid,currency,rates,requestStatus,acceptingId,expired,onAccept
               </button>
             </div>
           ) : <p className="text-xs font-semibold text-black/40">No reviews yet</p>}
-          {showReviews && (
+          {showReviews&&(
             <div className="bg-white p-4 space-y-4">
-              {loadingRevs ? <p className="text-sm text-black/40">Loading…</p> : reviews.length===0 ? <p className="text-sm text-black/40">No reviews to show.</p> : reviews.map(r=>(
+              {loadingRevs?<p className="text-sm text-black/40">Loading…</p>:reviews.length===0?<p className="text-sm text-black/40">No reviews to show.</p>:reviews.map(r=>(
                 <div key={r.id} className="border-b border-black/5 pb-4 last:border-0 last:pb-0">
                   <div className="flex items-center gap-2 mb-1"><span>{[1,2,3,4,5].map(n=><span key={n} className={n<=r.rating?"text-amber-400":"text-black/10"}>★</span>)}</span><span className="text-xs text-black/30">{fmt(r.created_at)}</span></div>
                   {r.comment?<p className="text-sm font-semibold text-black">{r.comment}</p>:<p className="text-xs italic text-black/30">No written comment.</p>}
-                  {r.partner_reply && <div className="mt-2 bg-[#f0f0f0] px-3 py-2"><p className="text-xs font-black text-black">Partner reply</p><p className="text-xs font-semibold text-black/70 mt-0.5">{r.partner_reply}</p></div>}
+                  {r.partner_reply&&<div className="mt-2 bg-[#f0f0f0] px-3 py-2"><p className="text-xs font-black text-black">Partner reply</p><p className="text-xs font-semibold text-black/70 mt-0.5">{r.partner_reply}</p></div>}
                 </div>
               ))}
             </div>
@@ -350,7 +410,7 @@ function BidCard({ bid,currency,rates,requestStatus,acceptingId,expired,onAccept
           <p className="text-sm font-semibold text-black"><span className="font-black">Fuel deposit:</span> <BidAmount amount={bid.fuel_price} bidCurrency={bid.currency??"EUR"} customerCurrency={currency} rates={rates} /></p>
           <p className="text-sm font-semibold text-black"><span className="font-black">Total:</span> <BidAmount amount={bid.total_price} bidCurrency={bid.currency??"EUR"} customerCurrency={currency} rates={rates} /></p>
           <p className="text-sm font-semibold text-black"><span className="font-black">Insurance included:</span> {bid.full_insurance_included?"Yes":"No"}</p>
-          {bid.notes && <p className="text-sm font-semibold text-black"><span className="font-black">Notes:</span> {bid.notes}</p>}
+          {bid.notes&&<p className="text-sm font-semibold text-black"><span className="font-black">Notes:</span> {bid.notes}</p>}
         </div>
         <div className="shrink-0">
           {bid.status==="accepted"
@@ -367,6 +427,8 @@ function BidCard({ bid,currency,rates,requestStatus,acceptingId,expired,onAccept
   );
 }
 
+// ── Main Page ─────────────────────────────────────────────────────────────────
+
 export default function BookingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = useMemo(() => createCustomerBrowserClient(), []);
   const router   = useRouter();
@@ -375,11 +437,11 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const [requestId,        setRequestId]        = useState("");
   const [authChecked,      setAuthChecked]      = useState(false);
   const [loading,          setLoading]          = useState(true);
-  const [acceptingId,      setAcceptingId]      = useState<string | null>(null);
-  const [savingConfirm,    setSavingConfirm]    = useState<ConfirmSection | "insurance" | null>(null);
-  const [error,            setError]            = useState<string | null>(null);
-  const [ok,               setOk]              = useState<string | null>(null);
-  const [data,             setData]             = useState<ResponseShape | null>(null);
+  const [acceptingId,      setAcceptingId]      = useState<string|null>(null);
+  const [savingConfirm,    setSavingConfirm]    = useState<ConfirmSection|"insurance"|null>(null);
+  const [error,            setError]            = useState<string|null>(null);
+  const [ok,               setOk]               = useState<string|null>(null);
+  const [data,             setData]             = useState<ResponseShape|null>(null);
   const [timeLabel,        setTimeLabel]        = useState("—");
   const [expired,          setExpired]          = useState(false);
   const [collectionNotes,  setCollectionNotes]  = useState("");
@@ -404,21 +466,18 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   }, []);
 
   async function load(showSpinner = false) {
-    if (!requestId || !authChecked) return;
+    if (!requestId||!authChecked) return;
     if (showSpinner) setLoading(true);
     setError(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Not signed in");
       setAccessToken(session.access_token);
-      const res  = await fetch(`/api/test-booking/requests/${requestId}`,{cache:"no-store",headers:{Authorization:`Bearer ${session.access_token}`}});
-      const json = await res.json().catch(()=>null);
+      const res=await fetch(`/api/test-booking/requests/${requestId}`,{cache:"no-store",headers:{Authorization:`Bearer ${session.access_token}`}});
+      const json=await res.json().catch(()=>null);
       if (!res.ok) throw new Error(json?.error||"Failed to load.");
       setData(json);
-      if (json.booking) {
-        setCollectionNotes(json.booking.collection_customer_notes||"");
-        setReturnNotes(json.booking.return_customer_notes||"");
-      }
+      if (json.booking) { setCollectionNotes(json.booking.collection_customer_notes||""); setReturnNotes(json.booking.return_customer_notes||""); }
     } catch(e:any) { setError(e?.message||"Failed to load."); }
     finally { if (showSpinner) setLoading(false); }
   }
@@ -427,16 +486,14 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   useEffect(() => {
     if (!requestId||!authChecked) return;
     const t = setInterval(()=>load(false), 10000);
-    return () => clearInterval(t);
+    return ()=>clearInterval(t);
   }, [requestId, authChecked]);
 
   useEffect(() => {
     const exp = data?.request?.expires_at;
     if (!exp) { setTimeLabel("—"); setExpired(false); return; }
-    const tick = () => { const r = getTimeRemaining(exp); setTimeLabel(r?.label||"—"); setExpired(!!r?.expired); };
-    tick();
-    const t = setInterval(tick, 1000);
-    return () => clearInterval(t);
+    const tick = () => { const r=getTimeRemaining(exp); setTimeLabel(r?.label||"—"); setExpired(!!r?.expired); };
+    tick(); const t=setInterval(tick,1000); return ()=>clearInterval(t);
   }, [data?.request?.expires_at]);
 
   async function acceptBid(bidId: string) {
@@ -444,8 +501,8 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Not signed in");
-      const res  = await fetch("/api/test-booking/bids/accept",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({bid_id:bidId,currency})});
-      const json = await res.json().catch(()=>null);
+      const res=await fetch("/api/test-booking/bids/accept",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({bid_id:bidId,currency})});
+      const json=await res.json().catch(()=>null);
       if (!res.ok) throw new Error(json?.error||"Failed to accept bid.");
       setOk("Bid accepted. Booking confirmed."); await load(false);
     } catch(e:any) { setError(e?.message||"Failed to accept bid."); }
@@ -458,8 +515,8 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Not signed in");
-      const res  = await fetch(`/api/test-booking/bookings/${data.booking.id}/update`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({section,confirmed,notes:section==="collection"?collectionNotes:returnNotes})});
-      const json = await res.json().catch(()=>null);
+      const res=await fetch(`/api/test-booking/bookings/${data.booking.id}/update`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({section,confirmed,notes:section==="collection"?collectionNotes:returnNotes})});
+      const json=await res.json().catch(()=>null);
       if (!res.ok) throw new Error(json?.error||"Failed to save.");
       setOk(section==="collection"?"Delivery fuel confirmed.":"Collection fuel confirmed."); await load(false);
     } catch(e:any) { setError(e?.message||"Failed to save."); }
@@ -472,8 +529,8 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Not signed in");
-      const res  = await fetch(`/api/test-booking/bookings/${data.booking.id}/update`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({section:"collection",insurance_only:true,insurance_confirmed:confirmed})});
-      const json = await res.json().catch(()=>null);
+      const res=await fetch(`/api/test-booking/bookings/${data.booking.id}/update`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({section:"collection",insurance_only:true,insurance_confirmed:confirmed})});
+      const json=await res.json().catch(()=>null);
       if (!res.ok) throw new Error(json?.error||"Failed to save.");
       setOk(confirmed?"Insurance documents confirmed.":"Insurance confirmation removed."); await load(false);
     } catch(e:any) { setError(e?.message||"Failed to save."); }
@@ -510,8 +567,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             <h1 className="text-4xl font-black text-white md:text-5xl">Booking #{req.job_number ?? "—"}</h1>
             <p className="mt-3 text-base font-semibold text-white/70">Review your booking and any bids received.</p>
           </div>
-          <Link href="/bookings"
-            className="border border-white/30 px-5 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors self-start mt-1">
+          <Link href="/bookings" className="border border-white/30 px-5 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors self-start mt-1">
             ← My Bookings
           </Link>
         </div>
@@ -535,26 +591,22 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             <p className="text-xs font-black uppercase tracking-widest text-black mb-5">Booking Details</p>
             <div className="grid gap-3 sm:grid-cols-2">
               {[
-                ["Pickup",        req.pickup_address],
-                ["Drop-off",      req.dropoff_address||"—"],
-                ["Pickup time",   fmt(req.pickup_at)],
-                ["Drop-off time", fmt(req.dropoff_at)],
-                ["Duration",      formatDuration(req.journey_duration_minutes)],
-                ["Passengers",    req.passengers],
-                ["Suitcases",     req.suitcases],
+                ["Pickup",          req.pickup_address],
+                ["Drop-off",        req.dropoff_address||"—"],
+                ["Pickup time",     fmt(req.pickup_at)],
+                ["Drop-off time",   fmt(req.dropoff_at)],
+                ["Duration",        formatDuration(req.journey_duration_minutes)],
+                ["Passengers",      req.passengers],
+                ["Suitcases",       req.suitcases],
                 ["Sport equipment", sportEquipmentLabel(req.sport_equipment)],
-                ["Vehicle",       req.vehicle_category_name||"—"],
-                ["Status",        req.status],
+                ["Vehicle",         req.vehicle_category_name||"—"],
+                ["Status",          req.status],
               ].map(([l,v])=>(
                 <p key={String(l)} className="text-sm font-semibold text-black">
                   <span className="font-black">{l}:</span> {String(v)}
                 </p>
               ))}
-              {req.notes && (
-                <p className="text-sm font-semibold text-black sm:col-span-2">
-                  <span className="font-black">Notes:</span> {req.notes}
-                </p>
-              )}
+              {req.notes&&<p className="text-sm font-semibold text-black sm:col-span-2"><span className="font-black">Notes:</span> {req.notes}</p>}
             </div>
           </div>
 
@@ -565,41 +617,36 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                 <p className="text-xs font-black uppercase tracking-widest text-black mb-5">Your Confirmed Booking</p>
                 <div className="grid gap-3 sm:grid-cols-2 mb-5">
                   {[
-                    ["Status",        bookingStatusLabel(bk.booking_status)],
+                    ["Status",          bookingStatusLabel(bk.booking_status)],
                     ["Car hire company", bk.company_name||"—"],
-                    ["Company phone", bk.company_phone||"—"],
-                    ["Driver",        bk.driver_name||"—"],
-                    ["Driver phone",  bk.driver_phone||"—"],
-                    ["Vehicle",       bk.driver_vehicle||"—"],
+                    ["Company phone",   bk.company_phone||"—"],
+                    ["Driver",          bk.driver_name||"—"],
+                    ["Driver phone",    bk.driver_phone||"—"],
+                    ["Vehicle",         bk.driver_vehicle||"—"],
                   ].map(([l,v])=>(
                     <p key={String(l)} className="text-sm font-semibold text-black">
                       <span className="font-black">{l}:</span> {String(v)}
                     </p>
                   ))}
                 </div>
-                {/* Price breakdown */}
-                <div className="bg-[#f0f0f0] p-4 space-y-2">
+                <div className="bg-[#f0f0f0] p-4 space-y-2 mb-4">
                   <p className="text-xs font-black uppercase tracking-widest text-black mb-3">Price Breakdown</p>
-                  <div className="flex justify-between text-sm font-semibold text-black">
-                    <span>Car hire</span>
-                    <span><BookingAmount amount={bk.car_hire_price} storedCurrency={bkCurr} customerCurrency={currency} rates={liveRates} /></span>
-                  </div>
-                  <div className="flex justify-between text-sm font-semibold text-black">
-                    <span>Full tank deposit <span className="text-black/40">(refundable)</span></span>
-                    <span><BookingAmount amount={bk.fuel_price} storedCurrency={bkCurr} customerCurrency={currency} rates={liveRates} /></span>
-                  </div>
-                  <div className="flex justify-between text-sm font-black text-black border-t border-black/10 pt-2">
-                    <span>Total paid</span>
-                    <span><BookingAmount amount={bk.amount} storedCurrency={bkCurr} customerCurrency={currency} rates={liveRates} /></span>
-                  </div>
+                  <div className="flex justify-between text-sm font-semibold text-black"><span>Car hire</span><span><BookingAmount amount={bk.car_hire_price} storedCurrency={bkCurr} customerCurrency={currency} rates={liveRates} /></span></div>
+                  <div className="flex justify-between text-sm font-semibold text-black"><span>Full tank deposit <span className="text-black/40">(refundable)</span></span><span><BookingAmount amount={bk.fuel_price} storedCurrency={bkCurr} customerCurrency={currency} rates={liveRates} /></span></div>
+                  <div className="flex justify-between text-sm font-black text-black border-t border-black/10 pt-2"><span>Total paid</span><span><BookingAmount amount={bk.amount} storedCurrency={bkCurr} customerCurrency={currency} rates={liveRates} /></span></div>
                 </div>
-                {/* WhatsApp */}
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {bk.company_phone && <a href={`https://wa.me/${bk.company_phone.replace(/\D/g,"")}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-green-500 px-4 py-2 text-xs font-black text-white hover:bg-green-600">💬 WhatsApp Car Hire Company</a>}
-                  {bk.driver_phone  && <a href={`https://wa.me/${bk.driver_phone.replace(/\D/g,"")}`}  target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-green-500 px-4 py-2 text-xs font-black text-white hover:bg-green-600">💬 WhatsApp Driver</a>}
+                <div className="flex flex-wrap gap-2">
+                  {bk.company_phone&&<a href={`https://wa.me/${bk.company_phone.replace(/\D/g,"")}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-green-500 px-4 py-2 text-xs font-black text-white hover:bg-green-600">💬 WhatsApp Car Hire Company</a>}
+                  {bk.driver_phone&&<a href={`https://wa.me/${bk.driver_phone.replace(/\D/g,"")}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-green-500 px-4 py-2 text-xs font-black text-white hover:bg-green-600">💬 WhatsApp Driver</a>}
                 </div>
               </div>
 
+              {/* Booking summary — only when completed */}
+              {bk.booking_status==="completed" && (
+                <BookingSummaryCard bk={bk} currency={currency} rates={liveRates} />
+              )}
+
+              {/* Review */}
               {bk.booking_status==="completed" && (
                 <ReviewCard bookingId={bk.id} accessToken={accessToken} existingReview={bk.existing_review} onReviewSubmitted={()=>load(false)} />
               )}
