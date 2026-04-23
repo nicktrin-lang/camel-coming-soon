@@ -293,7 +293,7 @@ function InsuranceConfirmCard({ driverConfirmed,driverConfirmedAt,customerConfir
       <div className={`px-4 py-3 mb-4 ${driverConfirmed?"bg-black":"bg-[#f0f0f0]"}`}>
         <p className={`text-xs font-black uppercase tracking-widest mb-1 ${driverConfirmed?"text-white":"text-black/50"}`}>Driver confirmed handover</p>
         {driverConfirmed
-          ? <><p className="text-base font-black text-white">✓ Driver confirmed</p><p className="text-xs text-white/70">{fmt(driverConfirmedAt)}</p></>
+          ? <><p className="text-base font-black text-white">✓ Driver confirmed</p><p className="text-xs text-white">{fmt(driverConfirmedAt)}</p></>
           : <p className="text-sm font-semibold text-black/40">Waiting for driver…</p>}
       </div>
       {locked ? (
@@ -335,7 +335,7 @@ function FuelConfirmCard({ title,driverConfirmed,driverFuel,driverConfirmedAt,cu
       <div className={`px-4 py-3 mb-4 ${driverConfirmed&&driverFuel?"bg-black":"bg-[#f0f0f0]"}`}>
         <p className={`text-xs font-black uppercase tracking-widest mb-1 ${driverConfirmed&&driverFuel?"text-white":"text-black/50"}`}>Driver recorded</p>
         {driverConfirmed&&driverFuel
-          ? <><p className="text-2xl font-black text-white">{fuelLabel(driverFuel)}</p><FuelBar level={driverFuel} light /><p className="text-xs text-white/70 mt-1">{fmt(driverConfirmedAt)}</p></>
+          ? <><p className="text-2xl font-black text-white">{fuelLabel(driverFuel)}</p><FuelBar level={driverFuel} light /><p className="text-xs text-white mt-1">{fmt(driverConfirmedAt)}</p></>
           : <p className="text-sm font-semibold text-black/40">Waiting for driver…</p>}
       </div>
       {locked ? (
