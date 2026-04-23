@@ -198,13 +198,11 @@ function BookingSummaryCard({ bk, rates, rateIsLive }: { bk: BookingData; rates:
       <div className="grid grid-cols-2 gap-2 mb-4">
         <div className="bg-[#ff7a00]/20 border border-[#ff7a00]/40 p-4">
           <p className="text-xs font-black text-white/70 uppercase tracking-wide mb-2">Fuel charge to you</p>
-          <p className="text-2xl font-black text-white">{fuelCharge!=null?primary(fuelCharge):"—"}</p>
-          {fuelCharge!=null&&<p className="text-xs text-white/50">{sec(fuelCharge)}</p>}
+          <p className="text-2xl font-black text-white">{fuelCharge!=null?<>{primary(fuelCharge)} <span className="text-base font-normal opacity-70">{sec(fuelCharge)}</span></>:"—"}</p>
         </div>
         <div className="bg-green-500/20 border border-green-400/40 p-4">
           <p className="text-xs font-black text-white/70 uppercase tracking-wide mb-2">Refund to you</p>
-          <p className="text-2xl font-black text-white">{fuelRefund!=null?primary(fuelRefund):"—"}</p>
-          {fuelRefund!=null&&<p className="text-xs text-white/50">{sec(fuelRefund)}</p>}
+          <p className="text-2xl font-black text-white">{fuelRefund!=null?<>{primary(fuelRefund)} <span className="text-base font-normal opacity-70">{sec(fuelRefund)}</span></>:"—"}</p>
         </div>
       </div>
       <div className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-bold ${rateIsLive?"bg-green-400/20 text-green-200":"bg-white/10 text-white/60"}`}>
@@ -573,11 +571,9 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             <p className="mb-2 text-sm font-black uppercase tracking-widest text-[#ff7a00]">My Bookings</p>
             <h1 className="text-4xl font-black text-white md:text-5xl">Booking #{req.job_number ?? "—"}</h1>
             <p className="mt-3 text-base font-semibold text-white/70">Review your booking and any bids received.</p>
-            {bk && (
-              <div className="mt-3 inline-flex items-center gap-1.5 bg-white/10 px-3 py-1.5 text-sm font-bold text-white">
-                {bk.currency === "GBP" ? "£" : bk.currency === "USD" ? "$" : "€"} Booking currency: {bk.currency ?? "EUR"}
+      <div className="mt-3 inline-flex items-center gap-1.5 bg-white/10 px-3 py-1.5 text-sm font-bold text-white">
+                {bk?.currency === "GBP" ? "£" : bk?.currency === "USD" ? "$" : "€"} Booking currency: {bk?.currency ?? "EUR"}
               </div>
-            )}
           </div>
           <Link href="/bookings" className="border border-white/30 px-5 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors self-start mt-1">
             ← My Bookings
@@ -654,12 +650,11 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
               </div>
 
               {/* Booking summary — only when completed */}
-              {bk.booking_status==="completed" && (
+              {bk.booking_status === "completed" && (
                 <BookingSummaryCard bk={bk} rates={liveRates} rateIsLive={rateIsLive} />
               )}
 
-              {/* Review */}
-              {bk.booking_status==="completed" && (
+              {bk.booking_status === "completed" && (
                 <ReviewCard bookingId={bk.id} accessToken={accessToken} existingReview={bk.existing_review} onReviewSubmitted={()=>load(false)} />
               )}
 
