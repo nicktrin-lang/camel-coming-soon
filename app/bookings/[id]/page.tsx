@@ -148,7 +148,7 @@ function BookingAmount({ amount, storedCurrency, customerCurrency, rates }: { am
 
 // ── Booking Summary Card ──────────────────────────────────────────────────────
 
-function BookingSummaryCard({ bk, currency, rates }: { bk: BookingData; currency: Currency; rates: Rates }) {
+function BookingSummaryCard({ bk, rates, rateIsLive }: { bk: BookingData; rates: Rates; rateIsLive: boolean }) {
   const stored: Currency = bk.currency ?? "EUR";
   const sec1: Currency   = stored==="USD"?"EUR":stored==="GBP"?"EUR":"GBP";
   const sec2: Currency   = stored==="EUR"?"USD":stored==="GBP"?"USD":"GBP";
@@ -166,6 +166,7 @@ function BookingSummaryCard({ bk, currency, rates }: { bk: BookingData; currency
     const inEur = convertAmount(v, stored, "EUR", rates);
     return `(${fmtCurr(convertAmount(inEur,"EUR",sec1,rates),sec1)} · ${fmtCurr(convertAmount(inEur,"EUR",sec2,rates),sec2)})`;
   };
+  const rateBadge = `1€ = ${new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(rates.GBP)} · 1€ = ${new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(rates.USD)}`;
   return (
     <div className="bg-[#003768] p-6">
       <div className="flex items-center justify-between mb-4">
@@ -194,7 +195,7 @@ function BookingSummaryCard({ bk, currency, rates }: { bk: BookingData; currency
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 mb-4">
         <div className="bg-[#ff7a00]/20 border border-[#ff7a00]/40 p-4">
           <p className="text-xs font-black text-white/70 uppercase tracking-wide mb-2">Fuel charge to you</p>
           <p className="text-2xl font-black text-white">{fuelCharge!=null?primary(fuelCharge):"—"}</p>
@@ -205,6 +206,10 @@ function BookingSummaryCard({ bk, currency, rates }: { bk: BookingData; currency
           <p className="text-2xl font-black text-white">{fuelRefund!=null?primary(fuelRefund):"—"}</p>
           {fuelRefund!=null&&<p className="text-xs text-white/50">{sec(fuelRefund)}</p>}
         </div>
+      </div>
+      <div className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-bold ${rateIsLive?"bg-green-400/20 text-green-200":"bg-white/10 text-white/60"}`}>
+        <span className={`h-2.5 w-2.5 rounded-full ${rateIsLive?"bg-green-400":"bg-white/40"}`} />
+        {rateBadge}{rateIsLive?" · Live rate (frankfurter.app)":""}
       </div>
     </div>
   );
@@ -434,6 +439,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const router   = useRouter();
   const { rates: hookRates, currency } = useCurrency();
   const [liveRates,        setLiveRates]        = useState<Rates>(hookRates ?? { GBP: 0.85, USD: 1.08 });
+  const [rateIsLive,       setRateIsLive]       = useState(false);
   const [requestId,        setRequestId]        = useState("");
   const [authChecked,      setAuthChecked]      = useState(false);
   const [loading,          setLoading]          = useState(true);
@@ -460,8 +466,9 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   }, [requestId, supabase, router]);
 
   useEffect(() => {
-    fetch("/api/currency/rate",{cache:"no-store"}).then(r=>r.json()).then(({rates})=>{
+    fetch("/api/currency/rate",{cache:"no-store"}).then(r=>r.json()).then(({rates,live})=>{
       setLiveRates({GBP:Number(rates?.GBP)||0.85,USD:Number(rates?.USD)||1.08});
+      setRateIsLive(!!live);
     }).catch(()=>{});
   }, []);
 
@@ -566,6 +573,11 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             <p className="mb-2 text-sm font-black uppercase tracking-widest text-[#ff7a00]">My Bookings</p>
             <h1 className="text-4xl font-black text-white md:text-5xl">Booking #{req.job_number ?? "—"}</h1>
             <p className="mt-3 text-base font-semibold text-white/70">Review your booking and any bids received.</p>
+            {bk && (
+              <div className="mt-3 inline-flex items-center gap-1.5 bg-white/10 px-3 py-1.5 text-sm font-bold text-white">
+                {bk.currency === "GBP" ? "£" : bk.currency === "USD" ? "$" : "€"} Booking currency: {bk.currency ?? "EUR"}
+              </div>
+            )}
           </div>
           <Link href="/bookings" className="border border-white/30 px-5 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors self-start mt-1">
             ← My Bookings
@@ -643,7 +655,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
 
               {/* Booking summary — only when completed */}
               {bk.booking_status==="completed" && (
-                <BookingSummaryCard bk={bk} currency={currency} rates={liveRates} />
+                <BookingSummaryCard bk={bk} rates={liveRates} rateIsLive={rateIsLive} />
               )}
 
               {/* Review */}
