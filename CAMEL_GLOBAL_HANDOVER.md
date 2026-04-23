@@ -70,7 +70,7 @@
 | `app/api/partner/delete-account/route.ts` | POST — soft deletes partner account (stamps deleted_at) |
 | `app/api/test-booking/customer-profile/route.ts` | Service role upsert for customer profiles (bypasses RLS) |
 | `app/api/test-booking/delete-account/route.ts` | POST — soft deletes customer account (stamps deleted_at) |
-| `app/api/contact/route.ts` | POST — contact form handler, Resend email, hCaptcha, rate limited |
+| `app/api/contact/route.ts` | POST — contact form handler, Resend email, hCaptcha, rate limited, subject-based routing |
 | `app/partner/settings/page.tsx` | Partner settings page — delete account flow |
 | `app/partner/terms/page.tsx` | Full partner T&Cs — versioned, PDF download, Legal label |
 | `app/partner/operating-rules/page.tsx` | Partner Operating Agreement web page + PDF download |
@@ -90,10 +90,10 @@
 All internal API routes stay at `/api/test-booking/*` — do not rename these.
 | Route | Purpose |
 |-------|---------|
-| `app/api/test-booking/requests/route.ts` | Create / list customer requests |
+| `app/api/test-booking/requests/route.ts` | Create / list customer requests — includes sport_equipment |
 | `app/api/test-booking/requests/[id]/route.ts` | Get single request + bids + booking |
 | `app/api/test-booking/bids/accept/route.ts` | Accept a partner bid |
-| `app/api/test-booking/bookings/[id]/update/route.ts` | Customer fuel/insurance confirmations |
+| `app/api/test-booking/bookings/[id]/update/route.ts` | Customer fuel/insurance confirmations — syncs customer_requests.status |
 | `app/api/test-booking/reviews/route.ts` | Submit / fetch reviews |
 | `app/api/test-booking/customer-profile/route.ts` | Upsert customer profile (service role) |
 | `app/api/test-booking/delete-account/route.ts` | Soft delete customer account |
@@ -102,6 +102,18 @@ All internal API routes stay at `/api/test-booking/*` — do not rename these.
 - **Supported:** `EUR | GBP | USD`
 - **Rates:** Live from `frankfurter.app`, cached 1 hour, fallback GBP 0.85 / USD 1.08
 - **Storage:** All prices stored in the currency the booking was made in
+
+### Contact Form Email Routing
+| Subject | Routes to |
+|---------|-----------|
+| General enquiry | `contact@camel-global.com` |
+| Booking question | `contact@camel-global.com` |
+| Partnership / become a partner | `partners@camel-global.com` |
+| Press or media | `press@camel-global.com` |
+| Technical issue | `contact@camel-global.com` |
+| Other | `contact@camel-global.com` |
+- From address: `Camel Global <noreply@camel-global.com>` (hardcoded in contact route, independent of EMAIL_FROM env var)
+- `press@` and `contact@` mailboxes need to be created in email provider
 
 ### PDF Downloads
 - All PDF exports use **jsPDF** — real `.pdf` files, direct download, no print dialog
@@ -113,12 +125,12 @@ All internal API routes stay at `/api/test-booking/*` — do not rename these.
 ## Footer System
 
 ### Four Distinct Footers (`app/components/Footer.tsx`)
-| Portal | Footer | All links |
-|--------|--------|-----------|
-| `/partner/*` | PartnerFooter | `/partner/*` |
-| `/admin/*` | AdminFooter | `/admin/*` |
-| `/driver/*` | DriverFooter | Driver Login link only |
-| Everything else | CustomerFooter | Standard public links |
+| Portal | Footer |
+|--------|--------|
+| `/partner/*` | PartnerFooter — blue gradient |
+| `/admin/*` | AdminFooter — blue gradient |
+| `/driver/*` | DriverFooter — blue gradient |
+| Everything else | CustomerFooter — black, includes "Ready to book?" CTA at top |
 
 ---
 
@@ -163,71 +175,65 @@ All internal API routes stay at `/api/test-booking/*` — do not rename these.
 
 ---
 
-## Customer Site — Full Spec (Item 11)
+## Customer Site — Full Spec
 
-### Overview
-Complete UI overhaul of the customer-facing booking site. New clean pages at root URLs. Old `/test-booking/*` pages kept in place (not deleted, not redirected) — new pages are built fresh alongside them.
+### URL Structure
+| Page | URL |
+|------|-----|
+| Homepage + booking widget | `/` |
+| Create booking | `/book` |
+| My bookings dashboard | `/bookings` |
+| Booking detail | `/bookings/[id]` |
+| Login | `/login` |
+| Sign up | `/signup` |
+| Reset password | `/reset-password` |
+| Account / profile | `/account` |
 
-### URL Structure (New)
-| Page | New URL | Old URL (kept, not deleted) |
-|------|---------|----------------------------|
-| Homepage + booking widget | `/` | — |
-| Create booking | `/book` | `/test-booking/new` |
-| My bookings dashboard | `/bookings` | `/test-booking/requests` |
-| Booking detail | `/bookings/[id]` | `/test-booking/requests/[id]` |
-| Login | `/login` | `/test-booking/login` |
-| Sign up | `/signup` | `/test-booking/signup` |
-| Reset password | `/reset-password` | `/test-booking/reset-password` |
-| Account / profile | `/account` | `/test-booking/settings` |
+### Design — Black / Grey / White / Orange Theme
+- **Colours:** Black `#000000`, Orange `#ff7a00`, Grey `#f0f0f0`, White
+- **No blue anywhere** — `#003768` only used in partner/admin portals
+- **Navbar:** Full-width black, Camel logo (h-16), nav links white font-bold, Log In orange button
+- **Hero sections:** Black band with orange label, white `font-black` heading
+- **Form areas:** `bg-[#f0f0f0]` with white cards, square edges (no rounded corners)
+- **Inputs:** `bg-[#f0f0f0]` square style, labels `text-xs font-black uppercase tracking-widest`
+- **Buttons:** Square, orange `bg-[#ff7a00]`, `font-black`
+- **Footer:** Black, "Ready to book?" CTA baked into top of CustomerFooter
 
-### Design Spec
-- **Colours:** Navy `#003768`, Orange `#ff7a00`, White background
-- **Navbar:** Full-width white, Camel logo left, currency selector centre, Login + Book Now (orange) right. Authenticated: My Bookings, Account, Logout
-- **Footer:** Full-width, matches existing customer footer
-- **Mobile + tablet:** Fully responsive throughout
-- **Typography:** Clean, modern — large bold headlines
+### Homepage (`/`) — `app/page.tsx`
+- Detects hostname: `test.camel-global.com` or `localhost` → CustomerHome; else → PartnerMarketingHome
+- CustomerHome: black navbar (no currency selector — it's in the widget), hero, booking widget, How Camel Works, fuel section, No Surprises + Why Book a Camel Car sections
+- Booking widget saves to `sessionStorage` as `camel_booking_draft` on Book Now
+- Sport equipment options match across homepage widget, `/book` page, and booking detail
 
-### Homepage (`/`)
-- Full-width white navbar
-- Hero section: large bold "Book your meet & greet car hire" headline + subline "Car delivered to you, wherever you are"
-- Booking widget card (prominent, above the fold):
-  - Pickup address input (with autocomplete)
-  - Dropoff address input (with autocomplete)
-  - Pickup date + time
-  - Dropoff date + time
-  - Passengers, suitcases selectors
-  - "Book Now" orange CTA button
-  - Guest-first: no login required to fill in widget
-- "How Camel Works" section below fold:
-  - Step 1: Submit your request
-  - Step 2: Receive bids from local car hire companies
-  - Step 3: Accept the best bid and confirm
-  - Good for SEO — thorough explanation of the platform
-- Clean full-width footer
-
-### Booking Flow (Guest-first)
-1. Customer fills in widget on homepage → clicks Book Now
-2. If not logged in → redirect to `/login?next=/book` with widget state preserved (localStorage or URL params)
-3. After login/signup → `/book` with pre-filled details → confirm and submit
-4. Redirected to `/bookings/[id]` to track bids
+### Booking Flow — Guest to Confirmed
+1. Homepage widget → saves draft to `sessionStorage` as `camel_booking_draft` → `/book`
+2. `/book` pre-fills from sessionStorage, adds map picker + notes + duration
+3. On submit — auth check:
+   - **Logged in** → submits booking immediately
+   - **Not logged in** → saves draft to sessionStorage → `/login?next=/book`
+4. From login page — "Create an account" link passes `?next=/book` through to `/signup?next=/book`
+5. After signup — reads draft from sessionStorage, submits booking directly (no redirect to `/book`), goes straight to `/bookings/[id]`
+6. After login — redirects to `/book` which auto-submits draft via `onAuthStateChange` listener
 
 ### My Bookings (`/bookings`)
-- Dashboard style
-- Summary cards: Active bookings, Pending bids, Completed
-- Full list of bookings with status badges, job numbers, dates
-- Click through to `/bookings/[id]`
+- Clickable tab filters: Active / Completed / All — selected tab goes black
+- Shows count per tab, clicking switches the list below
 
 ### Booking Detail (`/bookings/[id]`)
-- Same functionality as existing `/test-booking/requests/[id]`
-- Auth guard: unauthenticated → `/login?next=/bookings/[id]`
-- Review section anchored with `id="review"` for email link deep-linking
+- Black hero with booking number (no currency badge — already shown in booking details card)
+- Booking details card includes: sport equipment, booking currency
+- Confirmed booking card with price breakdown
+- **Booking Summary card** — shows when `bk.booking_status === "completed"`, matches partner/admin style with live frankfurter rate badge and cross-currency amounts inline
+- Review card (completed only)
+- Insurance confirm card — white text on black background
+- Fuel confirm cards — white text on black background, labels and timestamps fully white on black
+- Bid cards
 
-### Account (`/account`)
-- Editable profile: name, email, phone
-- Delete account section (calls existing `/api/test-booking/delete-account`)
+### Status Sync
+- `app/api/test-booking/bookings/[id]/update/route.ts` now syncs `customer_requests.status` whenever booking_status changes (completed/collected/returned/cancelled)
 
-### API Routes
-All existing `/api/test-booking/*` routes used as-is — no renaming.
+### DB Columns
+- `customer_requests.sport_equipment` — added via SQL: `ALTER TABLE customer_requests ADD COLUMN IF NOT EXISTS sport_equipment text DEFAULT NULL;`
 
 ---
 
@@ -236,6 +242,7 @@ All existing `/api/test-booking/*` routes used as-is — no renaming.
 **Chat 9:** `partner_applications`: terms_accepted_at, terms_version
 **Chat 10:** `customer_profiles`: RLS enabled
 **Chat 11:** `partner_profiles`: deleted_at. `customer_profiles`: deleted_at
+**Chat 14:** `customer_requests`: sport_equipment (text, nullable)
 
 ---
 
@@ -243,13 +250,13 @@ All existing `/api/test-booking/*` routes used as-is — no renaming.
 
 ### Last Known Good Tag
 ```bash
-git checkout v-stable-pre-customer-ui
+git checkout v-stable-guest-booking-flow
 ```
-**Description:** All portals working, maps fixed (CSP + Leaflet SSR), review email link fixed, login auth redirect working. Safe rollback point before customer UI overhaul.
 
 ### All Stable Tags
 | Tag | Description |
 |-----|-------------|
+| `v-stable-guest-booking-flow` | Guest booking flow — draft persists through login/signup, auto-submits after account creation |
 | `v-stable-pre-customer-ui` | Safe rollback before customer UI overhaul — everything working |
 | `v-stable-footer-policy-pages-complete` | Full footer system, all portal policy pages, customer header fix |
 | `v-stable-footer-contact` | Split footers, contact page, operating rules shared lib |
@@ -271,7 +278,8 @@ git checkout v-stable-pre-customer-ui
 ---
 
 ## What Is Working ✅
-- Customer booking flow (functional at `/test-booking/*` — UI overhaul in progress)
+- Customer booking flow at `/book`, `/bookings`, `/bookings/[id]`
+- Guest booking flow — draft survives login/signup, booking auto-submitted after account creation
 - Partner bid submission and management
 - Driver job portal
 - Admin approval and account management
@@ -299,31 +307,35 @@ git checkout v-stable-pre-customer-ui
 - Cookie consent banner — GDPR compliant
 - RLS audit — all tables reviewed
 - GDPR account deletion — soft delete for partners and customers
-- Footer system — 4 portal-aware footers
-- Policy pages — Privacy, Cookies, Terms, About, Contact for all three portals
+- Footer system — 4 portal-aware footers, CustomerFooter has "Ready to book?" CTA baked in
+- Policy pages — Privacy, Cookies, Terms, About, Contact for all three portals (black/grey/white/orange theme)
 - Maps — Leaflet/OpenStreetMap working on all pages (CSP fixed, SSR fixed)
+- Customer site full UI — black/grey/white/orange theme, no blue
+- Contact form subject-based email routing
+- Sport equipment field — homepage, /book, booking detail, partner/admin portal
+- Booking status sync — customer_requests.status updates on booking completion
+- My Bookings — clickable tab filters (Active/Completed/All)
+- Booking Summary card — shows on customer booking detail when completed, with live rates
 
 ---
 
 ## Session Log
 
-### Chat 13 (In Progress — Bugs + Customer UI Overhaul)
+### Chat 15 (Completed)
 
-**Bugs fixed**
-- Review email link: cron was passing `booking.id` to URL — fixed to pass `booking.request_id`
-- Request detail page: added auth guard — unauthenticated users redirected to `/test-booking/login?next=...`
-- Login page: added `useSearchParams` + `next=` redirect support, wrapped in `<Suspense>`
-- Maps: all Leaflet maps broken due to CSP blocking tile requests — fixed `next.config.ts` to allow `*.tile.openstreetmap.org` and `unpkg.com`
-- Maps: Leaflet SSR crash — split `MapPicker` into shell (`MapPicker.tsx`) + inner (`MapPickerInner.tsx`)
+**Booking detail page fixes**
+- Removed duplicate booking currency badge from hero (already shown in booking details card)
+- Fixed insurance confirm card: "Driver confirmed handover" label and timestamp now fully white on black background
+- Fixed fuel confirm cards: "Driver recorded" label and timestamp now fully white on black background
 
-**Customer UI overhaul — spec agreed, build starting**
-- New pages at root URLs (see Customer Site spec above)
-- Old `/test-booking/*` pages kept in place — not deleted, not redirected
-- All `/api/test-booking/*` API routes unchanged
-- Safe rollback tag: `v-stable-pre-customer-ui`
+**Guest booking flow — full fix**
+- Diagnosed root cause using Claude in Chrome browser plugin: login page "Create an account" link was hardcoded to `/signup` with no `?next=` param, breaking the entire draft chain
+- Fixed `app/login/page.tsx`: "Create an account" link now passes `?next=` through to signup
+- Fixed `app/signup/page.tsx`: reads `?next=` param, submits booking draft directly after account creation (no redirect to `/book`), goes straight to `/bookings/[id]`
+- Fixed `app/book/page.tsx`: auto-submits draft on load if user is already logged in, using `onAuthStateChange` to handle session timing
 
-### Chats 1–12 (Completed)
-- Core booking flow, fuel, drivers, insurance, reviews, currency, password reset, commission, T&Cs, security, GDPR, footer, policy pages
+### Chats 1–14 (Completed)
+- Core booking flow, fuel, drivers, insurance, reviews, currency, password reset, commission, T&Cs, security, GDPR, footer, policy pages, maps fixes, full customer UI overhaul
 
 ---
 
@@ -341,7 +353,7 @@ git checkout v-stable-pre-customer-ui
 | 8 | GDPR data deletion | 3–4 hrs | ✅ Done |
 | 9 | Footer + policy pages | 3–4 hrs | ✅ Done |
 | 10 | Spanish translation (partner + driver portals, `next-intl`) | 15–20 hrs | ⬜ Todo |
-| 11 | Customer booking site full UI overhaul | 15–20 hrs | 🔄 In progress |
+| 11 | Customer booking site full UI overhaul | 15–20 hrs | ✅ Done |
 | 12 | Stripe Connect integration | 8–10 hrs | ⬜ Deferred |
 | 13 | Xero monthly commission endpoint | 3–4 hrs | ⬜ Deferred |
 | 14 | DAC7 EU platform reporting | 3–4 hrs | ⬜ Deferred |
@@ -351,14 +363,17 @@ git checkout v-stable-pre-customer-ui
 ## TODO Before Go-Live
 - [ ] Update company registration number in privacy/terms pages (currently `XXXXXXXX`)
 - [ ] Update registered address in privacy/terms pages (currently placeholder)
+- [ ] Create `contact@camel-global.com` mailbox in email provider
+- [ ] Create `press@camel-global.com` mailbox in email provider
 - [ ] Stripe Connect integration (Phase 2)
 - [ ] Spanish translation (Item 10)
-- [ ] Customer UI overhaul (Item 11) — in progress
 
 ---
 
 ## Environment
 - `.env.local` — Supabase keys, Google Maps API key, Resend, CRON_SECRET, hCaptcha keys
+- `EMAIL_FROM=Camel Global Partners <partners@camel-global.com>` — used for partner portal emails
+- Contact form emails use hardcoded `Camel Global <noreply@camel-global.com>` — independent of EMAIL_FROM
 - Never commit `.env.local`
 - Vercel env vars set separately in Vercel dashboard
 
@@ -391,4 +406,4 @@ git tag | grep stable
 
 ---
 
-*Last updated: Chat 13 — bugs fixed (maps CSP, review link, auth redirect), customer UI overhaul spec agreed, safe rollback tag created. Next: build new customer pages at root URLs.*
+*Last updated: Chat 15 — Booking detail fixes (currency badge, white text on black). Guest booking flow fixed: ?next= param passed through login→signup, booking draft auto-submitted directly from signup page after account creation.*
