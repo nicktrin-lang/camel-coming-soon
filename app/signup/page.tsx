@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useCallback, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
 import HCaptcha from "@/app/components/HCaptcha";
 
 const inputCls = "w-full bg-[#f0f0f0] px-4 py-4 text-base font-medium text-black outline-none focus:bg-[#e8e8e8] transition-colors placeholder:text-black/40";
 const labelCls = "block text-xs font-black uppercase tracking-widest text-black mb-2";
 
-export default function SignupPage() {
-  const supabase = useMemo(() => createCustomerBrowserClient(), []);
-  const router   = useRouter();
+function SignupForm() {
+  const supabase     = useMemo(() => createCustomerBrowserClient(), []);
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath     = searchParams.get("next") || "/bookings";
 
   const [fullName,     setFullName]     = useState("");
   const [phone,        setPhone]        = useState("");
@@ -55,7 +57,7 @@ export default function SignupPage() {
         throw new Error(j?.error || "Failed to create profile.");
       }
 
-      router.push("/bookings");
+      router.push(nextPath);
       router.refresh();
     } catch (e: any) {
       setError(e?.message || "Failed to create account.");
@@ -120,7 +122,12 @@ export default function SignupPage() {
 
             <p className="text-center text-sm font-semibold text-black">
               Already have an account?{" "}
-              <Link href="/login" className="font-black text-[#ff7a00] hover:underline">Sign in</Link>
+              <Link
+                href={nextPath !== "/bookings" ? `/login?next=${encodeURIComponent(nextPath)}` : "/login"}
+                className="font-black text-[#ff7a00] hover:underline"
+              >
+                Sign in
+              </Link>
             </p>
 
           </div>
@@ -129,4 +136,8 @@ export default function SignupPage() {
 
     </div>
   );
+}
+
+export default function SignupPage() {
+  return <Suspense><SignupForm /></Suspense>;
 }
