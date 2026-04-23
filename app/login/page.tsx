@@ -79,6 +79,11 @@ function LoginForm() {
     } finally { setResetLoading(false); }
   }
 
+  // Pass ?next= through to signup so the draft flow works end-to-end
+  const signupHref = nextPath !== "/bookings"
+    ? `/signup?next=${encodeURIComponent(nextPath)}`
+    : "/signup";
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
 
@@ -139,7 +144,9 @@ function LoginForm() {
                 </form>
                 <p className="text-center text-sm font-semibold text-black">
                   New to Camel?{" "}
-                  <Link href="/signup" className="font-black text-[#ff7a00] hover:underline">Create an account</Link>
+                  <Link href={signupHref} className="font-black text-[#ff7a00] hover:underline">
+                    Create an account
+                  </Link>
                 </p>
               </>
             ) : (
