@@ -109,19 +109,17 @@ export default function BookPage() {
     if (draft.vehicleSlug)    setVehicleSlug(draft.vehicleSlug);
     if (draft.sportEquipment) setSportEquipment(draft.sportEquipment);
 
-    // Auto-submit if the user is now signed in (they just came back from login/signup)
-    if (autoSubmitting.current) return;
-    autoSubmitting.current = true;
+    const d = draft;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session?.access_token) return; // not logged in, just pre-fill
+    function tryAutoSubmit(token: string) {
+      if (autoSubmitting.current) return;
+      autoSubmitting.current = true;
 
-      const d = draft!;
       const pLat = d.pickupLat, pLng = d.pickupLng;
       const dLat = d.dropoffLat, dLng = d.dropoffLng;
-      const pAt = d.pickupAt, dAt = d.dropoffAt;
+      const pAt  = d.pickupAt,   dAt  = d.dropoffAt;
 
-      if (!pLat || !pLng || !dLat || !dLng || !pAt || !dAt) return; // incomplete draft, let them fill manually
+      if (!pLat || !pLng || !dLat || !dLng || !pAt || !dAt) return; // incomplete, let them fill manually
 
       const duration = calculateDurationMinutes(pAt, dAt);
       if (!duration) return;
@@ -132,7 +130,7 @@ export default function BookPage() {
       setLoading(true);
       fetch("/api/test-booking/requests", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           pickup_address: d.pickupAddress, pickup_lat: pLat, pickup_lng: pLng,
           dropoff_address: d.dropoffAddress, dropoff_lat: dLat, dropoff_lng: dLng,
@@ -154,8 +152,22 @@ export default function BookPage() {
         .catch((e: any) => {
           setError(e?.message || "Failed to create booking.");
           setLoading(false);
+          autoSubmitting.current = false;
         });
+    }
+
+    // First try immediately (covers already-logged-in users)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.access_token) tryAutoSubmit(session.access_token);
     });
+
+    // Also listen for auth state changes (covers just-signed-up/logged-in users
+    // where the session isn't ready on first render)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.access_token) tryAutoSubmit(session.access_token);
+    });
+
+    return () => subscription.unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
