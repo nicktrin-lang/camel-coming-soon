@@ -44,7 +44,7 @@ export default function PartnerSettingsPage() {
         </p>
         <p className="mt-3 text-sm font-bold text-black/60">
           If you have active bookings, please ensure they are completed or cancelled before deleting your account.
-          For any questions contact <span className="font-black text-black">support@camel-global.com</span>.
+          For any questions <a href="/partner/contact" className="font-black text-black underline hover:text-[#ff7a00] transition-colors">contact our support team</a>.
         </p>
 
         {!showConfirm ? (
