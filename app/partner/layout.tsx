@@ -37,18 +37,18 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [role,        setRole]        = useState<PortalRole>("partner");
   const [timedOut,    setTimedOut]    = useState(false);
+  const [authed,      setAuthed]      = useState(false);
 
-  // These pages need NO auth and NO layout — shown to unauthenticated visitors.
- const isUnauthPublicPage =
-  pathname === "/partner/login" ||
-  pathname === "/partner/reset-password" ||
-  pathname === "/partner/application-submitted" ||
-  pathname === "/partner/signup" ||
-  pathname.startsWith("/partner/signup/") ||
-  pathname === "/partner/terms" ||
-  pathname === "/partner/operating-rules";
-  // These pages show WITH the partner layout (sidebar + topbar) but must NOT
-  // redirect admins away — admins access these via /admin/* equivalents instead.
+  // Pages that need NO auth and NO layout at all
+  const isUnauthPublicPage =
+    pathname === "/partner/login" ||
+    pathname === "/partner/reset-password" ||
+    pathname === "/partner/application-submitted" ||
+    pathname === "/partner/signup" ||
+    pathname.startsWith("/partner/signup/");
+
+  // Pages that show WITH topbar+footer but NOT sidebar, visible to anyone
+  // (logged-in users get sidebar too; unauthenticated users just get topbar+footer)
   const isPartnerInfoPage =
     pathname === "/partner/terms" ||
     pathname === "/partner/operating-rules" ||
@@ -60,23 +60,32 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     let mounted = true;
     async function guard() {
-      // Unauthenticated public pages — skip all checks
+      // Fully public pages — no layout, no auth check
       if (isUnauthPublicPage) { setLoading(false); return; }
 
       setLoading(true);
       try {
         const { data: userData, error: userErr } = await getUserWithTimeout(supabase);
         if (!mounted) return;
+
         if (userErr?.message === "timeout") {
           clearStaleSupabaseLocks();
           setTimedOut(true);
           setLoading(false);
           return;
         }
+
+        // Not logged in
         if (userErr || !userData?.user) {
+          if (!mounted) return;
+          // Info pages are public — show them with topbar but no sidebar
+          if (isPartnerInfoPage) { setAuthed(false); setLoading(false); return; }
+          // Everything else requires login
           router.replace("/partner/login?reason=not_signed_in");
           return;
         }
+
+        // Logged in — check role
         let nextRole: PortalRole = "partner";
         try {
           const meRes = await fetch("/api/admin/me", { method: "GET", cache: "no-store", credentials: "include" });
@@ -84,25 +93,27 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
             const meJson = await safeJson(meRes);
             nextRole =
               meJson?.role === "super_admin" ? "super_admin" :
-              meJson?.role === "admin" ? "admin" : "partner";
+              meJson?.role === "admin"       ? "admin"       : "partner";
           }
         } catch { nextRole = "partner"; }
         if (!mounted) return;
 
-        // Admins hitting partner info pages get redirected to /admin/* equivalents
+        // Admins hitting partner info pages → redirect to /admin/* equivalents
         if (nextRole === "admin" || nextRole === "super_admin") {
           if (isPartnerInfoPage) {
-            const adminEquivalent = pathname.replace("/partner/", "/admin/");
-            router.replace(adminEquivalent);
+            router.replace(pathname.replace("/partner/", "/admin/"));
             return;
           }
           router.replace("/admin/approvals");
           return;
         }
+
         setRole(nextRole);
+        setAuthed(true);
       } catch {
         if (!mounted) return;
         setRole("partner");
+        setAuthed(true);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -113,20 +124,20 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
-  // Unauthenticated public pages render with no layout at all
+  // Fully public pages — no layout at all
   if (isUnauthPublicPage) return <>{children}</>;
 
   if (timedOut) {
     return (
       <div className="min-h-screen bg-[#f0f0f0] pt-[68px]">
         <div className="px-4 py-8 md:px-8">
-          <div className=" border border-red-200 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-            <h2 className="text-xl font-semibold text-red-700">Session error</h2>
-            <p className="mt-2 text-slate-600">Your session has a conflict. Click below to clear it and log in again.</p>
+          <div className="border border-red-200 bg-white p-8">
+            <h2 className="text-xl font-black text-red-700">Session error</h2>
+            <p className="mt-2 text-sm font-semibold text-black/60">Your session has a conflict. Click below to clear it and log in again.</p>
             <button type="button"
               onClick={() => { clearStaleSupabaseLocks(); window.location.href = "/partner/login?reason=not_signed_in"; }}
-              className="mt-4 rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white hover:opacity-95">
-              Clear session & log in again
+              className="mt-4 bg-[#ff7a00] px-6 py-3 text-sm font-black text-white hover:opacity-90">
+              Clear session &amp; log in again
             </button>
           </div>
         </div>
@@ -138,15 +149,29 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
     return (
       <div className="min-h-screen bg-[#f0f0f0] pt-[68px]">
         <div className="px-4 py-8 md:px-8">
-          <div className=" border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-            <p className="text-slate-600">Loading portal…</p>
+          <div className="border border-black/5 bg-white p-8">
+            <p className="text-sm font-semibold text-black/50">Loading portal…</p>
           </div>
         </div>
       </div>
     );
   }
 
-  // All authenticated pages (including info pages) render with full sidebar + topbar
+  // Info pages visible to unauthenticated users: topbar + content + footer, no sidebar
+  if (isPartnerInfoPage && !authed) {
+    return (
+      <div className="min-h-screen bg-[#f0f0f0]">
+        <PortalTopbar onMenuClick={() => {}} />
+        <div className="pt-[68px]">
+          <div className="px-4 py-5 md:px-8 md:py-8">
+            {children}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // All authenticated pages — full sidebar + topbar
   return (
     <div className="min-h-screen bg-[#f0f0f0]">
       <PortalTopbar onMenuClick={() => setSidebarOpen(true)} />
