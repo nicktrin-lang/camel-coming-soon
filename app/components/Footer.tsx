@@ -6,14 +6,15 @@ import { usePathname } from "next/navigation";
 
 const year = new Date().getFullYear();
 
+// ── Shared black footer base ──────────────────────────────────────────────────
 function PortalFooterBase({ children }: { children: React.ReactNode }) {
   return (
-    <footer className="w-full border-t border-white/10 bg-gradient-to-br from-[#003768] to-[#005b9f] text-white">
-      <div className="mx-auto max-w-7xl px-6 py-10">
+    <footer className="w-full bg-black text-white">
+      <div className="mx-auto max-w-7xl px-6 py-12">
         {children}
-        <div className="mt-8 border-t border-white/10 pt-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between text-xs text-white/40">
-          <p>© {year} Camel Global Ltd. All rights reserved.</p>
-          <p>Registered in England &amp; Wales</p>
+        <div className="mt-10 border-t border-white/10 pt-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-bold text-white">© {year} Camel Global Ltd. All rights reserved.</p>
+          <p className="text-sm font-bold text-white">Registered in England &amp; Wales</p>
         </div>
       </div>
     </footer>
@@ -24,30 +25,39 @@ function PortalFooterLogo() {
   return (
     <div className="flex flex-col gap-3">
       <Link href="/">
-        <Image src="/camel-logo.png" alt="Camel Global Ltd" width={160} height={58} className="h-[48px] w-auto brightness-0 invert" />
+        <Image src="/camel-logo.png" alt="Camel Global Ltd" width={160} height={58} className="h-16 w-auto brightness-0 invert" />
       </Link>
-      <p className="max-w-[220px] text-xs leading-relaxed text-white/60">Meet &amp; greet car hire, delivered to your door.</p>
+      <p className="max-w-[220px] text-sm font-bold text-white/60 leading-relaxed">
+        Meet &amp; greet car hire, delivered to your door.
+      </p>
     </div>
   );
 }
 
+// ── Partner footer ────────────────────────────────────────────────────────────
 function PartnerFooter() {
   return (
     <PortalFooterBase>
-      <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
+      <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
         <PortalFooterLogo />
-        <div className="flex flex-wrap gap-10 text-sm">
-          <div className="flex flex-col gap-2">
-            <span className="mb-1 text-xs font-semibold uppercase tracking-wider text-white/40">Company</span>
-            <Link href="/partner/about" className="text-white/80 hover:text-white transition-colors">About Us</Link>
-            <Link href="/partner/contact" className="text-white/80 hover:text-white transition-colors">Contact</Link>
+        <div className="flex flex-wrap gap-12">
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-black uppercase tracking-widest text-white/40 mb-1">Company</p>
+            <Link href="/partner/about"   className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">About Us</Link>
+            <Link href="/partner/contact" className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Contact</Link>
           </div>
-          <div className="flex flex-col gap-2">
-            <span className="mb-1 text-xs font-semibold uppercase tracking-wider text-white/40">Legal</span>
-            <Link href="/partner/terms" className="text-white/80 hover:text-white transition-colors">Partner Terms</Link>
-            <Link href="/partner/operating-rules" className="text-white/80 hover:text-white transition-colors">Operating Agreement</Link>
-            <Link href="/partner/privacy" className="text-white/80 hover:text-white transition-colors">Privacy Policy</Link>
-            <Link href="/partner/cookies" className="text-white/80 hover:text-white transition-colors">Cookie Policy</Link>
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-black uppercase tracking-widest text-white/40 mb-1">Legal</p>
+            <Link href="/partner/terms"            className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Partner Terms</Link>
+            <Link href="/partner/operating-rules"  className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Operating Agreement</Link>
+            <Link href="/partner/privacy"          className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Privacy Policy</Link>
+            <Link href="/partner/cookies"          className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Cookie Policy</Link>
+          </div>
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-black uppercase tracking-widest text-white/40 mb-1">Platform</p>
+            <Link href="/"               className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Customer Site</Link>
+            <Link href="/partner/login"  className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Partner Login</Link>
+            <Link href="/partner/signup" className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Become a Partner</Link>
           </div>
         </div>
       </div>
@@ -55,34 +65,29 @@ function PartnerFooter() {
   );
 }
 
-function DriverFooter() {
-  return (
-    <PortalFooterBase>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <PortalFooterLogo />
-        <Link href="/driver/login" className="text-sm text-white/80 hover:text-white transition-colors">Driver Login</Link>
-      </div>
-    </PortalFooterBase>
-  );
-}
-
+// ── Admin footer ──────────────────────────────────────────────────────────────
 function AdminFooter() {
   return (
     <PortalFooterBase>
-      <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
+      <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
         <PortalFooterLogo />
-        <div className="flex flex-wrap gap-10 text-sm">
-          <div className="flex flex-col gap-2">
-            <span className="mb-1 text-xs font-semibold uppercase tracking-wider text-white/40">Company</span>
-            <Link href="/admin/about" className="text-white/80 hover:text-white transition-colors">About Us</Link>
-            <Link href="/admin/contact" className="text-white/80 hover:text-white transition-colors">Contact</Link>
+        <div className="flex flex-wrap gap-12">
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-black uppercase tracking-widest text-white/40 mb-1">Company</p>
+            <Link href="/admin/about"   className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">About Us</Link>
+            <Link href="/admin/contact" className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Contact</Link>
           </div>
-          <div className="flex flex-col gap-2">
-            <span className="mb-1 text-xs font-semibold uppercase tracking-wider text-white/40">Legal</span>
-            <Link href="/admin/terms" className="text-white/80 hover:text-white transition-colors">Partner Terms</Link>
-            <Link href="/admin/operating-rules" className="text-white/80 hover:text-white transition-colors">Operating Agreement</Link>
-            <Link href="/admin/privacy" className="text-white/80 hover:text-white transition-colors">Privacy Policy</Link>
-            <Link href="/admin/cookies" className="text-white/80 hover:text-white transition-colors">Cookie Policy</Link>
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-black uppercase tracking-widest text-white/40 mb-1">Legal</p>
+            <Link href="/admin/terms"            className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Partner Terms</Link>
+            <Link href="/admin/operating-rules"  className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Operating Agreement</Link>
+            <Link href="/admin/privacy"          className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Privacy Policy</Link>
+            <Link href="/admin/cookies"          className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Cookie Policy</Link>
+          </div>
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-black uppercase tracking-widest text-white/40 mb-1">Platform</p>
+            <Link href="/"              className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Customer Site</Link>
+            <Link href="/partner/login" className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Partner Login</Link>
           </div>
         </div>
       </div>
@@ -90,6 +95,21 @@ function AdminFooter() {
   );
 }
 
+// ── Driver footer ─────────────────────────────────────────────────────────────
+function DriverFooter() {
+  return (
+    <PortalFooterBase>
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+        <PortalFooterLogo />
+        <Link href="/driver/login" className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">
+          Driver Login
+        </Link>
+      </div>
+    </PortalFooterBase>
+  );
+}
+
+// ── Customer footer ───────────────────────────────────────────────────────────
 function CustomerFooter() {
   return (
     <footer className="w-full bg-black text-white">
@@ -153,6 +173,7 @@ function CustomerFooter() {
   );
 }
 
+// ── Router ────────────────────────────────────────────────────────────────────
 export default function Footer() {
   const pathname = usePathname();
   if (pathname?.startsWith("/admin"))   return <AdminFooter />;

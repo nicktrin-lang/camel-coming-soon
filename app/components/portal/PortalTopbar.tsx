@@ -38,13 +38,11 @@ export default function PortalTopbar({ onMenuClick }: PortalTopbarProps) {
   }, [supabase]);
 
   async function handleLogout() {
-    // Clear storage first to prevent lock hang
     try {
       Object.keys(localStorage)
         .filter(k => k.includes("sb-") || k.includes("supabase"))
         .forEach(k => localStorage.removeItem(k));
     } catch {}
-    // Sign out with timeout fallback
     try {
       await Promise.race([
         supabase.auth.signOut(),
@@ -55,40 +53,54 @@ export default function PortalTopbar({ onMenuClick }: PortalTopbarProps) {
   }
 
   return (
-    <header className="fixed inset-x-0 top-0 z-40 h-20 border-b border-black/10 bg-[#0f4f8a] text-white shadow-[0_4px_12px_rgba(0,0,0,0.18)]">
+    <header className="fixed inset-x-0 top-0 z-40 h-[68px] bg-black border-b border-white/10">
       <div className="flex h-full items-center justify-between px-4 md:px-8">
+
+        {/* Left — hamburger + logo */}
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onMenuClick}
-            style={{ pointerEvents: "auto" }}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white hover:bg-white/15 lg:hidden"
+            className="inline-flex h-10 w-10 items-center justify-center border border-white/20 text-white hover:bg-white/10 transition-colors lg:hidden"
             aria-label="Open menu"
           >
-            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M3 6h18" />
-              <path d="M3 12h18" />
-              <path d="M3 18h18" />
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M3 6h18" /><path d="M3 12h18" /><path d="M3 18h18" />
             </svg>
           </button>
           <Link href="/partner/dashboard" className="flex items-center">
-            <Image src="/camel-logo.png" alt="Camel Global logo" width={180} height={60} priority className="h-[52px] w-auto" />
+            <Image
+              src="/camel-logo.png"
+              alt="Camel Global"
+              width={200} height={70}
+              priority
+              className="h-16 w-auto brightness-0 invert"
+            />
           </Link>
         </div>
+
+        {/* Right — name, Book Now, Login/Logout */}
         <div className="flex items-center gap-3">
           {displayName && (
-            <div className="hidden text-sm font-semibold text-white/95 md:block">
-              Welcome: {displayName}
-            </div>
+            <span className="hidden text-sm font-bold text-white/70 md:block">
+              {displayName}
+            </span>
           )}
+          <Link
+            href="/"
+            className="bg-[#ff7a00] px-4 py-2.5 text-sm font-black text-white hover:opacity-90 transition-opacity"
+          >
+            Book Now
+          </Link>
           <button
             type="button"
             onClick={handleLogout}
-            className="rounded-full bg-[#ff7a00] px-5 py-2 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+            className="border border-white/30 px-4 py-2.5 text-sm font-black text-white hover:bg-white/10 transition-colors"
           >
             Logout
           </button>
         </div>
+
       </div>
     </header>
   );

@@ -117,9 +117,9 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
 
   if (timedOut) {
     return (
-      <div className="min-h-screen bg-[#e3f4ff] pt-20">
+      <div className="min-h-screen bg-[#f0f0f0] pt-[68px]">
         <div className="px-4 py-8 md:px-8">
-          <div className="rounded-3xl border border-red-200 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+          <div className=" border border-red-200 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
             <h2 className="text-xl font-semibold text-red-700">Session error</h2>
             <p className="mt-2 text-slate-600">Your session has a conflict. Click below to clear it and log in again.</p>
             <button type="button"
@@ -135,9 +135,9 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#e3f4ff] pt-20">
+      <div className="min-h-screen bg-[#f0f0f0] pt-[68px]">
         <div className="px-4 py-8 md:px-8">
-          <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+          <div className=" border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
             <p className="text-slate-600">Loading portal…</p>
           </div>
         </div>
@@ -147,10 +147,10 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
 
   // All authenticated pages (including info pages) render with full sidebar + topbar
   return (
-    <div className="min-h-screen bg-[#e3f4ff]">
+    <div className="min-h-screen bg-[#f0f0f0]">
       <PortalTopbar onMenuClick={() => setSidebarOpen(true)} />
       <PortalSidebar role={role} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="pt-20 lg:pl-[290px]">
+      <div className="pt-[68px] lg:pl-[290px]">
         <div className={pathname === "/partner/onboarding" ? "p-0" : "px-4 py-5 md:px-8 md:py-8"}>
           {children}
         </div>
