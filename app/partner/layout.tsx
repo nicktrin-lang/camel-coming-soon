@@ -39,13 +39,14 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
   const [timedOut,    setTimedOut]    = useState(false);
 
   // These pages need NO auth and NO layout — shown to unauthenticated visitors.
-  const isUnauthPublicPage =
-    pathname === "/partner/login" ||
-    pathname === "/partner/reset-password" ||
-    pathname === "/partner/application-submitted" ||
-    pathname === "/partner/signup" ||
-    pathname.startsWith("/partner/signup/");
-
+ const isUnauthPublicPage =
+  pathname === "/partner/login" ||
+  pathname === "/partner/reset-password" ||
+  pathname === "/partner/application-submitted" ||
+  pathname === "/partner/signup" ||
+  pathname.startsWith("/partner/signup/") ||
+  pathname === "/partner/terms" ||
+  pathname === "/partner/operating-rules";
   // These pages show WITH the partner layout (sidebar + topbar) but must NOT
   // redirect admins away — admins access these via /admin/* equivalents instead.
   const isPartnerInfoPage =

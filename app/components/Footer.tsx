@@ -6,106 +6,82 @@ import { usePathname } from "next/navigation";
 
 const year = new Date().getFullYear();
 
-// ── Shared black footer base ──────────────────────────────────────────────────
-function PortalFooterBase({ children }: { children: React.ReactNode }) {
+// ── Partner / Admin / Driver footer ──────────────────────────────────────────
+function PortalFooter({ variant }: { variant: "partner" | "admin" | "driver" }) {
+  const termsHref   = variant === "admin" ? "/admin/terms"           : "/partner/terms";
+  const rulesHref   = variant === "admin" ? "/admin/operating-rules" : "/partner/operating-rules";
+
+  if (variant === "driver") {
+    return (
+      <footer className="w-full bg-black border-t border-white/10 text-white">
+        <div className="mx-auto max-w-7xl px-6 py-10 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+          <Link href="/">
+            <Image src="/camel-logo.png" alt="Camel Global" width={160} height={58} className="h-12 w-auto brightness-0 invert" />
+          </Link>
+          <div className="flex gap-6 flex-wrap">
+            <Link href="/driver/login" className="text-sm font-bold text-white/70 hover:text-white transition-colors">Driver Login</Link>
+            <Link href="/about"        className="text-sm font-bold text-white/70 hover:text-white transition-colors">About Us</Link>
+            <Link href="/privacy"      className="text-sm font-bold text-white/70 hover:text-white transition-colors">Privacy Policy</Link>
+          </div>
+        </div>
+        <div className="border-t border-white/10 mx-6 pb-6 pt-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs font-bold text-white/40">© {year} Camel Global Ltd. All rights reserved.</p>
+          <p className="text-xs font-bold text-white/40">Registered in England &amp; Wales</p>
+        </div>
+      </footer>
+    );
+  }
+
   return (
-    <footer className="w-full bg-black text-white">
+    <footer className="w-full bg-black border-t border-white/10 text-white">
       <div className="mx-auto max-w-7xl px-6 py-12">
-        {children}
+        <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
+
+          {/* Logo + tagline */}
+          <div className="flex flex-col gap-3 shrink-0">
+            <Link href="/">
+              <Image src="/camel-logo.png" alt="Camel Global" width={160} height={58} className="h-14 w-auto brightness-0 invert" />
+            </Link>
+            <p className="max-w-[200px] text-sm font-bold text-white/50 leading-relaxed">
+              Meet &amp; greet car hire, delivered to your door.
+            </p>
+          </div>
+
+          {/* Link columns */}
+          <div className="flex flex-wrap gap-10 md:gap-14">
+
+            <div className="flex flex-col gap-3">
+              <p className="text-xs font-black uppercase tracking-widest text-white/40">Company</p>
+              <Link href="/about"   className="text-sm font-bold text-white hover:text-[#ff7a00] transition-colors">About Us</Link>
+              <Link href="/contact" className="text-sm font-bold text-white hover:text-[#ff7a00] transition-colors">Contact</Link>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <p className="text-xs font-black uppercase tracking-widest text-white/40">Legal</p>
+              <Link href={termsHref} className="text-sm font-bold text-white hover:text-[#ff7a00] transition-colors">Partner Terms</Link>
+              <Link href={rulesHref} className="text-sm font-bold text-white hover:text-[#ff7a00] transition-colors">Operating Agreement</Link>
+              <Link href="/privacy"  className="text-sm font-bold text-white hover:text-[#ff7a00] transition-colors">Privacy Policy</Link>
+              <Link href="/cookies"  className="text-sm font-bold text-white hover:text-[#ff7a00] transition-colors">Cookie Policy</Link>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <p className="text-xs font-black uppercase tracking-widest text-white/40">Platform</p>
+              <Link href="/"               className="text-sm font-bold text-white hover:text-[#ff7a00] transition-colors">Customer Site</Link>
+              <Link href="/partner/login"  className="text-sm font-bold text-white hover:text-[#ff7a00] transition-colors">Partner Login</Link>
+              {variant === "partner" && (
+                <Link href="/partner/signup" className="text-sm font-bold text-white hover:text-[#ff7a00] transition-colors">Become a Partner</Link>
+              )}
+            </div>
+
+          </div>
+        </div>
+
         <div className="mt-10 border-t border-white/10 pt-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-bold text-white">© {year} Camel Global Ltd. All rights reserved.</p>
-          <p className="text-sm font-bold text-white">Registered in England &amp; Wales</p>
+          <p className="text-sm font-bold text-white/60">© {year} Camel Global Ltd. All rights reserved.</p>
+          <p className="text-sm font-bold text-white/60">Registered in England &amp; Wales</p>
         </div>
       </div>
     </footer>
-  );
-}
-
-function PortalFooterLogo() {
-  return (
-    <div className="flex flex-col gap-3">
-      <Link href="/">
-        <Image src="/camel-logo.png" alt="Camel Global Ltd" width={160} height={58} className="h-16 w-auto brightness-0 invert" />
-      </Link>
-      <p className="max-w-[220px] text-sm font-bold text-white/60 leading-relaxed">
-        Meet &amp; greet car hire, delivered to your door.
-      </p>
-    </div>
-  );
-}
-
-// ── Partner footer ────────────────────────────────────────────────────────────
-function PartnerFooter() {
-  return (
-    <PortalFooterBase>
-      <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
-        <PortalFooterLogo />
-        <div className="flex flex-wrap gap-12">
-          <div className="flex flex-col gap-3">
-            <p className="text-xs font-black uppercase tracking-widest text-white/40 mb-1">Company</p>
-            <Link href="/about"   className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">About Us</Link>
-            <Link href="/contact" className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Contact</Link>
-          </div>
-          <div className="flex flex-col gap-3">
-            <p className="text-xs font-black uppercase tracking-widest text-white/40 mb-1">Legal</p>
-            <Link href="/partner/terms"           className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Partner Terms</Link>
-            <Link href="/partner/operating-rules" className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Operating Agreement</Link>
-            <Link href="/privacy"                 className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Privacy Policy</Link>
-            <Link href="/cookies"                 className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Cookie Policy</Link>
-          </div>
-          <div className="flex flex-col gap-3">
-            <p className="text-xs font-black uppercase tracking-widest text-white/40 mb-1">Platform</p>
-            <Link href="/"               className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Customer Site</Link>
-            <Link href="/partner/login"  className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Partner Login</Link>
-            <Link href="/partner/signup" className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Become a Partner</Link>
-          </div>
-        </div>
-      </div>
-    </PortalFooterBase>
-  );
-}
-
-// ── Admin footer ──────────────────────────────────────────────────────────────
-function AdminFooter() {
-  return (
-    <PortalFooterBase>
-      <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
-        <PortalFooterLogo />
-        <div className="flex flex-wrap gap-12">
-          <div className="flex flex-col gap-3">
-            <p className="text-xs font-black uppercase tracking-widest text-white/40 mb-1">Company</p>
-            <Link href="/about"   className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">About Us</Link>
-            <Link href="/contact" className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Contact</Link>
-          </div>
-          <div className="flex flex-col gap-3">
-            <p className="text-xs font-black uppercase tracking-widest text-white/40 mb-1">Legal</p>
-            <Link href="/admin/terms"            className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Partner Terms</Link>
-            <Link href="/admin/operating-rules"  className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Operating Agreement</Link>
-            <Link href="/privacy"                className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Privacy Policy</Link>
-            <Link href="/cookies"                className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Cookie Policy</Link>
-          </div>
-          <div className="flex flex-col gap-3">
-            <p className="text-xs font-black uppercase tracking-widest text-white/40 mb-1">Platform</p>
-            <Link href="/"              className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Customer Site</Link>
-            <Link href="/partner/login" className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Partner Login</Link>
-          </div>
-        </div>
-      </div>
-    </PortalFooterBase>
-  );
-}
-
-// ── Driver footer ─────────────────────────────────────────────────────────────
-function DriverFooter() {
-  return (
-    <PortalFooterBase>
-      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-        <PortalFooterLogo />
-        <Link href="/driver/login" className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">
-          Driver Login
-        </Link>
-      </div>
-    </PortalFooterBase>
   );
 }
 
@@ -113,9 +89,10 @@ function DriverFooter() {
 function CustomerFooter() {
   return (
     <footer className="w-full bg-black text-white">
+
       {/* Ready to book CTA */}
       <div className="border-b border-white/10 py-14">
-        <div className="mx-auto max-w-xl px-4 text-center">
+        <div className="mx-auto max-w-xl px-6 text-center">
           <h2 className="text-3xl font-black text-white sm:text-4xl">Ready to book?</h2>
           <p className="mt-2 text-base font-bold text-white/70">No account needed to start.</p>
           <Link href="/book"
@@ -129,42 +106,46 @@ function CustomerFooter() {
         </div>
       </div>
 
-      {/* Footer links */}
+      {/* Links */}
       <div className="mx-auto max-w-7xl px-6 py-12">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4 mb-10">
-          <div>
-            <Image src="/camel-logo.png" alt="Camel" width={200} height={70}
-              className="h-16 w-auto mb-4 brightness-0 invert" />
-            <p className="text-sm font-bold text-white leading-relaxed">
+        <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
+
+          {/* Logo + tagline */}
+          <div className="shrink-0">
+            <Image src="/camel-logo.png" alt="Camel" width={200} height={70} className="h-14 w-auto mb-4 brightness-0 invert" />
+            <p className="max-w-[200px] text-sm font-bold text-white/60 leading-relaxed">
               Meet &amp; greet car hire, delivered to your door.
             </p>
           </div>
-          <div>
-            <p className="text-xs font-black uppercase tracking-widest text-white/50 mb-4">Company</p>
-            <ul className="space-y-3">
-              <li><Link href="/about"          className="text-base font-bold text-white hover:underline transition-colors">About Us</Link></li>
-              <li><Link href="/partner/signup" className="text-base font-bold text-white hover:underline transition-colors">Become a Partner</Link></li>
-              <li><Link href="/contact"        className="text-base font-bold text-white hover:underline transition-colors">Contact</Link></li>
-            </ul>
-          </div>
-          <div>
-            <p className="text-xs font-black uppercase tracking-widest text-white/50 mb-4">Legal</p>
-            <ul className="space-y-3">
-              <li><Link href="/terms"   className="text-base font-bold text-white hover:underline transition-colors">Customer Terms</Link></li>
-              <li><Link href="/privacy" className="text-base font-bold text-white hover:underline transition-colors">Privacy Policy</Link></li>
-              <li><Link href="/cookies" className="text-base font-bold text-white hover:underline transition-colors">Cookie Policy</Link></li>
-            </ul>
-          </div>
-          <div>
-            <p className="text-xs font-black uppercase tracking-widest text-white/50 mb-4">Account</p>
-            <ul className="space-y-3">
-              <li><Link href="/login"    className="text-base font-bold text-white hover:underline transition-colors">Sign In</Link></li>
-              <li><Link href="/signup"   className="text-base font-bold text-white hover:underline transition-colors">Create Account</Link></li>
-              <li><Link href="/bookings" className="text-base font-bold text-white hover:underline transition-colors">My Bookings</Link></li>
-            </ul>
+
+          {/* Link columns */}
+          <div className="flex flex-wrap gap-10 md:gap-14">
+
+            <div className="flex flex-col gap-3">
+              <p className="text-xs font-black uppercase tracking-widest text-white/50">Company</p>
+              <Link href="/about"          className="text-sm font-bold text-white hover:underline">About Us</Link>
+              <Link href="/partner/signup" className="text-sm font-bold text-white hover:underline">Become a Partner</Link>
+              <Link href="/contact"        className="text-sm font-bold text-white hover:underline">Contact</Link>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <p className="text-xs font-black uppercase tracking-widest text-white/50">Legal</p>
+              <Link href="/terms"   className="text-sm font-bold text-white hover:underline">Customer Terms</Link>
+              <Link href="/privacy" className="text-sm font-bold text-white hover:underline">Privacy Policy</Link>
+              <Link href="/cookies" className="text-sm font-bold text-white hover:underline">Cookie Policy</Link>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <p className="text-xs font-black uppercase tracking-widest text-white/50">Account</p>
+              <Link href="/login"    className="text-sm font-bold text-white hover:underline">Sign In</Link>
+              <Link href="/signup"   className="text-sm font-bold text-white hover:underline">Create Account</Link>
+              <Link href="/bookings" className="text-sm font-bold text-white hover:underline">My Bookings</Link>
+            </div>
+
           </div>
         </div>
-        <div className="border-t border-white/20 pt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+
+        <div className="mt-10 border-t border-white/20 pt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm font-bold text-white">© {year} Camel Global Ltd. All rights reserved.</p>
           <p className="text-sm font-bold text-white">Registered in England &amp; Wales</p>
         </div>
@@ -176,8 +157,8 @@ function CustomerFooter() {
 // ── Router ────────────────────────────────────────────────────────────────────
 export default function Footer() {
   const pathname = usePathname();
-  if (pathname?.startsWith("/admin"))   return <AdminFooter />;
-  if (pathname?.startsWith("/driver"))  return <DriverFooter />;
-  if (pathname?.startsWith("/partner")) return <PartnerFooter />;
+  if (pathname?.startsWith("/admin"))   return <PortalFooter variant="admin" />;
+  if (pathname?.startsWith("/driver"))  return <PortalFooter variant="driver" />;
+  if (pathname?.startsWith("/partner")) return <PortalFooter variant="partner" />;
   return <CustomerFooter />;
 }
