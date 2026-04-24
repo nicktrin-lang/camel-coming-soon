@@ -236,77 +236,83 @@ async function downloadTermsPDF() {
 
 export default function PartnerTermsPage() {
   return (
-    <div className="space-y-4">
+    <div className="min-h-screen bg-[#f0f0f0]">
 
-      {/* Header */}
-      <div className="bg-white p-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-xs font-black uppercase tracking-widest text-[#ff7a00] mb-2">Legal</p>
-            <h1 className="text-3xl font-black text-black">Partner Terms and Conditions</h1>
-            <p className="mt-2 text-sm font-semibold text-black/50">Version {VERSION} — Effective {EFFECTIVE_DATE}</p>
-            <p className="mt-3 text-sm font-semibold text-black/70 leading-relaxed max-w-2xl">
-              These Terms govern your use of the Camel Global platform as a partner. Please read them carefully.
-              By registering as a partner and ticking the acceptance checkbox during signup, you agree to be bound
-              by these Terms and the Partner Operating Rules, which are incorporated by reference.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => downloadTermsPDF()}
-            className="shrink-0 bg-black px-5 py-3 text-sm font-black text-white hover:opacity-80 transition-opacity"
-          >
-            ⬇ Download PDF
-          </button>
-        </div>
-
-        {/* Key points */}
-        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {[
-            { icon: "🏪", title: "Camel is a marketplace", body: "We are an intermediary. The hire contract is always between you and the customer." },
-            { icon: "💰", title: "20% commission",         body: "On the hire price only. Fuel charges pass through to you at 100%. Minimum €10 per booking." },
-            { icon: "⚖️", title: "England & Wales law",    body: "This agreement is governed by English law. Disputes are subject to the courts of England and Wales." },
-          ].map(({ icon, title, body }) => (
-            <div key={title} className="bg-[#f0f0f0] p-4">
-              <div className="text-2xl mb-2">{icon}</div>
-              <p className="text-xs font-black uppercase tracking-widest text-black mb-1">{title}</p>
-              <p className="text-xs font-semibold text-black/60">{body}</p>
-            </div>
-          ))}
+      {/* Hero */}
+      <div className="w-full bg-black px-6 py-16 text-white">
+        <div className="mx-auto max-w-3xl">
+          <p className="mb-2 text-sm font-black uppercase tracking-widest text-[#ff7a00]">Legal</p>
+          <h1 className="text-4xl font-black text-white md:text-5xl">Partner Terms and Conditions</h1>
+          <p className="mt-3 text-base font-semibold text-white/70">
+            These Terms govern your use of the Camel Global platform as a partner. Please read them carefully.
+            By registering as a partner and ticking the acceptance checkbox during signup, you agree to be bound
+            by these Terms and the Partner Operating Rules, which are incorporated by reference.
+          </p>
+          <p className="mt-2 text-xs font-semibold text-white/40">Version {VERSION} — Effective {EFFECTIVE_DATE}</p>
         </div>
       </div>
 
-      {/* Terms sections */}
-      {TERMS.map(({ title, clauses }) => (
-        <div key={title} className="bg-white p-6">
-          <h2 className="text-xs font-black uppercase tracking-widest text-black mb-4 pb-2 border-b border-black/10">{title}</h2>
-          <ol className="space-y-3">
-            {clauses.map((clause, i) => (
-              <li key={i} className="flex gap-3 text-sm font-semibold text-black/70 leading-relaxed">
-                <span className="shrink-0 font-black text-black w-5">{i + 1}.</span>
-                <span>{clause}</span>
-              </li>
-            ))}
-          </ol>
-        </div>
-      ))}
+      {/* Content */}
+      <div className="mx-auto max-w-3xl px-6 py-10 space-y-4">
 
-      {/* Operating rules note */}
-      <div className="bg-[#f0f0f0] p-6">
-        <p className="text-xs font-black uppercase tracking-widest text-black mb-2">Partner Operating Rules</p>
-        <p className="text-sm font-semibold text-black/70 leading-relaxed">
-          The Partner Operating Rules are incorporated into this Agreement and have the same legal force as these Terms.
-          They set out the day-to-day operational standards covering bidding, vehicle standards, fuel policy, driver conduct,
-          customer service, and more. You can read and download the Operating Rules from your{" "}
-          <Link href="/partner/account" className="font-black text-black underline hover:opacity-70">
-            partner account page
-          </Link>.
+        {/* Download + key points */}
+        <div className="bg-white p-6">
+          <div className="flex justify-end mb-6">
+            <button
+              type="button"
+              onClick={() => downloadTermsPDF()}
+              className="bg-black px-5 py-3 text-sm font-black text-white hover:opacity-80 transition-opacity"
+            >
+              ⬇ Download PDF
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {[
+              { icon: "🏪", title: "Camel is a marketplace", body: "We are an intermediary. The hire contract is always between you and the customer." },
+              { icon: "💰", title: "20% commission",         body: "On the hire price only. Fuel charges pass through to you at 100%. Minimum €10 per booking." },
+              { icon: "⚖️", title: "England & Wales law",    body: "This agreement is governed by English law. Disputes are subject to the courts of England and Wales." },
+            ].map(({ icon, title, body }) => (
+              <div key={title} className="bg-[#f0f0f0] p-4">
+                <div className="text-2xl mb-2">{icon}</div>
+                <p className="text-xs font-black uppercase tracking-widest text-black mb-1">{title}</p>
+                <p className="text-xs font-semibold text-black/60">{body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Terms sections */}
+        {TERMS.map(({ title, clauses }) => (
+          <div key={title} className="bg-white p-6">
+            <h2 className="text-xs font-black uppercase tracking-widest text-black mb-4 pb-2 border-b border-black/10">{title}</h2>
+            <ol className="space-y-3">
+              {clauses.map((clause, i) => (
+                <li key={i} className="flex gap-3 text-sm font-semibold text-black/70 leading-relaxed">
+                  <span className="shrink-0 font-black text-black w-5">{i + 1}.</span>
+                  <span>{clause}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        ))}
+
+        {/* Operating rules note */}
+        <div className="bg-[#f0f0f0] p-6">
+          <p className="text-xs font-black uppercase tracking-widest text-black mb-2">Partner Operating Rules</p>
+          <p className="text-sm font-semibold text-black/70 leading-relaxed">
+            The Partner Operating Rules are incorporated into this Agreement and have the same legal force as these Terms.
+            They set out the day-to-day operational standards covering bidding, vehicle standards, fuel policy, driver conduct,
+            customer service, and more. You can read and download the Operating Rules from your{" "}
+            <Link href="/partner/account" className="font-black text-black underline hover:opacity-70">
+              partner account page
+            </Link>.
+          </p>
+        </div>
+
+        <p className="text-xs font-semibold text-black/30 text-center pb-4">
+          Camel Global Partner Terms and Conditions — Version {VERSION} — Effective {EFFECTIVE_DATE} — Subject to change with 14 days&apos; notice.
         </p>
       </div>
-
-      <p className="text-xs font-semibold text-black/30 text-center pb-4">
-        Camel Global Partner Terms and Conditions — Version {VERSION} — Effective {EFFECTIVE_DATE} — Subject to change with 14 days&apos; notice.
-      </p>
     </div>
   );
 }
