@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
-import { createAuthSupabaseClient } from "@/lib/supabase/auth-client";
 import HCaptcha from "@/app/components/HCaptcha";
+import Footer from "@/app/components/Footer";
 
 async function verifyCaptcha(token: string): Promise<boolean> {
   const res = await fetch("/api/auth/verify-captcha", {
@@ -17,9 +17,8 @@ async function verifyCaptcha(token: string): Promise<boolean> {
 }
 
 export default function DriverLoginPage() {
-  const router     = useRouter();
-  const supabase   = useMemo(() => createBrowserSupabaseClient(), []);
-  const authClient = useMemo(() => createAuthSupabaseClient(), []);
+  const router   = useRouter();
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
 
   const [email,        setEmail]        = useState("");
   const [password,     setPassword]     = useState("");
@@ -48,7 +47,6 @@ export default function DriverLoginPage() {
       if (!loginToken) { setError("Please complete the CAPTCHA."); setLoading(false); return; }
       const captchaOk = await verifyCaptcha(loginToken);
       if (!captchaOk) { setError("CAPTCHA verification failed. Please try again."); resetLoginCaptcha(); setLoading(false); return; }
-
       const { error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (signInError) throw new Error(signInError.message || "Failed to sign in.");
       router.push("/driver/jobs");
@@ -68,7 +66,6 @@ export default function DriverLoginPage() {
       if (!forgotToken) { setResetError("Please complete the CAPTCHA."); setResetLoading(false); return; }
       const captchaOk = await verifyCaptcha(forgotToken);
       if (!captchaOk) { setResetError("CAPTCHA verification failed. Please try again."); resetForgotCaptcha(); setResetLoading(false); return; }
-
       document.cookie = "resetPortal=driver; domain=.camel-global.com; path=/; max-age=3600";
       const res  = await fetch("/api/auth/send-reset-email", {
         method: "POST",
@@ -87,88 +84,105 @@ export default function DriverLoginPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10">
-      <div className="mx-auto w-full max-w-xl rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)] md:p-10">
+    <div className="flex flex-col min-h-screen bg-[#f0f0f0]">
 
-        {mode === "login" ? (
-          <>
-            <h1 className="text-3xl font-semibold text-[#003768]">Driver Login</h1>
-            <p className="mt-2 text-slate-600">Sign in to view your assigned jobs.</p>
+      {/* Black hero band */}
+      <div className="bg-black py-16 px-6 text-center">
+        <p className="text-xs font-black uppercase tracking-widest text-[#ff7a00] mb-3">Driver Portal</p>
+        <h1 className="text-4xl font-black text-white sm:text-5xl">
+          {mode === "forgot" ? "Reset Password" : "Driver Login"}
+        </h1>
+        <p className="mt-3 text-base font-bold text-white/60">
+          {mode === "forgot" ? "Enter your email and we'll send you a reset link." : "Sign in to view your assigned jobs."}
+        </p>
+      </div>
 
-            {error && (
-              <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
-            )}
+      {/* Form area */}
+      <div className="flex-1 bg-[#f0f0f0] py-12 px-4">
+        <div className="mx-auto w-full max-w-lg bg-white p-8 md:p-10">
 
-            <form onSubmit={handleLogin} className="mt-8 space-y-5">
-              <div>
-                <label className="text-sm font-medium text-[#003768]">Email</label>
-                <input type="email" autoComplete="email" required
-                  value={email} onChange={e => setEmail(e.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a]"
-                  placeholder="driver@company.com" />
-              </div>
-              <div>
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-[#003768]">Password</label>
-                  <button type="button" onClick={() => { setMode("forgot"); setError(null); setResetSent(false); }}
-                    className="text-xs font-medium text-[#005b9f] hover:underline">
-                    Forgot password?
+          {mode === "login" ? (
+            <>
+              {error && (
+                <div className="mb-6 border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">{error}</div>
+              )}
+
+              <form onSubmit={handleLogin} className="space-y-5">
+                <div>
+                  <label className="text-xs font-black uppercase tracking-widest text-black">Email</label>
+                  <input type="email" autoComplete="email" required
+                    value={email} onChange={e => setEmail(e.target.value)}
+                    className="mt-2 w-full border border-black/10 bg-[#f0f0f0] px-4 py-4 text-sm font-bold outline-none focus:border-black"
+                    placeholder="driver@company.com" />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black uppercase tracking-widest text-black">Password</label>
+                    <button type="button" onClick={() => { setMode("forgot"); setError(null); setResetSent(false); }}
+                      className="text-xs font-bold text-black/50 hover:text-black transition-colors">
+                      Forgot password?
+                    </button>
+                  </div>
+                  <input type="password" autoComplete="current-password" required
+                    value={password} onChange={e => setPassword(e.target.value)}
+                    className="mt-2 w-full border border-black/10 bg-[#f0f0f0] px-4 py-4 text-sm font-bold outline-none focus:border-black"
+                    placeholder="Enter your password" />
+                </div>
+                <HCaptcha key={loginKey} onVerify={handleLoginToken} onExpire={() => setLoginToken("")} />
+                <button type="submit" disabled={loading}
+                  className="w-full bg-[#ff7a00] px-6 py-4 text-sm font-black text-white hover:opacity-90 transition-opacity disabled:opacity-60">
+                  {loading ? "Signing in…" : "Sign In"}
+                </button>
+              </form>
+
+              <p className="mt-6 text-sm font-bold text-black/50">
+                New driver?{" "}
+                <Link href="/driver/signup" className="text-black hover:text-[#ff7a00] transition-colors">Set your password</Link>
+              </p>
+            </>
+          ) : (
+            <>
+              <button type="button" onClick={() => { setMode("login"); setResetSent(false); setResetError(""); }}
+                className="mb-6 flex items-center gap-2 text-sm font-black text-black/50 hover:text-black transition-colors">
+                ← Back to login
+              </button>
+
+              {resetSent ? (
+                <div className="border border-black/10 bg-[#f0f0f0] p-6">
+                  <p className="text-sm font-black text-black">Reset email sent ✓</p>
+                  <p className="mt-1 text-sm font-bold text-black/60">Check your inbox for a password reset link.</p>
+                  <button type="button" onClick={() => setMode("login")}
+                    className="mt-4 text-sm font-black text-[#ff7a00] hover:opacity-80 transition-opacity">
+                    Back to login
                   </button>
                 </div>
-                <input type="password" autoComplete="current-password" required
-                  value={password} onChange={e => setPassword(e.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a]"
-                  placeholder="Enter your password" />
-              </div>
-              <HCaptcha key={loginKey} onVerify={handleLoginToken} onExpire={() => setLoginToken("")} />
-              <button type="submit" disabled={loading}
-                className="w-full rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60">
-                {loading ? "Signing in..." : "Sign In"}
-              </button>
-            </form>
-
-            <div className="mt-6 text-sm text-slate-600">
-              New driver?{" "}
-              <Link href="/driver/signup" className="font-semibold text-[#003768] hover:underline">Set your password</Link>
-            </div>
-          </>
-        ) : (
-          <>
-            <button type="button" onClick={() => { setMode("login"); setResetSent(false); setResetError(""); }}
-              className="mb-6 flex items-center gap-2 text-sm font-medium text-[#003768] hover:underline">
-              ← Back to login
-            </button>
-            <h1 className="text-3xl font-semibold text-[#003768]">Reset Password</h1>
-            <p className="mt-2 text-slate-600">Enter your email and we'll send you a reset link.</p>
-
-            {resetSent ? (
-              <div className="mt-8 rounded-2xl border border-green-200 bg-green-50 p-5 text-sm text-green-700">
-                <p className="font-semibold">Reset email sent ✓</p>
-                <p className="mt-1">Check your inbox for a password reset link.</p>
-                <button type="button" onClick={() => setMode("login")} className="mt-4 text-[#003768] underline font-medium">Back to login</button>
-              </div>
-            ) : (
-              <>
-                {resetError && <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{resetError}</div>}
-                <form onSubmit={handleForgotPassword} className="mt-8 space-y-5">
-                  <div>
-                    <label className="text-sm font-medium text-[#003768]">Email address</label>
-                    <input type="email" autoComplete="email" required
-                      value={email} onChange={e => setEmail(e.target.value)}
-                      className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a]"
-                      placeholder="your@email.com" />
-                  </div>
-                  <HCaptcha key={forgotKey} onVerify={handleForgotToken} onExpire={() => setForgotToken("")} />
-                  <button type="submit" disabled={resetLoading}
-                    className="w-full rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60">
-                    {resetLoading ? "Sending..." : "Send reset link"}
-                  </button>
-                </form>
-              </>
-            )}
-          </>
-        )}
+              ) : (
+                <>
+                  {resetError && (
+                    <div className="mb-6 border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">{resetError}</div>
+                  )}
+                  <form onSubmit={handleForgotPassword} className="space-y-5">
+                    <div>
+                      <label className="text-xs font-black uppercase tracking-widest text-black">Email address</label>
+                      <input type="email" autoComplete="email" required
+                        value={email} onChange={e => setEmail(e.target.value)}
+                        className="mt-2 w-full border border-black/10 bg-[#f0f0f0] px-4 py-4 text-sm font-bold outline-none focus:border-black"
+                        placeholder="your@email.com" />
+                    </div>
+                    <HCaptcha key={forgotKey} onVerify={handleForgotToken} onExpire={() => setForgotToken("")} />
+                    <button type="submit" disabled={resetLoading}
+                      className="w-full bg-[#ff7a00] px-6 py-4 text-sm font-black text-white hover:opacity-90 transition-opacity disabled:opacity-60">
+                      {resetLoading ? "Sending…" : "Send reset link"}
+                    </button>
+                  </form>
+                </>
+              )}
+            </>
+          )}
+        </div>
       </div>
+
+      <Footer />
     </div>
   );
 }
