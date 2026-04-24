@@ -38,10 +38,7 @@ type RequestRow = {
   expires_at: string | null;
 };
 
-type LiveStatus = {
-  isLive: boolean;
-  missing: string[];
-};
+type LiveStatus = { isLive: boolean; missing: string[] };
 
 const MISSING_LABELS: Record<string, { label: string; href: string }> = {
   service_radius_km: { label: "Service radius not set",         href: "/partner/profile" },
@@ -51,8 +48,8 @@ const MISSING_LABELS: Record<string, { label: string; href: string }> = {
   base_lng:          { label: "Fleet base location missing",    href: "/partner/profile" },
   fleet:             { label: "No active fleet vehicles added", href: "/partner/fleet" },
   driver:            { label: "No active drivers added",        href: "/partner/drivers" },
-  default_currency:  { label: "Billing currency not set",      href: "/partner/profile" },
-  vat_number:        { label: "VAT / NIF number not set",      href: "/partner/profile" },
+  default_currency:  { label: "Billing currency not set",       href: "/partner/profile" },
+  vat_number:        { label: "VAT / NIF number not set",       href: "/partner/profile" },
 };
 
 function fmtDateTime(iso?: string | null) {
@@ -73,7 +70,7 @@ function statusPill(status?: string | null) {
   if (["driver_assigned", "en_route", "arrived", "collected", "returned"].includes(s)) return "border-amber-200 bg-amber-50 text-amber-700";
   if (["open", "bid_submitted"].includes(s)) return "border-blue-200 bg-blue-50 text-blue-700";
   if (["cancelled", "expired", "bid_unsuccessful"].includes(s)) return "border-red-200 bg-red-50 text-red-700";
-  return "border-black/10 bg-white text-slate-700";
+  return "border-black/10 bg-white text-black/60";
 }
 
 function fmtStatus(s?: string | null) {
@@ -122,10 +119,7 @@ export default function PartnerDashboardPage() {
         const [
           { data: profileRow },
           { data: appRow },
-          bkRes,
-          reqRes,
-          drvRes,
-          fleetRes,
+          bkRes, reqRes, drvRes, fleetRes,
         ] = await Promise.all([
           supabase.from("partner_profiles")
             .select("contact_name,company_name,address,service_radius_km,country,default_currency,base_lat,base_lng,vat_number")
@@ -133,25 +127,24 @@ export default function PartnerDashboardPage() {
           supabase.from("partner_applications")
             .select("status").eq("email", userEmail)
             .order("created_at", { ascending: false }).limit(1).maybeSingle(),
-          fetch("/api/partner/bookings", { cache: "no-store", credentials: "include" }),
-          fetch("/api/partner/requests", { cache: "no-store", credentials: "include" }),
-          fetch("/api/partner/drivers", { cache: "no-store", credentials: "include" }),
+          fetch("/api/partner/bookings",  { cache: "no-store", credentials: "include" }),
+          fetch("/api/partner/requests",  { cache: "no-store", credentials: "include" }),
+          fetch("/api/partner/drivers",   { cache: "no-store", credentials: "include" }),
           supabase.from("partner_fleet").select("id").eq("user_id", user.id).eq("is_active", true),
         ]);
 
         const bkJson  = await safeJson(bkRes);
         const reqJson = await safeJson(reqRes);
         const drvJson = await safeJson(drvRes);
-
         if (!mounted) return;
 
         setProfile(profileRow as Profile | null);
         setAppStatus(String(appRow?.status || "pending"));
         setEmail(userEmail);
-        setBookings(Array.isArray(bkJson?.data) ? bkJson.data.slice(0, 5) : []);
-        setRequests(Array.isArray(reqJson?.data) ? reqJson.data.slice(0, 5) : []);
+        setBookings(Array.isArray(bkJson?.data)   ? bkJson.data.slice(0, 5)  : []);
+        setRequests(Array.isArray(reqJson?.data)   ? reqJson.data.slice(0, 5) : []);
         setDriverCount(Array.isArray(drvJson?.data) ? drvJson.data.filter((d: any) => d.is_active).length : 0);
-        setFleetCount(Array.isArray(fleetRes?.data) ? fleetRes.data.length : 0);
+        setFleetCount(Array.isArray(fleetRes?.data)  ? fleetRes.data.length : 0);
 
         try {
           const liveRes = await fetch("/api/partner/refresh-live-status", {
@@ -159,21 +152,17 @@ export default function PartnerDashboardPage() {
           });
           if (liveRes.ok) {
             const liveJson = await liveRes.json();
-            if (mounted) {
-              setLiveStatus({
-                isLive: !!(liveJson?.becameLive || liveJson?.alreadyLive),
-                missing: Array.isArray(liveJson?.missing) ? liveJson.missing : [],
-              });
-            }
+            if (mounted) setLiveStatus({
+              isLive: !!(liveJson?.becameLive || liveJson?.alreadyLive),
+              missing: Array.isArray(liveJson?.missing) ? liveJson.missing : [],
+            });
           }
         } catch {}
-
       } catch (e: any) {
         if (!mounted) return;
         setError(e?.message || "Failed to load dashboard.");
       } finally {
-        if (!mounted) return;
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
     load();
@@ -181,8 +170,8 @@ export default function PartnerDashboardPage() {
   }, [router, supabase]);
 
   if (loading) return (
-    <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-      <p className="text-slate-600">Loading dashboard…</p>
+    <div className="border border-black/5 bg-white p-8">
+      <p className="text-sm font-bold text-black/50">Loading dashboard…</p>
     </div>
   );
 
@@ -193,34 +182,32 @@ export default function PartnerDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {error && <div className="border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div>}
 
       {/* Header */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-[#003768]">Partner Dashboard</h1>
-          <p className="mt-1 text-slate-600">
+          <h1 className="text-3xl font-black text-black">Partner Dashboard</h1>
+          <p className="mt-1 text-sm font-bold text-black/50">
             Welcome back{profile?.contact_name ? `, ${profile.contact_name}` : ""}
             {profile?.company_name ? ` — ${profile.company_name}` : ""}.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${
-            isApproved ? "border-green-200 bg-green-50 text-green-700" : "border-amber-200 bg-amber-50 text-amber-700"
-          }`}>
-            {isApproved ? "✓ Account Approved" : "⏳ Pending Approval"}
-          </span>
-        </div>
+        <span className={`inline-flex border px-3 py-1 text-xs font-black uppercase tracking-widest ${
+          isApproved ? "border-black/20 bg-black text-white" : "border-amber-300 bg-amber-50 text-amber-700"
+        }`}>
+          {isApproved ? "✓ Account Approved" : "⏳ Pending Approval"}
+        </span>
       </div>
 
       {/* Live status banner */}
       {liveStatus && !liveStatus.isLive && (
-        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5">
+        <div className="border border-amber-200 bg-amber-50 p-5">
           <div className="flex items-start gap-3">
-            <span className="text-2xl">⚠️</span>
+            <span className="text-xl">⚠️</span>
             <div className="flex-1">
-              <p className="font-semibold text-amber-800">Your account is not yet live</p>
-              <p className="mt-1 text-sm text-amber-700">Complete the following to start receiving customer requests:</p>
+              <p className="font-black text-amber-800">Your account is not yet live</p>
+              <p className="mt-1 text-sm font-bold text-amber-700">Complete the following to start receiving customer requests:</p>
               {liveStatus.missing.length > 0 && (
                 <ul className="mt-3 flex flex-wrap gap-2">
                   {liveStatus.missing.map(m => {
@@ -228,9 +215,8 @@ export default function PartnerDashboardPage() {
                     return (
                       <li key={m}>
                         <a href={info.href}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-white px-3 py-1.5 text-sm font-medium text-amber-800 hover:bg-amber-100 transition-colors">
-                          <span className="text-amber-500">→</span>
-                          {info.label}
+                          className="inline-flex items-center gap-1.5 border border-amber-300 bg-white px-3 py-1.5 text-sm font-black text-amber-800 hover:bg-amber-100 transition-colors">
+                          → {info.label}
                         </a>
                       </li>
                     );
@@ -244,33 +230,26 @@ export default function PartnerDashboardPage() {
 
       {/* Pending approval banner */}
       {!isApproved && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          <span className="font-semibold">Your account is under review.</span> You will receive an email once approved. In the meantime you can complete your profile, add your fleet and drivers.
+        <div className="border border-amber-200 bg-amber-50 p-4 text-sm">
+          <span className="font-black text-amber-800">Your account is under review.</span>
+          <span className="font-bold text-amber-700"> You will receive an email once approved. In the meantime you can complete your profile, add your fleet and drivers.</span>
         </div>
       )}
 
       {/* Stats cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="rounded-3xl border border-black/5 bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-          <p className="text-sm font-medium text-slate-500">Active Bookings</p>
-          <p className="mt-2 text-3xl font-bold text-amber-600">{activeBookings.length}</p>
-          <Link href="/partner/bookings" className="mt-2 block text-xs text-[#003768] hover:underline">View all →</Link>
-        </div>
-        <div className="rounded-3xl border border-black/5 bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-          <p className="text-sm font-medium text-slate-500">Open Requests</p>
-          <p className="mt-2 text-3xl font-bold text-blue-600">{openRequests.length}</p>
-          <Link href="/partner/requests" className="mt-2 block text-xs text-[#003768] hover:underline">View all →</Link>
-        </div>
-        <div className="rounded-3xl border border-black/5 bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-          <p className="text-sm font-medium text-slate-500">Completed</p>
-          <p className="mt-2 text-3xl font-bold text-green-600">{completedBookings.length}</p>
-          <Link href="/partner/reports" className="mt-2 block text-xs text-[#003768] hover:underline">View reports →</Link>
-        </div>
-        <div className="rounded-3xl border border-black/5 bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-          <p className="text-sm font-medium text-slate-500">Active Drivers</p>
-          <p className="mt-2 text-3xl font-bold text-[#003768]">{driverCount}</p>
-          <Link href="/partner/drivers" className="mt-2 block text-xs text-[#003768] hover:underline">Manage drivers →</Link>
-        </div>
+        {[
+          { label: "Active Bookings", value: activeBookings.length,    link: "/partner/bookings", linkLabel: "View all →",      color: "text-[#ff7a00]" },
+          { label: "Open Requests",   value: openRequests.length,      link: "/partner/requests", linkLabel: "View all →",      color: "text-[#ff7a00]" },
+          { label: "Completed",       value: completedBookings.length, link: "/partner/reports",  linkLabel: "View reports →",  color: "text-black" },
+          { label: "Active Drivers",  value: driverCount,              link: "/partner/drivers",  linkLabel: "Manage drivers →",color: "text-black" },
+        ].map(({ label, value, link, linkLabel, color }) => (
+          <div key={label} className="border border-black/5 bg-white p-5">
+            <p className="text-xs font-black uppercase tracking-widest text-black/50">{label}</p>
+            <p className={`mt-2 text-3xl font-black ${color}`}>{value}</p>
+            <Link href={link} className="mt-2 block text-xs font-black text-black/40 hover:text-[#ff7a00] transition-colors">{linkLabel}</Link>
+          </div>
+        ))}
       </div>
 
       {/* Quick actions */}
@@ -282,10 +261,8 @@ export default function PartnerDashboardPage() {
           { label: "✏️ Edit Profile",  href: "/partner/profile",  primary: false },
         ].map(({ label, href, primary }) => (
           <Link key={href} href={href}
-            className={`rounded-2xl px-4 py-3 text-center text-sm font-semibold transition-opacity hover:opacity-90 ${
-              primary
-                ? "bg-[#ff7a00] text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)]"
-                : "border border-[#003768]/20 bg-white text-[#003768] hover:bg-[#003768]/5"
+            className={`px-4 py-3 text-center text-sm font-black transition-opacity hover:opacity-90 ${
+              primary ? "bg-[#ff7a00] text-white" : "border border-black/20 bg-white text-black hover:bg-black/5"
             }`}>
             {label}
           </Link>
@@ -294,31 +271,31 @@ export default function PartnerDashboardPage() {
 
       <div className="grid gap-6 xl:grid-cols-2">
         {/* Recent Bookings */}
-        <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-[#003768]">Recent Bookings</h2>
-            <Link href="/partner/bookings" className="text-sm font-medium text-[#ff7a00] hover:underline">View all</Link>
+        <div className="border border-black/5 bg-white p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-black text-black">Recent Bookings</h2>
+            <Link href="/partner/bookings" className="text-xs font-black text-[#ff7a00] hover:underline">View all</Link>
           </div>
           {bookings.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-black/5 bg-slate-50 p-6 text-center">
-              <p className="text-slate-500 text-sm">No bookings yet.</p>
-              <p className="mt-1 text-xs text-slate-400">Bookings will appear here once a customer accepts your bid.</p>
+            <div className="border border-black/5 bg-[#f0f0f0] p-6 text-center">
+              <p className="text-sm font-bold text-black/50">No bookings yet.</p>
+              <p className="mt-1 text-xs font-bold text-black/30">Bookings will appear here once a customer accepts your bid.</p>
             </div>
           ) : (
-            <div className="mt-4 space-y-3">
+            <div className="space-y-2">
               {bookings.map(b => (
                 <Link key={b.id} href={`/partner/bookings/${b.id}`}
-                  className="flex items-center justify-between rounded-2xl border border-black/5 bg-slate-50 px-4 py-3 hover:bg-[#f3f8ff] transition-colors">
+                  className="flex items-center justify-between border border-black/5 bg-[#f0f0f0] px-4 py-3 hover:bg-black/5 transition-colors">
                   <div className="min-w-0">
-                    <p className="font-semibold text-[#003768] text-sm">Job #{b.job_number ?? "—"}</p>
-                    <p className="text-xs text-slate-500 truncate">{b.pickup_address || "—"}</p>
-                    <p className="text-xs text-slate-400">{b.customer_name || "—"} · {fmtDateTime(b.created_at)}</p>
+                    <p className="font-black text-black text-sm">Job #{b.job_number ?? "—"}</p>
+                    <p className="text-xs font-bold text-black/50 truncate">{b.pickup_address || "—"}</p>
+                    <p className="text-xs font-bold text-black/30">{b.customer_name || "—"} · {fmtDateTime(b.created_at)}</p>
                   </div>
                   <div className="ml-3 flex flex-col items-end gap-1 shrink-0">
-                    <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${statusPill(b.booking_status)}`}>
+                    <span className={`inline-flex border px-2 py-0.5 text-xs font-black ${statusPill(b.booking_status)}`}>
                       {fmtStatus(b.booking_status)}
                     </span>
-                    <span className="text-xs font-semibold text-slate-700">{fmtAmt(b.amount, b.currency)}</span>
+                    <span className="text-xs font-black text-black/60">{fmtAmt(b.amount, b.currency)}</span>
                   </div>
                 </Link>
               ))}
@@ -327,27 +304,27 @@ export default function PartnerDashboardPage() {
         </div>
 
         {/* Recent Requests */}
-        <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-[#003768]">Recent Requests</h2>
-            <Link href="/partner/requests" className="text-sm font-medium text-[#ff7a00] hover:underline">View all</Link>
+        <div className="border border-black/5 bg-white p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-black text-black">Recent Requests</h2>
+            <Link href="/partner/requests" className="text-xs font-black text-[#ff7a00] hover:underline">View all</Link>
           </div>
           {requests.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-black/5 bg-slate-50 p-6 text-center">
-              <p className="text-slate-500 text-sm">No requests yet.</p>
-              <p className="mt-1 text-xs text-slate-400">Customer requests within your service radius will appear here.</p>
+            <div className="border border-black/5 bg-[#f0f0f0] p-6 text-center">
+              <p className="text-sm font-bold text-black/50">No requests yet.</p>
+              <p className="mt-1 text-xs font-bold text-black/30">Customer requests within your service radius will appear here.</p>
             </div>
           ) : (
-            <div className="mt-4 space-y-3">
+            <div className="space-y-2">
               {requests.map(r => (
                 <Link key={r.id} href={`/partner/requests/${r.id}`}
-                  className="flex items-center justify-between rounded-2xl border border-black/5 bg-slate-50 px-4 py-3 hover:bg-[#f3f8ff] transition-colors">
+                  className="flex items-center justify-between border border-black/5 bg-[#f0f0f0] px-4 py-3 hover:bg-black/5 transition-colors">
                   <div className="min-w-0">
-                    <p className="font-semibold text-[#003768] text-sm">Job #{r.job_number ?? "—"}</p>
-                    <p className="text-xs text-slate-500 truncate">{r.pickup_address || "—"}</p>
-                    <p className="text-xs text-slate-400">{fmtDateTime(r.created_at)}</p>
+                    <p className="font-black text-black text-sm">Job #{r.job_number ?? "—"}</p>
+                    <p className="text-xs font-bold text-black/50 truncate">{r.pickup_address || "—"}</p>
+                    <p className="text-xs font-bold text-black/30">{fmtDateTime(r.created_at)}</p>
                   </div>
-                  <span className={`ml-3 shrink-0 inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${statusPill(r.status)}`}>
+                  <span className={`ml-3 shrink-0 inline-flex border px-2 py-0.5 text-xs font-black ${statusPill(r.status)}`}>
                     {fmtStatus(r.status)}
                   </span>
                 </Link>
@@ -359,10 +336,11 @@ export default function PartnerDashboardPage() {
 
       {/* Account summary + setup checklist + navigation */}
       <div className="grid gap-6 xl:grid-cols-3">
+
         {/* Account summary */}
-        <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-          <h2 className="text-xl font-semibold text-[#003768]">Account Summary</h2>
-          <div className="mt-4 space-y-3 text-sm">
+        <div className="border border-black/5 bg-white p-6">
+          <h2 className="text-lg font-black text-black mb-4">Account Summary</h2>
+          <div className="space-y-3 text-sm">
             {[
               { label: "Email",          value: email },
               { label: "Company",        value: profile?.company_name || "—" },
@@ -371,48 +349,48 @@ export default function PartnerDashboardPage() {
               { label: "Country",        value: profile?.country || "—" },
             ].map(({ label, value }) => (
               <div key={label} className="flex justify-between gap-2">
-                <span className="text-slate-500 shrink-0">{label}</span>
-                <span className="font-medium text-slate-800 text-right truncate">{value}</span>
+                <span className="text-xs font-black uppercase tracking-widest text-black/40 shrink-0">{label}</span>
+                <span className="font-bold text-black text-right truncate">{value}</span>
               </div>
             ))}
           </div>
           <Link href="/partner/account"
-            className="mt-5 block rounded-full border border-[#003768]/20 px-4 py-2.5 text-center text-sm font-semibold text-[#003768] hover:bg-[#003768]/5">
+            className="mt-5 block border border-black/20 px-4 py-2.5 text-center text-sm font-black text-black hover:bg-black/5 transition-colors">
             View Full Account →
           </Link>
         </div>
 
         {/* Setup checklist */}
-        <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-          <h2 className="text-xl font-semibold text-[#003768]">Setup Checklist</h2>
-          <p className="mt-1 text-xs text-slate-500">Complete these steps to start receiving bookings.</p>
-          <div className="mt-4 space-y-3">
+        <div className="border border-black/5 bg-white p-6">
+          <h2 className="text-lg font-black text-black">Setup Checklist</h2>
+          <p className="mt-1 text-xs font-bold text-black/40 mb-4">Complete these steps to start receiving bookings.</p>
+          <div className="space-y-2">
             {[
-              { label: "Fleet location set",   done: !!(profile?.base_lat && profile?.base_lng), href: "/partner/profile" },
-              { label: "Bidding currency set",  done: !!(profile?.default_currency),              href: "/partner/profile" },
-              { label: "VAT / NIF number set",  done: !!(profile?.vat_number),                    href: "/partner/profile" },
-              { label: "Account approved",      done: isApproved,                                  href: "/partner/account" },
-              { label: "Drivers added",         done: driverCount > 0,                             href: "/partner/drivers" },
-              { label: "Fleet added",           done: fleetCount > 0,                              href: "/partner/fleet" },
+              { label: "Fleet location set",  done: !!(profile?.base_lat && profile?.base_lng), href: "/partner/profile" },
+              { label: "Bidding currency set", done: !!(profile?.default_currency),              href: "/partner/profile" },
+              { label: "VAT / NIF number set", done: !!(profile?.vat_number),                    href: "/partner/profile" },
+              { label: "Account approved",     done: isApproved,                                  href: "/partner/account" },
+              { label: "Drivers added",        done: driverCount > 0,                             href: "/partner/drivers" },
+              { label: "Fleet added",          done: fleetCount > 0,                              href: "/partner/fleet" },
             ].map(({ label, done, href }) => (
               <Link key={label} href={href}
-                className="flex items-center gap-3 rounded-xl border border-black/5 bg-slate-50 px-3 py-2.5 hover:bg-[#f3f8ff] transition-colors">
-                <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                  done ? "bg-green-500 text-white" : "border-2 border-slate-300 text-slate-300"
+                className="flex items-center gap-3 border border-black/5 bg-[#f0f0f0] px-3 py-2.5 hover:bg-black/5 transition-colors">
+                <span className={`flex h-5 w-5 shrink-0 items-center justify-center text-xs font-black ${
+                  done ? "bg-black text-white" : "border-2 border-black/20 text-black/20"
                 }`}>
                   {done ? "✓" : ""}
                 </span>
-                <span className={`text-sm font-medium ${done ? "text-slate-600 line-through" : "text-[#003768]"}`}>{label}</span>
-                {!done && <span className="ml-auto text-xs text-[#ff7a00] font-semibold">Set up →</span>}
+                <span className={`text-sm font-bold ${done ? "text-black/40 line-through" : "text-black"}`}>{label}</span>
+                {!done && <span className="ml-auto text-xs font-black text-[#ff7a00]">Set up →</span>}
               </Link>
             ))}
           </div>
         </div>
 
         {/* Navigation links */}
-        <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-          <h2 className="text-xl font-semibold text-[#003768]">Navigation</h2>
-          <div className="mt-4 space-y-2">
+        <div className="border border-black/5 bg-white p-6">
+          <h2 className="text-lg font-black text-black mb-4">Navigation</h2>
+          <div className="space-y-2">
             {[
               { label: "📋 Requests",  desc: "View & bid on customer requests", href: "/partner/requests" },
               { label: "📅 Bookings",  desc: "Manage confirmed bookings",        href: "/partner/bookings" },
@@ -422,12 +400,12 @@ export default function PartnerDashboardPage() {
               { label: "⚙️ Account",   desc: "Profile, rules & settings",        href: "/partner/account" },
             ].map(({ label, desc, href }) => (
               <Link key={href} href={href}
-                className="flex items-center justify-between rounded-xl border border-black/5 bg-slate-50 px-3 py-2.5 hover:bg-[#f3f8ff] transition-colors">
+                className="flex items-center justify-between border border-black/5 bg-[#f0f0f0] px-3 py-2.5 hover:bg-black/5 transition-colors">
                 <div>
-                  <p className="text-sm font-semibold text-[#003768]">{label}</p>
-                  <p className="text-xs text-slate-400">{desc}</p>
+                  <p className="text-sm font-black text-black">{label}</p>
+                  <p className="text-xs font-bold text-black/40">{desc}</p>
                 </div>
-                <span className="text-slate-300 text-sm">→</span>
+                <span className="text-black/30 font-black text-sm">→</span>
               </Link>
             ))}
           </div>
