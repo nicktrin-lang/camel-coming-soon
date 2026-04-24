@@ -24,54 +24,28 @@ function fmtAmt(amount: number | string | null, currency: Currency | null): stri
 }
 
 type BookingRow = {
-  id: string;
-  booking_status: string | null;
-  amount: number | string | null;
-  currency: Currency | null;
-  car_hire_price: number | null;
-  fuel_price: number | null;
-  fuel_used_quarters: number | null;
-  fuel_charge: number | null;
-  fuel_refund: number | null;
-  commission_rate: number | null;
-  commission_amount: number | null;
-  partner_payout_amount: number | null;
-  created_at: string | null;
-  job_number: string | null;
-  pickup_address: string | null;
-  dropoff_address: string | null;
-  pickup_at: string | null;
-  dropoff_at: string | null;
-  vehicle_category_name: string | null;
-  customer_name: string | null;
-  customer_email: string | null;
-  customer_phone: string | null;
-  driver_name: string | null;
-  driver_vehicle: string | null;
-  delivery_confirmed_at: string | null;
-  collection_confirmed_at: string | null;
-  collection_fuel_level_driver: string | null;
-  collection_fuel_level_partner: string | null;
-  return_fuel_level_driver: string | null;
-  return_fuel_level_partner: string | null;
-  collection_confirmed_by_customer: boolean;
-  return_confirmed_by_customer: boolean;
-  partner_legal_company_name: string | null;
-  partner_vat_number: string | null;
+  id: string; booking_status: string | null; amount: number | string | null;
+  currency: Currency | null; car_hire_price: number | null; fuel_price: number | null;
+  fuel_used_quarters: number | null; fuel_charge: number | null; fuel_refund: number | null;
+  commission_rate: number | null; commission_amount: number | null; partner_payout_amount: number | null;
+  created_at: string | null; job_number: string | null; pickup_address: string | null;
+  dropoff_address: string | null; pickup_at: string | null; dropoff_at: string | null;
+  vehicle_category_name: string | null; customer_name: string | null;
+  customer_email: string | null; customer_phone: string | null;
+  driver_name: string | null; driver_vehicle: string | null;
+  delivery_confirmed_at: string | null; collection_confirmed_at: string | null;
+  collection_fuel_level_driver: string | null; collection_fuel_level_partner: string | null;
+  return_fuel_level_driver: string | null; return_fuel_level_partner: string | null;
+  collection_confirmed_by_customer: boolean; return_confirmed_by_customer: boolean;
+  partner_legal_company_name: string | null; partner_vat_number: string | null;
   partner_company_registration_number: string | null;
 };
 
 type RequestRow = {
-  id: string;
-  job_number: string | null;
-  pickup_address: string | null;
-  dropoff_address: string | null;
-  pickup_at: string | null;
-  dropoff_at: string | null;
-  vehicle_category_name: string | null;
-  status: string | null;
-  created_at: string | null;
-  expires_at: string | null;
+  id: string; job_number: string | null; pickup_address: string | null;
+  dropoff_address: string | null; pickup_at: string | null; dropoff_at: string | null;
+  vehicle_category_name: string | null; status: string | null;
+  created_at: string | null; expires_at: string | null;
 };
 
 const QUARTER_LABELS: Record<number, string> = {
@@ -98,9 +72,9 @@ function statusPillClasses(status?: string | null) {
   switch (String(status || "").toLowerCase()) {
     case "completed": case "confirmed": case "bid_successful": return "border-green-200 bg-green-50 text-green-700";
     case "open": case "bid_submitted": return "border-blue-200 bg-blue-50 text-blue-700";
-    case "expired": return "border-slate-200 bg-slate-50 text-slate-600";
+    case "expired": return "border-black/10 bg-[#f0f0f0] text-black/50";
     case "cancelled": case "bid_unsuccessful": case "rejected": return "border-red-200 bg-red-50 text-red-700";
-    default: return "border-black/10 bg-white text-slate-700";
+    default: return "border-black/10 bg-white text-black/60";
   }
 }
 
@@ -109,7 +83,7 @@ function matchesDateRange(value: string | null | undefined, from: string, to: st
   const d = new Date(value);
   if (isNaN(d.getTime())) return false;
   if (from && d < new Date(`${from}T00:00:00`)) return false;
-  if (to && d > new Date(`${to}T23:59:59.999`)) return false;
+  if (to   && d > new Date(`${to}T23:59:59.999`)) return false;
   return true;
 }
 
@@ -131,17 +105,13 @@ function getPreviousMonthKey() {
 }
 
 function escapeXml(v: unknown): string {
-  return String(v ?? "")
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 function buildXls(sheets: { name: string; headers: string[]; rows: Array<Array<unknown>> }[]): Blob {
   const xmlSheets = sheets.map(sheet => {
     const rowsXml = [
-      `<Row ss:Index="1">${sheet.headers.map(h =>
-        `<Cell ss:StyleID="header"><Data ss:Type="String">${escapeXml(h)}</Data></Cell>`
-      ).join("")}</Row>`,
+      `<Row ss:Index="1">${sheet.headers.map(h => `<Cell ss:StyleID="header"><Data ss:Type="String">${escapeXml(h)}</Data></Cell>`).join("")}</Row>`,
       ...sheet.rows.map((row, ri) =>
         `<Row ss:Index="${ri + 2}">${row.map(cell => {
           const v = cell ?? "";
@@ -154,17 +124,11 @@ function buildXls(sheets: { name: string; headers: string[]; rows: Array<Array<u
     ].join("");
     return `<Worksheet ss:Name="${escapeXml(sheet.name)}"><Table>${rowsXml}</Table></Worksheet>`;
   });
-
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
-  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
-  <Styles>
-    <Style ss:ID="header"><Font ss:Bold="1" ss:Color="#003768"/><Interior ss:Color="#f3f8ff" ss:Pattern="Solid"/></Style>
-  </Styles>
+  const xml = `<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+  <Styles><Style ss:ID="header"><Font ss:Bold="1"/></Style></Styles>
   ${xmlSheets.join("\n")}
 </Workbook>`;
-
   return new Blob([xml], { type: "application/vnd.ms-excel;charset=utf-8;" });
 }
 
@@ -176,7 +140,6 @@ function downloadBlob(blob: Blob, filename: string) {
   document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
-// Helper: calculate commission and payout for a booking row
 function calcCommission(b: BookingRow): { rate: number; amount: number; payout: number } {
   const hire   = Number(b.car_hire_price ?? 0);
   const rate   = b.commission_rate ?? 20;
@@ -192,90 +155,79 @@ type CurrencyTotals = {
   count: number; completed: number;
 };
 
-function CurrencySection({ curr, t, bookings }: {
-  curr: Currency; t: CurrencyTotals; bookings: BookingRow[];
-}) {
+// ── Currency Section ──────────────────────────────────────────────────────────
+function CurrencySection({ curr, t, bookings }: { curr: Currency; t: CurrencyTotals; bookings: BookingRow[] }) {
   const [showAll, setShowAll] = useState(false);
   const { symbol } = CURRENCY_META[curr];
   const visible = showAll ? bookings : bookings.slice(0, 10);
 
   return (
-    <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-      <div className="flex items-center gap-3">
-        <span className="inline-flex items-center gap-1 rounded-full bg-[#003768]/10 px-3 py-1 text-sm font-bold text-[#003768]">
-          {symbol}
-        </span>
-        <h2 className="text-xl font-semibold text-[#003768]">Revenue &amp; Fuel Reconciliation</h2>
+    <div className="border border-black/5 bg-white p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <span className="border border-black/20 bg-black text-white px-3 py-1 text-sm font-black">{symbol}</span>
+        <h2 className="text-lg font-black text-black">Revenue &amp; Fuel Reconciliation</h2>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8 mb-4">
         {[
-          { label: "Total Bookings",         value: t.count,                                    isMoney: false },
-          { label: "Completed",              value: t.completed,                                isMoney: false },
-          { label: "Total Revenue",          value: t.total,                                    isMoney: true  },
-          { label: "Car Hire Revenue",       value: t.carHire,                                  isMoney: true  },
-          { label: "Fuel Charged",           value: t.fuelCharge,                               isMoney: true  },
-          { label: "Camel Commission",       value: t.commissionTotal,                          isMoney: true  },
-          { label: "Your Net Payout",        value: t.partnerPayoutTotal + t.fuelCharge,        isMoney: true  },
-          { label: "Fuel Refunds Issued",    value: t.fuelRefund,                               isMoney: true  },
+          { label: "Total Bookings",      value: t.count,                             isMoney: false },
+          { label: "Completed",           value: t.completed,                         isMoney: false },
+          { label: "Total Revenue",       value: t.total,                             isMoney: true  },
+          { label: "Car Hire Revenue",    value: t.carHire,                           isMoney: true  },
+          { label: "Fuel Charged",        value: t.fuelCharge,                        isMoney: true  },
+          { label: "Camel Commission",    value: t.commissionTotal,                   isMoney: true  },
+          { label: "Your Net Payout",     value: t.partnerPayoutTotal + t.fuelCharge, isMoney: true  },
+          { label: "Fuel Refunds Issued", value: t.fuelRefund,                        isMoney: true  },
         ].map(({ label: lbl, value, isMoney }) => (
-          <div key={lbl} className="rounded-2xl border border-black/5 bg-slate-50 p-4">
-            <p className="text-xs font-medium text-slate-500">{lbl}</p>
-            <p className="mt-1 text-lg font-semibold text-[#003768]">
+          <div key={lbl} className="border border-black/5 bg-[#f0f0f0] p-4">
+            <p className="text-xs font-black uppercase tracking-widest text-black/40">{lbl}</p>
+            <p className="mt-1 text-lg font-black text-black">
               {isMoney ? fmtCurr(value as number, curr) : value}
             </p>
           </div>
         ))}
       </div>
 
-      <div className="mt-4 overflow-x-auto rounded-2xl border border-black/10">
+      <div className="overflow-x-auto border border-black/10">
         <table className="min-w-full text-sm">
-          <thead className="bg-[#f3f8ff] text-left text-[#003768]">
+          <thead className="bg-black text-white text-left">
             <tr>
-              <th className="px-4 py-3 font-semibold">Job</th>
-              <th className="px-4 py-3 font-semibold">Customer</th>
-              <th className="px-4 py-3 font-semibold">Status</th>
-              <th className="px-4 py-3 font-semibold">Car Hire</th>
-              <th className="px-4 py-3 font-semibold">Commission</th>
-              <th className="px-4 py-3 font-semibold">Fuel Deposit</th>
-              <th className="px-4 py-3 font-semibold">Fuel Used</th>
-              <th className="px-4 py-3 font-semibold">Fuel Charge</th>
-              <th className="px-4 py-3 font-semibold">Fuel Refund</th>
-              <th className="px-4 py-3 font-semibold">Total</th>
-              <th className="px-4 py-3 font-semibold">Your Payout</th>
+              {["Job","Customer","Status","Car Hire","Commission","Fuel Deposit","Fuel Used","Fuel Charge","Fuel Refund","Total","Your Payout"].map(h => (
+                <th key={h} className="px-4 py-3 text-xs font-black uppercase tracking-widest whitespace-nowrap">{h}</th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-black/5">
-            {visible.map(b => {
+            {visible.map((b, i) => {
               const usedQ = b.fuel_used_quarters;
               const { rate, amount: commAmt, payout } = calcCommission(b);
               const netPayout = payout + Number(b.fuel_charge ?? 0);
               return (
-                <tr key={b.id} className="hover:bg-[#f3f8ff]">
-                  <td className="px-4 py-3 font-semibold text-[#003768]">{b.job_number || "—"}</td>
-                  <td className="px-4 py-3 text-slate-700">{b.customer_name || "—"}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${statusPillClasses(b.booking_status)}`}>
+                <tr key={b.id} className={`hover:bg-[#f0f0f0] transition-colors ${i % 2 === 0 ? "bg-white" : "bg-[#fafafa]"}`}>
+                  <td className="px-4 py-3 font-black text-black whitespace-nowrap">{b.job_number || "—"}</td>
+                  <td className="px-4 py-3 font-bold text-black/70">{b.customer_name || "—"}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className={`inline-flex border px-2 py-0.5 text-xs font-black ${statusPillClasses(b.booking_status)}`}>
                       {String(b.booking_status || "—").replaceAll("_", " ")}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{fmtAmt(b.car_hire_price, curr)}</td>
-                  <td className="px-4 py-3">
-                    <div className="text-xs font-semibold text-amber-700">− {fmtCurr(commAmt, curr)}</div>
-                    <div className="text-xs text-slate-400">{rate}%</div>
+                  <td className="px-4 py-3 font-bold text-black/70 whitespace-nowrap">{fmtAmt(b.car_hire_price, curr)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="text-xs font-black text-amber-700">− {fmtCurr(commAmt, curr)}</div>
+                    <div className="text-xs font-bold text-black/40">{rate}%</div>
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{fmtAmt(b.fuel_price, curr)}</td>
-                  <td className="px-4 py-3 text-slate-700">
+                  <td className="px-4 py-3 font-bold text-black/70 whitespace-nowrap">{fmtAmt(b.fuel_price, curr)}</td>
+                  <td className="px-4 py-3 font-bold text-black/70 whitespace-nowrap">
                     {usedQ !== null && usedQ !== undefined ? (QUARTER_LABELS[usedQ] ?? `${usedQ}/4`) : "—"}
                   </td>
-                  <td className="px-4 py-3 font-semibold text-orange-700">
+                  <td className="px-4 py-3 font-black text-[#ff7a00] whitespace-nowrap">
                     {b.fuel_charge !== null ? fmtAmt(b.fuel_charge, curr) : "—"}
                   </td>
-                  <td className="px-4 py-3 font-semibold text-green-700">
+                  <td className="px-4 py-3 font-black text-green-600 whitespace-nowrap">
                     {b.fuel_refund !== null ? fmtAmt(b.fuel_refund, curr) : "—"}
                   </td>
-                  <td className="px-4 py-3 font-bold text-[#003768]">{fmtAmt(b.amount, curr)}</td>
-                  <td className="px-4 py-3 font-bold text-green-700">{fmtCurr(netPayout, curr)}</td>
+                  <td className="px-4 py-3 font-black text-black whitespace-nowrap">{fmtAmt(b.amount, curr)}</td>
+                  <td className="px-4 py-3 font-black text-black whitespace-nowrap">{fmtCurr(netPayout, curr)}</td>
                 </tr>
               );
             })}
@@ -285,7 +237,7 @@ function CurrencySection({ curr, t, bookings }: {
 
       {bookings.length > 10 && (
         <button type="button" onClick={() => setShowAll(s => !s)}
-          className="mt-3 w-full rounded-2xl border border-black/10 bg-slate-50 py-2.5 text-sm font-semibold text-[#003768] hover:bg-slate-100">
+          className="mt-3 w-full border border-black/10 bg-[#f0f0f0] py-2.5 text-sm font-black text-black hover:bg-black/5 transition-colors">
           {showAll ? "▲ Show less" : `▼ Show all ${bookings.length} bookings`}
         </button>
       )}
@@ -294,17 +246,16 @@ function CurrencySection({ curr, t, bookings }: {
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
-
 export default function PartnerReportsPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
-  const router = useRouter();
+  const router   = useRouter();
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState<string | null>(null);
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateTo,   setDateTo]   = useState("");
 
   async function load() {
     setLoading(true); setError(null);
@@ -329,8 +280,8 @@ export default function PartnerReportsPage() {
 
   useEffect(() => { load(); }, []);
 
-  const filteredRequests = requests.filter(r => matchesDateRange(r.created_at, dateFrom, dateTo));
-  const filteredBookings = bookings.filter(r => matchesDateRange(r.created_at, dateFrom, dateTo));
+  const filteredRequests = requests.filter(r => !dateFrom && !dateTo ? true : matchesDateRange(r.created_at, dateFrom, dateTo));
+  const filteredBookings = bookings.filter(r => !dateFrom && !dateTo ? true : matchesDateRange(r.created_at, dateFrom, dateTo));
   const completedBookings = filteredBookings.filter(r => String(r.booking_status || "").toLowerCase() === "completed");
 
   const revenuesByCurrency = useMemo(() => {
@@ -359,10 +310,10 @@ export default function PartnerReportsPage() {
   const currentMonthKey  = getCurrentMonthKey();
   const previousMonthKey = getPreviousMonthKey();
   const bidsSubmitted    = filteredRequests.filter(r =>
-    ["bid_submitted", "bid_successful", "bid_unsuccessful"].includes(String(r.status || "").toLowerCase())
+    ["bid_submitted","bid_successful","bid_unsuccessful"].includes(String(r.status || "").toLowerCase())
   ).length;
-  const acceptedBids     = filteredRequests.filter(r => String(r.status || "").toLowerCase() === "bid_successful").length;
-  const conversionRate   = bidsSubmitted > 0 ? Math.round((acceptedBids / bidsSubmitted) * 100) : 0;
+  const acceptedBids   = filteredRequests.filter(r => String(r.status || "").toLowerCase() === "bid_successful").length;
+  const conversionRate = bidsSubmitted > 0 ? Math.round((acceptedBids / bidsSubmitted) * 100) : 0;
 
   const vehicleBreakdown = Array.from(
     filteredBookings.reduce((map, r) => {
@@ -375,170 +326,69 @@ export default function PartnerReportsPage() {
 
   function exportExcel() {
     const dateStr = new Date().toISOString().split("T")[0];
-
-    const fuelHeaders = [
-      "Job Number", "Legal Company Name", "Company Reg. No.", "VAT / NIF Number",
-      "Customer", "Customer Email", "Customer Phone",
-      "Pickup Address", "Dropoff Address",
-      "Scheduled Pickup At", "Scheduled Dropoff At",
-      "Actual Pickup Date & Time", "Actual Dropoff Date & Time", "Completed Date",
-      "Vehicle", "Driver", "Driver Vehicle", "Currency",
-      "Car Hire Price", "Commission Rate (%)", "Commission Amount",
-      "Full Fuel Deposit",
-      "Collection Fuel (Driver)", "Collection Fuel (Partner Override)",
-      "Return Fuel (Driver)", "Return Fuel (Partner Override)",
-      "Quarters Used", "Fuel Used Label",
-      "Fuel Charge to Customer", "Fuel Refund to Customer",
-      "Total Booking Amount",
-      "Your Payout (Car Hire − Commission + Fuel Charge)",
-      "Customer Collection Confirmed", "Customer Return Confirmed",
-      "Booking Status", "Created At",
-    ];
-
+    const fuelHeaders = ["Job Number","Legal Company Name","Company Reg. No.","VAT / NIF Number","Customer","Customer Email","Customer Phone","Pickup Address","Dropoff Address","Scheduled Pickup At","Scheduled Dropoff At","Actual Pickup Date & Time","Actual Dropoff Date & Time","Completed Date","Vehicle","Driver","Driver Vehicle","Currency","Car Hire Price","Commission Rate (%)","Commission Amount","Full Fuel Deposit","Collection Fuel (Driver)","Collection Fuel (Partner Override)","Return Fuel (Driver)","Return Fuel (Partner Override)","Quarters Used","Fuel Used Label","Fuel Charge to Customer","Fuel Refund to Customer","Total Booking Amount","Your Payout","Customer Collection Confirmed","Customer Return Confirmed","Booking Status","Created At"];
     const fuelRows = filteredBookings.map(b => {
       const usedQ = b.fuel_used_quarters;
       const { rate, amount: commAmt, payout } = calcCommission(b);
       const netPayout = payout + Number(b.fuel_charge ?? 0);
       const isCompleted = String(b.booking_status || "").toLowerCase() === "completed";
-      return [
-        b.job_number || "",
-        b.partner_legal_company_name || "",
-        b.partner_company_registration_number || "",
-        b.partner_vat_number || "",
-        b.customer_name || "", b.customer_email || "", b.customer_phone || "",
-        b.pickup_address || "", b.dropoff_address || "",
-        fmtDateTime(b.pickup_at), fmtDateTime(b.dropoff_at),
-        fmtDateTime(b.delivery_confirmed_at),
-        fmtDateTime(b.collection_confirmed_at),
-        isCompleted ? fmtDate(b.created_at) : "",
-        b.vehicle_category_name || "", b.driver_name || "", b.driver_vehicle || "",
-        b.currency || "EUR",
-        Number(b.car_hire_price ?? 0), rate, commAmt,
-        Number(b.fuel_price ?? 0),
-        b.collection_fuel_level_driver || "—",
-        b.collection_fuel_level_partner || "—",
-        b.return_fuel_level_driver || "—",
-        b.return_fuel_level_partner || "—",
-        usedQ !== null && usedQ !== undefined ? usedQ : "—",
-        usedQ !== null && usedQ !== undefined ? (QUARTER_LABELS[usedQ] ?? `${usedQ}/4`) : "—",
-        Number(b.fuel_charge ?? 0), Number(b.fuel_refund ?? 0),
-        Number(b.amount ?? 0),
-        netPayout,
-        b.collection_confirmed_by_customer ? "Yes" : "No",
-        b.return_confirmed_by_customer ? "Yes" : "No",
-        b.booking_status || "", fmtDate(b.created_at),
-      ];
+      return [b.job_number||"",b.partner_legal_company_name||"",b.partner_company_registration_number||"",b.partner_vat_number||"",b.customer_name||"",b.customer_email||"",b.customer_phone||"",b.pickup_address||"",b.dropoff_address||"",fmtDateTime(b.pickup_at),fmtDateTime(b.dropoff_at),fmtDateTime(b.delivery_confirmed_at),fmtDateTime(b.collection_confirmed_at),isCompleted?fmtDate(b.created_at):"",b.vehicle_category_name||"",b.driver_name||"",b.driver_vehicle||"",b.currency||"EUR",Number(b.car_hire_price??0),rate,commAmt,Number(b.fuel_price??0),b.collection_fuel_level_driver||"—",b.collection_fuel_level_partner||"—",b.return_fuel_level_driver||"—",b.return_fuel_level_partner||"—",usedQ!==null&&usedQ!==undefined?usedQ:"—",usedQ!==null&&usedQ!==undefined?(QUARTER_LABELS[usedQ]??`${usedQ}/4`):"—",Number(b.fuel_charge??0),Number(b.fuel_refund??0),Number(b.amount??0),netPayout,b.collection_confirmed_by_customer?"Yes":"No",b.return_confirmed_by_customer?"Yes":"No",b.booking_status||"",fmtDate(b.created_at)];
     });
-
-    const summaryHeaders = [
-      "Currency", "Total Bookings", "Completed",
-      "Total Revenue", "Car Hire Revenue",
-      "Camel Commission (deducted)", "Fuel Deposits Collected",
-      "Fuel Charges Billed", "Fuel Refunds Issued",
-      "Your Net Payout (Payout + Fuel Charge)",
-    ];
-    const summaryRows = (["EUR", "GBP", "USD"] as Currency[]).map(curr => {
-      const t = revenuesByCurrency[curr];
-      return [
-        `${curr} ${CURRENCY_META[curr].symbol}`,
-        t.count, t.completed,
-        t.total, t.carHire,
-        t.commissionTotal,
-        t.fuelDeposit, t.fuelCharge, t.fuelRefund,
-        t.partnerPayoutTotal + t.fuelCharge,
-      ];
-    });
-
-    const allHeaders = [
-      "Job Number", "Customer", "Pickup", "Dropoff",
-      "Scheduled Pickup At", "Actual Pickup Date & Time", "Actual Dropoff Date & Time", "Completed Date",
-      "Vehicle", "Driver", "Status", "Currency",
-      "Car Hire", "Commission Rate (%)", "Commission Amount",
-      "Fuel Charge", "Total Amount", "Your Payout", "Created At",
-    ];
-    const allRows = filteredBookings.map(b => {
-      const { rate, amount: commAmt, payout } = calcCommission(b);
-      const isCompleted = String(b.booking_status || "").toLowerCase() === "completed";
-      return [
-        b.job_number || "", b.customer_name || "",
-        b.pickup_address || "", b.dropoff_address || "",
-        fmtDateTime(b.pickup_at),
-        fmtDateTime(b.delivery_confirmed_at),
-        fmtDateTime(b.collection_confirmed_at),
-        isCompleted ? fmtDate(b.created_at) : "",
-        b.vehicle_category_name || "",
-        b.driver_name || "", b.booking_status || "",
-        b.currency || "EUR",
-        Number(b.car_hire_price ?? 0),
-        rate, commAmt,
-        Number(b.fuel_charge ?? 0),
-        Number(b.amount ?? 0),
-        payout + Number(b.fuel_charge ?? 0),
-        fmtDate(b.created_at),
-      ];
-    });
-
-    const blob = buildXls([
-      { name: "Fuel Reconciliation", headers: fuelHeaders, rows: fuelRows },
-      { name: "Currency Summary",    headers: summaryHeaders, rows: summaryRows },
-      { name: "All Bookings",        headers: allHeaders, rows: allRows },
-    ]);
+    const blob = buildXls([{ name: "Fuel Reconciliation", headers: fuelHeaders, rows: fuelRows }]);
     downloadBlob(blob, `camel-report-${dateStr}.xls`);
   }
 
   if (loading) return (
-    <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-      <p className="text-slate-600">Loading reports...</p>
+    <div className="border border-black/5 bg-white p-8">
+      <p className="text-sm font-bold text-black/50">Loading reports…</p>
     </div>
   );
 
   return (
     <div className="space-y-6">
-      {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {error && <div className="border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div>}
 
       {/* Filters + Export */}
-      <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+      <div className="border border-black/5 bg-white p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-2xl font-semibold text-[#003768]">Reports</h2>
-            <p className="mt-1 text-sm text-slate-600">Full reconciliation including commission, fuel charges, refunds and multi-currency revenue.</p>
+            <h1 className="text-3xl font-black text-black">Reports</h1>
+            <p className="mt-1 text-sm font-bold text-black/50">Full reconciliation including commission, fuel charges, refunds and multi-currency revenue.</p>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-wrap items-end gap-3">
             <div>
-              <label className="text-sm font-medium text-[#003768]">Date from</label>
+              <label className="text-xs font-black uppercase tracking-widest text-black/40">Date from</label>
               <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-black/10 p-3 text-black" />
+                className="mt-1 block border border-black/10 bg-[#f0f0f0] px-4 py-2.5 text-sm font-bold outline-none focus:border-black" />
             </div>
             <div>
-              <label className="text-sm font-medium text-[#003768]">Date to</label>
+              <label className="text-xs font-black uppercase tracking-widest text-black/40">Date to</label>
               <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-black/10 p-3 text-black" />
+                className="mt-1 block border border-black/10 bg-[#f0f0f0] px-4 py-2.5 text-sm font-bold outline-none focus:border-black" />
             </div>
+            <button type="button" onClick={() => { setDateFrom(""); setDateTo(""); }}
+              className="border border-black/20 bg-white px-5 py-2.5 text-sm font-black text-black hover:bg-black/5 transition-colors">
+              Clear Filters
+            </button>
+            <button type="button" onClick={exportExcel}
+              className="bg-black px-5 py-2.5 text-sm font-black text-white hover:opacity-80 transition-opacity">
+              ⬇ Export Excel
+            </button>
           </div>
-        </div>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <button type="button" onClick={() => { setDateFrom(""); setDateTo(""); }}
-            className="rounded-full border border-black/10 bg-white px-5 py-2.5 text-sm font-semibold text-[#003768] hover:bg-black/5">
-            Clear Filters
-          </button>
-          <button type="button" onClick={exportExcel}
-            className="rounded-full bg-[#003768] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95">
-            ⬇ Export Excel
-          </button>
         </div>
       </div>
 
       {/* Key stats */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {[
-          { label: "Total Bookings",  value: filteredBookings.length,  color: "text-[#003768]" },
-          { label: "Completed",       value: completedBookings.length, color: "text-green-600" },
-          { label: "Bids Submitted",  value: bidsSubmitted,            color: "text-[#003768]" },
-          { label: "Conversion Rate", value: `${conversionRate}%`,     color: "text-amber-600" },
+          { label: "Total Bookings",  value: filteredBookings.length,  color: "text-black" },
+          { label: "Completed",       value: completedBookings.length, color: "text-black" },
+          { label: "Bids Submitted",  value: bidsSubmitted,            color: "text-black" },
+          { label: "Conversion Rate", value: `${conversionRate}%`,     color: "text-[#ff7a00]" },
         ].map(({ label, value, color }) => (
-          <div key={label} className="rounded-3xl border border-black/5 bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-            <p className="text-sm font-medium text-slate-500">{label}</p>
-            <p className={`mt-2 text-2xl font-semibold ${color}`}>{value}</p>
+          <div key={label} className="border border-black/5 bg-white p-5">
+            <p className="text-xs font-black uppercase tracking-widest text-black/40">{label}</p>
+            <p className={`mt-2 text-2xl font-black ${color}`}>{value}</p>
           </div>
         ))}
       </div>
@@ -549,23 +399,23 @@ export default function PartnerReportsPage() {
           {
             label: "This Month Requests",
             value: filteredRequests.filter(r => getMonthKey(r.created_at) === currentMonthKey).length,
-            prev: filteredRequests.filter(r => getMonthKey(r.created_at) === previousMonthKey).length,
+            prev:  filteredRequests.filter(r => getMonthKey(r.created_at) === previousMonthKey).length,
           },
           {
             label: "This Month Bookings",
             value: filteredBookings.filter(r => getMonthKey(r.created_at) === currentMonthKey).length,
-            prev: filteredBookings.filter(r => getMonthKey(r.created_at) === previousMonthKey).length,
+            prev:  filteredBookings.filter(r => getMonthKey(r.created_at) === previousMonthKey).length,
           },
           {
             label: "Open Requests",
             value: filteredRequests.filter(r => String(r.status || "").toLowerCase() === "open").length,
-            prev: null,
+            prev:  null,
           },
         ].map(({ label, value, prev }) => (
-          <div key={label} className="rounded-3xl border border-black/5 bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-            <p className="text-sm font-medium text-slate-500">{label}</p>
-            <p className="mt-2 text-2xl font-semibold text-[#003768]">{value}</p>
-            {prev !== null && <p className="mt-1 text-xs text-slate-400">Previous month: {prev}</p>}
+          <div key={label} className="border border-black/5 bg-white p-5">
+            <p className="text-xs font-black uppercase tracking-widest text-black/40">{label}</p>
+            <p className="mt-2 text-2xl font-black text-black">{value}</p>
+            {prev !== null && <p className="mt-1 text-xs font-bold text-black/40">Previous month: {prev}</p>}
           </div>
         ))}
       </div>
@@ -579,23 +429,23 @@ export default function PartnerReportsPage() {
       })}
 
       {/* Vehicle breakdown */}
-      <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-        <h2 className="text-xl font-semibold text-[#003768]">Vehicle Category Breakdown</h2>
-        <div className="mt-4 overflow-x-auto rounded-2xl border border-black/10">
+      <div className="border border-black/5 bg-white p-6">
+        <h2 className="text-lg font-black text-black mb-4">Vehicle Category Breakdown</h2>
+        <div className="overflow-x-auto border border-black/10">
           <table className="min-w-full text-sm">
-            <thead className="bg-[#f3f8ff] text-left text-[#003768]">
+            <thead className="bg-black text-white text-left">
               <tr>
-                <th className="px-4 py-3 font-semibold">Vehicle Category</th>
-                <th className="px-4 py-3 font-semibold">Bookings</th>
+                <th className="px-4 py-3 text-xs font-black uppercase tracking-widest">Vehicle Category</th>
+                <th className="px-4 py-3 text-xs font-black uppercase tracking-widest">Bookings</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-black/5">
               {vehicleBreakdown.length === 0 ? (
-                <tr><td colSpan={2} className="px-4 py-4 text-slate-600">No data.</td></tr>
-              ) : vehicleBreakdown.map(r => (
-                <tr key={r.category} className="hover:bg-black/[0.02]">
-                  <td className="px-4 py-3 font-medium text-slate-900">{r.category}</td>
-                  <td className="px-4 py-3 text-slate-700">{r.count}</td>
+                <tr><td colSpan={2} className="px-4 py-4 text-sm font-bold text-black/50">No data.</td></tr>
+              ) : vehicleBreakdown.map((r, i) => (
+                <tr key={r.category} className={`hover:bg-[#f0f0f0] transition-colors ${i % 2 === 0 ? "bg-white" : "bg-[#fafafa]"}`}>
+                  <td className="px-4 py-3 font-black text-black">{r.category}</td>
+                  <td className="px-4 py-3 font-bold text-black/70">{r.count}</td>
                 </tr>
               ))}
             </tbody>
