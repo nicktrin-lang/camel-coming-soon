@@ -8,29 +8,8 @@ const year = new Date().getFullYear();
 
 // ── Partner / Admin / Driver footer ──────────────────────────────────────────
 function PortalFooter({ variant }: { variant: "partner" | "admin" | "driver" }) {
-  const termsHref   = variant === "admin" ? "/admin/terms"           : "/partner/terms";
-  const rulesHref   = variant === "admin" ? "/admin/operating-rules" : "/partner/operating-rules";
-
-  if (variant === "driver") {
-    return (
-      <footer className="w-full bg-black border-t border-white/10 text-white">
-        <div className="mx-auto max-w-7xl px-6 py-10 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <Link href="/">
-            <Image src="/camel-logo.png" alt="Camel Global" width={160} height={58} className="h-12 w-auto brightness-0 invert" />
-          </Link>
-          <div className="flex gap-6 flex-wrap">
-            <Link href="/driver/login" className="text-sm font-bold text-white/70 hover:text-white transition-colors">Driver Login</Link>
-            <Link href="/about"        className="text-sm font-bold text-white/70 hover:text-white transition-colors">About Us</Link>
-            <Link href="/privacy"      className="text-sm font-bold text-white/70 hover:text-white transition-colors">Privacy Policy</Link>
-          </div>
-        </div>
-        <div className="border-t border-white/10 mx-6 pb-6 pt-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs font-bold text-white/40">© {year} Camel Global Ltd. All rights reserved.</p>
-          <p className="text-xs font-bold text-white/40">Registered in England &amp; Wales</p>
-        </div>
-      </footer>
-    );
-  }
+  const termsHref = variant === "admin" ? "/admin/terms"           : "/partner/terms";
+  const rulesHref = variant === "admin" ? "/admin/operating-rules" : "/partner/operating-rules";
 
   return (
     <footer className="w-full bg-black border-t border-white/10 text-white">
@@ -66,10 +45,13 @@ function PortalFooter({ variant }: { variant: "partner" | "admin" | "driver" }) 
 
             <div className="flex flex-col gap-3">
               <p className="text-xs font-black uppercase tracking-widest text-white/40">Platform</p>
-              <Link href="/"               className="text-sm font-bold text-white hover:text-[#ff7a00] transition-colors">Customer Site</Link>
-              <Link href="/partner/login"  className="text-sm font-bold text-white hover:text-[#ff7a00] transition-colors">Partner Login</Link>
+              <Link href="/"              className="text-sm font-bold text-white hover:text-[#ff7a00] transition-colors">Customer Site</Link>
+              <Link href="/partner/login" className="text-sm font-bold text-white hover:text-[#ff7a00] transition-colors">Partner Login</Link>
               {variant === "partner" && (
                 <Link href="/partner/signup" className="text-sm font-bold text-white hover:text-[#ff7a00] transition-colors">Become a Partner</Link>
+              )}
+              {variant === "driver" && (
+                <Link href="/driver/login" className="text-sm font-bold text-white hover:text-[#ff7a00] transition-colors">Driver Login</Link>
               )}
             </div>
 
