@@ -53,7 +53,7 @@ export default function PortalTopbar({ onMenuClick }: PortalTopbarProps) {
   }
 
   return (
-    <header className="fixed inset-x-0 top-0 z-40 h-[68px] bg-black border-b border-white/10">
+    <header className="fixed inset-x-0 top-0 z-40 h-[76px] bg-black border-b border-white/10">
       <div className="flex h-full items-center justify-between px-4 md:px-8">
 
         {/* Left — hamburger + logo */}

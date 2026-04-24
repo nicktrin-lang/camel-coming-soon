@@ -124,7 +124,7 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
 
   if (timedOut) {
     return (
-      <div className="min-h-screen bg-[#f0f0f0] pt-[68px]">
+      <div className="min-h-screen bg-[#f0f0f0] pt-[76px]">
         <div className="px-4 py-8 md:px-8">
           <div className="border border-red-200 bg-white p-8">
             <h2 className="text-xl font-black text-red-700">Session error</h2>
@@ -142,7 +142,7 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f0f0f0] pt-[68px]">
+      <div className="min-h-screen bg-[#f0f0f0] pt-[76px]">
         <div className="px-4 py-8 md:px-8">
           <div className="border border-black/5 bg-white p-8">
             <p className="text-sm font-semibold text-black/50">Loading portal…</p>
@@ -153,12 +153,11 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
   }
 
   // Info pages for unauthenticated users — topbar only, no sidebar
-  // Footer is rendered by ClientRootLayout since these are excluded from isPortalAppPage
   if (isPartnerInfoPage && !authed) {
     return (
       <div className="min-h-screen bg-[#f0f0f0]">
         <PortalTopbar onMenuClick={() => {}} />
-        <div className="pt-[68px]">
+        <div className="pt-[76px]">
           <div className="px-4 py-5 md:px-8 md:py-8">
             {children}
           </div>
@@ -172,13 +171,13 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
     <div className="min-h-screen bg-[#f0f0f0]">
       <PortalTopbar onMenuClick={() => setSidebarOpen(true)} />
       <PortalSidebar role={role} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="pt-[68px] lg:pl-[290px]">
+      <div className="pt-[76px] lg:pl-[290px]">
         <div className={
-  pathname === "/partner/onboarding" ||
-  pathname === "/partner/terms" ||
-  pathname === "/partner/operating-rules"
-    ? "p-0" : "px-4 py-5 md:px-8 md:py-8"
-}>
+          pathname === "/partner/onboarding" ||
+          pathname === "/partner/terms" ||
+          pathname === "/partner/operating-rules"
+            ? "p-0" : "px-4 py-5 md:px-8 md:py-8"
+        }>
           {children}
         </div>
       </div>

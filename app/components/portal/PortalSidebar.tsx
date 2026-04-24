@@ -63,7 +63,7 @@ export default function PortalSidebar({ role, open, onClose }: Props) {
         "fixed left-0 z-40 w-[290px]",
         "bg-black border-r border-white/10 text-white",
         "transform transition-transform duration-300 ease-in-out",
-        "top-[68px] h-[calc(100vh-68px)]",
+        "top-[76px] h-[calc(100vh-76px)]",
         open ? "translate-x-0" : "-translate-x-full",
         "lg:translate-x-0",
       ].join(" ")}>

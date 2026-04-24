@@ -621,7 +621,7 @@ export default function PartnerSignupPage() {
     <div className="min-h-screen bg-white flex flex-col">
 
       {/* Header — matches PortalTopbar */}
-      <header className="w-full bg-black border-b border-white/10 h-[68px] flex items-center px-4 md:px-8 justify-between">
+      <header className="w-full bg-black border-b border-white/10 h-[76px] flex items-center px-4 md:px-8 justify-between">
         <Link href="/partner/login" className="flex items-center">
           <Image src="/camel-logo.png" alt="Camel Global" width={200} height={70} priority className="h-16 w-auto brightness-0 invert" />
         </Link>
