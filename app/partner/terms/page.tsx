@@ -66,7 +66,7 @@ const TERMS: Section[] = [
       "Camel Global will use reasonable endeavours to make the Platform available 24 hours a day, 7 days a week, subject to planned maintenance and events outside our control.",
       "Camel Global will process Bookings, payments, and notifications in accordance with the functionality described in the Platform.",
       "Camel Global will notify Partners of new customer requests within their service radius in a timely manner.",
-      "Camel Global will provide Partner support via support@camel-global.com and will use reasonable endeavours to respond to enquiries within 2 business days.",
+      "Camel Global will provide Partner support via the contact form and will use reasonable endeavours to respond to enquiries within 2 business days.",
       "Camel Global will give Partners at least 14 days' written notice of any material changes to these Terms or the Operating Rules.",
       "Camel Global does not guarantee any minimum volume of Bookings or revenue to any Partner.",
     ],
@@ -152,7 +152,7 @@ const TERMS: Section[] = [
       "Camel Global may suspend a Partner account immediately for a serious customer complaint, breach of standards, failure to fulfil a Booking, or misrepresentation.",
       "Following suspension, the Partner will be notified by email and given 5 business days to respond.",
       "Camel Global may permanently terminate this Agreement for repeated breaches or a single serious violation.",
-      "The Partner may terminate by providing 30 days' written notice to support@camel-global.com, provided no active Bookings remain.",
+      "The Partner may terminate by providing 30 days' written notice via the contact form, provided no active Bookings remain.",
       "On termination, Platform access is revoked, outstanding amounts become immediately payable, and Customer data must be deleted within 30 days.",
     ],
   },
@@ -236,33 +236,29 @@ async function downloadTermsPDF() {
 
 export default function PartnerTermsPage() {
   return (
-    <div className="min-h-screen bg-[#f0f0f0]">
-
-      {/* Hero */}
-      <div className="w-full bg-black px-6 py-16 text-white">
+    <>
+      {/* Hero — full bleed black band */}
+      <div className="w-full bg-black px-6 py-16 text-white -mx-4 md:-mx-8 -mt-5 md:-mt-8 mb-6" style={{ width: "calc(100% + 2rem)" }}>
         <div className="mx-auto max-w-3xl">
           <p className="mb-2 text-sm font-black uppercase tracking-widest text-[#ff7a00]">Legal</p>
           <h1 className="text-4xl font-black text-white md:text-5xl">Partner Terms and Conditions</h1>
-          <p className="mt-3 text-base font-semibold text-white/70">
+          <p className="mt-3 text-base font-bold text-white/70">
             These Terms govern your use of the Camel Global platform as a partner. Please read them carefully.
             By registering as a partner and ticking the acceptance checkbox during signup, you agree to be bound
             by these Terms and the Partner Operating Rules, which are incorporated by reference.
           </p>
-          <p className="mt-2 text-xs font-semibold text-white/40">Version {VERSION} — Effective {EFFECTIVE_DATE}</p>
+          <p className="mt-2 text-xs font-bold text-white/40">Version {VERSION} — Effective {EFFECTIVE_DATE}</p>
         </div>
       </div>
 
       {/* Content */}
-      <div className="mx-auto max-w-3xl px-6 py-10 space-y-4">
+      <div className="mx-auto max-w-3xl space-y-4">
 
         {/* Download + key points */}
         <div className="bg-white p-6">
           <div className="flex justify-end mb-6">
-            <button
-              type="button"
-              onClick={() => downloadTermsPDF()}
-              className="bg-black px-5 py-3 text-sm font-black text-white hover:opacity-80 transition-opacity"
-            >
+            <button type="button" onClick={() => downloadTermsPDF()}
+              className="bg-black px-5 py-3 text-sm font-black text-white hover:opacity-80 transition-opacity">
               ⬇ Download PDF
             </button>
           </div>
@@ -275,7 +271,7 @@ export default function PartnerTermsPage() {
               <div key={title} className="bg-[#f0f0f0] p-4">
                 <div className="text-2xl mb-2">{icon}</div>
                 <p className="text-xs font-black uppercase tracking-widest text-black mb-1">{title}</p>
-                <p className="text-xs font-semibold text-black/60">{body}</p>
+                <p className="text-xs font-bold text-black/60">{body}</p>
               </div>
             ))}
           </div>
@@ -287,7 +283,7 @@ export default function PartnerTermsPage() {
             <h2 className="text-xs font-black uppercase tracking-widest text-black mb-4 pb-2 border-b border-black/10">{title}</h2>
             <ol className="space-y-3">
               {clauses.map((clause, i) => (
-                <li key={i} className="flex gap-3 text-sm font-semibold text-black/70 leading-relaxed">
+                <li key={i} className="flex gap-3 text-sm font-bold text-black/70 leading-relaxed">
                   <span className="shrink-0 font-black text-black w-5">{i + 1}.</span>
                   <span>{clause}</span>
                 </li>
@@ -299,7 +295,7 @@ export default function PartnerTermsPage() {
         {/* Operating rules note */}
         <div className="bg-[#f0f0f0] p-6">
           <p className="text-xs font-black uppercase tracking-widest text-black mb-2">Partner Operating Rules</p>
-          <p className="text-sm font-semibold text-black/70 leading-relaxed">
+          <p className="text-sm font-bold text-black/70 leading-relaxed">
             The Partner Operating Rules are incorporated into this Agreement and have the same legal force as these Terms.
             They set out the day-to-day operational standards covering bidding, vehicle standards, fuel policy, driver conduct,
             customer service, and more. You can read and download the Operating Rules from your{" "}
@@ -309,10 +305,10 @@ export default function PartnerTermsPage() {
           </p>
         </div>
 
-        <p className="text-xs font-semibold text-black/30 text-center pb-4">
+        <p className="text-xs font-bold text-black/30 text-center pb-4">
           Camel Global Partner Terms and Conditions — Version {VERSION} — Effective {EFFECTIVE_DATE} — Subject to change with 14 days&apos; notice.
         </p>
       </div>
-    </div>
+    </>
   );
 }
