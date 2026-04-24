@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import PortalSidebar, { PortalRole } from "@/app/components/portal/PortalSidebar";
 import PortalTopbar from "@/app/components/portal/PortalTopbar";
+import Footer from "@/app/components/Footer";
 
 async function safeJson(res: Response): Promise<any> {
   const text = await res.text();
@@ -48,7 +49,6 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
     pathname.startsWith("/partner/signup/");
 
   // Public info pages — show topbar + footer, no sidebar needed
-  // ClientRootLayout excludes these from isPortalAppPage so footer renders
   const isPartnerInfoPage =
     pathname === "/partner/terms" ||
     pathname === "/partner/operating-rules" ||
@@ -76,7 +76,6 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
 
         if (userErr || !userData?.user) {
           if (!mounted) return;
-          // Info pages are public — show with topbar, no redirect
           if (isPartnerInfoPage) { setAuthed(false); setLoading(false); return; }
           router.replace("/partner/login?reason=not_signed_in");
           return;
@@ -152,26 +151,27 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  // Info pages for unauthenticated users — topbar only, no sidebar
+  // Info pages for unauthenticated users — topbar + footer, no sidebar
   if (isPartnerInfoPage && !authed) {
     return (
-      <div className="min-h-screen bg-[#f0f0f0]">
+      <div className="min-h-screen bg-[#f0f0f0] flex flex-col">
         <PortalTopbar onMenuClick={() => {}} />
-        <div className="pt-[76px]">
+        <div className="pt-[76px] flex-1">
           <div className="px-4 py-5 md:px-8 md:py-8">
             {children}
           </div>
         </div>
+        <Footer />
       </div>
     );
   }
 
-  // Authenticated pages — full sidebar + topbar
+  // Authenticated pages — full sidebar + topbar + footer
   return (
-    <div className="min-h-screen bg-[#f0f0f0]">
+    <div className="min-h-screen bg-[#f0f0f0] flex flex-col">
       <PortalTopbar onMenuClick={() => setSidebarOpen(true)} />
       <PortalSidebar role={role} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="pt-[76px] lg:pl-[290px]">
+      <div className="pt-[76px] lg:pl-[290px] flex-1">
         <div className={
           pathname === "/partner/onboarding" ||
           pathname === "/partner/terms" ||
@@ -180,6 +180,9 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
         }>
           {children}
         </div>
+      </div>
+      <div className="lg:pl-[290px]">
+        <Footer />
       </div>
     </div>
   );

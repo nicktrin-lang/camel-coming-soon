@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import PortalSidebar, { PortalRole } from "@/app/components/portal/PortalSidebar";
 import PortalTopbar from "@/app/components/portal/PortalTopbar";
+import Footer from "@/app/components/Footer";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
@@ -65,21 +66,17 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
     check();
 
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [supabase, router]);
 
-  useEffect(() => {
-    setSidebarOpen(false);
-  }, [pathname]);
+  useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   if (checking) {
     return (
-      <div className="min-h-screen bg-[#e3f4ff] pt-20">
+      <div className="min-h-screen bg-[#f0f0f0] pt-[76px]">
         <div className="px-4 py-8 md:px-8">
-          <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-            <p className="text-slate-600">Checking admin access…</p>
+          <div className="border border-black/5 bg-white p-8">
+            <p className="text-sm font-semibold text-black/50">Checking admin access…</p>
           </div>
         </div>
       </div>
@@ -87,7 +84,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#e3f4ff]">
+    <div className="min-h-screen bg-[#f0f0f0] flex flex-col">
       <PortalTopbar onMenuClick={() => setSidebarOpen(true)} />
 
       <PortalSidebar
@@ -96,8 +93,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         onClose={() => setSidebarOpen(false)}
       />
 
-      <div className="pt-20 lg:pl-[290px]">
+      <div className="pt-[76px] lg:pl-[290px] flex-1">
         <div className="px-4 py-5 md:px-8 md:py-8">{children}</div>
+      </div>
+
+      <div className="lg:pl-[290px]">
+        <Footer />
       </div>
     </div>
   );
