@@ -62,7 +62,10 @@
 | `lib/hcaptcha.ts` | Server-side hCaptcha token verification (`verifyHCaptcha`) |
 | `app/components/HCaptcha.tsx` | Reusable hCaptcha React widget (explicit render) |
 | `app/components/CookieBanner.tsx` | GDPR cookie consent banner (localStorage) |
-| `app/components/Footer.tsx` | Smart footer — 4 variants: Customer, Partner, Admin, Driver |
+| `app/components/Footer.tsx` | Smart footer — 4 variants: Customer, Partner, Admin, Driver — all black theme |
+| `app/components/portal/PortalTopbar.tsx` | Partner/admin header — black, h-[76px], inverted logo, Book Now + Logout |
+| `app/components/portal/PortalSidebar.tsx` | Partner/admin sidebar — black, orange active state, square nav items |
+| `app/ClientRootLayout.tsx` | Root layout — controls global header, footer, cookie banner visibility |
 | `app/api/auth/verify-captcha/route.ts` | POST endpoint — verifies hCaptcha token server-side |
 | `app/api/currency/rate/route.ts` | Live rate API — fetches EUR→GBP,USD from frankfurter.app |
 | `app/api/partner/refresh-live-status/route.ts` | POST endpoint — runs live status check |
@@ -71,9 +74,12 @@
 | `app/api/test-booking/customer-profile/route.ts` | Service role upsert for customer profiles (bypasses RLS) |
 | `app/api/test-booking/delete-account/route.ts` | POST — soft deletes customer account (stamps deleted_at) |
 | `app/api/contact/route.ts` | POST — contact form handler, Resend email, hCaptcha, rate limited, subject-based routing |
+| `app/partner/login/page.tsx` | Partner login — black/orange/grey theme, Book Now + Become a Partner in header |
+| `app/partner/signup/page.tsx` | Partner signup — 5-step flow, black/orange/grey theme |
+| `app/partner/layout.tsx` | Partner layout — auth guard, info pages public without redirect |
 | `app/partner/settings/page.tsx` | Partner settings page — delete account flow |
-| `app/partner/terms/page.tsx` | Full partner T&Cs — versioned, PDF download, Legal label |
-| `app/partner/operating-rules/page.tsx` | Partner Operating Agreement web page + PDF download |
+| `app/partner/terms/page.tsx` | Partner T&Cs — black hero, max-w-3xl, rebranded, PDF download |
+| `app/partner/operating-rules/page.tsx` | Partner Operating Agreement — black hero, max-w-3xl, rebranded |
 | `app/partner/contact/page.tsx` | Partner contact form |
 | `app/partner/privacy/page.tsx` | Privacy policy inside partner layout |
 | `app/partner/cookies/page.tsx` | Cookie policy inside partner layout |
@@ -122,15 +128,39 @@ All internal API routes stay at `/api/test-booking/*` — do not rename these.
 
 ---
 
-## Footer System
+## Branding System
 
-### Four Distinct Footers (`app/components/Footer.tsx`)
-| Portal | Footer |
-|--------|--------|
-| `/partner/*` | PartnerFooter — blue gradient |
-| `/admin/*` | AdminFooter — blue gradient |
-| `/driver/*` | DriverFooter — blue gradient |
-| Everything else | CustomerFooter — black, includes "Ready to book?" CTA at top |
+### Customer Site — Black / Grey / White / Orange
+- **Colours:** Black `#000000`, Orange `#ff7a00`, Grey `#f0f0f0`, White
+- **No blue anywhere on customer site**
+- **Navbar:** Full-width black, `h-[76px]`, logo `h-16 brightness-0 invert`, square buttons
+- **Hero sections:** Black band `py-16`, orange label, white `font-black` heading
+- **Form areas:** `bg-[#f0f0f0]` with white cards, square edges (no rounded corners)
+- **Inputs:** `bg-[#f0f0f0]`, labels `text-xs font-black uppercase tracking-widest`
+- **Buttons:** Square, orange `bg-[#ff7a00]`, `font-black`
+- **Footer:** Black, "Ready to book?" CTA at top
+
+### Partner / Admin / Driver Portals — Same Black Theme
+- **Header (`PortalTopbar`):** Black, `h-[76px]`, same logo as customer (`brightness-0 invert`), orange "Book Now", square "Logout"
+- **Sidebar (`PortalSidebar`):** Black background, white/10 border, orange active nav item, square items
+- **Footer:** Black background (matches customer), white text, orange hover — NOT blue gradient
+- **Partner info pages** (`/partner/terms`, `/partner/operating-rules` etc.): black hero band, `max-w-3xl` centred content, publicly accessible without login
+- **No blue (`#003768`), no rounded corners, no shadows** anywhere in portal UI
+
+### Footer Routing (`app/components/Footer.tsx`)
+| Path | Footer shown |
+|------|-------------|
+| `/admin/*` | PortalFooter variant="admin" — black, admin legal links |
+| `/driver/*` | PortalFooter variant="driver" — black, minimal |
+| `/partner/*` | PortalFooter variant="partner" — black, partner links |
+| Everything else | CustomerFooter — black, "Ready to book?" CTA |
+
+### Partner Info Pages — Public Access
+These pages are in the partner layout but accessible without login (no redirect to login):
+`/partner/terms`, `/partner/operating-rules`, `/partner/contact`, `/partner/privacy`, `/partner/cookies`, `/partner/about`
+- Unauthenticated users see: PortalTopbar + content + Footer (no sidebar)
+- Authenticated partners see: full layout with sidebar
+- `ClientRootLayout` excludes these from `isPortalAppPage` so global footer renders
 
 ---
 
@@ -189,22 +219,6 @@ All internal API routes stay at `/api/test-booking/*` — do not rename these.
 | Reset password | `/reset-password` |
 | Account / profile | `/account` |
 
-### Design — Black / Grey / White / Orange Theme
-- **Colours:** Black `#000000`, Orange `#ff7a00`, Grey `#f0f0f0`, White
-- **No blue anywhere** — `#003768` only used in partner/admin portals
-- **Navbar:** Full-width black, Camel logo (h-16), nav links white font-bold, Log In orange button
-- **Hero sections:** Black band with orange label, white `font-black` heading
-- **Form areas:** `bg-[#f0f0f0]` with white cards, square edges (no rounded corners)
-- **Inputs:** `bg-[#f0f0f0]` square style, labels `text-xs font-black uppercase tracking-widest`
-- **Buttons:** Square, orange `bg-[#ff7a00]`, `font-black`
-- **Footer:** Black, "Ready to book?" CTA baked into top of CustomerFooter
-
-### Homepage (`/`) — `app/page.tsx`
-- Detects hostname: `test.camel-global.com` or `localhost` → CustomerHome; else → PartnerMarketingHome
-- CustomerHome: black navbar (no currency selector — it's in the widget), hero, booking widget, How Camel Works, fuel section, No Surprises + Why Book a Camel Car sections
-- Booking widget saves to `sessionStorage` as `camel_booking_draft` on Book Now
-- Sport equipment options match across homepage widget, `/book` page, and booking detail
-
 ### Booking Flow — Guest to Confirmed
 1. Homepage widget → saves draft to `sessionStorage` as `camel_booking_draft` → `/book`
 2. `/book` pre-fills from sessionStorage, adds map picker + notes + duration
@@ -217,23 +231,17 @@ All internal API routes stay at `/api/test-booking/*` — do not rename these.
 
 ### My Bookings (`/bookings`)
 - Clickable tab filters: Active / Completed / All — selected tab goes black
-- Shows count per tab, clicking switches the list below
 
 ### Booking Detail (`/bookings/[id]`)
-- Black hero with booking number (no currency badge — already shown in booking details card)
-- Booking details card includes: sport equipment, booking currency
-- Confirmed booking card with price breakdown
-- **Booking Summary card** — shows when `bk.booking_status === "completed"`, matches partner/admin style with live frankfurter rate badge and cross-currency amounts inline
-- Review card (completed only)
-- Insurance confirm card — white text on black background
-- Fuel confirm cards — white text on black background, labels and timestamps fully white on black
-- Bid cards
+- Black hero with booking number (no currency badge — shown in booking details card)
+- Insurance/fuel confirm cards — all text fully white on black backgrounds
+- Booking Summary card — shows on completion with live frankfurter rates
 
 ### Status Sync
-- `app/api/test-booking/bookings/[id]/update/route.ts` now syncs `customer_requests.status` whenever booking_status changes (completed/collected/returned/cancelled)
+- `app/api/test-booking/bookings/[id]/update/route.ts` syncs `customer_requests.status` on booking completion
 
 ### DB Columns
-- `customer_requests.sport_equipment` — added via SQL: `ALTER TABLE customer_requests ADD COLUMN IF NOT EXISTS sport_equipment text DEFAULT NULL;`
+- `customer_requests.sport_equipment` — added via SQL
 
 ---
 
@@ -250,15 +258,16 @@ All internal API routes stay at `/api/test-booking/*` — do not rename these.
 
 ### Last Known Good Tag
 ```bash
-git checkout v-stable-guest-booking-flow
+git checkout v-stable-partner-branding
 ```
 
 ### All Stable Tags
 | Tag | Description |
 |-----|-------------|
+| `v-stable-partner-branding` | Full portal rebrand — black/orange/grey theme across partner/admin/driver header, sidebar, footer, login, signup, terms, operating rules |
 | `v-stable-guest-booking-flow` | Guest booking flow — draft persists through login/signup, auto-submits after account creation |
-| `v-stable-pre-customer-ui` | Safe rollback before customer UI overhaul — everything working |
-| `v-stable-footer-policy-pages-complete` | Full footer system, all portal policy pages, customer header fix |
+| `v-stable-pre-customer-ui` | Safe rollback before customer UI overhaul |
+| `v-stable-footer-policy-pages-complete` | Full footer system, all portal policy pages |
 | `v-stable-footer-contact` | Split footers, contact page, operating rules shared lib |
 | `v-stable-footer-policy-pages` | Footer, About, Privacy, Cookie Policy, Customer Terms |
 | `v-stable-gdpr-delete` | GDPR soft delete, settings pages, cookie banner, RLS audit |
@@ -295,47 +304,47 @@ git checkout v-stable-guest-booking-flow
 - Driver portal — independent header, auto-refresh, insurance checkbox
 - Insurance handover — all three portals
 - Partner review system — ratings, replies, admin moderation, cron reminder
-- Review email link — uses correct request_id, auth redirect to login then back
-- Business & Billing — onboarding, read-only for partners, editable by admin
 - Partner T&Cs — full legal document, versioned acceptance at signup, PDF download
 - Partner Operating Rules — web page + PDF download, shared lib
 - Real PDF downloads (jsPDF) — no print dialog
-- Security headers — CSP includes OpenStreetMap, unpkg, hCaptcha, Supabase, Google Maps
-- Rate limiting — 3 req / 15 min per IP
-- hCaptcha — all login, forgot password, signup, and contact forms
-- Customer profile RLS — policies in place, service role used on signup
-- Cookie consent banner — GDPR compliant
-- RLS audit — all tables reviewed
-- GDPR account deletion — soft delete for partners and customers
-- Footer system — 4 portal-aware footers, CustomerFooter has "Ready to book?" CTA baked in
-- Policy pages — Privacy, Cookies, Terms, About, Contact for all three portals (black/grey/white/orange theme)
-- Maps — Leaflet/OpenStreetMap working on all pages (CSP fixed, SSR fixed)
-- Customer site full UI — black/grey/white/orange theme, no blue
-- Contact form subject-based email routing
-- Sport equipment field — homepage, /book, booking detail, partner/admin portal
-- Booking status sync — customer_requests.status updates on booking completion
-- My Bookings — clickable tab filters (Active/Completed/All)
-- Booking Summary card — shows on customer booking detail when completed, with live rates
+- Security headers, rate limiting, hCaptcha on all forms
+- Customer profile RLS, cookie consent banner, GDPR soft delete
+- **Portal branding — black/orange/grey theme across all portals:**
+  - `PortalTopbar`: black, `h-[76px]`, inverted logo matches customer, Book Now + Logout
+  - `PortalSidebar`: black, orange active state, square items
+  - Footer: black across all portals (no more blue gradient)
+  - Partner login: rebranded, black hero, square inputs
+  - Partner signup: rebranded, black hero, square 5-step form
+  - Partner terms + operating rules: black hero, `max-w-3xl` centred, publicly accessible
+  - Partner info pages viewable without auth (topbar shown, no redirect to login)
+  - Footer links all resolve correctly — no auth redirects
+  - Customer signup page widened to `max-w-lg`
 
 ---
 
 ## Session Log
 
+### Chat 16 (Completed)
+
+**Portal rebrand — black/orange/grey theme**
+- `PortalTopbar`: black `h-[76px]`, customer-identical inverted logo, orange Book Now, square Logout
+- `PortalSidebar`: black background, orange active nav, square items (was blue gradient + rounded)
+- `Footer.tsx`: all portal footers now black (was blue gradient). Single `PortalFooter` component with `variant` prop
+- `partner/layout.tsx`: info pages accessible without auth, unauthenticated users get topbar+footer but no sidebar. Header offset updated to `76px`
+- `ClientRootLayout.tsx`: `isPartnerInfoPage` excluded from `isPortalAppPage` so footer renders on public info pages
+- `partner/login/page.tsx`: full rebrand — black hero, square inputs, Book Now + Become a Partner in header
+- `partner/signup/page.tsx`: full rebrand — black header, black hero, square 5-step form
+- `partner/terms/page.tsx`: full rebrand — black hero band, `max-w-3xl` centred, square cards
+- `partner/operating-rules/page.tsx`: full rebrand — black hero band, `max-w-3xl` centred
+- Customer signup page: widened from `max-w-md` to `max-w-lg`
+- Footer links fixed: all resolve to public pages, no auth redirects
+
 ### Chat 15 (Completed)
-
-**Booking detail page fixes**
-- Removed duplicate booking currency badge from hero (already shown in booking details card)
-- Fixed insurance confirm card: "Driver confirmed handover" label and timestamp now fully white on black background
-- Fixed fuel confirm cards: "Driver recorded" label and timestamp now fully white on black background
-
-**Guest booking flow — full fix**
-- Diagnosed root cause using Claude in Chrome browser plugin: login page "Create an account" link was hardcoded to `/signup` with no `?next=` param, breaking the entire draft chain
-- Fixed `app/login/page.tsx`: "Create an account" link now passes `?next=` through to signup
-- Fixed `app/signup/page.tsx`: reads `?next=` param, submits booking draft directly after account creation (no redirect to `/book`), goes straight to `/bookings/[id]`
-- Fixed `app/book/page.tsx`: auto-submits draft on load if user is already logged in, using `onAuthStateChange` to handle session timing
+- Booking detail fixes (currency badge removed from hero, white text on black in insurance/fuel cards)
+- Guest booking flow fixed end-to-end: `?next=` param passed through login→signup link, booking draft submitted directly from signup, `onAuthStateChange` fallback on `/book`
 
 ### Chats 1–14 (Completed)
-- Core booking flow, fuel, drivers, insurance, reviews, currency, password reset, commission, T&Cs, security, GDPR, footer, policy pages, maps fixes, full customer UI overhaul
+- Core booking flow, fuel, drivers, insurance, reviews, currency, password reset, commission, T&Cs, security, GDPR, footer, policy pages, maps, full customer UI overhaul
 
 ---
 
@@ -354,6 +363,7 @@ git checkout v-stable-guest-booking-flow
 | 9 | Footer + policy pages | 3–4 hrs | ✅ Done |
 | 10 | Spanish translation (partner + driver portals, `next-intl`) | 15–20 hrs | ⬜ Todo |
 | 11 | Customer booking site full UI overhaul | 15–20 hrs | ✅ Done |
+| 11b | Partner/admin/driver portal rebrand | 8–10 hrs | ✅ Done |
 | 12 | Stripe Connect integration | 8–10 hrs | ⬜ Deferred |
 | 13 | Xero monthly commission endpoint | 3–4 hrs | ⬜ Deferred |
 | 14 | DAC7 EU platform reporting | 3–4 hrs | ⬜ Deferred |
@@ -365,6 +375,8 @@ git checkout v-stable-guest-booking-flow
 - [ ] Update registered address in privacy/terms pages (currently placeholder)
 - [ ] Create `contact@camel-global.com` mailbox in email provider
 - [ ] Create `press@camel-global.com` mailbox in email provider
+- [ ] Continue portal rebrand: partner dashboard, bookings, requests, profile, onboarding pages
+- [ ] Driver portal rebrand (login, jobs page)
 - [ ] Stripe Connect integration (Phase 2)
 - [ ] Spanish translation (Item 10)
 
@@ -406,4 +418,4 @@ git tag | grep stable
 
 ---
 
-*Last updated: Chat 15 — Booking detail fixes (currency badge, white text on black). Guest booking flow fixed: ?next= param passed through login→signup, booking draft auto-submitted directly from signup page after account creation.*
+*Last updated: Chat 16 — Full portal rebrand to black/orange/grey: PortalTopbar, PortalSidebar, Footer, partner login, partner signup, partner terms, partner operating rules. Info pages publicly accessible. Customer signup widened.*
