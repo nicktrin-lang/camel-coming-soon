@@ -239,7 +239,7 @@ export default function PartnerTermsPage() {
     <>
       {/* Hero — full bleed black band */}
       <div className="w-full bg-black px-6 py-16 text-white mb-6">
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-5xl">
           <p className="mb-2 text-sm font-black uppercase tracking-widest text-[#ff7a00]">Legal</p>
           <h1 className="text-4xl font-black text-white md:text-5xl">Partner Terms and Conditions</h1>
           <p className="mt-3 text-base font-bold text-white/70">
@@ -252,7 +252,7 @@ export default function PartnerTermsPage() {
       </div>
 
       {/* Content */}
-      <div className="mx-auto max-w-3xl px-6 space-y-4 pb-10">
+      <div className="mx-auto max-w-5xl px-6 space-y-4 pb-10">
 
         {/* Download + key points */}
         <div className="bg-white p-6">
