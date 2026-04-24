@@ -43,15 +43,15 @@ function PartnerFooter() {
         <div className="flex flex-wrap gap-12">
           <div className="flex flex-col gap-3">
             <p className="text-xs font-black uppercase tracking-widest text-white/40 mb-1">Company</p>
-            <Link href="/partner/about"   className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">About Us</Link>
-            <Link href="/partner/contact" className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Contact</Link>
+            <Link href="/about"   className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">About Us</Link>
+            <Link href="/contact" className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Contact</Link>
           </div>
           <div className="flex flex-col gap-3">
             <p className="text-xs font-black uppercase tracking-widest text-white/40 mb-1">Legal</p>
-            <Link href="/partner/terms"            className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Partner Terms</Link>
-            <Link href="/partner/operating-rules"  className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Operating Agreement</Link>
-            <Link href="/partner/privacy"          className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Privacy Policy</Link>
-            <Link href="/partner/cookies"          className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Cookie Policy</Link>
+            <Link href="/partner/terms"           className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Partner Terms</Link>
+            <Link href="/partner/operating-rules" className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Operating Agreement</Link>
+            <Link href="/privacy"                 className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Privacy Policy</Link>
+            <Link href="/cookies"                 className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Cookie Policy</Link>
           </div>
           <div className="flex flex-col gap-3">
             <p className="text-xs font-black uppercase tracking-widest text-white/40 mb-1">Platform</p>
@@ -74,15 +74,15 @@ function AdminFooter() {
         <div className="flex flex-wrap gap-12">
           <div className="flex flex-col gap-3">
             <p className="text-xs font-black uppercase tracking-widest text-white/40 mb-1">Company</p>
-            <Link href="/admin/about"   className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">About Us</Link>
-            <Link href="/admin/contact" className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Contact</Link>
+            <Link href="/about"   className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">About Us</Link>
+            <Link href="/contact" className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Contact</Link>
           </div>
           <div className="flex flex-col gap-3">
             <p className="text-xs font-black uppercase tracking-widest text-white/40 mb-1">Legal</p>
             <Link href="/admin/terms"            className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Partner Terms</Link>
             <Link href="/admin/operating-rules"  className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Operating Agreement</Link>
-            <Link href="/admin/privacy"          className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Privacy Policy</Link>
-            <Link href="/admin/cookies"          className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Cookie Policy</Link>
+            <Link href="/privacy"                className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Privacy Policy</Link>
+            <Link href="/cookies"                className="text-base font-bold text-white hover:text-[#ff7a00] transition-colors">Cookie Policy</Link>
           </div>
           <div className="flex flex-col gap-3">
             <p className="text-xs font-black uppercase tracking-widest text-white/40 mb-1">Platform</p>
