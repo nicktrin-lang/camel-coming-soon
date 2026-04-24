@@ -15,7 +15,7 @@ export default function PartnerOperatingRulesPage() {
   return (
     <>
       {/* Hero — full bleed black band */}
-      <div className="w-full bg-black px-6 py-16 text-white -mx-4 md:-mx-8 -mt-5 md:-mt-8 mb-6" style={{ width: "calc(100% + 2rem)" }}>
+      <div className="w-full bg-black px-6 py-16 text-white mb-6">
         <div className="mx-auto max-w-3xl">
           <p className="mb-2 text-sm font-black uppercase tracking-widest text-[#ff7a00]">Legal</p>
           <h1 className="text-4xl font-black text-white md:text-5xl">Partner Operating Agreement</h1>
@@ -27,7 +27,7 @@ export default function PartnerOperatingRulesPage() {
       </div>
 
       {/* Content */}
-      <div className="mx-auto max-w-3xl space-y-4">
+      <div className="mx-auto max-w-3xl px-6 space-y-4 pb-10">
 
         <div className="flex justify-end">
           <button type="button" onClick={handleDownload} disabled={downloading}

@@ -151,31 +151,26 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  // Info pages for unauthenticated users — topbar + footer, no sidebar
+  // Info pages for unauthenticated users — topbar only, no sidebar, no footer (ClientRootLayout renders it)
   if (isPartnerInfoPage && !authed) {
     return (
-      <div className="min-h-screen bg-[#f0f0f0] flex flex-col">
+      <div className="min-h-screen bg-[#f0f0f0]">
         <PortalTopbar onMenuClick={() => {}} />
-        <div className="pt-[76px] flex-1">
-          <div className="px-4 py-5 md:px-8 md:py-8">
-            {children}
-          </div>
+        <div className="pt-[76px] px-4 py-5 md:px-8 md:py-8">
+          {children}
         </div>
-        <Footer />
       </div>
     );
   }
 
-  // Authenticated pages — full sidebar + topbar + footer
+  // Authenticated pages — full sidebar + topbar + footer (ClientRootLayout renders footer for info pages)
   return (
     <div className="min-h-screen bg-[#f0f0f0] flex flex-col">
       <PortalTopbar onMenuClick={() => setSidebarOpen(true)} />
       <PortalSidebar role={role} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="pt-[76px] lg:pl-[290px] flex-1">
         <div className={
-          pathname === "/partner/onboarding" ||
-          pathname === "/partner/terms" ||
-          pathname === "/partner/operating-rules"
+          pathname === "/partner/terms" || pathname === "/partner/operating-rules"
             ? "p-0" : "px-4 py-5 md:px-8 md:py-8"
         }>
           {children}
