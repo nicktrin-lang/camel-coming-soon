@@ -55,7 +55,7 @@ export default function ClientRootLayout({ children, fontClass }: { children: Re
   const showGlobalHeader = !isHomepage && !isPartnerAuthPage && !isPortalAppPage && !isPartnerInfoPage;
   const showCookieBanner = !isPortalAppPage;
   const showCustomerNav  = isNewCustomerArea || isTestBookingArea || isCustomerPublicPage;
-  const showFooter       = !isPortalAppPage;
+  const showFooter       = !isPortalAppPage && !isPartnerInfoPage;
 
   const [isPartnerLoggedIn,  setIsPartnerLoggedIn]  = useState(false);
   const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState(false);
