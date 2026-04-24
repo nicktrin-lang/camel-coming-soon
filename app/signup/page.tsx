@@ -122,7 +122,7 @@ function SignupForm() {
 
       {/* Hero / top black band */}
       <div className="w-full bg-black px-6 py-16 text-white">
-        <div className="mx-auto max-w-md">
+        <div className="mx-auto max-w-lg">
           <p className="mb-2 text-sm font-black uppercase tracking-widest text-[#ff7a00]">My Account</p>
           <h1 className="text-4xl font-black text-white md:text-5xl">Create your account.</h1>
           <p className="mt-3 text-base font-semibold text-white/70">
@@ -133,7 +133,7 @@ function SignupForm() {
 
       {/* Form */}
       <div className="w-full bg-[#f0f0f0] px-6 py-12">
-        <div className="mx-auto max-w-md">
+        <div className="mx-auto max-w-lg">
           <div className="bg-white p-8 space-y-5">
 
             {error && (
