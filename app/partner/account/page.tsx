@@ -33,10 +33,7 @@ type ApplicationRow = {
   terms_version: string | null;
 };
 
-type LiveStatus = {
-  isLive: boolean;
-  missing: string[];
-};
+type LiveStatus = { isLive: boolean; missing: string[] };
 
 function fmtValue(value?: string | number | null) {
   if (value === null || value === undefined) return "—";
@@ -62,10 +59,10 @@ function fmtDate(value?: string | null) {
 
 function statusPillClasses(status?: string | null) {
   switch (String(status || "").toLowerCase()) {
-    case "approved": return "border-green-200 bg-green-50 text-green-700";
-    case "pending":  return "border-amber-200 bg-amber-50 text-amber-700";
+    case "approved": return "border-black/20 bg-black text-white";
+    case "pending":  return "border-amber-300 bg-amber-50 text-amber-700";
     case "rejected": return "border-red-200 bg-red-50 text-red-700";
-    default:         return "border-black/10 bg-white text-slate-700";
+    default:         return "border-black/10 bg-white text-black/60";
   }
 }
 
@@ -90,16 +87,37 @@ const MISSING_LABELS: Record<string, { label: string; href: string }> = {
   vat_number:        { label: "VAT / NIF number not set",              href: "/partner/profile" },
 };
 
+// Reusable field display
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <span className="text-xs font-black uppercase tracking-widest text-black/40">{label}</span>
+      <div className="mt-1 font-bold text-black">{children}</div>
+    </div>
+  );
+}
+
+// Reusable section card
+function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+  return (
+    <div className="border border-black/5 bg-white p-6">
+      <h2 className="text-lg font-black text-black">{title}</h2>
+      {subtitle && <p className="mt-0.5 text-xs font-bold text-black/40">{subtitle}</p>}
+      <div className="mt-5">{children}</div>
+    </div>
+  );
+}
+
 export default function PartnerAccountPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const router = useRouter();
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [profile, setProfile] = useState<AccountProfile | null>(null);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState<string | null>(null);
+  const [profile,     setProfile]     = useState<AccountProfile | null>(null);
   const [application, setApplication] = useState<ApplicationRow | null>(null);
-  const [email, setEmail] = useState<string>("");
-  const [liveStatus, setLiveStatus] = useState<LiveStatus | null>(null);
+  const [email,       setEmail]       = useState<string>("");
+  const [liveStatus,  setLiveStatus]  = useState<LiveStatus | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -136,20 +154,17 @@ export default function PartnerAccountPage() {
           });
           if (liveRes.ok) {
             const liveJson = await liveRes.json();
-            if (mounted) {
-              setLiveStatus({
-                isLive: liveJson?.isLiveNow ?? liveJson?.becameLive ?? false,
-                missing: Array.isArray(liveJson?.missing) ? liveJson.missing : [],
-              });
-            }
+            if (mounted) setLiveStatus({
+              isLive: liveJson?.isLiveNow ?? liveJson?.becameLive ?? false,
+              missing: Array.isArray(liveJson?.missing) ? liveJson.missing : [],
+            });
           }
         } catch {}
       } catch (e: any) {
         if (!mounted) return;
         setError(e?.message || "Failed to load account.");
       } finally {
-        if (!mounted) return;
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
     load();
@@ -162,70 +177,66 @@ export default function PartnerAccountPage() {
       .filter(Boolean).join(", ") || "—";
 
   if (loading) return (
-    <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-      <p className="text-slate-600">Loading...</p>
+    <div className="border border-black/5 bg-white p-8">
+      <p className="text-sm font-bold text-black/50">Loading…</p>
     </div>
   );
 
   return (
     <div className="space-y-6">
-      {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {error && <div className="border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div>}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="rounded-3xl bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-          <p className="text-sm text-slate-500">Company</p>
-          <p className="mt-1 text-lg font-semibold text-[#003768]">{fmtValue(profile?.company_name)}</p>
-        </div>
-        <div className="rounded-3xl bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-          <p className="text-sm text-slate-500">Application Status</p>
-          <div className="mt-2">
-            <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${statusPillClasses(application?.status)}`}>
-              {fmtStatus(application?.status)}
-            </span>
+        {[
+          { label: "Company",            value: fmtValue(profile?.company_name) },
+          { label: "Application Status", value: fmtStatus(application?.status), pill: true, status: application?.status },
+          { label: "Service Radius",     value: profile?.service_radius_km ? `${profile.service_radius_km} km` : "—" },
+          { label: "Billing Currency",   value: currencyLabel(profile?.default_currency) },
+        ].map(({ label, value, pill, status }) => (
+          <div key={label} className="border border-black/5 bg-white p-5">
+            <p className="text-xs font-black uppercase tracking-widest text-black/40">{label}</p>
+            {pill ? (
+              <div className="mt-2">
+                <span className={`inline-flex border px-3 py-1 text-xs font-black uppercase tracking-widest capitalize ${statusPillClasses(status)}`}>
+                  {value}
+                </span>
+              </div>
+            ) : (
+              <p className="mt-1 text-lg font-black text-black">{value}</p>
+            )}
           </div>
-        </div>
-        <div className="rounded-3xl bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-          <p className="text-sm text-slate-500">Service Radius</p>
-          <p className="mt-1 text-lg font-semibold text-[#003768]">
-            {profile?.service_radius_km ? `${profile.service_radius_km} km` : "—"}
-          </p>
-        </div>
-        <div className="rounded-3xl bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-          <p className="text-sm text-slate-500">Billing Currency</p>
-          <p className="mt-1 text-lg font-semibold text-[#003768]">{currencyLabel(profile?.default_currency)}</p>
-        </div>
+        ))}
       </div>
 
       {/* Live Status Banner */}
       {liveStatus && (
         liveStatus.isLive ? (
-          <div className="rounded-3xl border border-green-200 bg-green-50 p-5 shadow-[0_18px_45px_rgba(0,0,0,0.05)]">
+          <div className="border border-black/10 bg-black p-5">
             <div className="flex items-center gap-3">
-              <span className="text-2xl">✅</span>
+              <span className="text-xl">✅</span>
               <div>
-                <p className="font-semibold text-green-800">Your account is live</p>
-                <p className="text-sm text-green-700">You are visible to customers and can receive and bid on requests within your service radius.</p>
+                <p className="font-black text-white">Your account is live</p>
+                <p className="text-sm font-bold text-white/60">You are visible to customers and can receive and bid on requests within your service radius.</p>
               </div>
             </div>
           </div>
         ) : (
-          <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-[0_18px_45px_rgba(0,0,0,0.05)]">
+          <div className="border border-amber-200 bg-amber-50 p-5">
             <div className="flex items-start gap-3">
-              <span className="text-2xl">⚠️</span>
+              <span className="text-xl">⚠️</span>
               <div className="flex-1">
-                <p className="font-semibold text-amber-800">Your account is not yet live</p>
-                <p className="mt-1 text-sm text-amber-700">Complete the following to go live and start receiving customer requests:</p>
+                <p className="font-black text-amber-800">Your account is not yet live</p>
+                <p className="mt-1 text-sm font-bold text-amber-700">Complete the following to go live and start receiving customer requests:</p>
                 {liveStatus.missing.length > 0 && (
-                  <ul className="mt-3 space-y-2">
+                  <ul className="mt-3 flex flex-wrap gap-2">
                     {liveStatus.missing.map(m => {
                       const info = MISSING_LABELS[m] ?? { label: m, href: "/partner/profile" };
                       return (
                         <li key={m}>
                           <a href={info.href}
-                            className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-white px-4 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 transition-colors">
-                            <span className="text-amber-500">→</span>
-                            {info.label}
+                            className="inline-flex items-center gap-1.5 border border-amber-300 bg-white px-3 py-1.5 text-sm font-black text-amber-800 hover:bg-amber-100 transition-colors">
+                            → {info.label}
                           </a>
                         </li>
                       );
@@ -242,163 +253,139 @@ export default function PartnerAccountPage() {
         <div className="space-y-6 xl:col-span-2">
 
           {/* Company Details */}
-          <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-            <h2 className="text-xl font-semibold text-[#003768]">Company Details</h2>
-            <div className="mt-5 grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
-              <div><span className="text-slate-500">Contact Name</span><p className="font-medium text-slate-800">{fmtValue(profile?.contact_name)}</p></div>
-              <div><span className="text-slate-500">Email</span><p className="font-medium text-slate-800">{fmtValue(email)}</p></div>
-              <div><span className="text-slate-500">Phone</span><p className="font-medium text-slate-800">{fmtValue(profile?.phone)}</p></div>
-              <div><span className="text-slate-500">Website</span><p className="font-medium text-slate-800">{fmtValue(profile?.website)}</p></div>
-              <div><span className="text-slate-500">Billing Currency</span><p className="font-medium text-slate-800">{currencyLabel(profile?.default_currency)}</p></div>
-              <div><span className="text-slate-500">Service Radius</span><p className="font-medium text-slate-800">{profile?.service_radius_km ? `${profile.service_radius_km} km` : "—"}</p></div>
+          <Section title="Company Details">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Field label="Contact Name">{fmtValue(profile?.contact_name)}</Field>
+              <Field label="Email">{fmtValue(email)}</Field>
+              <Field label="Phone">{fmtValue(profile?.phone)}</Field>
+              <Field label="Website">{fmtValue(profile?.website)}</Field>
+              <Field label="Billing Currency">{currencyLabel(profile?.default_currency)}</Field>
+              <Field label="Service Radius">{profile?.service_radius_km ? `${profile.service_radius_km} km` : "—"}</Field>
             </div>
-          </div>
+          </Section>
 
           {/* Business & Billing */}
-          <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-            <h2 className="text-xl font-semibold text-[#003768]">Business & Billing</h2>
-            <p className="mt-1 text-sm text-slate-500">Your legal details used for commission invoicing.</p>
-            <div className="mt-5 grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
+          <Section title="Business & Billing" subtitle="Your legal details used for commission invoicing.">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
-                <span className="text-slate-500">Legal Company Name</span>
-                <p className="font-medium text-slate-800">{fmtValue(profile?.legal_company_name)}</p>
+                <Field label="Legal Company Name">{fmtValue(profile?.legal_company_name)}</Field>
               </div>
-              <div>
-                <span className="text-slate-500">Company Registration Number</span>
-                <p className="font-medium text-slate-800">{fmtValue(profile?.company_registration_number)}</p>
-              </div>
-              <div>
-                <span className="text-slate-500">VAT / NIF Number</span>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <p className="font-medium text-slate-800">{fmtValue(profile?.vat_number)}</p>
+              <Field label="Company Registration Number">{fmtValue(profile?.company_registration_number)}</Field>
+              <Field label="VAT / NIF Number">
+                <div className="flex items-center gap-2">
+                  <span>{fmtValue(profile?.vat_number)}</span>
                   {profile?.vat_number
-                    ? <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">✓ Provided</span>
-                    : <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">Required</span>
+                    ? <span className="border border-black/20 px-2 py-0.5 text-xs font-black text-black">✓ Provided</span>
+                    : <span className="border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-black text-red-600">Required</span>
                   }
+                </div>
+              </Field>
+            </div>
+            {!profile?.vat_number && (
+              <div className="mt-4 border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+                ⚠️ Your VAT / NIF number is required before your account can go live.{" "}
+                <a href="/partner/profile" className="font-black underline">Add it in your profile →</a>
+              </div>
+            )}
+          </Section>
+
+          {/* Business Address */}
+          <Section title="Business Address">
+            <div className="space-y-4">
+              <Field label="Full Address">{fullAddress}</Field>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Field label="Address Line 1">{fmtValue(profile?.address1)}</Field>
+                <Field label="Address Line 2">{fmtValue(profile?.address2)}</Field>
+                <Field label="Province">{fmtValue(profile?.province)}</Field>
+                <Field label="Postcode">{fmtValue(profile?.postcode)}</Field>
+                <div className="md:col-span-2">
+                  <Field label="Country">{fmtValue(profile?.country)}</Field>
                 </div>
               </div>
             </div>
-            {!profile?.vat_number && (
-              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                ⚠️ Your VAT / NIF number is required before your account can go live.{" "}
-                <a href="/partner/profile" className="font-semibold underline">Add it in your profile →</a>
-              </div>
-            )}
-          </div>
-
-          {/* Business Address */}
-          <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-            <h2 className="text-xl font-semibold text-[#003768]">Business Address</h2>
-            <div className="mt-5 space-y-3 text-sm">
-              <div>
-                <span className="text-slate-500">Full Address</span>
-                <p className="font-medium text-slate-800">{fullAddress}</p>
-              </div>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div><span className="text-slate-500">Address Line 1</span><p className="font-medium text-slate-800">{fmtValue(profile?.address1)}</p></div>
-                <div><span className="text-slate-500">Address Line 2</span><p className="font-medium text-slate-800">{fmtValue(profile?.address2)}</p></div>
-                <div><span className="text-slate-500">Province</span><p className="font-medium text-slate-800">{fmtValue(profile?.province)}</p></div>
-                <div><span className="text-slate-500">Postcode</span><p className="font-medium text-slate-800">{fmtValue(profile?.postcode)}</p></div>
-                <div className="md:col-span-2"><span className="text-slate-500">Country</span><p className="font-medium text-slate-800">{fmtValue(profile?.country)}</p></div>
-              </div>
-            </div>
-          </div>
+          </Section>
 
           {/* Fleet Base Location */}
-          <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-            <h2 className="text-xl font-semibold text-[#003768]">Fleet Base Location</h2>
-            <div className="mt-5 grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
+          <Section title="Fleet Base Location">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
-                <span className="text-slate-500">Base Address</span>
-                <p className="font-medium text-slate-800">{fmtValue(profile?.base_address)}</p>
+                <Field label="Base Address">{fmtValue(profile?.base_address)}</Field>
               </div>
-              <div><span className="text-slate-500">Latitude</span><p className="font-medium text-slate-800">{profile?.base_lat ?? "—"}</p></div>
-              <div><span className="text-slate-500">Longitude</span><p className="font-medium text-slate-800">{profile?.base_lng ?? "—"}</p></div>
+              <Field label="Latitude">{profile?.base_lat ?? "—"}</Field>
+              <Field label="Longitude">{profile?.base_lng ?? "—"}</Field>
               {profile?.service_radius_km && (
                 <div className="md:col-span-2">
-                  <span className="text-slate-500">Coverage Radius</span>
-                  <p className="font-medium text-slate-800">{profile.service_radius_km} km — Customer requests within this radius will be sent to you.</p>
+                  <Field label="Coverage Radius">{profile.service_radius_km} km — Customer requests within this radius will be sent to you.</Field>
                 </div>
               )}
             </div>
-          </div>
+          </Section>
         </div>
 
         {/* Sidebar */}
         <div className="space-y-6">
 
           {/* Account Actions */}
-          <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-            <h2 className="text-xl font-semibold text-[#003768]">Account Actions</h2>
-            <div className="mt-5 space-y-3">
-              <a href="/partner/profile" className="block rounded-full bg-[#ff7a00] px-5 py-3 text-center text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95">Edit Profile</a>
-              <a href="/partner/fleet" className="block rounded-full border border-[#003768] px-5 py-3 text-center text-sm font-semibold text-[#003768] hover:bg-[#003768]/5">Manage Fleet</a>
-              <a href="/partner/drivers" className="block rounded-full border border-[#003768] px-5 py-3 text-center text-sm font-semibold text-[#003768] hover:bg-[#003768]/5">Manage Drivers</a>
+          <Section title="Account Actions">
+            <div className="space-y-3">
+              <a href="/partner/profile" className="block bg-[#ff7a00] px-5 py-3 text-center text-sm font-black text-white hover:opacity-90 transition-opacity">
+                Edit Profile
+              </a>
+              <a href="/partner/fleet" className="block border border-black/20 px-5 py-3 text-center text-sm font-black text-black hover:bg-black/5 transition-colors">
+                Manage Fleet
+              </a>
+              <a href="/partner/drivers" className="block border border-black/20 px-5 py-3 text-center text-sm font-black text-black hover:bg-black/5 transition-colors">
+                Manage Drivers
+              </a>
             </div>
-          </div>
+          </Section>
 
           {/* Application */}
-          <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-            <h2 className="text-xl font-semibold text-[#003768]">Application</h2>
-            <div className="mt-4 space-y-3 text-sm text-slate-700">
-              <div>
-                <span className="text-slate-500">Status</span>
-                <div className="mt-1">
-                  <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${statusPillClasses(application?.status)}`}>
-                    {fmtStatus(application?.status)}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <span className="text-slate-500">Applied</span>
-                <p className="font-medium text-slate-800">{fmtDateTime(application?.created_at)}</p>
-              </div>
+          <Section title="Application">
+            <div className="space-y-3 text-sm">
+              <Field label="Status">
+                <span className={`inline-flex border px-3 py-1 text-xs font-black uppercase tracking-widest capitalize ${statusPillClasses(application?.status)}`}>
+                  {fmtStatus(application?.status)}
+                </span>
+              </Field>
+              <Field label="Applied">{fmtDateTime(application?.created_at)}</Field>
               {application?.status === "pending" && (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">Your application is under review. You will be notified by email once approved.</div>
+                <div className="border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-700">
+                  Your application is under review. You will be notified by email once approved.
+                </div>
               )}
               {application?.status === "approved" && (
-                <div className="rounded-2xl border border-green-200 bg-green-50 p-3 text-xs text-green-700">Your account is approved. Complete your profile setup to go live.</div>
+                <div className="border border-black/10 bg-[#f0f0f0] p-3 text-xs font-bold text-black/60">
+                  Your account is approved. Complete your profile setup to go live.
+                </div>
               )}
             </div>
-          </div>
+          </Section>
 
           {/* Terms & Conditions */}
-          <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-            <h2 className="text-xl font-semibold text-[#003768]">Terms & Conditions</h2>
-            <div className="mt-4 space-y-3 text-sm text-slate-700">
-              <div>
-                <span className="text-slate-500">Version accepted</span>
-                <p className="font-medium text-slate-800">
-                  {application?.terms_version ? `v${application.terms_version}` : "—"}
-                </p>
-              </div>
-              <div>
-                <span className="text-slate-500">Accepted on</span>
-                <p className="font-medium text-slate-800">
-                  {fmtDate(application?.terms_accepted_at)}
-                </p>
-              </div>
+          <Section title="Terms & Conditions">
+            <div className="space-y-3 text-sm">
+              <Field label="Version accepted">
+                {application?.terms_version ? `v${application.terms_version}` : "—"}
+              </Field>
+              <Field label="Accepted on">
+                {fmtDate(application?.terms_accepted_at)}
+              </Field>
               {application?.terms_accepted_at && (
-                <div className="rounded-2xl border border-green-200 bg-green-50 p-3 text-xs text-green-700">
+                <div className="border border-black/10 bg-[#f0f0f0] p-3 text-xs font-bold text-black/60">
                   ✓ You have accepted the current Partner Terms and Conditions.
                 </div>
               )}
-              <div className="pt-1">
-                <a
-                  href="/partner/terms"
-                  target="_blank"
-                  className="block rounded-full border border-[#003768] px-5 py-2.5 text-center text-sm font-semibold text-[#003768] hover:bg-[#003768]/5"
-                >
-                  View Current T&Cs
-                </a>
-              </div>
+              <a href="/partner/terms" target="_blank"
+                className="block border border-black/20 px-5 py-2.5 text-center text-sm font-black text-black hover:bg-black/5 transition-colors">
+                View Current T&Cs
+              </a>
             </div>
-          </div>
+          </Section>
 
           {/* Quick Links */}
-          <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-            <h2 className="text-xl font-semibold text-[#003768]">Quick Links</h2>
-            <div className="mt-4 space-y-2 text-sm">
+          <Section title="Quick Links">
+            <div className="space-y-2">
               {[
                 { label: "View My Bookings",  href: "/partner/bookings" },
                 { label: "View My Requests",  href: "/partner/requests" },
@@ -406,46 +393,47 @@ export default function PartnerAccountPage() {
                 { label: "My Drivers",        href: "/partner/drivers" },
                 { label: "My Fleet",          href: "/partner/fleet" },
               ].map(({ label, href }) => (
-                <a key={href} href={href} className="flex items-center justify-between rounded-xl border border-black/10 bg-slate-50 px-4 py-2.5 font-medium text-[#003768] hover:bg-[#f3f8ff] transition-colors">
-                  {label}<span className="text-slate-400">→</span>
+                <a key={href} href={href}
+                  className="flex items-center justify-between border border-black/10 bg-[#f0f0f0] px-4 py-2.5 text-sm font-black text-black hover:bg-black/5 transition-colors">
+                  {label}<span className="text-black/30">→</span>
                 </a>
               ))}
             </div>
-          </div>
+          </Section>
         </div>
       </div>
 
       {/* Operating Rules */}
-      <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)] md:p-8">
+      <div className="border border-black/5 bg-white p-6 md:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-2xl font-semibold text-[#003768]">Partner Operating Rules</h2>
-            <p className="mt-1 text-sm text-slate-500">These rules govern your conduct as a Camel Global partner. By operating on the platform you agree to comply with all sections below.</p>
+            <h2 className="text-2xl font-black text-black">Partner Operating Rules</h2>
+            <p className="mt-1 text-xs font-bold text-black/40">These rules govern your conduct as a Camel Global partner. By operating on the platform you agree to comply with all sections below.</p>
           </div>
           <button
             type="button"
             onClick={() => downloadOperatingRulesPDF(profile?.company_name || "Partner")}
-            className="shrink-0 rounded-full bg-[#003768] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+            className="shrink-0 bg-black px-5 py-2.5 text-sm font-black text-white hover:opacity-80 transition-opacity"
           >
             ⬇ Download PDF
           </button>
         </div>
-        <div className="mt-6 space-y-6">
+        <div className="mt-6 space-y-4">
           {OPERATING_RULES.map(({ section, rules }) => (
-            <div key={section} className="rounded-2xl border border-black/5 bg-slate-50 p-5">
-              <h3 className="text-base font-bold text-[#003768]">{section}</h3>
+            <div key={section} className="border border-black/5 bg-[#f0f0f0] p-5">
+              <h3 className="text-sm font-black uppercase tracking-widest text-black">{section}</h3>
               <ol className="mt-3 space-y-2">
                 {rules.map((rule, i) => (
-                  <li key={i} className="flex gap-3 text-sm text-slate-700">
-                    <span className="shrink-0 font-semibold text-[#003768]">{i + 1}.</span>
-                    <span>{rule}</span>
+                  <li key={i} className="flex gap-3 text-sm">
+                    <span className="shrink-0 font-black text-black/40">{i + 1}.</span>
+                    <span className="font-bold text-black/70">{rule}</span>
                   </li>
                 ))}
               </ol>
             </div>
           ))}
         </div>
-        <p className="mt-6 text-xs text-slate-400 text-center">Camel Global Partner Operating Rules — Last updated April 2026 — Subject to change with 14 days' notice.</p>
+        <p className="mt-6 text-xs font-bold text-black/30 text-center">Camel Global Partner Operating Rules — Last updated April 2026 — Subject to change with 14 days' notice.</p>
       </div>
     </div>
   );
