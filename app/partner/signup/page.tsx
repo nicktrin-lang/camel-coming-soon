@@ -620,15 +620,23 @@ export default function PartnerSignupPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
 
-      {/* Header */}
-      <div className="w-full bg-black px-6 py-5 flex items-center">
-        <Link href="/partner/login">
-          <Image src="/camel-logo.png" alt="Camel Global" width={160} height={54} priority className="h-[44px] w-auto" />
+      {/* Header — matches PortalTopbar */}
+      <header className="w-full bg-black border-b border-white/10 h-[68px] flex items-center px-4 md:px-8 justify-between">
+        <Link href="/partner/login" className="flex items-center">
+          <Image src="/camel-logo.png" alt="Camel Global" width={200} height={70} priority className="h-16 w-auto brightness-0 invert" />
         </Link>
-      </div>
+        <div className="flex items-center gap-3">
+          <Link href="/" className="bg-[#ff7a00] px-4 py-2.5 text-sm font-black text-white hover:opacity-90 transition-opacity">
+            Book Now
+          </Link>
+          <Link href="/partner/login" className="border border-white/30 px-4 py-2.5 text-sm font-black text-white hover:bg-white/10 transition-colors">
+            Partner Login
+          </Link>
+        </div>
+      </header>
 
       {/* Hero */}
-      <div className="w-full bg-black px-6 pb-16 pt-10 text-white border-t border-white/10">
+      <div className="w-full bg-black px-6 pb-16 pt-10 text-white">
         <div className="mx-auto max-w-2xl">
           <p className="mb-2 text-sm font-black uppercase tracking-widest text-[#ff7a00]">Become a Partner</p>
           <h1 className="text-4xl font-black text-white md:text-5xl">Join Camel Global.</h1>
