@@ -39,7 +39,7 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
   const [timedOut,    setTimedOut]    = useState(false);
   const [authed,      setAuthed]      = useState(false);
 
-  // Pages that need NO auth and NO layout at all
+  // No auth, no layout — raw page render
   const isUnauthPublicPage =
     pathname === "/partner/login" ||
     pathname === "/partner/reset-password" ||
@@ -47,8 +47,8 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
     pathname === "/partner/signup" ||
     pathname.startsWith("/partner/signup/");
 
-  // Pages that show WITH topbar+footer but NOT sidebar, visible to anyone
-  // (logged-in users get sidebar too; unauthenticated users just get topbar+footer)
+  // Public info pages — show topbar + footer, no sidebar needed
+  // ClientRootLayout excludes these from isPortalAppPage so footer renders
   const isPartnerInfoPage =
     pathname === "/partner/terms" ||
     pathname === "/partner/operating-rules" ||
@@ -60,7 +60,6 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     let mounted = true;
     async function guard() {
-      // Fully public pages — no layout, no auth check
       if (isUnauthPublicPage) { setLoading(false); return; }
 
       setLoading(true);
@@ -75,17 +74,14 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
           return;
         }
 
-        // Not logged in
         if (userErr || !userData?.user) {
           if (!mounted) return;
-          // Info pages are public — show them with topbar but no sidebar
+          // Info pages are public — show with topbar, no redirect
           if (isPartnerInfoPage) { setAuthed(false); setLoading(false); return; }
-          // Everything else requires login
           router.replace("/partner/login?reason=not_signed_in");
           return;
         }
 
-        // Logged in — check role
         let nextRole: PortalRole = "partner";
         try {
           const meRes = await fetch("/api/admin/me", { method: "GET", cache: "no-store", credentials: "include" });
@@ -98,7 +94,6 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
         } catch { nextRole = "partner"; }
         if (!mounted) return;
 
-        // Admins hitting partner info pages → redirect to /admin/* equivalents
         if (nextRole === "admin" || nextRole === "super_admin") {
           if (isPartnerInfoPage) {
             router.replace(pathname.replace("/partner/", "/admin/"));
@@ -124,7 +119,7 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
-  // Fully public pages — no layout at all
+  // Raw public pages — no layout
   if (isUnauthPublicPage) return <>{children}</>;
 
   if (timedOut) {
@@ -157,7 +152,8 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  // Info pages visible to unauthenticated users: topbar + content + footer, no sidebar
+  // Info pages for unauthenticated users — topbar only, no sidebar
+  // Footer is rendered by ClientRootLayout since these are excluded from isPortalAppPage
   if (isPartnerInfoPage && !authed) {
     return (
       <div className="min-h-screen bg-[#f0f0f0]">
@@ -171,7 +167,7 @@ export default function FleetLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  // All authenticated pages — full sidebar + topbar
+  // Authenticated pages — full sidebar + topbar
   return (
     <div className="min-h-screen bg-[#f0f0f0]">
       <PortalTopbar onMenuClick={() => setSidebarOpen(true)} />

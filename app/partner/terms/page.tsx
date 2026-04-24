@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 
 const VERSION = "2026-04";
@@ -67,8 +66,8 @@ const TERMS: Section[] = [
       "Camel Global will use reasonable endeavours to make the Platform available 24 hours a day, 7 days a week, subject to planned maintenance and events outside our control.",
       "Camel Global will process Bookings, payments, and notifications in accordance with the functionality described in the Platform.",
       "Camel Global will notify Partners of new customer requests within their service radius in a timely manner.",
-      "Camel Global will provide Partner support via the contact form and will use reasonable endeavours to respond to enquiries within 2 business days.",
-      "Camel Global will give Partners at least 14 days' written notice of any material changes to these Terms or the Operating Rules, except where immediate changes are required by law or to protect the safety of the Platform.",
+      "Camel Global will provide Partner support via support@camel-global.com and will use reasonable endeavours to respond to enquiries within 2 business days.",
+      "Camel Global will give Partners at least 14 days' written notice of any material changes to these Terms or the Operating Rules.",
       "Camel Global does not guarantee any minimum volume of Bookings or revenue to any Partner.",
     ],
   },
@@ -76,11 +75,11 @@ const TERMS: Section[] = [
     title: "6. Bookings and Pricing",
     clauses: [
       "Partners may bid on any customer request that falls within their registered service radius.",
-      "All prices submitted by Partners must be fully inclusive of all costs associated with delivering, insuring, and collecting the vehicle. No additional charges may be added to the Customer after a bid is accepted.",
-      "The Partner is bound by the price they bid once a Booking is confirmed. Camel Global will not adjust or renegotiate bid prices after confirmation.",
+      "All prices submitted by Partners must be fully inclusive of all costs. No additional charges may be added to the Customer after a bid is accepted.",
+      "The Partner is bound by the price they bid once a Booking is confirmed.",
       "Partners may submit only one bid per customer request. Bids submitted after the bid window has closed will not be accepted.",
-      "The Partner acknowledges that Customers have no obligation to accept any bid, and that Camel Global has no obligation to present any bid to a Customer.",
-      "Camel Global reserves the right to remove or decline to display bids that appear to be inaccurate, incomplete, or in breach of these Terms.",
+      "The Partner acknowledges that Customers have no obligation to accept any bid.",
+      "Camel Global reserves the right to remove bids that appear inaccurate, incomplete, or in breach of these Terms.",
     ],
   },
   {
@@ -89,102 +88,95 @@ const TERMS: Section[] = [
       "Camel Global charges a commission on the Hire Price of each completed Booking. The default commission rate is 20% of the Hire Price, subject to a minimum commission of €10 (or currency equivalent) per Booking.",
       "Fuel Charges are passed through to the Partner in full. Camel Global does not charge commission on Fuel Charges.",
       "The Partner's payout for each Booking is calculated as: (Hire Price minus Commission) plus Fuel Charge.",
-      "Commission rates may be adjusted for individual Partners by agreement with Camel Global. Any per-Partner rate override will be reflected in the Partner's account and in all reporting.",
-      "Payments will be processed via Stripe Connect. The Partner must complete Stripe Express onboarding to receive payouts. Camel Global is not responsible for delays caused by Stripe or by the Partner's failure to complete onboarding.",
+      "Commission rates may be adjusted for individual Partners by agreement with Camel Global.",
+      "Payments will be processed via Stripe Connect. The Partner must complete Stripe Express onboarding to receive payouts.",
       "Camel Global will deduct commission automatically at the point of payment. Partners receive their net payout directly to their Stripe account.",
-      "Camel Global will issue commission invoices to Partners on a monthly basis. Invoices will state the reverse charge treatment under Article 44/196 of the EU VAT Directive where applicable.",
-      "The Partner is solely responsible for accounting for and paying all taxes on income received through the Platform, including VAT, income tax, and any other applicable taxes in their jurisdiction.",
-      "In the event of a Customer refund dispute, Camel Global may mediate but the financial liability for any refund rests with the Partner. Camel Global reserves the right to withhold or claw back amounts from future payouts where a refund has been issued.",
-      "All fuel refunds owed to Customers must be processed within 5 business days of Booking completion. Failure to do so may result in Camel Global processing the refund and recovering the amount from the Partner.",
+      "Camel Global will issue commission invoices to Partners on a monthly basis with reverse charge treatment under Article 44/196 of the EU VAT Directive where applicable.",
+      "The Partner is solely responsible for accounting for and paying all taxes on income received through the Platform.",
+      "In the event of a Customer refund dispute, the financial liability rests with the Partner.",
+      "All fuel refunds owed to Customers must be processed within 5 business days of Booking completion.",
     ],
   },
   {
     title: "8. VAT and Tax",
     clauses: [
-      "The Partner is responsible for charging and accounting for VAT on the full Booking price paid by the Customer. The VAT treatment of car hire services is the Partner's responsibility.",
-      "Camel Global will invoice the Partner for commission using the reverse charge mechanism under Article 44/196 of the EU VAT Directive. No UK or Spanish VAT will be added to Camel Global's commission invoices where reverse charge applies.",
-      "Partners operating in Spain must provide a valid NIF (e.g. B12345678, represented as ESB12345678 for EU transactions). This is required for account activation and commission invoicing.",
-      "It is the Partner's responsibility to seek independent tax advice regarding their obligations. Camel Global does not provide tax advice.",
+      "The Partner is responsible for charging and accounting for VAT on the full Booking price paid by the Customer.",
+      "Camel Global will invoice the Partner for commission using the reverse charge mechanism under Article 44/196 of the EU VAT Directive.",
+      "Partners operating in Spain must provide a valid NIF. This is required for account activation and commission invoicing.",
+      "It is the Partner's responsibility to seek independent tax advice. Camel Global does not provide tax advice.",
     ],
   },
   {
     title: "9. Insurance",
     clauses: [
-      "The Partner is solely responsible for ensuring that all vehicles operated through the Platform are comprehensively insured at all times.",
+      "The Partner is solely responsible for ensuring all vehicles are comprehensively insured at all times.",
       "The Partner must maintain public liability insurance with a minimum coverage of €5,000,000.",
-      "Where a bid states 'Full Insurance Included', this must represent genuine comprehensive insurance and not merely a damage waiver or excess reduction product.",
-      "The Partner indemnifies Camel Global against all claims, losses, damages, costs, and expenses arising from: (a) any accident, incident, or liability involving the Partner's vehicles or drivers; (b) any breach of the Partner's insurance obligations; or (c) any claim by a Customer arising from the Partner's failure to perform a Booking.",
+      "Where a bid states 'Full Insurance Included', this must represent genuine comprehensive insurance.",
+      "The Partner indemnifies Camel Global against all claims arising from any accident or liability involving the Partner's vehicles or drivers.",
       "Camel Global is not liable for any loss, damage, injury, or death caused by a Partner's vehicle, driver, or operations.",
-      "The Partner must report any accident, theft, or significant incident involving a Camel Global Booking to Camel Global within 24 hours.",
+      "The Partner must report any accident, theft, or significant incident involving a Camel Global Booking within 24 hours.",
     ],
   },
   {
     title: "10. Intellectual Property",
     clauses: [
-      "Camel Global retains all intellectual property rights in the Platform, including all software, designs, trademarks, and content.",
-      "The Partner is granted a limited, non-exclusive, non-transferable licence to use the Platform solely for the purpose of fulfilling Bookings in accordance with this Agreement.",
+      "Camel Global retains all intellectual property rights in the Platform.",
+      "The Partner is granted a limited, non-exclusive, non-transferable licence to use the Platform solely for fulfilling Bookings.",
       "The Partner must not copy, reverse engineer, modify, or create derivative works from any part of the Platform.",
-      "The Partner grants Camel Global a non-exclusive licence to use the Partner's company name, logo, and profile information for the purpose of displaying the Partner's profile to Customers on the Platform.",
-      "Camel Global may use anonymised and aggregated booking data for analytics, product development, and reporting purposes.",
+      "The Partner grants Camel Global a licence to display the Partner's company name and profile to Customers on the Platform.",
     ],
   },
   {
     title: "11. Data Protection and GDPR",
     clauses: [
-      "Each party shall comply with all applicable data protection legislation, including the UK GDPR, EU GDPR, and any applicable local data protection laws.",
-      "Customer personal data shared via the Platform (including name, phone number, email address, and pickup/dropoff location) may only be processed by the Partner for the purpose of fulfilling the specific Booking for which it was shared.",
-      "The Partner must not use Customer data for any secondary purpose including marketing, profiling, re-targeting, or sale to third parties.",
-      "The Partner must implement appropriate technical and organisational measures to protect Customer data against unauthorised access, loss, or disclosure.",
-      "Upon request from a Customer or from Camel Global, the Partner must delete all personal data relating to that Customer within 30 days.",
-      "The Partner must notify Camel Global of any personal data breach involving Customer data within 72 hours of becoming aware of it.",
-      "For the purposes of data protection law, Camel Global and the Partner are independent data controllers in respect of the personal data they each process.",
+      "Each party shall comply with all applicable data protection legislation, including the UK GDPR and EU GDPR.",
+      "Customer personal data may only be processed by the Partner for the purpose of fulfilling the specific Booking for which it was shared.",
+      "The Partner must not use Customer data for marketing, profiling, re-targeting, or sale to third parties.",
+      "The Partner must implement appropriate measures to protect Customer data against unauthorised access, loss, or disclosure.",
+      "Upon request, the Partner must delete all personal data relating to a Customer within 30 days.",
+      "The Partner must notify Camel Global of any personal data breach within 72 hours of becoming aware of it.",
     ],
   },
   {
     title: "12. Liability",
     clauses: [
-      "Nothing in this Agreement limits or excludes liability for death or personal injury caused by negligence, fraud, or any other liability that cannot be excluded by law.",
-      "Subject to clause 12.1, Camel Global's total aggregate liability to the Partner under or in connection with this Agreement shall not exceed the total commission paid by the Partner to Camel Global in the 3 months immediately preceding the event giving rise to the claim.",
-      "Camel Global shall not be liable for any indirect, consequential, special, or punitive loss or damage, including loss of profit, loss of revenue, loss of business, or loss of data.",
-      "Camel Global shall not be liable for any loss or damage arising from: (a) the Partner's failure to comply with these Terms or the Operating Rules; (b) the actions or omissions of the Partner's drivers or employees; (c) any failure or unavailability of third-party services including Stripe, Google Maps, or email providers; or (d) any event outside Camel Global's reasonable control.",
-      "The Partner accepts that the Platform is provided 'as is' and that Camel Global makes no warranty that it will be uninterrupted, error-free, or free from viruses or other harmful components.",
+      "Nothing in this Agreement limits liability for death or personal injury caused by negligence or fraud.",
+      "Camel Global's total aggregate liability shall not exceed the total commission paid by the Partner in the 3 months preceding the claim.",
+      "Camel Global shall not be liable for any indirect, consequential, special, or punitive loss including loss of profit or revenue.",
+      "Camel Global shall not be liable for loss arising from the Partner's failure to comply with these Terms or the actions of the Partner's drivers.",
     ],
   },
   {
     title: "13. Suspension and Termination",
     clauses: [
-      "Camel Global may suspend a Partner account immediately and without notice in the event of: a serious customer complaint; breach of vehicle or driver standards; failure to fulfil a confirmed Booking; misrepresentation of pricing or services; or any act that Camel Global reasonably believes puts Customers at risk.",
-      "Following suspension, the Partner will be notified by email and given the opportunity to respond within 5 business days.",
-      "Camel Global may permanently terminate this Agreement for repeated breaches, a single serious violation, or where the Partner is subject to insolvency proceedings.",
-      "The Partner may terminate this Agreement at any time by providing 30 days' written notice via the contact form, provided no active Bookings remain outstanding.",
-      "On termination for any reason: (a) the Partner's access to the Platform will be revoked; (b) all outstanding amounts owed to Camel Global become immediately payable; (c) the Partner must delete all Customer personal data within 30 days; and (d) the Partner must cease using any Camel Global branding or trademarks.",
-      "Termination does not affect any accrued rights or liabilities of either party.",
+      "Camel Global may suspend a Partner account immediately for a serious customer complaint, breach of standards, failure to fulfil a Booking, or misrepresentation.",
+      "Following suspension, the Partner will be notified by email and given 5 business days to respond.",
+      "Camel Global may permanently terminate this Agreement for repeated breaches or a single serious violation.",
+      "The Partner may terminate by providing 30 days' written notice to support@camel-global.com, provided no active Bookings remain.",
+      "On termination, Platform access is revoked, outstanding amounts become immediately payable, and Customer data must be deleted within 30 days.",
     ],
   },
   {
     title: "14. Amendments",
     clauses: [
-      "Camel Global reserves the right to amend these Terms and the Partner Operating Rules at any time.",
-      "Partners will be notified of any material changes by email with a minimum of 14 days' notice, except where immediate changes are required by law or to protect the safety of the Platform.",
+      "Camel Global reserves the right to amend these Terms at any time.",
+      "Partners will be notified of material changes by email with at least 14 days' notice.",
       "Continued use of the Platform after the notice period constitutes acceptance of the updated Terms.",
-      "The current version of these Terms is always available at camel-global.com/partner/terms. The version number and effective date are displayed at the top of this document.",
+      "The current version is always available at camel-global.com/partner/terms.",
     ],
   },
   {
     title: "15. General",
     clauses: [
-      "This Agreement constitutes the entire agreement between the parties in relation to its subject matter and supersedes all prior representations, agreements, and understandings.",
-      "If any provision of this Agreement is found to be invalid or unenforceable, the remaining provisions will continue in full force and effect.",
-      "A waiver of any right or remedy under this Agreement is only effective if given in writing and shall not be deemed a waiver of any subsequent breach or default.",
-      "The Partner may not assign or transfer any rights or obligations under this Agreement without the prior written consent of Camel Global.",
-      "Camel Global may assign this Agreement or any rights under it to any group company or in connection with a sale or restructuring of its business.",
-      "Nothing in this Agreement is intended to confer any benefit on any third party under the Contracts (Rights of Third Parties) Act 1999.",
-      "This Agreement is governed by the laws of England and Wales. Each party irrevocably submits to the exclusive jurisdiction of the courts of England and Wales in relation to any dispute arising under or in connection with this Agreement.",
+      "This Agreement constitutes the entire agreement between the parties in relation to its subject matter.",
+      "If any provision is found invalid or unenforceable, the remaining provisions continue in full force.",
+      "The Partner may not assign rights or obligations without the prior written consent of Camel Global.",
+      "This Agreement is governed by the laws of England and Wales. Each party submits to the exclusive jurisdiction of the courts of England and Wales.",
     ],
   },
 ];
 
-async function downloadTermsPDF(companyName?: string) {
+async function downloadTermsPDF() {
   const { jsPDF } = await import("jspdf");
   const dateStr = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
   const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -193,12 +185,10 @@ async function downloadTermsPDF(companyName?: string) {
   const margin = 15;
   const usableW = pageW - margin * 2;
   let y = margin;
-
   function checkPage(needed = 8) {
     if (y + needed > pageH - margin) { doc.addPage(); y = margin; }
   }
-
-  doc.setFillColor(15, 79, 138);
+  doc.setFillColor(0, 0, 0);
   doc.rect(0, 0, pageW, 18, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(13); doc.setFont("helvetica", "bold");
@@ -207,62 +197,55 @@ async function downloadTermsPDF(companyName?: string) {
   doc.text("Meet and greet car hire", margin, 12);
   doc.text("Partner Terms and Conditions", pageW - margin, 7, { align: "right" });
   doc.text(`Version: ${VERSION} — Effective: ${EFFECTIVE_DATE}`, pageW - margin, 11, { align: "right" });
-  if (companyName) doc.text(`Issued to: ${companyName}`, pageW - margin, 15, { align: "right" });
-  else doc.text(`Generated: ${dateStr}`, pageW - margin, 15, { align: "right" });
+  doc.text(`Generated: ${dateStr}`, pageW - margin, 15, { align: "right" });
   y = 26;
-
-  doc.setTextColor(0, 55, 104);
+  doc.setTextColor(0, 0, 0);
   doc.setFontSize(16); doc.setFont("helvetica", "bold");
   doc.text("Partner Terms and Conditions", margin, y); y += 7;
-  doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(100, 116, 139);
-  const subtitle = doc.splitTextToSize(
-    "These Terms govern your use of the Camel Global platform as a partner. By registering as a partner you agree to be bound by these Terms in full.",
-    usableW
-  );
+  doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(100, 100, 100);
+  const subtitle = doc.splitTextToSize("These Terms govern your use of the Camel Global platform as a partner. By registering as a partner you agree to be bound by these Terms in full.", usableW);
   doc.text(subtitle, margin, y); y += subtitle.length * 4 + 6;
-  doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.3);
+  doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
   doc.line(margin, y, pageW - margin, y); y += 6;
-
   for (const { title, clauses } of TERMS) {
     checkPage(12);
-    doc.setFillColor(243, 248, 255);
-    doc.roundedRect(margin, y - 4, usableW, 9, 2, 2, "F");
-    doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(0, 55, 104);
+    doc.setFillColor(240, 240, 240);
+    doc.rect(margin, y - 4, usableW, 9, "F");
+    doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(0, 0, 0);
     doc.text(title, margin + 3, y + 2); y += 9;
     clauses.forEach((clause, i) => {
       checkPage(8);
       const lines = doc.splitTextToSize(`${i + 1}.  ${clause}`, usableW - 6);
-      doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(51, 65, 85);
+      doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(51, 51, 51);
       doc.text(lines, margin + 4, y);
       y += lines.length * 4.5 + 1.5;
     });
     y += 4;
   }
-
   const totalPages = (doc.internal as any).getNumberOfPages();
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
-    doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.3);
+    doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
     doc.line(margin, pageH - 10, pageW - margin, pageH - 10);
-    doc.setFontSize(7); doc.setTextColor(148, 163, 184); doc.setFont("helvetica", "normal");
-    doc.text(`Camel Global Partner Terms and Conditions — Version ${VERSION} — Effective ${EFFECTIVE_DATE} — camel-global.com`, margin, pageH - 6);
+    doc.setFontSize(7); doc.setTextColor(150, 150, 150); doc.setFont("helvetica", "normal");
+    doc.text(`Camel Global Partner Terms and Conditions — Version ${VERSION} — camelglobal.com`, margin, pageH - 6);
     doc.text(`Page ${p} of ${totalPages}`, pageW - margin, pageH - 6, { align: "right" });
   }
-
   doc.save(`Camel-Global-Partner-Terms-${VERSION}.pdf`);
 }
 
 export default function PartnerTermsPage() {
   return (
-    <div className="space-y-6">
-      {/* Header card */}
-      <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+    <div className="space-y-4">
+
+      {/* Header */}
+      <div className="bg-white p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#ff7a00]">Legal</p>
-            <h1 className="text-3xl font-bold text-[#003768]">Partner Terms and Conditions</h1>
-            <p className="mt-2 text-slate-500 text-sm">Version {VERSION} — Effective {EFFECTIVE_DATE}</p>
-            <p className="mt-3 text-sm text-slate-600 leading-relaxed max-w-2xl">
+            <p className="text-xs font-black uppercase tracking-widest text-[#ff7a00] mb-2">Legal</p>
+            <h1 className="text-3xl font-black text-black">Partner Terms and Conditions</h1>
+            <p className="mt-2 text-sm font-semibold text-black/50">Version {VERSION} — Effective {EFFECTIVE_DATE}</p>
+            <p className="mt-3 text-sm font-semibold text-black/70 leading-relaxed max-w-2xl">
               These Terms govern your use of the Camel Global platform as a partner. Please read them carefully.
               By registering as a partner and ticking the acceptance checkbox during signup, you agree to be bound
               by these Terms and the Partner Operating Rules, which are incorporated by reference.
@@ -271,7 +254,7 @@ export default function PartnerTermsPage() {
           <button
             type="button"
             onClick={() => downloadTermsPDF()}
-            className="shrink-0 rounded-full bg-[#003768] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95"
+            className="shrink-0 bg-black px-5 py-3 text-sm font-black text-white hover:opacity-80 transition-opacity"
           >
             ⬇ Download PDF
           </button>
@@ -281,47 +264,47 @@ export default function PartnerTermsPage() {
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {[
             { icon: "🏪", title: "Camel is a marketplace", body: "We are an intermediary. The hire contract is always between you and the customer." },
-            { icon: "💰", title: "20% commission", body: "On the hire price only. Fuel charges pass through to you at 100%. Minimum €10 per booking." },
-            { icon: "⚖️", title: "England & Wales law", body: "This agreement is governed by English law. Disputes are subject to the courts of England and Wales." },
+            { icon: "💰", title: "20% commission",         body: "On the hire price only. Fuel charges pass through to you at 100%. Minimum €10 per booking." },
+            { icon: "⚖️", title: "England & Wales law",    body: "This agreement is governed by English law. Disputes are subject to the courts of England and Wales." },
           ].map(({ icon, title, body }) => (
-            <div key={title} className="rounded-2xl border border-[#003768]/10 bg-[#f3f8ff] p-4">
+            <div key={title} className="bg-[#f0f0f0] p-4">
               <div className="text-2xl mb-2">{icon}</div>
-              <p className="font-semibold text-[#003768] text-sm">{title}</p>
-              <p className="text-xs text-slate-600 mt-1">{body}</p>
+              <p className="text-xs font-black uppercase tracking-widest text-black mb-1">{title}</p>
+              <p className="text-xs font-semibold text-black/60">{body}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* Terms sections */}
-      <div className="space-y-4">
-        {TERMS.map(({ title, clauses }) => (
-          <div key={title} className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-            <h2 className="text-base font-bold text-[#003768] mb-4">{title}</h2>
-            <ol className="space-y-3">
-              {clauses.map((clause, i) => (
-                <li key={i} className="flex gap-3 text-sm text-slate-700 leading-relaxed">
-                  <span className="shrink-0 font-semibold text-[#003768] w-6">{i + 1}.</span>
-                  <span>{clause}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        ))}
-      </div>
+      {TERMS.map(({ title, clauses }) => (
+        <div key={title} className="bg-white p-6">
+          <h2 className="text-xs font-black uppercase tracking-widest text-black mb-4 pb-2 border-b border-black/10">{title}</h2>
+          <ol className="space-y-3">
+            {clauses.map((clause, i) => (
+              <li key={i} className="flex gap-3 text-sm font-semibold text-black/70 leading-relaxed">
+                <span className="shrink-0 font-black text-black w-5">{i + 1}.</span>
+                <span>{clause}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      ))}
 
       {/* Operating rules note */}
-      <div className="rounded-3xl border border-[#003768]/10 bg-[#f3f8ff] p-6">
-        <h2 className="text-base font-bold text-[#003768]">Partner Operating Rules</h2>
-        <p className="mt-2 text-sm text-slate-600">
+      <div className="bg-[#f0f0f0] p-6">
+        <p className="text-xs font-black uppercase tracking-widest text-black mb-2">Partner Operating Rules</p>
+        <p className="text-sm font-semibold text-black/70 leading-relaxed">
           The Partner Operating Rules are incorporated into this Agreement and have the same legal force as these Terms.
           They set out the day-to-day operational standards covering bidding, vehicle standards, fuel policy, driver conduct,
           customer service, and more. You can read and download the Operating Rules from your{" "}
-          <Link href="/partner/account" className="font-semibold text-[#003768] underline">partner account page</Link>.
+          <Link href="/partner/account" className="font-black text-black underline hover:opacity-70">
+            partner account page
+          </Link>.
         </p>
       </div>
 
-      <p className="text-xs text-slate-400 text-center pb-4">
+      <p className="text-xs font-semibold text-black/30 text-center pb-4">
         Camel Global Partner Terms and Conditions — Version {VERSION} — Effective {EFFECTIVE_DATE} — Subject to change with 14 days&apos; notice.
       </p>
     </div>

@@ -19,8 +19,18 @@ export default function ClientRootLayout({ children, fontClass }: { children: Re
     pathname === "/partner/signup" ||
     pathname === "/partner/application-submitted";
 
+  // Info pages are publicly accessible — they get their own topbar via partner layout
+  // but still need the global footer, so we exclude them from isPortalAppPage
+  const isPartnerInfoPage =
+    pathname === "/partner/terms" ||
+    pathname === "/partner/operating-rules" ||
+    pathname === "/partner/contact" ||
+    pathname === "/partner/privacy" ||
+    pathname === "/partner/cookies" ||
+    pathname === "/partner/about";
+
   const isPortalAppPage =
-    (pathname?.startsWith("/partner") && !isPartnerAuthPage) ||
+    (pathname?.startsWith("/partner") && !isPartnerAuthPage && !isPartnerInfoPage) ||
     pathname?.startsWith("/admin") ||
     pathname?.startsWith("/driver");
 
@@ -41,10 +51,8 @@ export default function ClientRootLayout({ children, fontClass }: { children: Re
     pathname === "/cookies" ||
     pathname === "/terms";
 
-  // Currency selector only on the homepage widget — never in the header on customer pages
   const showCurrencyInHeader = false;
-
-  const showGlobalHeader = !isHomepage && !isPartnerAuthPage && !isPortalAppPage;
+  const showGlobalHeader = !isHomepage && !isPartnerAuthPage && !isPortalAppPage && !isPartnerInfoPage;
   const showCookieBanner = !isPortalAppPage;
   const showCustomerNav  = isNewCustomerArea || isTestBookingArea || isCustomerPublicPage;
   const showFooter       = !isPortalAppPage;
@@ -126,89 +134,44 @@ export default function ClientRootLayout({ children, fontClass }: { children: Re
 
   return (
     <html lang="en">
-      <body className={`${fontClass || ""} min-h-screen flex flex-col ${isHomepage || isNewCustomerArea || isCustomerPublicPage ? "bg-white" : "bg-[#e3f4ff]"}`}>
+      <body className={`${fontClass || ""} min-h-screen flex flex-col ${isHomepage || isNewCustomerArea || isCustomerPublicPage ? "bg-white" : "bg-[#f0f0f0]"}`}>
         <GoogleAnalytics />
 
         {showGlobalHeader && (
           <>
-            <header className="fixed left-0 top-0 z-50 w-full bg-black shadow-[0_2px_8px_rgba(0,0,0,0.5)]">
+            <header className="fixed left-0 top-0 z-50 w-full bg-black">
               <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5">
-
-                {/* Logo — same size as homepage */}
                 <Link href="/" className="flex items-center">
-                  <Image
-                    src="/camel-logo.png"
-                    alt="Camel Global"
-                    width={200}
-                    height={70}
-                    priority
-                    className="h-16 w-auto brightness-0 invert"
-                  />
+                  <Image src="/camel-logo.png" alt="Camel Global" width={200} height={70} priority className="h-16 w-auto brightness-0 invert" />
                 </Link>
-
-                {/* Nav */}
                 <nav className="flex items-center gap-4">
                   {showCustomerNav ? (
                     <>
-                      {/* Currency only on booking pages */}
                       {showCurrencyInHeader && (
-                        <div className="hidden sm:block">
-                          <CurrencySelector />
-                        </div>
+                        <div className="hidden sm:block"><CurrencySelector /></div>
                       )}
                       {isCustomerLoggedIn ? (
                         <>
-                          <Link href={newBookingHref}
-                            className="bg-[#ff7a00] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity">
-                            New Booking
-                          </Link>
-                          <Link href={bookingsHref}
-                            className="hidden text-sm font-bold text-white hover:underline md:block">
-                            My Bookings
-                          </Link>
-                          <Link href={settingsHref}
-                            className="hidden text-sm font-bold text-white hover:underline md:block">
-                            Account
-                          </Link>
-                          {customerName && (
-                            <span className="hidden text-sm font-bold text-white lg:block">
-                              Hi, {customerName}
-                            </span>
-                          )}
-                          <button type="button" onClick={handleCustomerLogout}
-                            className="border border-white/30 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/10 transition-colors">
-                            Logout
-                          </button>
+                          <Link href={newBookingHref} className="bg-[#ff7a00] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity">New Booking</Link>
+                          <Link href={bookingsHref}   className="hidden text-sm font-bold text-white hover:underline md:block">My Bookings</Link>
+                          <Link href={settingsHref}   className="hidden text-sm font-bold text-white hover:underline md:block">Account</Link>
+                          {customerName && <span className="hidden text-sm font-bold text-white lg:block">Hi, {customerName}</span>}
+                          <button type="button" onClick={handleCustomerLogout} className="border border-white/30 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/10 transition-colors">Logout</button>
                         </>
                       ) : (
                         <>
-                          <Link href={signupHref}
-                            className="hidden text-sm font-bold text-white hover:underline sm:block">
-                            Sign Up
-                          </Link>
-                          <Link href={loginHref}
-                            className="bg-[#ff7a00] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity">
-                            Log In
-                          </Link>
+                          <Link href={signupHref} className="hidden text-sm font-bold text-white hover:underline sm:block">Sign Up</Link>
+                          <Link href={loginHref}  className="bg-[#ff7a00] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity">Log In</Link>
                         </>
                       )}
                     </>
                   ) : !isPartnerLoggedIn ? (
                     <>
-                      <Link href="/partner/signup"
-                        className="text-sm font-bold text-white hover:underline">
-                        Partner Sign Up
-                      </Link>
-                      <Link href="/partner/login"
-                        className="bg-[#ff7a00] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity">
-                        Partner Login
-                      </Link>
+                      <Link href="/partner/signup" className="text-sm font-bold text-white hover:underline">Partner Sign Up</Link>
+                      <Link href="/partner/login"  className="bg-[#ff7a00] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity">Partner Login</Link>
                     </>
                   ) : (
-                    <button type="button" onClick={handlePartnerLogout}
-                      className="bg-[#ff7a00] px-4 py-2.5 text-sm font-bold text-white hover:opacity-95 transition-opacity">
-                      Logout
-                    </button>
+                    <button type="button" onClick={handlePartnerLogout} className="bg-[#ff7a00] px-4 py-2.5 text-sm font-bold text-white hover:opacity-95 transition-opacity">Logout</button>
                   )}
                 </nav>
               </div>
