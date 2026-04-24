@@ -167,7 +167,7 @@ function PartnerLoginInner() {
 
       {/* Hero */}
       <div className="w-full bg-black px-6 pb-16 pt-10 text-white">
-        <div className="mx-auto max-w-md">
+        <div className="mx-auto max-w-xl">
           <p className="mb-2 text-sm font-black uppercase tracking-widest text-[#ff7a00]">Partner Portal</p>
           <h1 className="text-4xl font-black text-white md:text-5xl">
             {mode === "login" ? "Welcome back." : "Reset Password"}
@@ -182,7 +182,7 @@ function PartnerLoginInner() {
 
       {/* Form area */}
       <div className="w-full bg-[#f0f0f0] px-6 py-10 flex-1">
-        <div className="mx-auto max-w-md">
+        <div className="mx-auto max-w-xl">
           <div className="bg-white p-8 space-y-5">
 
             {mode === "login" ? (
