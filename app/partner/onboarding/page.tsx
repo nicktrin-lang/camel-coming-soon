@@ -46,14 +46,15 @@ type DriverRow = {
 };
 
 const STEPS: { key: Step; label: string; icon: string }[] = [
-  { key: "location", label: "Fleet Location", icon: "📍" },
-  { key: "currency", label: "Currency",        icon: "💱" },
+  { key: "location", label: "Fleet Location",     icon: "📍" },
+  { key: "currency", label: "Currency",           icon: "💱" },
   { key: "billing",  label: "Business & Billing", icon: "🧾" },
-  { key: "fleet",    label: "Car Fleet",       icon: "🚗" },
-  { key: "drivers",  label: "Drivers",         icon: "👤" },
-  { key: "golive",   label: "Go Live",         icon: "🚀" },
+  { key: "fleet",    label: "Car Fleet",          icon: "🚗" },
+  { key: "drivers",  label: "Drivers",            icon: "👤" },
+  { key: "golive",   label: "Go Live",            icon: "🚀" },
 ];
 
+// ── Step nav ───────────────────────────────────────────────────────────────────
 function StepNav({ current, completed }: { current: Step; completed: Set<Step> }) {
   return (
     <div className="flex items-center justify-between mb-8">
@@ -63,19 +64,19 @@ function StepNav({ current, completed }: { current: Step; completed: Set<Step> }
         return (
           <div key={s.key} className="flex items-center flex-1">
             <div className="flex flex-col items-center">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-bold transition-colors ${
-                done ? "bg-green-500 text-white" :
-                active ? "bg-[#ff7a00] text-white shadow-[0_4px_12px_rgba(255,122,0,0.4)]" :
-                "bg-slate-100 text-slate-400"
+              <div className={`w-10 h-10 flex items-center justify-center text-base font-black transition-colors ${
+                done   ? "bg-black text-white" :
+                active ? "bg-[#ff7a00] text-white" :
+                         "bg-[#e0e0e0] text-black/40"
               }`}>
                 {done ? "✓" : s.icon}
               </div>
-              <span className={`mt-1 text-xs font-medium hidden sm:block ${
-                active ? "text-[#ff7a00]" : done ? "text-green-600" : "text-slate-400"
+              <span className={`mt-1 text-xs font-black uppercase tracking-widest hidden sm:block ${
+                active ? "text-[#ff7a00]" : done ? "text-black" : "text-black/30"
               }`}>{s.label}</span>
             </div>
             {i < STEPS.length - 1 && (
-              <div className={`h-0.5 flex-1 mx-2 mb-4 rounded transition-colors ${done ? "bg-green-500" : "bg-slate-200"}`} />
+              <div className={`h-0.5 flex-1 mx-2 mb-4 transition-colors ${done ? "bg-black" : "bg-black/10"}`} />
             )}
           </div>
         );
@@ -84,11 +85,12 @@ function StepNav({ current, completed }: { current: Step; completed: Set<Step> }
   );
 }
 
+// ── Shared components ──────────────────────────────────────────────────────────
 function Card({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-      <h2 className="text-2xl font-bold text-[#003768]">{title}</h2>
-      <p className="mt-1 text-slate-500">{subtitle}</p>
+    <div className="bg-white border border-black/5 p-8">
+      <h2 className="text-2xl font-black text-black">{title}</h2>
+      <p className="mt-1 text-sm font-bold text-black/50">{subtitle}</p>
       <div className="mt-6">{children}</div>
     </div>
   );
@@ -96,7 +98,7 @@ function Card({ title, subtitle, children }: { title: string; subtitle: string; 
 
 function InfoBox({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-[#003768]/10 bg-[#f3f8ff] px-4 py-3 text-sm text-[#003768]">
+    <div className="border border-black/10 bg-[#f0f0f0] px-4 py-3 text-sm font-bold text-black">
       {children}
     </div>
   );
@@ -108,12 +110,12 @@ function FieldInput({ label, value, onChange, placeholder, required, hint }: {
 }) {
   return (
     <div>
-      <label className="block text-sm font-semibold text-[#003768] mb-1.5">
-        {label}{required && <span className="text-red-400 ml-0.5">*</span>}
+      <label className="block text-xs font-black uppercase tracking-widest text-black mb-1.5">
+        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
-      {hint && <p className="text-xs text-slate-400 mb-1.5">{hint}</p>}
+      {hint && <p className="text-xs font-bold text-black/40 mb-1.5">{hint}</p>}
       <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        className="w-full rounded-xl border border-black/10 px-4 py-3 outline-none focus:border-[#0f4f8a] bg-white" />
+        className="w-full border border-black/10 bg-[#f0f0f0] px-4 py-3 text-sm font-bold outline-none focus:border-black placeholder:text-black/30" />
     </div>
   );
 }
@@ -126,24 +128,25 @@ function NavButtons({ onBack, onNext, nextLabel, saving, canSkip, onSkip }: {
     <div className="flex items-center gap-3 mt-6">
       {onBack && (
         <button type="button" onClick={onBack}
-          className="rounded-full border border-black/10 px-6 py-3 font-semibold text-[#003768] hover:bg-black/5 transition-colors">
+          className="border border-black/20 px-6 py-3 text-sm font-black text-black hover:bg-black/5 transition-colors">
           Back
         </button>
       )}
       {canSkip && onSkip && (
         <button type="button" onClick={onSkip}
-          className="rounded-full border border-black/10 px-6 py-3 font-semibold text-slate-500 hover:bg-black/5 transition-colors">
+          className="border border-black/10 px-6 py-3 text-sm font-black text-black/50 hover:bg-black/5 transition-colors">
           Skip for now
         </button>
       )}
       <button type="button" onClick={onNext} disabled={saving}
-        className="flex-1 rounded-full bg-[#ff7a00] py-3 font-semibold text-white shadow-[0_8px_18px_rgba(255,122,0,0.3)] hover:opacity-95 disabled:opacity-50 transition-opacity">
-        {saving ? "Saving..." : (nextLabel ?? "Save & Continue")}
+        className="flex-1 bg-[#ff7a00] py-3 text-sm font-black text-white hover:opacity-90 disabled:opacity-50 transition-opacity">
+        {saving ? "Saving…" : (nextLabel ?? "Save & Continue")}
       </button>
     </div>
   );
 }
 
+// ── Address search ─────────────────────────────────────────────────────────────
 function AddressSearch({ onSelect }: { onSelect: (r: AddressResult) => void }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<AddressResult[]>([]);
@@ -178,22 +181,22 @@ function AddressSearch({ onSelect }: { onSelect: (r: AddressResult) => void }) {
 
   return (
     <div ref={wrapperRef} className="relative">
-      <label className="block text-sm font-semibold text-[#003768] mb-1.5">Search for your address</label>
+      <label className="block text-xs font-black uppercase tracking-widest text-black mb-1.5">Search for your address</label>
       <div className="relative">
         <input value={query} onChange={e => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => { if (results.length) setOpen(true); }}
           placeholder="Start typing your address..."
-          className="w-full rounded-xl border border-black/10 px-4 py-3 outline-none focus:border-[#0f4f8a] bg-white" />
-        {loading && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">Searching...</span>}
+          className="w-full border border-black/10 bg-[#f0f0f0] px-4 py-3 text-sm font-bold outline-none focus:border-black placeholder:text-black/30" />
+        {loading && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-black/40">Searching…</span>}
       </div>
-      <p className="mt-1 text-xs text-slate-400">Or click the map below to drop a pin — fields fill automatically.</p>
+      <p className="mt-1 text-xs font-bold text-black/40">Or click the map below to drop a pin — fields fill automatically.</p>
       {open && results.length > 0 && (
-        <div className="absolute z-50 left-0 right-0 mt-1 rounded-2xl border border-black/10 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden">
+        <div className="absolute z-50 left-0 right-0 mt-1 border border-black/10 bg-white shadow-lg overflow-hidden">
           {results.map((r, i) => (
             <button key={i} type="button" onClick={() => pick(r)}
-              className="w-full text-left px-4 py-3 text-sm hover:bg-[#f3f8ff] border-b border-black/5 last:border-b-0">
-              <span className="font-medium text-[#003768]">{r.address_line1 || r.display_name.split(",")[0]}</span>
-              <span className="ml-2 text-slate-400 text-xs">{[r.city || r.town, r.province, r.country].filter(Boolean).join(", ")}</span>
+              className="w-full text-left px-4 py-3 text-sm hover:bg-[#f0f0f0] border-b border-black/5 last:border-b-0">
+              <span className="font-black text-black">{r.address_line1 || r.display_name.split(",")[0]}</span>
+              <span className="ml-2 text-xs font-bold text-black/40">{[r.city || r.town, r.province, r.country].filter(Boolean).join(", ")}</span>
             </button>
           ))}
         </div>
@@ -203,7 +206,6 @@ function AddressSearch({ onSelect }: { onSelect: (r: AddressResult) => void }) {
 }
 
 // ── Step: Location ─────────────────────────────────────────────────────────────
-
 function StepLocation({ profile, onDone }: { profile: Profile | null; onDone: () => void }) {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [addr1, setAddr1] = useState(profile?.base_address1 ?? "");
@@ -298,17 +300,17 @@ function StepLocation({ profile, onDone }: { profile: Profile | null; onDone: ()
     <Card title="Fleet Base Location" subtitle="Set the address your vehicles operate from. This determines which customer requests you receive.">
       <div className="space-y-5">
         <InfoBox>
-          <p className="font-semibold mb-1">Why this matters</p>
-          <p>Camel Global uses your fleet base location to match you with customers within your service radius. Only requests within your radius will be sent to you.</p>
+          <p className="font-black mb-1">Why this matters</p>
+          <p className="font-bold text-black/60">Camel Global uses your fleet base location to match you with customers within your service radius. Only requests within your radius will be sent to you.</p>
         </InfoBox>
-        {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+        {error && <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
         <AddressSearch onSelect={applyResult} />
-        {geocoding && <div className="rounded-xl border border-[#003768]/10 bg-[#f3f8ff] px-4 py-2 text-sm text-[#003768]">Fetching address...</div>}
+        {geocoding && <div className="border border-black/10 bg-[#f0f0f0] px-4 py-2 text-sm font-bold text-black/60">Fetching address…</div>}
         <div>
-          <label className="block text-sm font-semibold text-[#003768] mb-1.5">Pin your exact location on the map</label>
-          <p className="text-xs text-slate-400 mb-2">Click anywhere on the map — the address fields below will update automatically.</p>
-          <div className="rounded-2xl overflow-hidden border border-black/10"><MapPicker lat={lat} lng={lng} onPick={handleMapPick} /></div>
-          <p className="mt-1.5 text-xs text-slate-400">GPS: {lat.toFixed(5)}, {lng.toFixed(5)}</p>
+          <label className="block text-xs font-black uppercase tracking-widest text-black mb-1.5">Pin your exact location on the map</label>
+          <p className="text-xs font-bold text-black/40 mb-2">Click anywhere on the map — the address fields below will update automatically.</p>
+          <div className="overflow-hidden border border-black/10"><MapPicker lat={lat} lng={lng} onPick={handleMapPick} /></div>
+          <p className="mt-1.5 text-xs font-bold text-black/40">GPS: {lat.toFixed(5)}, {lng.toFixed(5)}</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2"><FieldInput label="Address line 1" value={addr1} onChange={setAddr1} placeholder="e.g. Calle Mayor 12" required /></div>
@@ -319,12 +321,12 @@ function StepLocation({ profile, onDone }: { profile: Profile | null; onDone: ()
           <FieldInput label="Postcode" value={postcode} onChange={setPostcode} placeholder="e.g. 46001" />
           <div className="sm:col-span-2"><FieldInput label="Country" value={country} onChange={setCountry} placeholder="e.g. Spain" required /></div>
         </div>
-        <div className="rounded-2xl border border-[#003768]/10 bg-[#f3f8ff] p-5">
-          <h3 className="text-base font-bold text-[#003768] mb-3">Service Radius</h3>
-          <label className="block text-sm font-semibold text-[#003768] mb-1.5">Coverage: <span className="text-[#ff7a00]">{radius} km</span></label>
+        <div className="border border-black/10 bg-[#f0f0f0] p-5">
+          <h3 className="text-sm font-black uppercase tracking-widest text-black mb-3">Service Radius</h3>
+          <label className="block text-xs font-black uppercase tracking-widest text-black mb-1.5">Coverage: <span className="text-[#ff7a00]">{radius} km</span></label>
           <input type="range" min={5} max={150} step={5} value={radius} onChange={e => setRadius(Number(e.target.value))} className="w-full accent-[#ff7a00]" />
-          <div className="flex justify-between text-xs text-slate-400 mt-1"><span>5 km</span><span>Local area</span><span>150 km</span></div>
-          <p className="mt-3 text-sm text-[#003768]">A <strong>{radius} km</strong> radius means you will receive requests from customers within {radius} km of your base.</p>
+          <div className="flex justify-between text-xs font-bold text-black/40 mt-1"><span>5 km</span><span>Local area</span><span>150 km</span></div>
+          <p className="mt-3 text-sm font-bold text-black/60">A <strong className="text-black">{radius} km</strong> radius means you will receive requests from customers within {radius} km of your base.</p>
         </div>
         <NavButtons onNext={save} saving={saving} nextLabel="Save Location & Continue" />
       </div>
@@ -333,7 +335,6 @@ function StepLocation({ profile, onDone }: { profile: Profile | null; onDone: ()
 }
 
 // ── Step: Currency ─────────────────────────────────────────────────────────────
-
 function StepCurrency({ profile, onDone, onBack }: { profile: Profile | null; onDone: () => void; onBack: () => void }) {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [currency, setCurrency] = useState(profile?.default_currency || "EUR");
@@ -368,22 +369,22 @@ function StepCurrency({ profile, onDone, onBack }: { profile: Profile | null; on
     <Card title="Bidding Currency" subtitle="Choose the currency you will use to price your bids.">
       <div className="space-y-5">
         <InfoBox>
-          <p className="font-semibold mb-1">Why this matters</p>
-          <p>All your bids will be submitted in this currency. Customers will see the equivalent in their preferred currency automatically.</p>
+          <p className="font-black mb-1">Why this matters</p>
+          <p className="font-bold text-black/60">All your bids will be submitted in this currency. Customers will see the equivalent in their preferred currency automatically.</p>
         </InfoBox>
-        {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+        {error && <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
         <div className="grid gap-3 sm:grid-cols-3">
           {options.map(o => (
             <button key={o.value} type="button" onClick={() => setCurrency(o.value)}
-              className={`rounded-2xl border-2 p-5 text-left transition-all ${
+              className={`border-2 p-5 text-left transition-all ${
                 currency === o.value
-                  ? "border-[#ff7a00] bg-[#fff8f3] shadow-[0_4px_12px_rgba(255,122,0,0.15)]"
-                  : "border-black/10 bg-white hover:border-[#003768]/30"
+                  ? "border-[#ff7a00] bg-white"
+                  : "border-black/10 bg-[#f0f0f0] hover:border-black/30"
               }`}>
-              <div className="text-3xl font-black text-[#003768]">{o.symbol}</div>
-              <div className="mt-2 font-bold text-[#003768]">{o.label}</div>
-              <div className="mt-0.5 text-xs text-slate-500">{o.desc}</div>
-              {currency === o.value && <div className="mt-2 text-xs font-bold text-[#ff7a00]">Selected</div>}
+              <div className="text-3xl font-black text-black">{o.symbol}</div>
+              <div className="mt-2 font-black text-black">{o.label}</div>
+              <div className="mt-0.5 text-xs font-bold text-black/50">{o.desc}</div>
+              {currency === o.value && <div className="mt-2 text-xs font-black text-[#ff7a00]">Selected ✓</div>}
             </button>
           ))}
         </div>
@@ -393,8 +394,7 @@ function StepCurrency({ profile, onDone, onBack }: { profile: Profile | null; on
   );
 }
 
-// ── Step: Business & Billing (NEW) ─────────────────────────────────────────────
-
+// ── Step: Business & Billing ───────────────────────────────────────────────────
 function StepBilling({ profile, onDone, onBack }: { profile: Profile | null; onDone: () => void; onBack: () => void }) {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [legalName, setLegalName] = useState(profile?.legal_company_name ?? "");
@@ -436,16 +436,16 @@ function StepBilling({ profile, onDone, onBack }: { profile: Profile | null; onD
     <Card title="Business & Billing Details" subtitle="Your legal details are required for invoicing and commission processing.">
       <div className="space-y-5">
         <InfoBox>
-          <p className="font-semibold mb-1">Why we need this</p>
-          <p>Camel Global takes a commission from each completed booking. Your VAT number and legal company name are required so we can issue correct cross-border commission invoices. Without a VAT number your account cannot go live.</p>
+          <p className="font-black mb-1">Why we need this</p>
+          <p className="font-bold text-black/60">Camel Global takes a commission from each completed booking. Your VAT number and legal company name are required so we can issue correct cross-border commission invoices. Without a VAT number your account cannot go live.</p>
         </InfoBox>
 
-        <div className="rounded-2xl border border-[#003768]/10 bg-[#f3f8ff] p-4 text-sm text-[#003768]">
-          <p className="font-semibold mb-1">📋 How commission works</p>
-          <p>Camel Global charges a <strong>20% commission</strong> on the car hire price for each completed booking, with a <strong>minimum commission of €10 per booking</strong>. Fuel charges are passed through to you in full — we take no commission on fuel. Commission is deducted automatically and you receive the net amount via Stripe payout.</p>
+        <div className="border border-black/10 bg-[#f0f0f0] p-4 text-sm">
+          <p className="font-black text-black mb-1">📋 How commission works</p>
+          <p className="font-bold text-black/60">Camel Global charges a <strong className="text-black">20% commission</strong> on the car hire price for each completed booking, with a <strong className="text-black">minimum commission of €10 per booking</strong>. Fuel charges are passed through to you in full — we take no commission on fuel.</p>
         </div>
 
-        {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+        {error && <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
 
         <div className="space-y-4">
           <FieldInput
@@ -473,9 +473,9 @@ function StepBilling({ profile, onDone, onBack }: { profile: Profile | null; onD
           />
         </div>
 
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <p className="font-semibold">🔒 Your details are secure</p>
-          <p className="mt-0.5">These details are used solely for commission invoicing and are never shared with customers.</p>
+        <div className="border border-black/10 bg-[#f0f0f0] px-4 py-3 text-sm">
+          <p className="font-black text-black">🔒 Your details are secure</p>
+          <p className="mt-0.5 font-bold text-black/60">These details are used solely for commission invoicing and are never shared with customers.</p>
         </div>
 
         <NavButtons onBack={onBack} onNext={save} saving={saving} canSkip onSkip={onDone} />
@@ -485,7 +485,6 @@ function StepBilling({ profile, onDone, onBack }: { profile: Profile | null; onD
 }
 
 // ── Step: Fleet ────────────────────────────────────────────────────────────────
-
 function StepFleet({ onDone, onBack }: { onDone: () => void; onBack: () => void }) {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [fleet, setFleet] = useState<FleetRow[]>([]);
@@ -539,61 +538,61 @@ function StepFleet({ onDone, onBack }: { onDone: () => void; onBack: () => void 
     <Card title="Your Car Fleet" subtitle="Add the vehicle categories you can offer to customers.">
       <div className="space-y-5">
         <InfoBox>
-          <p className="font-semibold mb-1">Why this matters</p>
-          <p>Customers request specific vehicle types. You will only receive requests that match the categories you add here.</p>
+          <p className="font-black mb-1">Why this matters</p>
+          <p className="font-bold text-black/60">Customers request specific vehicle types. You will only receive requests that match the categories you add here.</p>
         </InfoBox>
-        {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-        {loading ? <p className="text-slate-500 text-sm">Loading fleet...</p> : (
+        {error && <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
+        {loading ? <p className="text-sm font-bold text-black/50">Loading fleet…</p> : (
           <div className="space-y-2">
-            {fleet.length === 0 && !adding && <p className="text-sm text-slate-400 italic">No vehicles added yet.</p>}
+            {fleet.length === 0 && !adding && <p className="text-sm font-bold text-black/40 italic">No vehicles added yet.</p>}
             {fleet.map(f => (
-              <div key={f.id} className="flex items-center justify-between rounded-xl border border-black/5 bg-slate-50 px-4 py-3">
+              <div key={f.id} className="flex items-center justify-between border border-black/5 bg-[#f0f0f0] px-4 py-3">
                 <div>
-                  <p className="font-semibold text-[#003768]">{f.category_name}</p>
-                  <p className="text-xs text-slate-500">{f.max_passengers} passengers · {f.max_suitcases} suitcases</p>
+                  <p className="font-black text-black">{f.category_name}</p>
+                  <p className="text-xs font-bold text-black/50">{f.max_passengers} passengers · {f.max_suitcases} suitcases</p>
                 </div>
-                <button type="button" onClick={() => removeVehicle(f.id)} className="text-xs text-red-500 hover:text-red-700 font-semibold">Remove</button>
+                <button type="button" onClick={() => removeVehicle(f.id)} className="text-xs font-black text-red-500 hover:text-red-700">Remove</button>
               </div>
             ))}
           </div>
         )}
         {adding ? (
-          <div className="rounded-2xl border border-[#003768]/10 bg-[#f3f8ff] p-5 space-y-4">
-            <h3 className="font-semibold text-[#003768]">Add a vehicle category</h3>
+          <div className="border border-black/10 bg-[#f0f0f0] p-5 space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-widest text-black">Add a vehicle category</h3>
             <div>
-              <label className="text-sm font-medium text-[#003768] mb-1.5 block">Vehicle category</label>
+              <label className="text-xs font-black uppercase tracking-widest text-black mb-1.5 block">Vehicle category</label>
               <select value={form.category_slug} onChange={e => setForm(f => ({ ...f, category_slug: e.target.value }))}
-                className="w-full rounded-xl border border-black/10 px-4 py-3 outline-none focus:border-[#0f4f8a]">
-                <option value="">Select category...</option>
+                className="w-full border border-black/10 bg-white px-4 py-3 text-sm font-bold outline-none focus:border-black">
+                <option value="">Select category…</option>
                 {FLEET_CATEGORIES.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}
               </select>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               {[
-                { key: "max_passengers", label: "Max passengers" },
-                { key: "max_suitcases", label: "Max suitcases" },
-                { key: "max_hand_luggage", label: "Hand luggage" },
+                { key: "max_passengers",  label: "Max passengers" },
+                { key: "max_suitcases",   label: "Max suitcases" },
+                { key: "max_hand_luggage",label: "Hand luggage" },
               ].map(({ key, label }) => (
                 <div key={key}>
-                  <label className="text-sm font-medium text-[#003768] mb-1.5 block">{label}</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-black mb-1.5 block">{label}</label>
                   <input type="number" min={0} max={20} value={(form as any)[key]}
                     onChange={e => setForm(f => ({ ...f, [key]: Number(e.target.value) }))}
-                    className="w-full rounded-xl border border-black/10 px-4 py-3 outline-none focus:border-[#0f4f8a]" />
+                    className="w-full border border-black/10 bg-white px-4 py-3 text-sm font-bold outline-none focus:border-black" />
                 </div>
               ))}
             </div>
             <div className="flex gap-2">
               <button type="button" onClick={() => setAdding(false)}
-                className="flex-1 rounded-full border border-black/10 py-2.5 text-sm font-semibold text-slate-600 hover:bg-black/5">Cancel</button>
+                className="flex-1 border border-black/20 py-2.5 text-sm font-black text-black hover:bg-black/5">Cancel</button>
               <button type="button" onClick={addVehicle} disabled={saving}
-                className="flex-[2] rounded-full bg-[#003768] py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
-                {saving ? "Saving..." : "Add vehicle"}
+                className="flex-[2] bg-black py-2.5 text-sm font-black text-white hover:opacity-80 disabled:opacity-50">
+                {saving ? "Saving…" : "Add vehicle"}
               </button>
             </div>
           </div>
         ) : (
           <button type="button" onClick={() => setAdding(true)}
-            className="w-full rounded-xl border-2 border-dashed border-[#003768]/20 py-3 text-sm font-semibold text-[#003768] hover:border-[#003768]/40 hover:bg-[#f3f8ff] transition-colors">
+            className="w-full border-2 border-dashed border-black/20 py-3 text-sm font-black text-black/50 hover:border-black/40 hover:bg-[#f0f0f0] transition-colors">
             + Add vehicle category
           </button>
         )}
@@ -605,7 +604,6 @@ function StepFleet({ onDone, onBack }: { onDone: () => void; onBack: () => void 
 }
 
 // ── Step: Drivers ──────────────────────────────────────────────────────────────
-
 function StepDrivers({ onDone, onBack }: { onDone: () => void; onBack: () => void }) {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [drivers, setDrivers] = useState<DriverRow[]>([]);
@@ -646,53 +644,53 @@ function StepDrivers({ onDone, onBack }: { onDone: () => void; onBack: () => voi
     <Card title="Your Drivers" subtitle="Add the drivers who will deliver and collect vehicles for your customers.">
       <div className="space-y-5">
         <InfoBox>
-          <p className="font-semibold mb-1">Why this matters</p>
-          <p>Drivers meet customers at collection and return. Each driver needs an account to use the Camel Global driver app. Add at least one driver before going live.</p>
+          <p className="font-black mb-1">Why this matters</p>
+          <p className="font-bold text-black/60">Drivers meet customers at collection and return. Each driver needs an account to use the Camel Global driver app. Add at least one driver before going live.</p>
         </InfoBox>
-        {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-        {loading ? <p className="text-slate-500 text-sm">Loading drivers...</p> : (
+        {error && <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
+        {loading ? <p className="text-sm font-bold text-black/50">Loading drivers…</p> : (
           <div className="space-y-2">
-            {drivers.length === 0 && !adding && <p className="text-sm text-slate-400 italic">No drivers added yet.</p>}
+            {drivers.length === 0 && !adding && <p className="text-sm font-bold text-black/40 italic">No drivers added yet.</p>}
             {drivers.map(d => (
-              <div key={d.id} className="flex items-center justify-between rounded-xl border border-black/5 bg-slate-50 px-4 py-3">
+              <div key={d.id} className="flex items-center justify-between border border-black/5 bg-[#f0f0f0] px-4 py-3">
                 <div>
-                  <p className="font-semibold text-[#003768]">{d.full_name}</p>
-                  <p className="text-xs text-slate-500">{d.email}{d.phone ? ` · ${d.phone}` : ""}</p>
+                  <p className="font-black text-black">{d.full_name}</p>
+                  <p className="text-xs font-bold text-black/50">{d.email}{d.phone ? ` · ${d.phone}` : ""}</p>
                 </div>
-                <span className="text-xs font-semibold text-green-600">Added</span>
+                <span className="text-xs font-black text-black border border-black/20 px-2 py-0.5">Added ✓</span>
               </div>
             ))}
           </div>
         )}
         {adding ? (
-          <div className="rounded-2xl border border-[#003768]/10 bg-[#f3f8ff] p-5 space-y-4">
-            <h3 className="font-semibold text-[#003768]">Add a driver</h3>
+          <div className="border border-black/10 bg-[#f0f0f0] p-5 space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-widest text-black">Add a driver</h3>
             {[
-              { key: "full_name", label: "Full name",     placeholder: "Juan Garcia",          required: true },
-              { key: "email",     label: "Email address", placeholder: "juan@valenciacars.com", required: true },
+              { key: "full_name", label: "Full name",     placeholder: "Juan Garcia",           required: true },
+              { key: "email",     label: "Email address", placeholder: "juan@valenciacars.com",  required: true },
               { key: "phone",     label: "Phone number",  placeholder: "+34 600 000 000" },
             ].map(({ key, label, placeholder, required }) => (
               <div key={key}>
-                <label className="text-sm font-medium text-[#003768] mb-1.5 block">
+                <label className="text-xs font-black uppercase tracking-widest text-black mb-1.5 block">
                   {label}{required && <span className="text-red-500 ml-0.5">*</span>}
                 </label>
                 <input value={(form as any)[key]} placeholder={placeholder}
                   onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                  className="w-full rounded-xl border border-black/10 px-4 py-3 outline-none focus:border-[#0f4f8a]" />
+                  className="w-full border border-black/10 bg-white px-4 py-3 text-sm font-bold outline-none focus:border-black placeholder:text-black/30" />
               </div>
             ))}
             <div className="flex gap-2">
               <button type="button" onClick={() => setAdding(false)}
-                className="flex-1 rounded-full border border-black/10 py-2.5 text-sm font-semibold text-slate-600 hover:bg-black/5">Cancel</button>
+                className="flex-1 border border-black/20 py-2.5 text-sm font-black text-black hover:bg-black/5">Cancel</button>
               <button type="button" onClick={addDriver} disabled={saving}
-                className="flex-[2] rounded-full bg-[#003768] py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
-                {saving ? "Saving..." : "Add driver"}
+                className="flex-[2] bg-black py-2.5 text-sm font-black text-white hover:opacity-80 disabled:opacity-50">
+                {saving ? "Saving…" : "Add driver"}
               </button>
             </div>
           </div>
         ) : (
           <button type="button" onClick={() => setAdding(true)}
-            className="w-full rounded-xl border-2 border-dashed border-[#003768]/20 py-3 text-sm font-semibold text-[#003768] hover:border-[#003768]/40 hover:bg-[#f3f8ff] transition-colors">
+            className="w-full border-2 border-dashed border-black/20 py-3 text-sm font-black text-black/50 hover:border-black/40 hover:bg-[#f0f0f0] transition-colors">
             + Add driver
           </button>
         )}
@@ -704,7 +702,6 @@ function StepDrivers({ onDone, onBack }: { onDone: () => void; onBack: () => voi
 }
 
 // ── Step: Go Live ──────────────────────────────────────────────────────────────
-
 function StepGoLive({ profile, onBack }: { profile: Profile | null; onBack: () => void }) {
   const router = useRouter();
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
@@ -729,19 +726,19 @@ function StepGoLive({ profile, onBack }: { profile: Profile | null; onBack: () =
   }, [supabase]);
 
   if (checking) return (
-    <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-      <p className="text-slate-500">Checking your setup...</p>
+    <div className="bg-white border border-black/5 p-8">
+      <p className="text-sm font-bold text-black/50">Checking your setup…</p>
     </div>
   );
 
   const checks = [
-    { label: "Fleet base location set",        done: !!(profile?.base_lat && profile?.base_lng && profile?.base_address1) },
-    { label: "Service radius configured",       done: !!(profile?.service_radius_km) },
-    { label: "Bidding currency selected",       done: !!(profile?.default_currency) },
-    { label: "Legal company name provided",     done: !!(profile?.legal_company_name) },
-    { label: "VAT number provided",             done: !!(profile?.vat_number) },
-    { label: "At least one vehicle added",      done: fleetCount > 0 },
-    { label: "At least one driver added",       done: driverCount > 0 },
+    { label: "Fleet base location set",    done: !!(profile?.base_lat && profile?.base_lng && profile?.base_address1) },
+    { label: "Service radius configured",  done: !!(profile?.service_radius_km) },
+    { label: "Bidding currency selected",  done: !!(profile?.default_currency) },
+    { label: "Legal company name provided",done: !!(profile?.legal_company_name) },
+    { label: "VAT number provided",        done: !!(profile?.vat_number) },
+    { label: "At least one vehicle added", done: fleetCount > 0 },
+    { label: "At least one driver added",  done: driverCount > 0 },
   ];
   const allDone = checks.every(c => c.done);
   const donePct = Math.round((checks.filter(c => c.done).length / checks.length) * 100);
@@ -750,49 +747,49 @@ function StepGoLive({ profile, onBack }: { profile: Profile | null; onBack: () =
     <Card title="Ready to Go Live?" subtitle="Review your setup and request activation when you are ready.">
       <div className="space-y-5">
         <InfoBox>
-          <p className="font-semibold mb-1">What happens when you go live?</p>
-          <p>Once activated, customer requests within your service radius will be sent to you in real time. You will be able to submit competitive bids and start receiving bookings immediately.</p>
+          <p className="font-black mb-1">What happens when you go live?</p>
+          <p className="font-bold text-black/60">Once activated, customer requests within your service radius will be sent to you in real time. You will be able to submit competitive bids and start receiving bookings immediately.</p>
         </InfoBox>
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold text-[#003768]">Setup progress</span>
-            <span className="text-sm font-bold text-[#ff7a00]">{donePct}%</span>
+            <span className="text-xs font-black uppercase tracking-widest text-black">Setup progress</span>
+            <span className="text-sm font-black text-[#ff7a00]">{donePct}%</span>
           </div>
-          <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-            <div className="h-full rounded-full bg-[#ff7a00] transition-all" style={{ width: `${donePct}%` }} />
+          <div className="h-2 bg-black/10 overflow-hidden">
+            <div className="h-full bg-[#ff7a00] transition-all" style={{ width: `${donePct}%` }} />
           </div>
         </div>
         <div className="space-y-2">
           {checks.map(({ label, done }) => (
-            <div key={label} className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${done ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50"}`}>
-              <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${done ? "bg-green-500 text-white" : "bg-amber-200 text-amber-700"}`}>
+            <div key={label} className={`flex items-center gap-3 border px-4 py-3 ${done ? "border-black/10 bg-[#f0f0f0]" : "border-amber-200 bg-amber-50"}`}>
+              <span className={`flex h-6 w-6 shrink-0 items-center justify-center text-xs font-black ${done ? "bg-black text-white" : "bg-amber-200 text-amber-700"}`}>
                 {done ? "✓" : "!"}
               </span>
-              <span className={`text-sm font-medium ${done ? "text-green-800" : "text-amber-800"}`}>{label}</span>
-              {!done && <span className="ml-auto text-xs text-amber-600 font-semibold">Incomplete</span>}
+              <span className={`text-sm font-bold ${done ? "text-black" : "text-amber-800"}`}>{label}</span>
+              {!done && <span className="ml-auto text-xs font-black text-amber-600">Incomplete</span>}
             </div>
           ))}
         </div>
         {allDone ? (
-          <div className="rounded-2xl border border-green-200 bg-green-50 p-5 text-center">
+          <div className="border border-black/10 bg-[#f0f0f0] p-5 text-center">
             <p className="text-2xl mb-2">🎉</p>
-            <p className="font-bold text-green-800 text-lg">You are all set!</p>
-            <p className="text-sm text-green-700 mt-1">Your account is now live. You will start receiving customer booking requests immediately.</p>
+            <p className="font-black text-black text-lg">You are all set!</p>
+            <p className="text-sm font-bold text-black/60 mt-1">Your account is now live. You will start receiving customer booking requests immediately.</p>
           </div>
         ) : (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            <p className="font-semibold">A few things still to complete</p>
-            <p className="mt-1">You can complete the remaining steps from your dashboard. Note: a VAT number is required before your account can go live.</p>
+          <div className="border border-amber-200 bg-amber-50 p-4 text-sm">
+            <p className="font-black text-amber-800">A few things still to complete</p>
+            <p className="mt-1 font-bold text-amber-700">You can complete the remaining steps from your dashboard. Note: a VAT number is required before your account can go live.</p>
           </div>
         )}
         <div className="flex gap-3">
           <button type="button" onClick={onBack}
-            className="rounded-full border border-black/10 px-6 py-3 font-semibold text-[#003768] hover:bg-black/5">Back</button>
+            className="border border-black/20 px-6 py-3 text-sm font-black text-black hover:bg-black/5">Back</button>
           <button type="button" onClick={async () => {
             try { await fetch("/api/partner/refresh-live-status", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }); } catch {}
             router.replace("/partner/dashboard");
           }}
-            className="flex-1 rounded-full bg-[#ff7a00] py-3 font-semibold text-white shadow-[0_8px_18px_rgba(255,122,0,0.3)] hover:opacity-95">
+            className="flex-1 bg-[#ff7a00] py-3 text-sm font-black text-white hover:opacity-90">
             {allDone ? "Go to Dashboard" : "Save progress & go to Dashboard"}
           </button>
         </div>
@@ -802,7 +799,6 @@ function StepGoLive({ profile, onBack }: { profile: Profile | null; onBack: () =
 }
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
-
 export default function PartnerOnboardingPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const router = useRouter();
@@ -850,15 +846,16 @@ export default function PartnerOnboardingPage() {
 
   if (loading) return (
     <div className="flex min-h-screen items-center justify-center">
-      <p className="text-slate-500">Loading your account...</p>
+      <p className="text-sm font-bold text-black/50">Loading your account…</p>
     </div>
   );
 
   return (
     <div className="w-full px-4 py-6 md:px-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-[#003768]">Get Started</h1>
-        <p className="mt-1 text-slate-500">Complete your setup to start receiving bookings.</p>
+        <p className="text-xs font-black uppercase tracking-widest text-[#ff7a00] mb-1">Partner Portal</p>
+        <h1 className="text-3xl font-black text-black">Get Started</h1>
+        <p className="mt-1 text-sm font-bold text-black/50">Complete your setup to start receiving bookings.</p>
       </div>
       <StepNav current={step} completed={completed} />
       {step === "location" && (
