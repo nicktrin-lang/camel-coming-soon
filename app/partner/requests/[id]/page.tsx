@@ -84,8 +84,8 @@ function getPartnerHistoryStatus(params: {
   bidStatus?: string | null; hasBooking?: boolean;
 }) {
   const requestStatus = String(params.requestStatus || "").trim();
-  const bidStatus = String(params.bidStatus || "").trim();
-  const expired = !!params.expiresAt && new Date(params.expiresAt).getTime() <= Date.now();
+  const bidStatus     = String(params.bidStatus || "").trim();
+  const expired       = !!params.expiresAt && new Date(params.expiresAt).getTime() <= Date.now();
   if (params.hasBooking || bidStatus === "accepted") return "Bid successful";
   if (bidStatus === "unsuccessful" || bidStatus === "rejected") return "Bid unsuccessful";
   if (expired || requestStatus === "expired") return "Expired";
@@ -93,24 +93,36 @@ function getPartnerHistoryStatus(params: {
   return "Open";
 }
 
+const inputCls = "w-full border border-black/10 bg-[#f0f0f0] px-4 py-3 text-sm font-bold outline-none focus:border-black placeholder:text-black/30 disabled:opacity-50";
+const labelCls = "text-xs font-black uppercase tracking-widest text-black";
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-xs font-black uppercase tracking-widest text-black/40">{label}</span>
+      <span className="text-sm font-bold text-black">{children}</span>
+    </div>
+  );
+}
+
 export default function PartnerRequestDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
-  const [requestId, setRequestId] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [ok, setOk] = useState<string | null>(null);
-  const [data, setData] = useState<ApiResponse | null>(null);
-  const [timeLabel, setTimeLabel] = useState("—");
-  const [expired, setExpired] = useState(false);
+  const [requestId,      setRequestId]      = useState("");
+  const [loading,        setLoading]        = useState(true);
+  const [saving,         setSaving]         = useState(false);
+  const [error,          setError]          = useState<string | null>(null);
+  const [ok,             setOk]             = useState<string | null>(null);
+  const [data,           setData]           = useState<ApiResponse | null>(null);
+  const [timeLabel,      setTimeLabel]      = useState("—");
+  const [expired,        setExpired]        = useState(false);
   const [partnerCurrency, setPartnerCurrency] = useState<Currency>("EUR");
 
-  const [fleetId, setFleetId] = useState("");
-  const [carHirePrice, setCarHirePrice] = useState("");
-  const [fuelPrice, setFuelPrice] = useState("");
+  const [fleetId,               setFleetId]               = useState("");
+  const [carHirePrice,          setCarHirePrice]          = useState("");
+  const [fuelPrice,             setFuelPrice]             = useState("");
   const [fullInsuranceIncluded, setFullInsuranceIncluded] = useState(true);
-  const [fullTankIncluded, setFullTankIncluded] = useState(true);
-  const [notes, setNotes] = useState("");
+  const [fullTankIncluded,      setFullTankIncluded]      = useState(true);
+  const [notes,                 setNotes]                 = useState("");
 
   useEffect(() => { params.then(r => setRequestId(r.id)); }, [params]);
 
@@ -118,12 +130,12 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
     if (!requestId) return;
     setLoading(true); setError(null);
     try {
-      const res = await fetch(`/api/partner/requests/${requestId}`, { method: "GET", cache: "no-store", credentials: "include" });
+      const res  = await fetch(`/api/partner/requests/${requestId}`, { method: "GET", cache: "no-store", credentials: "include" });
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.error || "Failed to load request.");
       const nextData = json as ApiResponse;
       setData(nextData);
-      const raw = nextData.partnerCurrency;
+      const raw      = nextData.partnerCurrency;
       const currency: Currency = (raw === "EUR" || raw === "GBP" || raw === "USD") ? raw : "EUR";
       setPartnerCurrency(currency);
       if (nextData.existingBid) {
@@ -160,24 +172,18 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
       const selectedFleet = data.fleetOptions.find(f => f.id === fleetId);
       if (!selectedFleet) throw new Error("Please select a vehicle from your fleet.");
       const carHire = Number(carHirePrice || 0);
-      const fuel = Number(fuelPrice || 0);
+      const fuel    = Number(fuelPrice || 0);
       if (isNaN(carHire) || carHire < 0) throw new Error("Please enter a valid car hire price.");
-      if (isNaN(fuel) || fuel < 0) throw new Error("Please enter a valid fuel price.");
+      if (isNaN(fuel)    || fuel    < 0) throw new Error("Please enter a valid fuel price.");
       const res = await fetch("/api/partner/bids", {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          request_id: data.request.id,
-          fleet_id: selectedFleet.id,
-          vehicle_category_slug: selectedFleet.category_slug,
-          vehicle_category_name: selectedFleet.category_name,
-          car_hire_price: carHire,
-          fuel_price: fuel,
-          total_price: carHire + fuel,
-          full_insurance_included: fullInsuranceIncluded,
-          full_tank_included: fullTankIncluded,
-          notes,
-          currency: partnerCurrency,
+          request_id: data.request.id, fleet_id: selectedFleet.id,
+          vehicle_category_slug: selectedFleet.category_slug, vehicle_category_name: selectedFleet.category_name,
+          car_hire_price: carHire, fuel_price: fuel, total_price: carHire + fuel,
+          full_insurance_included: fullInsuranceIncluded, full_tank_included: fullTankIncluded,
+          notes, currency: partnerCurrency,
         }),
       });
       const json = await res.json().catch(() => null);
@@ -189,22 +195,18 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
   }
 
   if (loading) return (
-    <div className="space-y-6 px-4 py-8 md:px-8">
-      <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-        <p className="text-slate-600">Loading request…</p>
-      </div>
+    <div className="border border-black/5 bg-white p-8">
+      <p className="text-sm font-bold text-black/50">Loading request…</p>
     </div>
   );
 
   if (!data?.request) return (
-    <div className="space-y-6 px-4 py-8 md:px-8">
-      <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-red-700">{error || "Request not found"}</div>
-    </div>
+    <div className="border border-red-200 bg-red-50 p-6 text-sm font-bold text-red-700">{error || "Request not found"}</div>
   );
 
   const { request, existingBid, existingBooking } = data;
   const { symbol, label: currencyLabel } = CURRENCY_META[partnerCurrency];
-  const commissionRate = data.commissionRate ?? 20;
+  const commissionRate    = data.commissionRate ?? 20;
   const minimumCommission = data.minimumCommission ?? 10;
 
   const partnerStatus = getPartnerHistoryStatus({
@@ -216,204 +218,208 @@ export default function PartnerRequestDetailPage({ params }: { params: Promise<{
     request.status === "expired" || existingBid?.status === "accepted" ||
     existingBid?.status === "unsuccessful" || existingBid?.status === "rejected";
 
-  const total = Number(carHirePrice || 0) + Number(fuelPrice || 0);
-
-  // Live commission calculation
-  const hireNum = Number(carHirePrice || 0);
-  const rawComm = (hireNum * commissionRate) / 100;
+  const total    = Number(carHirePrice || 0) + Number(fuelPrice || 0);
+  const hireNum  = Number(carHirePrice || 0);
+  const rawComm  = (hireNum * commissionRate) / 100;
   const commission = Math.max(rawComm, minimumCommission);
-  const payout = Math.max(0, hireNum - commission);
+  const payout   = Math.max(0, hireNum - commission);
   const showCommissionPreview = hireNum > 0 && !formDisabled;
 
   return (
-    <div className="space-y-6 px-4 py-8 md:px-8">
-      {error && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
-      {ok && <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">{ok}</div>}
+    <div className="space-y-6">
+      {error && <div className="border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">{error}</div>}
+      {ok    && <div className="border border-black/10 bg-[#f0f0f0] p-4 text-sm font-bold text-black">{ok}</div>}
 
+      {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold text-[#003768]">Request Detail</h1>
-          <p className="mt-2 text-slate-600">Review this request and submit your bid.</p>
+          <h1 className="text-3xl font-black text-black">Request Detail</h1>
+          <p className="mt-1 text-sm font-bold text-black/50">Review this request and submit your bid.</p>
         </div>
-        <Link href="/partner/requests" className="rounded-full border border-black/10 bg-white px-5 py-2 font-semibold text-[#003768] hover:bg-black/5">
+        <Link href="/partner/requests" className="border border-black/20 px-5 py-2 text-sm font-black text-black hover:bg-black/5 transition-colors">
           Back to Requests
         </Link>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
-          <span className="font-semibold">Time remaining:</span> {timeLabel}
+      {/* Status strips */}
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className={`border px-4 py-3 text-sm font-black ${expired ? "border-red-200 bg-red-50 text-red-700" : "border-[#ff7a00]/30 bg-[#ff7a00]/5 text-[#ff7a00]"}`}>
+          <span className="text-black/40 font-black uppercase tracking-widest text-xs block mb-0.5">Time remaining</span>
+          {timeLabel}
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-          <span className="font-semibold">Your status:</span> {partnerStatus}
+        <div className="border border-black/10 bg-[#f0f0f0] px-4 py-3 text-sm font-black text-black">
+          <span className="text-black/40 font-black uppercase tracking-widest text-xs block mb-0.5">Your status</span>
+          {partnerStatus}
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-          <span className="font-semibold">Request status:</span>{" "}
+        <div className="border border-black/10 bg-[#f0f0f0] px-4 py-3 text-sm font-black text-black">
+          <span className="text-black/40 font-black uppercase tracking-widest text-xs block mb-0.5">Request status</span>
           <span className="capitalize">{String(request.status || "—").replaceAll("_", " ")}</span>
         </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
+
         {/* Request info */}
-        <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-          <h2 className="text-2xl font-semibold text-[#003768]">Request Information</h2>
-          <div className="mt-6 space-y-4 text-slate-700">
-            {[
-              ["Job No.", request.job_number ?? "—"],
-              ["Customer", request.customer_name || "—"],
-              ["Email", request.customer_email || "—"],
-              ["Phone", request.customer_phone || "—"],
-              ["Pickup", request.pickup_address],
-              ["Dropoff", request.dropoff_address || "—"],
-              ["Pickup time", fmtDateTime(request.pickup_at)],
-              ["Dropoff time", fmtDateTime(request.dropoff_at)],
-              ["Duration", formatDuration(request.journey_duration_minutes)],
-              ["Passengers", request.passengers],
-              ["Suitcases", request.suitcases],
-              ["Hand luggage", request.hand_luggage],
-              ["Vehicle", request.vehicle_category_name || "—"],
-              ["Notes", request.notes || "—"],
-              ["Created", fmtDateTime(request.created_at)],
-              ["Expires at", fmtDateTime(request.expires_at)],
-            ].map(([lbl, val]) => (
-              <p key={String(lbl)}><span className="font-semibold text-slate-900">{lbl}:</span> {String(val)}</p>
-            ))}
+        <div className="border border-black/5 bg-white p-6">
+          <h2 className="text-lg font-black text-black mb-4">Request Information</h2>
+          <div className="space-y-3">
+            <Field label="Job No.">{request.job_number ?? "—"}</Field>
+            <Field label="Customer">{request.customer_name || "—"}</Field>
+            <Field label="Email">{request.customer_email || "—"}</Field>
+            <Field label="Phone">{request.customer_phone || "—"}</Field>
+            <Field label="Pickup">{request.pickup_address}</Field>
+            <Field label="Dropoff">{request.dropoff_address || "—"}</Field>
+            <Field label="Pickup time">{fmtDateTime(request.pickup_at)}</Field>
+            <Field label="Dropoff time">{fmtDateTime(request.dropoff_at)}</Field>
+            <Field label="Duration">{formatDuration(request.journey_duration_minutes)}</Field>
+            <Field label="Passengers">{request.passengers}</Field>
+            <Field label="Suitcases">{request.suitcases}</Field>
+            <Field label="Hand luggage">{request.hand_luggage}</Field>
+            <Field label="Vehicle">{request.vehicle_category_name || "—"}</Field>
+            <Field label="Notes">{request.notes || "—"}</Field>
+            <Field label="Created">{fmtDateTime(request.created_at)}</Field>
+            <Field label="Expires at">{fmtDateTime(request.expires_at)}</Field>
           </div>
         </div>
 
         {/* Bid section */}
-        <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-          <h2 className="text-2xl font-semibold text-[#003768]">Bid Outcome</h2>
+        <div className="border border-black/5 bg-white p-6">
+          <h2 className="text-lg font-black text-black mb-4">Bid Outcome</h2>
 
+          {/* Status banners */}
           {(expired || request.status === "expired") && (
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-slate-700">This request has expired.</div>
+            <div className="border border-black/10 bg-[#f0f0f0] p-4 text-sm font-bold text-black/60 mb-4">This request has expired.</div>
           )}
           {existingBooking && (
-            <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5 text-green-700">Your bid was successful — this request is now in Bookings.</div>
+            <div className="border border-black/20 bg-black p-4 text-sm font-black text-white mb-4">✓ Your bid was successful — this request is now in Bookings.</div>
           )}
           {!existingBooking && existingBid?.status === "accepted" && (
-            <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5 text-green-700">Your bid was accepted.</div>
+            <div className="border border-black/20 bg-black p-4 text-sm font-black text-white mb-4">✓ Your bid was accepted.</div>
           )}
           {(existingBid?.status === "unsuccessful" || existingBid?.status === "rejected") && (
-            <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700">Your bid was unsuccessful.</div>
+            <div className="border border-red-200 bg-red-50 p-4 text-sm font-black text-red-700 mb-4">Your bid was unsuccessful.</div>
           )}
-          {existingBid && existingBid.status === "submitted" && (
-            <div className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-blue-700">Your bid has been submitted and is awaiting customer decision.</div>
+          {existingBid?.status === "submitted" && (
+            <div className="border border-[#ff7a00]/30 bg-[#ff7a00]/5 p-4 text-sm font-black text-[#ff7a00] mb-4">Bid submitted — awaiting customer decision.</div>
           )}
 
+          {/* Existing bid summary */}
           {existingBid && (
-            <div className="mt-6 space-y-4 text-slate-700">
-              <p><span className="font-semibold text-slate-900">Bid status:</span> <span className="capitalize">{existingBid.status.replaceAll("_", " ")}</span></p>
-              <p><span className="font-semibold text-slate-900">Currency:</span> {CURRENCY_META[existingBid.currency ?? partnerCurrency]?.label ?? existingBid.currency}</p>
-              <p><span className="font-semibold text-slate-900">Vehicle:</span> {existingBid.vehicle_category_name || "—"}</p>
-              <p><span className="font-semibold text-slate-900">Car hire price:</span> {fmtCurrency(existingBid.car_hire_price, existingBid.currency ?? partnerCurrency)}</p>
-              <p><span className="font-semibold text-slate-900">Fuel price:</span> {fmtCurrency(existingBid.fuel_price, existingBid.currency ?? partnerCurrency)}</p>
-              <p><span className="font-semibold text-slate-900">Total price:</span> {fmtCurrency(existingBid.total_price, existingBid.currency ?? partnerCurrency)}</p>
-              <p><span className="font-semibold text-slate-900">Full insurance included:</span> {existingBid.full_insurance_included ? "Yes" : "No"}</p>
-              <p><span className="font-semibold text-slate-900">Full tank included:</span> {existingBid.full_tank_included ? "Yes" : "No"}</p>
-              <p><span className="font-semibold text-slate-900">Notes:</span> {existingBid.notes || "—"}</p>
-              <p><span className="font-semibold text-slate-900">Submitted:</span> {fmtDateTime(existingBid.created_at)}</p>
+            <div className="space-y-3 mb-4">
+              <Field label="Bid status"><span className="capitalize">{existingBid.status.replaceAll("_", " ")}</span></Field>
+              <Field label="Currency">{CURRENCY_META[existingBid.currency ?? partnerCurrency]?.label ?? existingBid.currency}</Field>
+              <Field label="Vehicle">{existingBid.vehicle_category_name || "—"}</Field>
+              <Field label="Car hire price">{fmtCurrency(existingBid.car_hire_price, existingBid.currency ?? partnerCurrency)}</Field>
+              <Field label="Fuel price">{fmtCurrency(existingBid.fuel_price, existingBid.currency ?? partnerCurrency)}</Field>
+              <Field label="Total price">{fmtCurrency(existingBid.total_price, existingBid.currency ?? partnerCurrency)}</Field>
+              <Field label="Full insurance included">{existingBid.full_insurance_included ? "Yes" : "No"}</Field>
+              <Field label="Full tank included">{existingBid.full_tank_included ? "Yes" : "No"}</Field>
+              <Field label="Notes">{existingBid.notes || "—"}</Field>
+              <Field label="Submitted">{fmtDateTime(existingBid.created_at)}</Field>
               {existingBooking && (
                 <div className="pt-2">
-                  <Link href="/partner/bookings" className="inline-flex rounded-full bg-[#ff7a00] px-5 py-2 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95">
-                    Go to Booking
+                  <Link href="/partner/bookings" className="inline-block bg-[#ff7a00] px-5 py-2.5 text-sm font-black text-white hover:opacity-90 transition-opacity">
+                    Go to Booking →
                   </Link>
                 </div>
               )}
             </div>
           )}
 
+          {/* No fleet warning */}
           {!existingBid && data.fleetOptions.length === 0 && (
-            <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-700">No compatible vehicles found in your fleet for this request.</div>
+            <div className="border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-700">No compatible vehicles found in your fleet for this request.</div>
           )}
 
+          {/* Bid form */}
           {!existingBid && data.fleetOptions.length > 0 && (
-            <form onSubmit={submitBid} className="mt-6 space-y-5">
+            <form onSubmit={submitBid} className="space-y-5">
+
               {/* Currency badge */}
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#003768]/10 px-3 py-1.5 text-sm font-semibold text-[#003768]">
+              <div className="inline-flex items-center gap-2 border border-black/20 bg-[#f0f0f0] px-3 py-1.5 text-sm font-black text-black">
                 <span>{symbol}</span>
                 Bidding in {currencyLabel}
-                <Link href="/partner/profile" className="ml-1 text-xs text-[#003768]/60 underline hover:text-[#003768]">Change in profile</Link>
+                <Link href="/partner/profile" className="ml-1 text-xs font-black text-black/40 underline hover:text-black">Change in profile</Link>
               </div>
 
-              {/* Commission info box */}
-              <div className="rounded-2xl border border-[#003768]/10 bg-[#f3f8ff] p-4 text-sm text-[#003768]">
-                <p className="font-semibold mb-1">💰 Commission on this booking</p>
-                <p>
-                  Camel Global deducts a <strong>{commissionRate}% commission</strong> on the car hire price,
-                  with a <strong>minimum of {fmtCurrency(minimumCommission, partnerCurrency)} per booking</strong>.
+              {/* Commission info */}
+              <div className="border border-black/10 bg-[#f0f0f0] p-4 text-sm">
+                <p className="font-black text-black mb-1">💰 Commission on this booking</p>
+                <p className="font-bold text-black/60">
+                  Camel Global deducts a <strong className="text-black">{commissionRate}% commission</strong> on the car hire price,
+                  with a <strong className="text-black">minimum of {fmtCurrency(minimumCommission, partnerCurrency)} per booking</strong>.
                   Fuel is passed through to you in full — no commission on fuel.
                 </p>
                 {showCommissionPreview && (
                   <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-xl bg-white border border-[#003768]/10 px-3 py-2">
-                      <p className="text-xs text-slate-500">Car hire price</p>
-                      <p className="font-bold text-[#003768]">{fmtCurrency(hireNum, partnerCurrency)}</p>
+                    <div className="border border-black/10 bg-white px-3 py-2">
+                      <p className="text-xs font-black uppercase tracking-widest text-black/40">Car hire</p>
+                      <p className="font-black text-black">{fmtCurrency(hireNum, partnerCurrency)}</p>
                     </div>
-                    <div className="rounded-xl bg-white border border-amber-200 px-3 py-2">
-                      <p className="text-xs text-slate-500">Commission ({commissionRate}%)</p>
-                      <p className="font-bold text-amber-700">− {fmtCurrency(commission, partnerCurrency)}</p>
+                    <div className="border border-amber-200 bg-amber-50 px-3 py-2">
+                      <p className="text-xs font-black uppercase tracking-widest text-black/40">Commission</p>
+                      <p className="font-black text-amber-700">− {fmtCurrency(commission, partnerCurrency)}</p>
                     </div>
-                    <div className="rounded-xl bg-white border border-green-200 px-3 py-2">
-                      <p className="text-xs text-slate-500">Your payout</p>
-                      <p className="font-bold text-green-700">{fmtCurrency(payout, partnerCurrency)}</p>
+                    <div className="border border-black/20 bg-black px-3 py-2">
+                      <p className="text-xs font-black uppercase tracking-widest text-white/40">Your payout</p>
+                      <p className="font-black text-white">{fmtCurrency(payout, partnerCurrency)}</p>
                     </div>
                   </div>
                 )}
               </div>
 
               <div>
-                <label className="text-sm font-medium text-[#003768]">Vehicle from your fleet</label>
+                <label className={labelCls}>Vehicle from your fleet</label>
                 <select value={fleetId} onChange={e => setFleetId(e.target.value)} disabled={formDisabled}
-                  className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-[#0f4f8a] disabled:opacity-60" required>
+                  className={`mt-2 ${inputCls} bg-white`} required>
                   {data.fleetOptions.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-[#003768]">Car hire price ({symbol})</label>
+                <label className={labelCls}>Car hire price ({symbol})</label>
                 <input type="number" min="0" step="0.01" value={carHirePrice}
-                  onChange={e => setCarHirePrice(e.target.value)}
-                  disabled={formDisabled}
-                  className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a] disabled:opacity-60" required />
+                  onChange={e => setCarHirePrice(e.target.value)} disabled={formDisabled}
+                  className={`mt-2 ${inputCls}`} required />
               </div>
 
               <div>
-                <label className="text-sm font-medium text-[#003768]">Full fuel price ({symbol})</label>
+                <label className={labelCls}>Full fuel price ({symbol})</label>
                 <input type="number" min="0" step="0.01" value={fuelPrice}
-                  onChange={e => setFuelPrice(e.target.value)}
-                  disabled={formDisabled}
-                  className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a] disabled:opacity-60" required />
+                  onChange={e => setFuelPrice(e.target.value)} disabled={formDisabled}
+                  className={`mt-2 ${inputCls}`} required />
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                <span className="font-semibold">Current total:</span> {fmtCurrency(total, partnerCurrency)}
+              <div className="border border-black/10 bg-[#f0f0f0] px-4 py-3 text-sm font-black text-black">
+                <span className="text-black/40">Current total:</span> {fmtCurrency(total, partnerCurrency)}
               </div>
 
               <div className="flex flex-wrap gap-6">
-                <label className="flex items-center gap-3 text-sm text-slate-700">
+                <label className="flex items-center gap-3 text-sm font-black text-black cursor-pointer">
                   <input type="checkbox" checked={fullInsuranceIncluded}
-                    onChange={e => setFullInsuranceIncluded(e.target.checked)} disabled={formDisabled} />
+                    onChange={e => setFullInsuranceIncluded(e.target.checked)}
+                    disabled={formDisabled} className="h-4 w-4 accent-[#ff7a00]" />
                   Full insurance included
                 </label>
-                <label className="flex items-center gap-3 text-sm text-slate-700">
+                <label className="flex items-center gap-3 text-sm font-black text-black cursor-pointer">
                   <input type="checkbox" checked={fullTankIncluded}
-                    onChange={e => setFullTankIncluded(e.target.checked)} disabled={formDisabled} />
+                    onChange={e => setFullTankIncluded(e.target.checked)}
+                    disabled={formDisabled} className="h-4 w-4 accent-[#ff7a00]" />
                   Full tank included
                 </label>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-[#003768]">Notes</label>
+                <label className={labelCls}>Notes</label>
                 <textarea rows={4} value={notes} onChange={e => setNotes(e.target.value)}
                   disabled={formDisabled}
-                  className="mt-2 w-full rounded-2xl border border-black/10 px-4 py-4 outline-none focus:border-[#0f4f8a] disabled:opacity-60"
+                  className={`mt-2 ${inputCls} resize-none`}
                   placeholder="Optional notes for this bid" />
               </div>
 
               <button type="submit" disabled={saving || formDisabled}
-                className="rounded-full bg-[#ff7a00] px-6 py-3 font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60">
-                {saving ? "Saving..." : "Submit Bid"}
+                className="bg-[#ff7a00] px-6 py-3 text-sm font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                {saving ? "Saving…" : "Submit Bid"}
               </button>
             </form>
           )}
