@@ -43,8 +43,28 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const gaId = getGaId(host);
 
   return (
-    <ClientRootLayout fontClass={font.variable} gaId={gaId}>
-      {children}
-    </ClientRootLayout>
+    <html lang="en">
+      <head>
+        {/* Google Analytics — raw script tags, always present, no client-side magic */}
+        <script
+          async
+          src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){window.dataLayer.push(arguments);}
+              window.gtag = gtag;
+              gtag('js', new Date());
+              gtag('config', '${gaId}');
+            `,
+          }}
+        />
+      </head>
+      <ClientRootLayout fontClass={font.variable}>
+        {children}
+      </ClientRootLayout>
+    </html>
   );
 }
