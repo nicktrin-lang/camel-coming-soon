@@ -10,88 +10,54 @@ const MapPicker = dynamic(() => import("@/app/partner/profile/MapPicker"), { ssr
 type AppStatus = "pending" | "approved" | "rejected";
 
 type AccountApplication = {
-  id: string;
-  user_id: string | null;
-  email: string | null;
-  company_name: string | null;
-  full_name: string | null;
-  phone: string | null;
-  address: string | null;
-  address1?: string | null;
-  address2?: string | null;
-  province?: string | null;
-  postcode?: string | null;
-  country?: string | null;
-  website?: string | null;
-  status: string | null;
-  created_at: string | null;
-  terms_accepted_at: string | null;
-  terms_version: string | null;
+  id: string; user_id: string | null; email: string | null;
+  company_name: string | null; full_name: string | null; phone: string | null;
+  address: string | null; address1?: string | null; address2?: string | null;
+  province?: string | null; postcode?: string | null; country?: string | null;
+  website?: string | null; status: string | null; created_at: string | null;
+  terms_accepted_at: string | null; terms_version: string | null;
 };
 
 type AccountProfile = {
-  id: string;
-  user_id: string | null;
-  role?: string | null;
-  company_name: string | null;
-  contact_name: string | null;
-  phone: string | null;
-  address: string | null;
-  address1?: string | null;
-  address2?: string | null;
-  province?: string | null;
-  postcode?: string | null;
-  country?: string | null;
-  website: string | null;
-  service_radius_km: number | null;
-  base_address: string | null;
-  base_address1?: string | null;
-  base_address2?: string | null;
-  base_town?: string | null;
-  base_city?: string | null;
-  base_province?: string | null;
-  base_postcode?: string | null;
-  base_country?: string | null;
-  base_lat: number | null;
-  base_lng: number | null;
-  default_currency?: string | null;
-  legal_company_name?: string | null;
-  vat_number?: string | null;
-  company_registration_number?: string | null;
+  id: string; user_id: string | null; role?: string | null;
+  company_name: string | null; contact_name: string | null; phone: string | null;
+  address: string | null; address1?: string | null; address2?: string | null;
+  province?: string | null; postcode?: string | null; country?: string | null;
+  website: string | null; service_radius_km: number | null;
+  base_address: string | null; base_address1?: string | null; base_address2?: string | null;
+  base_town?: string | null; base_city?: string | null; base_province?: string | null;
+  base_postcode?: string | null; base_country?: string | null;
+  base_lat: number | null; base_lng: number | null;
+  default_currency?: string | null; legal_company_name?: string | null;
+  vat_number?: string | null; company_registration_number?: string | null;
   commission_rate?: number | null;
 };
 
-type FleetRow = { id: string; category_name: string; category_slug: string; max_passengers: number; max_suitcases: number; };
+type FleetRow  = { id: string; category_name: string; category_slug: string; max_passengers: number; max_suitcases: number; };
 type DriverRow = { id: string; full_name: string; email: string; phone: string | null; };
 
 function fmtDateTime(iso?: string | null) {
   if (!iso) return "—";
   try { return new Date(iso).toLocaleString(); } catch { return iso ?? "—"; }
 }
-
 function fmtDate(iso?: string | null) {
   if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
-  } catch { return iso ?? "—"; }
+  try { return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }); }
+  catch { return iso ?? "—"; }
 }
-
 function fmtValue(value?: string | number | null) {
   if (value === null || value === undefined) return "—";
   const text = String(value).trim();
   return text ? text : "—";
 }
-
-function fmtLabel(value?: string | null) {
-  return String(value || "—").replaceAll("_", " ");
-}
+function fmtLabel(value?: string | null) { return String(value || "—").replaceAll("_", " "); }
 
 function statusPillClasses(status?: string | null) {
   switch (String(status || "").toLowerCase()) {
     case "approved": return "border-green-200 bg-green-50 text-green-700";
     case "pending":  return "border-amber-200 bg-amber-50 text-amber-700";
     case "rejected": return "border-red-200 bg-red-50 text-red-700";
-    default:         return "border-black/10 bg-white text-slate-700";
+    default:         return "border-black/10 bg-white text-black/60";
   }
 }
 
@@ -101,66 +67,65 @@ async function safeJson(res: Response): Promise<any> {
   try { return JSON.parse(text); } catch { return { _raw: text }; }
 }
 
-function InfoRow({ label, value }: { label: string; value?: string | number | null }) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <span className="text-slate-500 text-sm">{label}</span>
-      <p className="font-medium text-slate-800">{fmtValue(value)}</p>
+      <span className="text-xs font-black uppercase tracking-widest text-black/40">{label}</span>
+      <div className="mt-1 text-sm font-bold text-black">{children}</div>
     </div>
   );
 }
 
-function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+function InfoRow({ label, value }: { label: string; value?: string | number | null }) {
+  return <Field label={label}>{fmtValue(value)}</Field>;
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-      <h2 className="text-xl font-semibold text-[#003768] mb-5">{title}</h2>
+    <div className="border border-black/5 bg-white p-6">
+      <h2 className="text-lg font-black text-black mb-5">{title}</h2>
       {children}
     </div>
   );
 }
 
+const inputCls = "w-full border border-black/10 bg-[#f0f0f0] px-4 py-3 text-sm font-bold outline-none focus:border-black placeholder:text-black/30";
+const labelCls = "text-xs font-black uppercase tracking-widest text-black";
+
 export default function AdminAccountDetailPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
-  const router = useRouter();
-  const params = useParams<{ id: string }>();
+  const router   = useRouter();
+  const params   = useParams<{ id: string }>();
 
-  const [loading, setLoading] = useState(true);
-  const [savingStatus, setSavingStatus] = useState<AppStatus | null>(null);
+  const [loading,          setLoading]          = useState(true);
+  const [savingStatus,     setSavingStatus]     = useState<AppStatus | null>(null);
   const [savingCommission, setSavingCommission] = useState(false);
-  const [savingBilling, setSavingBilling] = useState(false);
-  const [editingBilling, setEditingBilling] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [application, setApplication] = useState<AccountApplication | null>(null);
-  const [profile, setProfile] = useState<AccountProfile | null>(null);
-  const [fleet, setFleet] = useState<FleetRow[]>([]);
-  const [drivers, setDrivers] = useState<DriverRow[]>([]);
-  const [isLiveProfile, setIsLiveProfile] = useState(false);
+  const [savingBilling,    setSavingBilling]    = useState(false);
+  const [editingBilling,   setEditingBilling]   = useState(false);
+  const [error,            setError]            = useState<string | null>(null);
+  const [notice,           setNotice]           = useState<string | null>(null);
+  const [application,      setApplication]      = useState<AccountApplication | null>(null);
+  const [profile,          setProfile]          = useState<AccountProfile | null>(null);
+  const [fleet,            setFleet]            = useState<FleetRow[]>([]);
+  const [drivers,          setDrivers]          = useState<DriverRow[]>([]);
+  const [isLiveProfile,    setIsLiveProfile]    = useState(false);
   const [liveProfileReason, setLiveProfileReason] = useState("");
-  const [commissionInput, setCommissionInput] = useState("");
-  const [billingInput, setBillingInput] = useState({
-    legal_company_name: "",
-    company_registration_number: "",
-    vat_number: "",
-  });
+  const [commissionInput,  setCommissionInput]  = useState("");
+  const [billingInput,     setBillingInput]     = useState({ legal_company_name: "", company_registration_number: "", vat_number: "" });
 
   async function load() {
     setLoading(true); setError(null);
     try {
       const { data: userData, error: userErr } = await supabase.auth.getUser();
       if (userErr || !userData?.user) { router.replace("/partner/login?reason=not_authorized"); return; }
-
-      const adminRes = await fetch("/api/admin/is-admin", { method: "GET", cache: "no-store", credentials: "include" });
+      const adminRes  = await fetch("/api/admin/is-admin", { method: "GET", cache: "no-store", credentials: "include" });
       const adminJson = await safeJson(adminRes);
       if (!adminJson?.isAdmin) { router.replace("/partner/login?reason=not_authorized"); return; }
-
       const id = String(params?.id || "").trim();
       if (!id) throw new Error("Missing partner account id.");
-
-      const res = await fetch(`/api/admin/accounts/${id}`, { method: "GET", cache: "no-store", credentials: "include" });
+      const res  = await fetch(`/api/admin/accounts/${id}`, { method: "GET", cache: "no-store", credentials: "include" });
       const json = await safeJson(res);
       if (!res.ok) throw new Error(json?.error || json?._raw || "Failed to load partner account.");
-
       const profileData = (json?.profile || null) as AccountProfile | null;
       setApplication((json?.application || null) as AccountApplication | null);
       setProfile(profileData);
@@ -176,58 +141,40 @@ export default function AdminAccountDetailPage() {
       });
     } catch (e: any) {
       setError(e?.message || "Failed to load partner account.");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }
 
   async function setStatus(status: AppStatus) {
     if (!application?.id) return;
     setSavingStatus(status); setError(null); setNotice(null);
     try {
-      const res = await fetch("/api/admin/applications/update-status", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+      const res  = await fetch("/api/admin/applications/update-status", {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify({ id: application.id, status }),
       });
       const json = await safeJson(res);
       if (!res.ok) throw new Error(json?.error || json?._raw || "Failed to update status.");
       setApplication(prev => prev ? { ...prev, status } : prev);
       setNotice(json?.warning ? String(json.warning) : `Status updated to ${status}.`);
-    } catch (e: any) {
-      setError(e?.message || "Failed to update status.");
-    } finally {
-      setSavingStatus(null);
-    }
+    } catch (e: any) { setError(e?.message || "Failed to update status."); }
+    finally { setSavingStatus(null); }
   }
 
   async function saveBillingDetails() {
     if (!profile?.user_id) return;
     setSavingBilling(true); setError(null); setNotice(null);
     try {
-      const { error: e } = await supabase
-        .from("partner_profiles")
-        .update({
-          legal_company_name: billingInput.legal_company_name.trim() || null,
-          company_registration_number: billingInput.company_registration_number.trim() || null,
-          vat_number: billingInput.vat_number.trim() || null,
-        })
-        .eq("user_id", profile.user_id);
-      if (e) throw new Error(e.message);
-      setProfile(prev => prev ? {
-        ...prev,
+      const { error: e } = await supabase.from("partner_profiles").update({
         legal_company_name: billingInput.legal_company_name.trim() || null,
         company_registration_number: billingInput.company_registration_number.trim() || null,
         vat_number: billingInput.vat_number.trim() || null,
-      } : prev);
+      }).eq("user_id", profile.user_id);
+      if (e) throw new Error(e.message);
+      setProfile(prev => prev ? { ...prev, ...{ legal_company_name: billingInput.legal_company_name.trim()||null, company_registration_number: billingInput.company_registration_number.trim()||null, vat_number: billingInput.vat_number.trim()||null } } : prev);
       setEditingBilling(false);
       setNotice("Business & Billing details updated successfully.");
-    } catch (e: any) {
-      setError(e?.message || "Failed to update billing details.");
-    } finally {
-      setSavingBilling(false);
-    }
+    } catch (e: any) { setError(e?.message || "Failed to update billing details."); }
+    finally { setSavingBilling(false); }
   }
 
   async function saveCommissionRate() {
@@ -236,43 +183,39 @@ export default function AdminAccountDetailPage() {
     if (isNaN(rate) || rate < 0 || rate > 100) { setError("Commission rate must be between 0 and 100."); return; }
     setSavingCommission(true); setError(null); setNotice(null);
     try {
-      const { error: e } = await supabase
-        .from("partner_profiles")
-        .update({ commission_rate: rate })
-        .eq("user_id", profile.user_id);
+      const { error: e } = await supabase.from("partner_profiles").update({ commission_rate: rate }).eq("user_id", profile.user_id);
       if (e) throw new Error(e.message);
       setProfile(prev => prev ? { ...prev, commission_rate: rate } : prev);
       setNotice(`Commission rate updated to ${rate}% for this partner.`);
-    } catch (e: any) {
-      setError(e?.message || "Failed to update commission rate.");
-    } finally {
-      setSavingCommission(false);
-    }
+    } catch (e: any) { setError(e?.message || "Failed to update commission rate."); }
+    finally { setSavingCommission(false); }
   }
 
   useEffect(() => { load(); }, [params?.id]);
 
-  const displayCompany  = profile?.company_name || application?.company_name || "—";
-  const displayContact  = profile?.contact_name || application?.full_name || "—";
-  const displayPhone    = profile?.phone || application?.phone || "—";
-  const displayWebsite  = profile?.website || application?.website || "—";
-  const businessAddress = profile?.address || application?.address || "—";
+  const displayCompany  = profile?.company_name  || application?.company_name || "—";
+  const displayContact  = profile?.contact_name  || application?.full_name    || "—";
+  const displayPhone    = profile?.phone         || application?.phone        || "—";
+  const displayWebsite  = profile?.website       || application?.website      || "—";
+  const businessAddress = profile?.address       || application?.address      || "—";
 
   if (loading) return (
-    <div className="rounded-3xl border border-black/5 bg-white p-6 text-slate-600 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">Loading...</div>
+    <div className="border border-black/5 bg-white p-6">
+      <p className="text-sm font-bold text-black/50">Loading…</p>
+    </div>
   );
 
   if (!application) return (
-    <div className="space-y-6">
-      {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-      <div className="rounded-3xl border border-black/5 bg-white p-6 text-slate-600 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">Partner account not found.</div>
+    <div className="space-y-4">
+      {error && <div className="border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div>}
+      <div className="border border-black/5 bg-white p-6 text-sm font-bold text-black/50">Partner account not found.</div>
     </div>
   );
 
   return (
     <div className="space-y-6">
-      {error  && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-      {notice && <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">{notice}</div>}
+      {error  && <div className="border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div>}
+      {notice && <div className="border border-black/10 bg-[#f0f0f0] p-3 text-sm font-bold text-black">{notice}</div>}
 
       {/* Top stat cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -282,12 +225,14 @@ export default function AdminAccountDetailPage() {
           { label: "Fleet Categories", value: String(fleet.length) },
           { label: "Active Drivers",   value: String(drivers.length) },
         ].map(({ label, value, pill, status }) => (
-          <div key={label} className="rounded-3xl bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-            <p className="text-sm text-slate-500">{label}</p>
+          <div key={label} className="border border-black/5 bg-white p-5">
+            <p className="text-xs font-black uppercase tracking-widest text-black/40">{label}</p>
             {pill ? (
-              <div className="mt-2"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${statusPillClasses(status)}`}>{value}</span></div>
+              <div className="mt-2">
+                <span className={`inline-flex border px-3 py-1 text-xs font-black capitalize ${statusPillClasses(status)}`}>{value}</span>
+              </div>
             ) : (
-              <p className="mt-1 text-xl font-semibold text-[#003768]">{value}</p>
+              <p className="mt-1 text-xl font-black text-black">{value}</p>
             )}
           </div>
         ))}
@@ -297,265 +242,241 @@ export default function AdminAccountDetailPage() {
         <div className="space-y-6 xl:col-span-2">
 
           {/* Company Details */}
-          <SectionCard title="Company Details">
-            <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
-              <InfoRow label="Contact Name" value={displayContact} />
-              <InfoRow label="Email" value={application.email} />
-              <InfoRow label="Phone" value={displayPhone} />
-              <InfoRow label="Website" value={displayWebsite} />
-              <InfoRow label="Service Radius" value={profile?.service_radius_km ? `${profile.service_radius_km} km` : null} />
+          <Section title="Company Details">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <InfoRow label="Contact Name"    value={displayContact} />
+              <InfoRow label="Email"           value={application.email} />
+              <InfoRow label="Phone"           value={displayPhone} />
+              <InfoRow label="Website"         value={displayWebsite} />
+              <InfoRow label="Service Radius"  value={profile?.service_radius_km ? `${profile.service_radius_km} km` : null} />
               <InfoRow label="Bidding Currency" value={profile?.default_currency || null} />
-              <InfoRow label="Applied" value={fmtDateTime(application.created_at)} />
-              <InfoRow label="Live Profile" value={isLiveProfile ? "Yes" : "No"} />
+              <InfoRow label="Applied"         value={fmtDateTime(application.created_at)} />
+              <InfoRow label="Live Profile"    value={isLiveProfile ? "Yes" : "No"} />
             </div>
-          </SectionCard>
+          </Section>
 
           {/* Business & Billing */}
-          <SectionCard title="Business & Billing">
+          <Section title="Business & Billing">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-sm text-slate-500">Legal details for commission invoicing.</p>
+              <p className="text-xs font-bold text-black/50">Legal details for commission invoicing.</p>
               {!editingBilling ? (
                 <button type="button" onClick={() => { setEditingBilling(true); setBillingInput({ legal_company_name: profile?.legal_company_name ?? "", company_registration_number: profile?.company_registration_number ?? "", vat_number: profile?.vat_number ?? "" }); }}
-                  className="rounded-full border border-[#003768]/20 px-4 py-1.5 text-xs font-semibold text-[#003768] hover:bg-[#003768]/5">
+                  className="border border-black/20 px-4 py-1.5 text-xs font-black text-black hover:bg-black/5 transition-colors">
                   ✏️ Edit
                 </button>
               ) : (
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setEditingBilling(false)}
-                    className="rounded-full border border-black/10 px-4 py-1.5 text-xs font-semibold text-slate-500 hover:bg-black/5">
-                    Cancel
-                  </button>
+                    className="border border-black/20 px-4 py-1.5 text-xs font-black text-black hover:bg-black/5">Cancel</button>
                   <button type="button" onClick={saveBillingDetails} disabled={savingBilling}
-                    className="rounded-full bg-[#ff7a00] px-4 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60">
-                    {savingBilling ? "Saving..." : "Save changes"}
+                    className="bg-[#ff7a00] px-4 py-1.5 text-xs font-black text-white hover:opacity-90 disabled:opacity-60">
+                    {savingBilling ? "Saving…" : "Save changes"}
                   </button>
                 </div>
               )}
             </div>
             {editingBilling ? (
               <div className="space-y-4">
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+                <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800">
                   ⚠️ Only update these details if the partner has contacted Camel Global to request a change.
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-[#003768]">Legal company name</label>
+                  <label className={labelCls}>Legal company name</label>
                   <input value={billingInput.legal_company_name} onChange={e => setBillingInput(p => ({ ...p, legal_company_name: e.target.value }))}
-                    placeholder="e.g. Valencia Cars S.L."
-                    className="mt-1 w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-[#0f4f8a]" />
+                    placeholder="e.g. Valencia Cars S.L." className={`mt-1 ${inputCls}`} />
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
-                    <label className="text-sm font-medium text-[#003768]">Company registration number</label>
+                    <label className={labelCls}>Company registration number</label>
                     <input value={billingInput.company_registration_number} onChange={e => setBillingInput(p => ({ ...p, company_registration_number: e.target.value }))}
-                      placeholder="e.g. B12345678"
-                      className="mt-1 w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-[#0f4f8a]" />
+                      placeholder="e.g. B12345678" className={`mt-1 ${inputCls}`} />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-[#003768]">VAT / NIF Number</label>
+                    <label className={labelCls}>VAT / NIF Number</label>
                     <input value={billingInput.vat_number} onChange={e => setBillingInput(p => ({ ...p, vat_number: e.target.value }))}
-                      placeholder="e.g. ESB12345678"
-                      className="mt-1 w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-[#0f4f8a]" />
+                      placeholder="e.g. ESB12345678" className={`mt-1 ${inputCls}`} />
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="md:col-span-2"><InfoRow label="Legal Company Name" value={profile?.legal_company_name} /></div>
                 <InfoRow label="Company Registration Number" value={profile?.company_registration_number} />
-                <div>
-                  <span className="text-slate-500 text-sm">VAT / NIF Number</span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <p className="font-medium text-slate-800">{fmtValue(profile?.vat_number)}</p>
+                <Field label="VAT / NIF Number">
+                  <div className="flex items-center gap-2">
+                    <span>{fmtValue(profile?.vat_number)}</span>
                     {profile?.vat_number
-                      ? <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">✓ Provided</span>
-                      : <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">Missing</span>
+                      ? <span className="border border-black/20 px-2 py-0.5 text-xs font-black text-black">✓ Provided</span>
+                      : <span className="border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-black text-red-600">Missing</span>
                     }
                   </div>
-                </div>
+                </Field>
               </div>
             )}
-          </SectionCard>
+          </Section>
 
           {/* Business Address */}
-          <SectionCard title="Business Address">
-            <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
+          <Section title="Business Address">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="md:col-span-2"><InfoRow label="Full Address" value={businessAddress} /></div>
               <InfoRow label="Address Line 1" value={profile?.address1 || application?.address1} />
               <InfoRow label="Address Line 2" value={profile?.address2 || application?.address2} />
-              <InfoRow label="Province" value={profile?.province || application?.province} />
-              <InfoRow label="Postcode" value={profile?.postcode || application?.postcode} />
-              <InfoRow label="Country" value={profile?.country || application?.country} />
+              <InfoRow label="Province"       value={profile?.province || application?.province} />
+              <InfoRow label="Postcode"       value={profile?.postcode || application?.postcode} />
+              <InfoRow label="Country"        value={profile?.country  || application?.country} />
             </div>
-          </SectionCard>
+          </Section>
 
           {/* Fleet Base Location */}
-          <SectionCard title="Fleet Base Location">
-            <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2 mb-5">
+          <Section title="Fleet Base Location">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 mb-5">
               <div className="md:col-span-2"><InfoRow label="Full Address" value={profile?.base_address} /></div>
               <InfoRow label="Address Line 1" value={profile?.base_address1} />
               <InfoRow label="Address Line 2" value={profile?.base_address2} />
-              <InfoRow label="Town" value={profile?.base_town} />
-              <InfoRow label="City" value={profile?.base_city} />
-              <InfoRow label="Province" value={profile?.base_province} />
-              <InfoRow label="Postcode" value={profile?.base_postcode} />
-              <InfoRow label="Country" value={profile?.base_country} />
-              <InfoRow label="GPS Coordinates" value={
-                profile?.base_lat && profile?.base_lng ? `${profile.base_lat}, ${profile.base_lng}` : null
-              } />
+              <InfoRow label="Town"           value={profile?.base_town} />
+              <InfoRow label="City"           value={profile?.base_city} />
+              <InfoRow label="Province"       value={profile?.base_province} />
+              <InfoRow label="Postcode"       value={profile?.base_postcode} />
+              <InfoRow label="Country"        value={profile?.base_country} />
+              <InfoRow label="GPS Coordinates" value={profile?.base_lat && profile?.base_lng ? `${profile.base_lat}, ${profile.base_lng}` : null} />
             </div>
             {profile?.base_lat && profile?.base_lng ? (
-              <div className="rounded-2xl overflow-hidden border border-black/10">
+              <div className="overflow-hidden border border-black/10">
                 <MapPicker lat={profile.base_lat} lng={profile.base_lng} onPick={() => {}} />
               </div>
             ) : (
-              <div className="rounded-2xl border border-black/5 bg-slate-50 p-4 text-sm text-slate-400">No location set yet.</div>
+              <div className="border border-black/5 bg-[#f0f0f0] p-4 text-sm font-bold text-black/40">No location set yet.</div>
             )}
-          </SectionCard>
+          </Section>
 
           {/* Fleet */}
-          <SectionCard title="Car Fleet">
+          <Section title="Car Fleet">
             {fleet.length === 0 ? (
-              <p className="text-sm text-slate-400 italic">No fleet categories added yet.</p>
+              <p className="text-sm font-bold italic text-black/40">No fleet categories added yet.</p>
             ) : (
               <div className="space-y-2">
                 {fleet.map(f => (
-                  <div key={f.id} className="flex items-center justify-between rounded-xl border border-black/5 bg-slate-50 px-4 py-3">
+                  <div key={f.id} className="flex items-center justify-between border border-black/5 bg-[#f0f0f0] px-4 py-3">
                     <div>
-                      <p className="font-semibold text-[#003768] text-sm">{f.category_name}</p>
-                      <p className="text-xs text-slate-500">{f.max_passengers} passengers · {f.max_suitcases} suitcases</p>
+                      <p className="font-black text-black text-sm">{f.category_name}</p>
+                      <p className="text-xs font-bold text-black/50">{f.max_passengers} passengers · {f.max_suitcases} suitcases</p>
                     </div>
-                    <span className="text-xs font-semibold text-green-600">Active</span>
+                    <span className="text-xs font-black text-black border border-black/20 px-2 py-0.5">Active</span>
                   </div>
                 ))}
               </div>
             )}
-          </SectionCard>
+          </Section>
 
           {/* Drivers */}
-          <SectionCard title="Drivers">
+          <Section title="Drivers">
             {drivers.length === 0 ? (
-              <p className="text-sm text-slate-400 italic">No drivers added yet.</p>
+              <p className="text-sm font-bold italic text-black/40">No drivers added yet.</p>
             ) : (
               <div className="space-y-2">
                 {drivers.map(d => (
-                  <div key={d.id} className="flex items-center justify-between rounded-xl border border-black/5 bg-slate-50 px-4 py-3">
+                  <div key={d.id} className="flex items-center justify-between border border-black/5 bg-[#f0f0f0] px-4 py-3">
                     <div>
-                      <p className="font-semibold text-[#003768] text-sm">{d.full_name}</p>
-                      <p className="text-xs text-slate-500">{d.email}{d.phone ? ` · ${d.phone}` : ""}</p>
+                      <p className="font-black text-black text-sm">{d.full_name}</p>
+                      <p className="text-xs font-bold text-black/50">{d.email}{d.phone ? ` · ${d.phone}` : ""}</p>
                     </div>
-                    <span className="text-xs font-semibold text-green-600">Active</span>
+                    <span className="text-xs font-black text-black border border-black/20 px-2 py-0.5">Active</span>
                   </div>
                 ))}
               </div>
             )}
-          </SectionCard>
+          </Section>
         </div>
 
         {/* Right column */}
         <div className="space-y-6">
 
           {/* Admin Controls */}
-          <SectionCard title="Admin Controls">
+          <Section title="Admin Controls">
             <div className="space-y-3">
               <button type="button" disabled={savingStatus !== null} onClick={() => setStatus("approved")}
-                className="w-full rounded-full bg-[#ff7a00] px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60">
-                {savingStatus === "approved" ? "Saving..." : "Approve"}
+                className="w-full bg-[#ff7a00] px-5 py-3 text-sm font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                {savingStatus === "approved" ? "Saving…" : "Approve"}
               </button>
               <button type="button" disabled={savingStatus !== null} onClick={() => setStatus("rejected")}
-                className="w-full rounded-full border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60">
-                {savingStatus === "rejected" ? "Saving..." : "Reject"}
+                className="w-full border border-red-200 bg-red-50 px-5 py-3 text-sm font-black text-red-700 hover:bg-red-100 disabled:opacity-60 transition-colors">
+                {savingStatus === "rejected" ? "Saving…" : "Reject"}
               </button>
               <button type="button" disabled={savingStatus !== null} onClick={() => setStatus("pending")}
-                className="w-full rounded-full border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-[#003768] hover:bg-black/5 disabled:opacity-60">
-                {savingStatus === "pending" ? "Saving..." : "Pause / Set pending"}
+                className="w-full border border-black/20 bg-white px-5 py-3 text-sm font-black text-black hover:bg-black/5 disabled:opacity-60 transition-colors">
+                {savingStatus === "pending" ? "Saving…" : "Pause / Set pending"}
               </button>
             </div>
-          </SectionCard>
+          </Section>
 
           {/* Commission Override */}
-          <SectionCard title="Commission Rate">
-            <p className="text-sm text-slate-500 mb-4">Override the platform default (20%) for this partner. Minimum €10 per booking always applies.</p>
+          <Section title="Commission Rate">
+            <p className="text-xs font-bold text-black/50 mb-4">Override the platform default (20%) for this partner. Minimum €10 per booking always applies.</p>
             <div className="flex gap-2 items-center">
-              <input
-                type="number" min={0} max={100} step={0.5}
-                value={commissionInput}
+              <input type="number" min={0} max={100} step={0.5} value={commissionInput}
                 onChange={e => setCommissionInput(e.target.value)}
-                className="w-24 rounded-xl border border-black/10 px-3 py-2 text-sm font-bold text-[#003768] outline-none focus:border-[#0f4f8a]"
-              />
-              <span className="text-sm font-semibold text-slate-500">%</span>
+                className="w-20 border border-black/10 bg-[#f0f0f0] px-3 py-2 text-sm font-black outline-none focus:border-black" />
+              <span className="text-sm font-black text-black/50">%</span>
               <button type="button" onClick={saveCommissionRate} disabled={savingCommission}
-                className="flex-1 rounded-full bg-[#003768] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60">
-                {savingCommission ? "Saving..." : "Save rate"}
+                className="flex-1 bg-black px-4 py-2 text-sm font-black text-white hover:opacity-80 disabled:opacity-60 transition-opacity">
+                {savingCommission ? "Saving…" : "Save rate"}
               </button>
             </div>
-            <p className="mt-2 text-xs text-slate-400">Current rate: <strong>{profile?.commission_rate ?? 20}%</strong></p>
-          </SectionCard>
+            <p className="mt-2 text-xs font-bold text-black/40">Current rate: <strong className="text-black">{profile?.commission_rate ?? 20}%</strong></p>
+          </Section>
 
           {/* Live Profile Check */}
-          <SectionCard title="Live Profile Check">
-            <div className="space-y-3 text-sm">
+          <Section title="Live Profile Check">
+            <div className="space-y-3">
               {[
-                { label: "Fleet address set",  value: !!profile?.base_address },
-                { label: "Fleet added",        value: fleet.length > 0 },
-                { label: "Drivers added",      value: drivers.length > 0 },
-                { label: "Currency set",       value: !!profile?.default_currency },
-                { label: "VAT / NIF provided", value: !!profile?.vat_number },
+                { label: "Fleet address set",   value: !!profile?.base_address },
+                { label: "Fleet added",         value: fleet.length > 0 },
+                { label: "Drivers added",       value: drivers.length > 0 },
+                { label: "Currency set",        value: !!profile?.default_currency },
+                { label: "VAT / NIF provided",  value: !!profile?.vat_number },
                 { label: "Live profile status", value: isLiveProfile },
               ].map(({ label, value }) => (
-                <div key={label} className="flex items-center justify-between">
-                  <span className="text-slate-500">{label}</span>
-                  <span className={`inline-flex rounded-full border px-3 py-0.5 text-xs font-semibold ${
-                    value ? "border-green-200 bg-green-50 text-green-700" : "border-slate-200 bg-slate-50 text-slate-500"
+                <div key={label} className="flex items-center justify-between text-sm">
+                  <span className="font-bold text-black/60">{label}</span>
+                  <span className={`border px-2 py-0.5 text-xs font-black ${
+                    value ? "border-black/20 bg-black text-white" : "border-black/10 bg-[#f0f0f0] text-black/50"
                   }`}>{value ? "Yes" : "No"}</span>
                 </div>
               ))}
               {!isLiveProfile && liveProfileReason && (
-                <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{liveProfileReason}</div>
+                <div className="border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">{liveProfileReason}</div>
               )}
             </div>
-          </SectionCard>
+          </Section>
 
           {/* Application */}
-          <SectionCard title="Application">
-            <div className="space-y-3 text-sm">
-              <div>
-                <span className="text-slate-500">Status</span>
-                <div className="mt-1">
-                  <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${statusPillClasses(application.status)}`}>
-                    {fmtLabel(application.status)}
-                  </span>
-                </div>
-              </div>
+          <Section title="Application">
+            <div className="space-y-3">
+              <Field label="Status">
+                <span className={`inline-flex border px-3 py-1 text-xs font-black capitalize ${statusPillClasses(application.status)}`}>
+                  {fmtLabel(application.status)}
+                </span>
+              </Field>
               <InfoRow label="Created" value={fmtDateTime(application.created_at)} />
             </div>
-          </SectionCard>
+          </Section>
 
           {/* Terms & Conditions */}
-          <SectionCard title="Terms & Conditions">
-            <div className="space-y-3 text-sm">
-              <div>
-                <span className="text-slate-500">Version accepted</span>
-                <p className="font-medium text-slate-800">
-                  {application.terms_version ? `v${application.terms_version}` : "—"}
-                </p>
-              </div>
-              <div>
-                <span className="text-slate-500">Accepted on</span>
-                <p className="font-medium text-slate-800">
-                  {fmtDate(application.terms_accepted_at)}
-                </p>
-              </div>
+          <Section title="Terms & Conditions">
+            <div className="space-y-3">
+              <InfoRow label="Version accepted" value={application.terms_version ? `v${application.terms_version}` : "—"} />
+              <InfoRow label="Accepted on" value={fmtDate(application.terms_accepted_at)} />
               {application.terms_accepted_at ? (
-                <div className="rounded-2xl border border-green-200 bg-green-50 p-3 text-xs text-green-700">
+                <div className="border border-black/10 bg-[#f0f0f0] p-3 text-xs font-bold text-black/60">
                   ✓ Partner accepted T&Cs at signup.
                 </div>
               ) : (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
-                  ⚠️ No T&Cs acceptance recorded. Partner signed up before versioned T&Cs were introduced.
+                <div className="border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-700">
+                  ⚠️ No T&Cs acceptance recorded.
                 </div>
               )}
             </div>
-          </SectionCard>
+          </Section>
         </div>
       </div>
     </div>
