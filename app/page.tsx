@@ -630,6 +630,5 @@ export default function Page() {
     setHost(window.location.hostname);
   }, []);
 
-  if (host === "test.camel-global.com" || host.includes("localhost")) return <CustomerHome />;
-  return <PartnerMarketingHome />;
+  return <CustomerHome />;
 }
