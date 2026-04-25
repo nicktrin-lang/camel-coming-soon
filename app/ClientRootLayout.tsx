@@ -37,7 +37,9 @@ export default function ClientRootLayout({
     pathname === "/terms";
 
   const showCurrencyInHeader = false;
-  const showGlobalHeader = !isHomepage;
+  const isComingSoonPage = pathname === "/coming-soon";
+
+  const showGlobalHeader = !isHomepage && !isComingSoonPage;
   const showCustomerNav = isNewCustomerArea || isTestBookingArea || isCustomerPublicPage;
 
   const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState(false);
@@ -131,8 +133,8 @@ export default function ClientRootLayout({
       )}
 
       <main className="flex-1">{children}</main>
-      <Footer />
-      <CookieBanner />
+      {!isComingSoonPage && <Footer />}
+      {!isComingSoonPage && <CookieBanner />}
     </>
   );
 }
