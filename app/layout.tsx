@@ -1,7 +1,6 @@
 import "./globals.css";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { headers } from "next/headers";
-import Script from "next/script";
 import type { Metadata } from "next";
 import ClientRootLayout from "./ClientRootLayout";
 
@@ -45,14 +44,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en">
-      <body className={`${font.variable} min-h-screen flex flex-col`}>
-        <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
-          strategy="afterInteractive"
+      <head>
+        {/* Google Analytics */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} />
+        <script
+          // biome-ignore lint: GA inline script
+          dangerouslySetInnerHTML={{
+            __html: `window.dataLayer=window.dataLayer||[];function gtag(){window.dataLayer.push(arguments);}window.gtag=gtag;gtag('js',new Date());gtag('config','${gaId}');`,
+          }}
         />
-        <Script id="ga-init" strategy="afterInteractive">
-          {`window.dataLayer=window.dataLayer||[];function gtag(){window.dataLayer.push(arguments);}window.gtag=gtag;gtag('js',new Date());gtag('config','${gaId}');`}
-        </Script>
+      </head>
+      <body className={`${font.variable} min-h-screen flex flex-col`}>
         <ClientRootLayout fontClass={font.variable}>
           {children}
         </ClientRootLayout>
