@@ -1,6 +1,7 @@
 import "./globals.css";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { headers } from "next/headers";
+import Script from "next/script";
 import type { Metadata } from "next";
 import ClientRootLayout from "./ClientRootLayout";
 
@@ -44,27 +45,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en">
-      <head>
-        {/* Google Analytics — raw script tags, always present, no client-side magic */}
-        <script
-          async
+      <body className={`${font.variable} min-h-screen flex flex-col`}>
+        <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+          strategy="afterInteractive"
         />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){window.dataLayer.push(arguments);}
-              window.gtag = gtag;
-              gtag('js', new Date());
-              gtag('config', '${gaId}');
-            `,
-          }}
-        />
-      </head>
-      <ClientRootLayout fontClass={font.variable}>
-        {children}
-      </ClientRootLayout>
+        <Script id="ga-init" strategy="afterInteractive">
+          {`window.dataLayer=window.dataLayer||[];function gtag(){window.dataLayer.push(arguments);}window.gtag=gtag;gtag('js',new Date());gtag('config','${gaId}');`}
+        </Script>
+        <ClientRootLayout fontClass={font.variable}>
+          {children}
+        </ClientRootLayout>
+      </body>
     </html>
   );
 }

@@ -60,6 +60,17 @@ export default function ClientRootLayout({
   const showCustomerNav  = isNewCustomerArea || isTestBookingArea || isCustomerPublicPage;
   const showFooter       = !isPortalAppPage && !isPartnerInfoPage;
 
+  // Apply bg colour to body via useEffect since body is now in layout.tsx
+  useEffect(() => {
+    if (isHomepage || isNewCustomerArea || isCustomerPublicPage) {
+      document.body.classList.remove("bg-[#f0f0f0]");
+      document.body.classList.add("bg-white");
+    } else {
+      document.body.classList.remove("bg-white");
+      document.body.classList.add("bg-[#f0f0f0]");
+    }
+  }, [isHomepage, isNewCustomerArea, isCustomerPublicPage]);
+
   const [isPartnerLoggedIn,  setIsPartnerLoggedIn]  = useState(false);
   const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState(false);
   const [customerName,       setCustomerName]       = useState("");
@@ -136,7 +147,7 @@ export default function ClientRootLayout({
   const signupHref     = isTestBookingArea ? "/test-booking/signup"   : "/signup";
 
   return (
-    <body className={`${fontClass || ""} min-h-screen flex flex-col ${isHomepage || isNewCustomerArea || isCustomerPublicPage ? "bg-white" : "bg-[#f0f0f0]"}`}>
+    <>
       {showGlobalHeader && (
         <>
           <header className="fixed left-0 top-0 z-50 w-full bg-black">
@@ -183,6 +194,6 @@ export default function ClientRootLayout({
       <main className="flex-1">{children}</main>
       {showFooter && <Footer />}
       {showCookieBanner && <CookieBanner />}
-    </body>
+    </>
   );
 }
