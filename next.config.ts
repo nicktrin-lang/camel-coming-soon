@@ -25,18 +25,18 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      // Scripts: self, Next.js inline, Google Maps, hCaptcha, Vercel Analytics
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com https://maps.gstatic.com https://js.hcaptcha.com https://va.vercel-scripts.com",
+      // Scripts: self, Next.js inline, Google Maps, hCaptcha, Vercel Analytics, Google Analytics/Tag Manager
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com https://maps.gstatic.com https://js.hcaptcha.com https://va.vercel-scripts.com https://www.googletagmanager.com https://www.google-analytics.com",
       // Styles: self, inline (Tailwind), Google Fonts, Google Maps, Leaflet (unpkg)
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://maps.googleapis.com https://unpkg.com",
       // Fonts
       "font-src 'self' https://fonts.gstatic.com",
-      // Images: self, data URIs, blobs, Google Maps, Supabase, OpenStreetMap tiles, Leaflet marker icons (unpkg)
-      "img-src 'self' data: blob: https://maps.googleapis.com https://maps.gstatic.com https://*.supabase.co https://*.tile.openstreetmap.org https://unpkg.com",
+      // Images: self, data URIs, blobs, Google Maps, Supabase, OpenStreetMap tiles, Leaflet marker icons (unpkg), GA
+      "img-src 'self' data: blob: https://maps.googleapis.com https://maps.gstatic.com https://*.supabase.co https://*.tile.openstreetmap.org https://unpkg.com https://www.google-analytics.com https://www.googletagmanager.com",
       // Frames: hCaptcha
       "frame-src https://hcaptcha.com https://*.hcaptcha.com",
-      // Connections: Supabase, Google Maps, frankfurter, hCaptcha, Vercel, Nominatim, OpenStreetMap tiles
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://maps.googleapis.com https://api.frankfurter.app https://hcaptcha.com https://*.hcaptcha.com https://va.vercel-scripts.com https://nominatim.openstreetmap.org https://*.tile.openstreetmap.org",
+      // Connections: Supabase, Google Maps, frankfurter, hCaptcha, Vercel, Nominatim, OpenStreetMap, GA
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://maps.googleapis.com https://api.frankfurter.app https://hcaptcha.com https://*.hcaptcha.com https://va.vercel-scripts.com https://nominatim.openstreetmap.org https://*.tile.openstreetmap.org https://www.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net https://www.googletagmanager.com",
       // Workers (Next.js)
       "worker-src 'self' blob:",
     ].join("; "),
