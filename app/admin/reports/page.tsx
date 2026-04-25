@@ -24,59 +24,30 @@ function fmtAmt(amount: number | string | null, currency: Currency | null): stri
 }
 
 type BookingRow = {
-  id: string;
-  request_id: string | null;
-  partner_user_id: string | null;
-  partner_company_name: string | null;
-  partner_legal_company_name: string | null;
-  partner_vat_number: string | null;
-  partner_company_registration_number: string | null;
-  booking_status: string | null;
-  amount: number | string | null;
-  currency: Currency | null;
-  car_hire_price: number | string | null;
-  fuel_price: number | string | null;
-  fuel_used_quarters: number | null;
-  fuel_charge: number | string | null;
-  fuel_refund: number | string | null;
-  commission_rate: number | null;
-  commission_amount: number | string | null;
-  partner_payout_amount: number | string | null;
-  created_at: string | null;
-  job_number: string | null;
-  pickup_address: string | null;
-  dropoff_address: string | null;
-  pickup_at: string | null;
-  dropoff_at: string | null;
-  vehicle_category_name: string | null;
-  customer_name: string | null;
-  customer_email: string | null;
-  customer_phone: string | null;
-  driver_name: string | null;
-  driver_vehicle: string | null;
-  delivery_confirmed_at: string | null;
-  collection_confirmed_at: string | null;
-  collection_fuel_level_driver: string | null;
-  collection_fuel_level_partner: string | null;
-  return_fuel_level_driver: string | null;
-  return_fuel_level_partner: string | null;
-  collection_confirmed_by_customer: boolean;
-  return_confirmed_by_customer: boolean;
-  insurance_docs_confirmed_by_driver: boolean;
-  insurance_docs_confirmed_by_customer: boolean;
+  id: string; request_id: string | null; partner_user_id: string | null;
+  partner_company_name: string | null; partner_legal_company_name: string | null;
+  partner_vat_number: string | null; partner_company_registration_number: string | null;
+  booking_status: string | null; amount: number | string | null; currency: Currency | null;
+  car_hire_price: number | string | null; fuel_price: number | string | null;
+  fuel_used_quarters: number | null; fuel_charge: number | string | null; fuel_refund: number | string | null;
+  commission_rate: number | null; commission_amount: number | string | null;
+  partner_payout_amount: number | string | null; created_at: string | null;
+  job_number: string | null; pickup_address: string | null; dropoff_address: string | null;
+  pickup_at: string | null; dropoff_at: string | null; vehicle_category_name: string | null;
+  customer_name: string | null; customer_email: string | null; customer_phone: string | null;
+  driver_name: string | null; driver_vehicle: string | null;
+  delivery_confirmed_at: string | null; collection_confirmed_at: string | null;
+  collection_fuel_level_driver: string | null; collection_fuel_level_partner: string | null;
+  return_fuel_level_driver: string | null; return_fuel_level_partner: string | null;
+  collection_confirmed_by_customer: boolean; return_confirmed_by_customer: boolean;
+  insurance_docs_confirmed_by_driver: boolean; insurance_docs_confirmed_by_customer: boolean;
 };
 
 type RequestRow = {
-  id: string;
-  job_number: string | null;
-  pickup_address: string | null;
-  dropoff_address: string | null;
-  pickup_at: string | null;
-  dropoff_at: string | null;
-  vehicle_category_name: string | null;
-  status: string | null;
-  created_at: string | null;
-  expires_at: string | null;
+  id: string; job_number: string | null; pickup_address: string | null;
+  dropoff_address: string | null; pickup_at: string | null; dropoff_at: string | null;
+  vehicle_category_name: string | null; status: string | null;
+  created_at: string | null; expires_at: string | null;
 };
 
 const QUARTER_LABELS: Record<number, string> = {
@@ -102,19 +73,19 @@ function fmtDateTime(value?: string | null) {
 function statusPillClasses(status?: string | null) {
   switch (String(status || "").toLowerCase()) {
     case "completed": case "confirmed": return "border-green-200 bg-green-50 text-green-700";
-    case "collected": case "returned":  return "border-blue-200 bg-blue-50 text-blue-700";
-    case "driver_assigned": case "en_route": case "arrived": return "border-amber-200 bg-amber-50 text-amber-800";
+    case "collected": case "returned":  return "border-amber-200 bg-amber-50 text-amber-800";
+    case "driver_assigned": case "en_route": case "arrived": return "border-[#ff7a00]/30 bg-[#ff7a00]/10 text-[#ff7a00]";
     case "cancelled": return "border-red-200 bg-red-50 text-red-700";
-    default: return "border-black/10 bg-white text-slate-700";
+    default: return "border-black/10 bg-white text-black";
   }
 }
 
 function insurancePill(driver: boolean, customer: boolean) {
   const both = driver && customer;
   return (
-    <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${
+    <span className={`inline-flex border px-2 py-0.5 text-xs font-black uppercase tracking-widest ${
       both ? "border-green-200 bg-green-50 text-green-700"
-           : driver ? "border-blue-200 bg-blue-50 text-blue-700"
+           : driver ? "border-[#ff7a00]/30 bg-[#ff7a00]/10 text-[#ff7a00]"
            : "border-amber-200 bg-amber-50 text-amber-700"
     }`}>
       {both ? "✓ Confirmed" : driver ? "Driver ✓" : "Pending"}
@@ -148,7 +119,6 @@ function getPreviousMonthKey() {
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`;
 }
 
-// Consistent payout: (hire − commission) + fuel_charge
 function calcPayout(b: BookingRow): { hire: number; rate: number; commAmt: number; payout: number } {
   const hire    = Number(b.car_hire_price ?? 0);
   const rate    = b.commission_rate ?? 20;
@@ -182,7 +152,7 @@ function buildXls(sheets: { name: string; headers: string[]; rows: Array<Array<u
   });
   const xml = `<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
-  <Styles><Style ss:ID="header"><Font ss:Bold="1" ss:Color="#003768"/><Interior ss:Color="#f3f8ff" ss:Pattern="Solid"/></Style></Styles>
+  <Styles><Style ss:ID="header"><Font ss:Bold="1" ss:Color="#000000"/><Interior ss:Color="#f0f0f0" ss:Pattern="Solid"/></Style></Styles>
   ${xmlSheets.join("\n")}
 </Workbook>`;
   return new Blob([xml], { type: "application/vnd.ms-excel;charset=utf-8;" });
@@ -195,8 +165,6 @@ function downloadBlob(blob: Blob, filename: string) {
   document.body.appendChild(a); a.click();
   document.body.removeChild(a); URL.revokeObjectURL(url);
 }
-
-// ── Currency Section — same columns as admin bookings page ────────────────────
 
 type CurrencyTotals = {
   total: number; carHire: number; fuelDeposit: number;
@@ -213,12 +181,12 @@ function AdminCurrencySection({ curr, t, bookings }: {
   const visible = showAll ? bookings : bookings.slice(0, 10);
 
   return (
-    <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-      <div className="flex items-center gap-3">
-        <span className="inline-flex items-center gap-1 rounded-full bg-[#003768]/10 px-3 py-1 text-sm font-bold text-[#003768]">{symbol}</span>
-        <h2 className="text-xl font-semibold text-[#003768]">Revenue &amp; Fuel Reconciliation</h2>
+    <div className="border border-black/10 bg-white p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <span className="border border-black bg-black px-3 py-1 text-sm font-black text-white">{symbol} {curr}</span>
+        <h2 className="text-xl font-black text-black">Revenue &amp; Fuel Reconciliation</h2>
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
         {[
           { label: "Total Bookings",   value: t.count,                  isMoney: false },
           { label: "Completed",        value: t.completed,              isMoney: false },
@@ -229,59 +197,49 @@ function AdminCurrencySection({ curr, t, bookings }: {
           { label: "Partner Payout",   value: t.partnerPayoutTotal,     isMoney: true  },
           { label: "Net to Partner",   value: t.carHire + t.fuelCharge, isMoney: true  },
         ].map(({ label: lbl, value, isMoney }) => (
-          <div key={lbl} className="rounded-2xl border border-black/5 bg-slate-50 p-4">
-            <p className="text-xs font-medium text-slate-500">{lbl}</p>
-            <p className="mt-1 text-lg font-semibold text-[#003768]">{isMoney ? fmtCurr(value as number, curr) : value}</p>
+          <div key={lbl} className="border border-black/10 bg-[#f0f0f0] p-4">
+            <p className="text-xs font-black uppercase tracking-widest text-black/50">{lbl}</p>
+            <p className="mt-1 text-lg font-black text-black">{isMoney ? fmtCurr(value as number, curr) : value}</p>
           </div>
         ))}
       </div>
-      <div className="mt-4 overflow-x-auto rounded-2xl border border-black/10">
+      <div className="mt-4 overflow-x-auto border border-black/10">
         <table className="min-w-full text-sm">
-          <thead className="bg-[#f3f8ff] text-left text-[#003768]">
+          <thead className="bg-black text-white">
             <tr>
-              <th className="px-4 py-3 font-semibold">Job</th>
-              <th className="px-4 py-3 font-semibold">Partner</th>
-              <th className="px-4 py-3 font-semibold">Customer</th>
-              <th className="px-4 py-3 font-semibold">Status</th>
-              <th className="px-4 py-3 font-semibold">Car Hire</th>
-              <th className="px-4 py-3 font-semibold">Commission</th>
-              <th className="px-4 py-3 font-semibold">Fuel Deposit</th>
-              <th className="px-4 py-3 font-semibold">Fuel Used</th>
-              <th className="px-4 py-3 font-semibold">Fuel Charge</th>
-              <th className="px-4 py-3 font-semibold">Fuel Refund</th>
-              <th className="px-4 py-3 font-semibold">Total</th>
-              <th className="px-4 py-3 font-semibold">Partner Payout</th>
-              <th className="px-4 py-3 font-semibold">Insurance</th>
+              {["Job","Partner","Customer","Status","Car Hire","Commission","Fuel Deposit","Fuel Used","Fuel Charge","Fuel Refund","Total","Partner Payout","Insurance"].map(h => (
+                <th key={h} className="px-4 py-3 text-left text-xs font-black uppercase tracking-widest">{h}</th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-black/5">
-            {visible.map(b => {
+            {visible.map((b, i) => {
               const usedQ = b.fuel_used_quarters;
               const { commAmt, payout, rate } = calcPayout(b);
               return (
-                <tr key={b.id} className="hover:bg-[#f3f8ff]">
-                  <td className="px-4 py-3 font-semibold text-[#003768]">{b.job_number || "—"}</td>
-                  <td className="px-4 py-3 text-slate-700">
+                <tr key={b.id} className={`hover:bg-[#f0f0f0] ${i % 2 === 0 ? "bg-white" : "bg-[#fafafa]"}`}>
+                  <td className="px-4 py-3 font-black text-black">{b.job_number || "—"}</td>
+                  <td className="px-4 py-3 text-black/70">
                     <div>{b.partner_company_name || "—"}</div>
-                    {b.partner_vat_number && <div className="text-xs text-slate-400">{b.partner_vat_number}</div>}
+                    {b.partner_vat_number && <div className="text-xs text-black/40">{b.partner_vat_number}</div>}
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{b.customer_name || "—"}</td>
+                  <td className="px-4 py-3 text-black/70">{b.customer_name || "—"}</td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${statusPillClasses(b.booking_status)}`}>
+                    <span className={`inline-flex border px-2 py-0.5 text-xs font-black uppercase tracking-widest ${statusPillClasses(b.booking_status)}`}>
                       {String(b.booking_status || "—").replaceAll("_", " ")}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{fmtAmt(b.car_hire_price, curr)}</td>
+                  <td className="px-4 py-3 text-black/70">{fmtAmt(b.car_hire_price, curr)}</td>
                   <td className="px-4 py-3">
-                    <div className="text-xs font-semibold text-amber-700">{fmtCurr(commAmt, curr)}</div>
-                    <div className="text-xs text-slate-400">{rate}%</div>
+                    <div className="text-xs font-black text-[#ff7a00]">{fmtCurr(commAmt, curr)}</div>
+                    <div className="text-xs text-black/40">{rate}%</div>
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{fmtAmt(b.fuel_price, curr)}</td>
-                  <td className="px-4 py-3 text-slate-700">{usedQ !== null && usedQ !== undefined ? (QUARTER_LABELS[usedQ] ?? `${usedQ}/4`) : "—"}</td>
-                  <td className="px-4 py-3 font-semibold text-orange-700">{b.fuel_charge !== null ? fmtAmt(b.fuel_charge, curr) : "—"}</td>
-                  <td className="px-4 py-3 font-semibold text-green-700">{b.fuel_refund !== null ? fmtAmt(b.fuel_refund, curr) : "—"}</td>
-                  <td className="px-4 py-3 font-bold text-[#003768]">{fmtAmt(b.amount, curr)}</td>
-                  <td className="px-4 py-3 font-bold text-green-700">{fmtCurr(payout, curr)}</td>
+                  <td className="px-4 py-3 text-black/70">{fmtAmt(b.fuel_price, curr)}</td>
+                  <td className="px-4 py-3 text-black/70">{usedQ !== null && usedQ !== undefined ? (QUARTER_LABELS[usedQ] ?? `${usedQ}/4`) : "—"}</td>
+                  <td className="px-4 py-3 font-black text-[#ff7a00]">{b.fuel_charge !== null ? fmtAmt(b.fuel_charge, curr) : "—"}</td>
+                  <td className="px-4 py-3 font-black text-green-700">{b.fuel_refund !== null ? fmtAmt(b.fuel_refund, curr) : "—"}</td>
+                  <td className="px-4 py-3 font-black text-black">{fmtAmt(b.amount, curr)}</td>
+                  <td className="px-4 py-3 font-black text-green-700">{fmtCurr(payout, curr)}</td>
                   <td className="px-4 py-3">{insurancePill(b.insurance_docs_confirmed_by_driver, b.insurance_docs_confirmed_by_customer)}</td>
                 </tr>
               );
@@ -291,15 +249,13 @@ function AdminCurrencySection({ curr, t, bookings }: {
       </div>
       {bookings.length > 10 && (
         <button type="button" onClick={() => setShowAll(s => !s)}
-          className="mt-3 w-full rounded-2xl border border-black/10 bg-slate-50 py-2.5 text-sm font-semibold text-[#003768] hover:bg-slate-100">
+          className="mt-3 w-full border border-black/10 bg-[#f0f0f0] py-2.5 text-sm font-black text-black hover:bg-black/10">
           {showAll ? "▲ Show less" : `▼ Show all ${bookings.length} bookings`}
         </button>
       )}
     </div>
   );
 }
-
-// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AdminReportsPage() {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
@@ -311,6 +267,7 @@ export default function AdminReportsPage() {
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [allBookingsVisible, setAllBookingsVisible] = useState(10);
 
   async function load() {
     setLoading(true); setError(null);
@@ -371,8 +328,6 @@ export default function AdminReportsPage() {
     ["bid_submitted", "bid_successful", "bid_unsuccessful"].includes(String(r.status || "").toLowerCase())
   ).length;
 
-  const [allBookingsVisible, setAllBookingsVisible] = useState(10);
-
   const partnerMap = new Map<string, { name: string; bookings: number; revenue: number; commission: number; payout: number; completed: number }>();
   for (const b of filteredBookings) {
     const pid  = String(b.partner_user_id || "unknown");
@@ -400,7 +355,6 @@ export default function AdminReportsPage() {
 
   function exportExcel() {
     const dateStr = new Date().toISOString().split("T")[0];
-
     const fuelHeaders = [
       "Job Number", "Partner Company Name", "Legal Company Name",
       "Company Reg. No.", "VAT / NIF Number",
@@ -420,31 +374,23 @@ export default function AdminReportsPage() {
       "Insurance Driver Confirmed", "Insurance Customer Confirmed",
       "Booking Status", "Created At",
     ];
-
     const fuelRows = filteredBookings.map(b => {
       const usedQ = b.fuel_used_quarters;
       const { hire, rate, commAmt, payout } = calcPayout(b);
       const isCompleted = String(b.booking_status || "").toLowerCase() === "completed";
       return [
-        b.job_number || "",
-        b.partner_company_name || "",
-        b.partner_legal_company_name || "",
-        b.partner_company_registration_number || "",
-        b.partner_vat_number || "",
+        b.job_number || "", b.partner_company_name || "", b.partner_legal_company_name || "",
+        b.partner_company_registration_number || "", b.partner_vat_number || "",
         b.customer_name || "", b.customer_email || "", b.customer_phone || "",
         b.pickup_address || "", b.dropoff_address || "",
         fmtDateTime(b.pickup_at), fmtDateTime(b.dropoff_at),
-        fmtDateTime(b.delivery_confirmed_at),
-        fmtDateTime(b.collection_confirmed_at),
+        fmtDateTime(b.delivery_confirmed_at), fmtDateTime(b.collection_confirmed_at),
         isCompleted ? fmtDate(b.created_at) : "",
         b.vehicle_category_name || "", b.driver_name || "", b.driver_vehicle || "",
-        b.currency || "EUR",
-        hire, rate, commAmt,
+        b.currency || "EUR", hire, rate, commAmt,
         Number(b.fuel_price ?? 0),
-        b.collection_fuel_level_driver || "—",
-        b.collection_fuel_level_partner || "—",
-        b.return_fuel_level_driver || "—",
-        b.return_fuel_level_partner || "—",
+        b.collection_fuel_level_driver || "—", b.collection_fuel_level_partner || "—",
+        b.return_fuel_level_driver || "—", b.return_fuel_level_partner || "—",
         usedQ !== null && usedQ !== undefined ? usedQ : "—",
         usedQ !== null && usedQ !== undefined ? (QUARTER_LABELS[usedQ] ?? `${usedQ}/4`) : "—",
         Number(b.fuel_charge ?? 0), Number(b.fuel_refund ?? 0),
@@ -456,49 +402,32 @@ export default function AdminReportsPage() {
         b.booking_status || "", fmtDate(b.created_at),
       ];
     });
-
     const summaryHeaders = [
-      "Currency", "Total Bookings", "Completed",
-      "Total Revenue", "Car Hire Revenue",
-      "Camel Commission", "Partner Payout Total",
-      "Fuel Deposits", "Fuel Charges Billed", "Fuel Refunds Issued",
+      "Currency", "Total Bookings", "Completed", "Total Revenue", "Car Hire Revenue",
+      "Camel Commission", "Partner Payout Total", "Fuel Deposits", "Fuel Charges Billed", "Fuel Refunds Issued",
     ];
     const summaryRows = (["EUR", "GBP", "USD"] as Currency[]).map(curr => {
       const t = revenuesByCurrency[curr];
-      return [
-        `${curr} ${CURRENCY_META[curr].symbol}`,
-        t.count, t.completed, t.total, t.carHire,
-        t.commissionTotal, t.partnerPayoutTotal,
-        t.fuelDeposit, t.fuelCharge, t.fuelRefund,
-      ];
+      return [`${curr} ${CURRENCY_META[curr].symbol}`, t.count, t.completed, t.total, t.carHire, t.commissionTotal, t.partnerPayoutTotal, t.fuelDeposit, t.fuelCharge, t.fuelRefund];
     });
-
     const partnerHeaders = ["Partner", "Total Bookings", "Completed", "Total Revenue", "Camel Commission", "Partner Payout"];
     const partnerRows = partnerBreakdown.map(p => [p.name, p.bookings, p.completed, p.revenue, p.commission, p.payout]);
-
     const allHeaders = [
-      "Job", "Partner", "Customer", "Status",
-      "Car Hire", "Commission Rate (%)", "Commission Amount",
-      "Fuel Deposit", "Fuel Used", "Fuel Charge", "Fuel Refund",
-      "Total", "Partner Payout", "Insurance",
-      "Currency", "Created At",
+      "Job", "Partner", "Customer", "Status", "Car Hire", "Commission Rate (%)", "Commission Amount",
+      "Fuel Deposit", "Fuel Used", "Fuel Charge", "Fuel Refund", "Total", "Partner Payout", "Insurance", "Currency", "Created At",
     ];
     const allRows = filteredBookings.map(b => {
       const usedQ = b.fuel_used_quarters;
       const { hire, rate, commAmt, payout } = calcPayout(b);
       return [
-        b.job_number || "", b.partner_company_name || "", b.customer_name || "",
-        b.booking_status || "",
-        hire, rate, commAmt,
-        Number(b.fuel_price ?? 0),
+        b.job_number || "", b.partner_company_name || "", b.customer_name || "", b.booking_status || "",
+        hire, rate, commAmt, Number(b.fuel_price ?? 0),
         usedQ !== null && usedQ !== undefined ? (QUARTER_LABELS[usedQ] ?? `${usedQ}/4`) : "—",
-        Number(b.fuel_charge ?? 0), Number(b.fuel_refund ?? 0),
-        Number(b.amount ?? 0), payout,
+        Number(b.fuel_charge ?? 0), Number(b.fuel_refund ?? 0), Number(b.amount ?? 0), payout,
         b.insurance_docs_confirmed_by_driver && b.insurance_docs_confirmed_by_customer ? "Confirmed" : "Pending",
         b.currency || "EUR", fmtDate(b.created_at),
       ];
     });
-
     const blob = buildXls([
       { name: "Fuel Reconciliation", headers: fuelHeaders, rows: fuelRows },
       { name: "Currency Summary",    headers: summaryHeaders, rows: summaryRows },
@@ -509,42 +438,42 @@ export default function AdminReportsPage() {
   }
 
   if (loading) return (
-    <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-      <p className="text-slate-600">Loading reports...</p>
+    <div className="border border-black/10 bg-white p-8">
+      <p className="text-black/50">Loading reports…</p>
     </div>
   );
 
   return (
     <div className="space-y-6">
-      {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {error && <div className="border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
       {/* Filters + Export */}
-      <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+      <div className="border border-black/10 bg-white p-6 md:p-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-2xl font-semibold text-[#003768]">Admin Reports</h2>
-            <p className="mt-1 text-sm text-slate-600">Full network-wide reconciliation including commission, fuel charges, refunds and multi-currency revenue.</p>
+            <h2 className="text-2xl font-black text-black">Admin Reports</h2>
+            <p className="mt-1 text-sm text-black/50">Full network-wide reconciliation including commission, fuel charges, refunds and multi-currency revenue.</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium text-[#003768]">Date from</label>
+              <label className="text-xs font-black uppercase tracking-widest text-black">Date from</label>
               <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-black/10 p-3 text-black" />
+                className="mt-1 w-full border border-black/20 bg-[#f0f0f0] p-3 text-sm text-black outline-none focus:border-black" />
             </div>
             <div>
-              <label className="text-sm font-medium text-[#003768]">Date to</label>
+              <label className="text-xs font-black uppercase tracking-widest text-black">Date to</label>
               <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-black/10 p-3 text-black" />
+                className="mt-1 w-full border border-black/20 bg-[#f0f0f0] p-3 text-sm text-black outline-none focus:border-black" />
             </div>
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-3">
           <button type="button" onClick={() => { setDateFrom(""); setDateTo(""); }}
-            className="rounded-full border border-black/10 bg-white px-5 py-2.5 text-sm font-semibold text-[#003768] hover:bg-black/5">
+            className="border border-black/20 bg-white px-5 py-2 text-sm font-black text-black hover:bg-[#f0f0f0]">
             Clear Filters
           </button>
           <button type="button" onClick={exportExcel}
-            className="rounded-full bg-[#003768] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95">
+            className="bg-black px-5 py-2 text-sm font-black text-white hover:opacity-90">
             ⬇ Export Excel
           </button>
         </div>
@@ -553,14 +482,14 @@ export default function AdminReportsPage() {
       {/* Key stats */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {[
-          { label: "Total Bookings",  value: filteredBookings.length,  color: "text-[#003768]" },
-          { label: "Completed",       value: completedBookings.length, color: "text-green-600" },
-          { label: "Total Requests",  value: filteredRequests.length,  color: "text-[#003768]" },
-          { label: "Bids Submitted",  value: bidsSubmitted,            color: "text-amber-600" },
+          { label: "Total Bookings", value: filteredBookings.length,  color: "text-black" },
+          { label: "Completed",      value: completedBookings.length, color: "text-black" },
+          { label: "Total Requests", value: filteredRequests.length,  color: "text-black" },
+          { label: "Bids Submitted", value: bidsSubmitted,            color: "text-[#ff7a00]" },
         ].map(({ label, value, color }) => (
-          <div key={label} className="rounded-3xl border border-black/5 bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-            <p className="text-sm font-medium text-slate-500">{label}</p>
-            <p className={`mt-2 text-2xl font-semibold ${color}`}>{value}</p>
+          <div key={label} className="border border-black/10 bg-white p-5">
+            <p className="text-xs font-black uppercase tracking-widest text-black/50">{label}</p>
+            <p className={`mt-2 text-3xl font-black ${color}`}>{value}</p>
           </div>
         ))}
       </div>
@@ -584,72 +513,62 @@ export default function AdminReportsPage() {
             prev: null,
           },
         ].map(({ label, value, prev }) => (
-          <div key={label} className="rounded-3xl border border-black/5 bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-            <p className="text-sm font-medium text-slate-500">{label}</p>
-            <p className="mt-2 text-2xl font-semibold text-[#003768]">{value}</p>
-            {prev !== null && <p className="mt-1 text-xs text-slate-400">Previous month: {prev}</p>}
+          <div key={label} className="border border-black/10 bg-white p-5">
+            <p className="text-xs font-black uppercase tracking-widest text-black/50">{label}</p>
+            <p className="mt-2 text-3xl font-black text-black">{value}</p>
+            {prev !== null && <p className="mt-1 text-xs font-bold text-black/40">Previous month: {prev}</p>}
           </div>
         ))}
       </div>
 
-      {/* All Bookings — top-level view, 10 at a time */}
-      <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+      {/* All Bookings table */}
+      <div className="border border-black/10 bg-white p-6 md:p-8">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-semibold text-[#003768]">All Bookings</h2>
-          <p className="text-sm text-slate-500">
-            Showing <span className="font-semibold text-[#003768]">{Math.min(allBookingsVisible, filteredBookings.length)}</span> of{" "}
-            <span className="font-semibold text-[#003768]">{filteredBookings.length}</span>
+          <h2 className="text-xl font-black text-black">All Bookings</h2>
+          <p className="text-sm text-black/50">
+            Showing <span className="font-black text-black">{Math.min(allBookingsVisible, filteredBookings.length)}</span> of{" "}
+            <span className="font-black text-black">{filteredBookings.length}</span>
           </p>
         </div>
-        <div className="overflow-x-auto rounded-2xl border border-black/10">
+        <div className="overflow-x-auto border border-black/10">
           <table className="min-w-full text-sm">
-            <thead className="bg-[#f3f8ff] text-left text-[#003768]">
+            <thead className="bg-black text-white">
               <tr>
-                <th className="px-4 py-3 font-semibold">Job</th>
-                <th className="px-4 py-3 font-semibold">Partner</th>
-                <th className="px-4 py-3 font-semibold">Customer</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold">Car Hire</th>
-                <th className="px-4 py-3 font-semibold">Commission</th>
-                <th className="px-4 py-3 font-semibold">Fuel Deposit</th>
-                <th className="px-4 py-3 font-semibold">Fuel Used</th>
-                <th className="px-4 py-3 font-semibold">Fuel Charge</th>
-                <th className="px-4 py-3 font-semibold">Fuel Refund</th>
-                <th className="px-4 py-3 font-semibold">Total</th>
-                <th className="px-4 py-3 font-semibold">Partner Payout</th>
-                <th className="px-4 py-3 font-semibold">Insurance</th>
+                {["Job","Partner","Customer","Status","Car Hire","Commission","Fuel Deposit","Fuel Used","Fuel Charge","Fuel Refund","Total","Partner Payout","Insurance"].map(h => (
+                  <th key={h} className="px-4 py-3 text-left text-xs font-black uppercase tracking-widest">{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-black/5">
               {filteredBookings.length === 0 ? (
-                <tr><td colSpan={13} className="px-4 py-4 text-slate-600">No bookings found.</td></tr>
-              ) : filteredBookings.slice(0, allBookingsVisible).map(b => {
+                <tr><td colSpan={13} className="px-4 py-4 text-black/50">No bookings found.</td></tr>
+              ) : filteredBookings.slice(0, allBookingsVisible).map((b, i) => {
                 const usedQ = b.fuel_used_quarters;
                 const { commAmt, payout, rate } = calcPayout(b);
                 return (
-                  <tr key={b.id} className="hover:bg-[#f3f8ff]">
-                    <td className="px-4 py-3 font-semibold text-[#003768]">{b.job_number || "—"}</td>
-                    <td className="px-4 py-3 text-slate-700">
+                  <tr key={b.id} className={`hover:bg-[#f0f0f0] ${i % 2 === 0 ? "bg-white" : "bg-[#fafafa]"}`}>
+                    <td className="px-4 py-3 font-black text-black">{b.job_number || "—"}</td>
+                    <td className="px-4 py-3 text-black/70">
                       <div>{b.partner_company_name || "—"}</div>
-                      {b.partner_vat_number && <div className="text-xs text-slate-400">{b.partner_vat_number}</div>}
+                      {b.partner_vat_number && <div className="text-xs text-black/40">{b.partner_vat_number}</div>}
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{b.customer_name || "—"}</td>
+                    <td className="px-4 py-3 text-black/70">{b.customer_name || "—"}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${statusPillClasses(b.booking_status)}`}>
+                      <span className={`inline-flex border px-2 py-0.5 text-xs font-black uppercase tracking-widest ${statusPillClasses(b.booking_status)}`}>
                         {String(b.booking_status || "—").replaceAll("_", " ")}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{fmtAmt(b.car_hire_price, b.currency)}</td>
+                    <td className="px-4 py-3 text-black/70">{fmtAmt(b.car_hire_price, b.currency)}</td>
                     <td className="px-4 py-3">
-                      <div className="text-xs font-semibold text-amber-700">{fmtCurr(commAmt, b.currency ?? "EUR")}</div>
-                      <div className="text-xs text-slate-400">{rate}%</div>
+                      <div className="text-xs font-black text-[#ff7a00]">{fmtCurr(commAmt, b.currency ?? "EUR")}</div>
+                      <div className="text-xs text-black/40">{rate}%</div>
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{fmtAmt(b.fuel_price, b.currency)}</td>
-                    <td className="px-4 py-3 text-slate-700">{usedQ !== null && usedQ !== undefined ? (QUARTER_LABELS[usedQ] ?? `${usedQ}/4`) : "—"}</td>
-                    <td className="px-4 py-3 font-semibold text-orange-700">{b.fuel_charge !== null ? fmtAmt(b.fuel_charge, b.currency) : "—"}</td>
-                    <td className="px-4 py-3 font-semibold text-green-700">{b.fuel_refund !== null ? fmtAmt(b.fuel_refund, b.currency) : "—"}</td>
-                    <td className="px-4 py-3 font-bold text-[#003768]">{fmtAmt(b.amount, b.currency)}</td>
-                    <td className="px-4 py-3 font-bold text-green-700">{fmtCurr(payout, b.currency ?? "EUR")}</td>
+                    <td className="px-4 py-3 text-black/70">{fmtAmt(b.fuel_price, b.currency)}</td>
+                    <td className="px-4 py-3 text-black/70">{usedQ !== null && usedQ !== undefined ? (QUARTER_LABELS[usedQ] ?? `${usedQ}/4`) : "—"}</td>
+                    <td className="px-4 py-3 font-black text-[#ff7a00]">{b.fuel_charge !== null ? fmtAmt(b.fuel_charge, b.currency) : "—"}</td>
+                    <td className="px-4 py-3 font-black text-green-600">{b.fuel_refund !== null ? fmtAmt(b.fuel_refund, b.currency) : "—"}</td>
+                    <td className="px-4 py-3 font-black text-black">{fmtAmt(b.amount, b.currency)}</td>
+                    <td className="px-4 py-3 font-black text-green-700">{fmtCurr(payout, b.currency ?? "EUR")}</td>
                     <td className="px-4 py-3">{insurancePill(b.insurance_docs_confirmed_by_driver, b.insurance_docs_confirmed_by_customer)}</td>
                   </tr>
                 );
@@ -659,19 +578,19 @@ export default function AdminReportsPage() {
         </div>
         {filteredBookings.length > allBookingsVisible && (
           <button type="button" onClick={() => setAllBookingsVisible(v => v + 10)}
-            className="mt-3 w-full rounded-2xl border border-black/10 bg-slate-50 py-2.5 text-sm font-semibold text-[#003768] hover:bg-slate-100">
+            className="mt-3 w-full border border-black/10 bg-[#f0f0f0] py-2.5 text-sm font-black text-black hover:bg-black/10">
             ▼ Show more ({filteredBookings.length - allBookingsVisible} remaining)
           </button>
         )}
         {allBookingsVisible > 10 && filteredBookings.length <= allBookingsVisible && (
           <button type="button" onClick={() => setAllBookingsVisible(10)}
-            className="mt-3 w-full rounded-2xl border border-black/10 bg-slate-50 py-2.5 text-sm font-semibold text-[#003768] hover:bg-slate-100">
+            className="mt-3 w-full border border-black/10 bg-[#f0f0f0] py-2.5 text-sm font-black text-black hover:bg-black/10">
             ▲ Show less
           </button>
         )}
       </div>
 
-      {/* Per-currency fuel reconciliation sections */}
+      {/* Per-currency reconciliation */}
       {(["EUR", "GBP", "USD"] as Currency[]).map(curr => {
         const t = revenuesByCurrency[curr];
         if (t.count === 0) return null;
@@ -680,32 +599,29 @@ export default function AdminReportsPage() {
       })}
 
       {/* Partner breakdown */}
-      <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-        <h2 className="text-xl font-semibold text-[#003768]">Partner Breakdown</h2>
-        <p className="mt-1 text-sm text-slate-500">Revenue, commission and payout performance by partner.</p>
-        <div className="mt-4 overflow-x-auto rounded-2xl border border-black/10">
+      <div className="border border-black/10 bg-white p-6 md:p-8">
+        <h2 className="text-xl font-black text-black mb-1">Partner Breakdown</h2>
+        <p className="text-sm text-black/50 mb-4">Revenue, commission and payout performance by partner.</p>
+        <div className="overflow-x-auto border border-black/10">
           <table className="min-w-full text-sm">
-            <thead className="bg-[#f3f8ff] text-left text-[#003768]">
+            <thead className="bg-black text-white">
               <tr>
-                <th className="px-4 py-3 font-semibold">Partner</th>
-                <th className="px-4 py-3 font-semibold">Bookings</th>
-                <th className="px-4 py-3 font-semibold">Completed</th>
-                <th className="px-4 py-3 font-semibold">Total Revenue</th>
-                <th className="px-4 py-3 font-semibold">Camel Commission</th>
-                <th className="px-4 py-3 font-semibold">Partner Payout</th>
+                {["Partner","Bookings","Completed","Total Revenue","Camel Commission","Partner Payout"].map(h => (
+                  <th key={h} className="px-4 py-3 text-left text-xs font-black uppercase tracking-widest">{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-black/5">
               {partnerBreakdown.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-4 text-slate-600">No partner data.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-4 text-black/50">No partner data.</td></tr>
               ) : partnerBreakdown.map((p, i) => (
-                <tr key={i} className="hover:bg-black/[0.02]">
-                  <td className="px-4 py-3 font-medium text-slate-900">{p.name}</td>
-                  <td className="px-4 py-3 text-slate-700">{p.bookings}</td>
-                  <td className="px-4 py-3 text-slate-700">{p.completed}</td>
-                  <td className="px-4 py-3 font-semibold text-[#003768]">{p.revenue.toFixed(2)}</td>
-                  <td className="px-4 py-3 font-semibold text-amber-700">{p.commission.toFixed(2)}</td>
-                  <td className="px-4 py-3 font-semibold text-green-700">{p.payout.toFixed(2)}</td>
+                <tr key={i} className={`hover:bg-[#f0f0f0] ${i % 2 === 0 ? "bg-white" : "bg-[#fafafa]"}`}>
+                  <td className="px-4 py-3 font-black text-black">{p.name}</td>
+                  <td className="px-4 py-3 text-black/70">{p.bookings}</td>
+                  <td className="px-4 py-3 text-black/70">{p.completed}</td>
+                  <td className="px-4 py-3 font-black text-black">{p.revenue.toFixed(2)}</td>
+                  <td className="px-4 py-3 font-black text-[#ff7a00]">{p.commission.toFixed(2)}</td>
+                  <td className="px-4 py-3 font-black text-green-700">{p.payout.toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -714,23 +630,23 @@ export default function AdminReportsPage() {
       </div>
 
       {/* Vehicle breakdown */}
-      <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-        <h2 className="text-xl font-semibold text-[#003768]">Vehicle Category Breakdown</h2>
-        <div className="mt-4 overflow-x-auto rounded-2xl border border-black/10">
+      <div className="border border-black/10 bg-white p-6 md:p-8">
+        <h2 className="text-xl font-black text-black mb-4">Vehicle Category Breakdown</h2>
+        <div className="overflow-x-auto border border-black/10">
           <table className="min-w-full text-sm">
-            <thead className="bg-[#f3f8ff] text-left text-[#003768]">
+            <thead className="bg-black text-white">
               <tr>
-                <th className="px-4 py-3 font-semibold">Vehicle Category</th>
-                <th className="px-4 py-3 font-semibold">Bookings</th>
+                <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-widest">Vehicle Category</th>
+                <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-widest">Bookings</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-black/5">
               {vehicleBreakdown.length === 0 ? (
-                <tr><td colSpan={2} className="px-4 py-4 text-slate-600">No data.</td></tr>
-              ) : vehicleBreakdown.map(r => (
-                <tr key={r.category} className="hover:bg-black/[0.02]">
-                  <td className="px-4 py-3 font-medium text-slate-900">{r.category}</td>
-                  <td className="px-4 py-3 text-slate-700">{r.count}</td>
+                <tr><td colSpan={2} className="px-4 py-4 text-black/50">No data.</td></tr>
+              ) : vehicleBreakdown.map((r, i) => (
+                <tr key={r.category} className={`hover:bg-[#f0f0f0] ${i % 2 === 0 ? "bg-white" : "bg-[#fafafa]"}`}>
+                  <td className="px-4 py-3 font-black text-black">{r.category}</td>
+                  <td className="px-4 py-3 text-black/70">{r.count}</td>
                 </tr>
               ))}
             </tbody>
