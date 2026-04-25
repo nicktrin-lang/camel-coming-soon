@@ -65,7 +65,7 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
       <p className="text-xs font-black uppercase tracking-widest text-black/50">{label}</p>
-      <p className="mt-0.5 text-sm text-black">{value || "—"}</p>
+      <p className="mt-0.5 text-sm font-bold text-black">{value || "—"}</p>
     </div>
   );
 }
@@ -143,6 +143,8 @@ export default function AdminRequestDetailPage({
     );
   }
 
+  const accepted = (bid: BidRow) => bid.status === "accepted";
+
   return (
     <div className="space-y-6">
       {error && <div className="border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
@@ -189,35 +191,39 @@ export default function AdminRequestDetailPage({
         ) : (
           <div className="mt-6 space-y-4">
             {data.bids.map((bid) => (
-              <div key={bid.id} className={`border p-5 ${bid.status === "accepted" ? "border-black bg-black text-white" : "border-black/10 bg-white"}`}>
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    <div>
-                      <p className={`text-xs font-black uppercase tracking-widest ${bid.status === "accepted" ? "text-white/50" : "text-black/50"}`}>Company</p>
-                      <p className={`mt-0.5 text-lg font-black ${bid.status === "accepted" ? "text-[#ff7a00]" : "text-black"}`}>{bid.partner_company_name || "Partner"}</p>
+              <div key={bid.id} className={`border p-6 ${accepted(bid) ? "border-[#1a1a1a] bg-[#1a1a1a]" : "border-black/10 bg-white"}`}>
+                <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {/* Company name — large and prominent */}
+                    <div className="sm:col-span-2 xl:col-span-3">
+                      <p className={`text-xs font-black uppercase tracking-widest ${accepted(bid) ? "text-white/50" : "text-black/40"}`}>Company</p>
+                      <p className={`mt-0.5 text-2xl font-black ${accepted(bid) ? "text-[#ff7a00]" : "text-black"}`}>
+                        {bid.partner_company_name || "Partner"}
+                      </p>
                     </div>
                     {[
-                      ["Contact", bid.partner_contact_name],
-                      ["Phone", bid.partner_phone],
-                      ["Address", bid.partner_address],
-                      ["Vehicle", bid.vehicle_category_name],
-                      ["Car hire", `${bid.currency ?? "EUR"} ${bid.car_hire_price?.toFixed(2)}`],
-                      ["Fuel deposit", `${bid.currency ?? "EUR"} ${bid.fuel_price?.toFixed(2)}`],
-                      ["Total", `${bid.currency ?? "EUR"} ${bid.total_price?.toFixed(2)}`],
+                      ["Contact",        bid.partner_contact_name],
+                      ["Phone",          bid.partner_phone],
+                      ["Address",        bid.partner_address],
+                      ["Vehicle",        bid.vehicle_category_name],
+                      ["Car hire",       `${bid.currency ?? "EUR"} ${bid.car_hire_price?.toFixed(2)}`],
+                      ["Fuel deposit",   `${bid.currency ?? "EUR"} ${bid.fuel_price?.toFixed(2)}`],
+                      ["Total",          `${bid.currency ?? "EUR"} ${bid.total_price?.toFixed(2)}`],
                       ["Full insurance", bid.full_insurance_included ? "Yes" : "No"],
-                      ["Full tank", bid.full_tank_included ? "Yes" : "No"],
-                      ["Notes", bid.notes],
-                      ["Status", bid.status],
-                      ["Submitted", fmtDateTime(bid.created_at)],
+                      ["Full tank",      bid.full_tank_included ? "Yes" : "No"],
+                      ["Notes",          bid.notes],
+                      ["Status",         bid.status],
+                      ["Submitted",      fmtDateTime(bid.created_at)],
                     ].map(([label, value]) => (
                       <div key={label}>
-                        <p className={`text-xs font-black uppercase tracking-widest ${bid.status === "accepted" ? "text-white/50" : "text-black/50"}`}>{label}</p>
-                        <p className={`mt-0.5 text-sm ${bid.status === "accepted" ? "text-white" : "text-black"}`}>{value || "—"}</p>
+                        <p className={`text-xs font-black uppercase tracking-widest ${accepted(bid) ? "text-white/50" : "text-black/40"}`}>{label}</p>
+                        <p className={`mt-0.5 text-sm font-black ${accepted(bid) ? "text-white" : "text-black"}`}>{value || "—"}</p>
                       </div>
                     ))}
                   </div>
-                  <div className="flex flex-wrap gap-2 xl:flex-col xl:items-end">
-                    {bid.status === "accepted" ? (
+
+                  <div className="flex flex-wrap gap-2 xl:flex-col xl:items-end xl:pt-1">
+                    {accepted(bid) ? (
                       <span className="border border-[#ff7a00] px-4 py-2 text-sm font-black text-[#ff7a00]">
                         ✓ Accepted
                       </span>
