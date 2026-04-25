@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import GoogleAnalytics from "@/app/components/GoogleAnalytics";
+import GoogleAnalyticsPageView from "@/app/components/GoogleAnalytics";
 import CurrencySelector from "@/app/components/CurrencySelector";
 import CookieBanner from "@/app/components/CookieBanner";
 import Footer from "@/app/components/Footer";
@@ -19,8 +19,6 @@ export default function ClientRootLayout({ children, fontClass }: { children: Re
     pathname === "/partner/signup" ||
     pathname === "/partner/application-submitted";
 
-  // Info pages are publicly accessible — they get their own topbar via partner layout
-  // but still need the global footer, so we exclude them from isPortalAppPage
   const isPartnerInfoPage =
     pathname === "/partner/terms" ||
     pathname === "/partner/operating-rules" ||
@@ -135,7 +133,7 @@ export default function ClientRootLayout({ children, fontClass }: { children: Re
   return (
     <html lang="en">
       <body className={`${fontClass || ""} min-h-screen flex flex-col ${isHomepage || isNewCustomerArea || isCustomerPublicPage ? "bg-white" : "bg-[#f0f0f0]"}`}>
-        <GoogleAnalytics />
+        <GoogleAnalyticsPageView />
 
         {showGlobalHeader && (
           <>

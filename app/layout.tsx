@@ -1,6 +1,7 @@
 import "./globals.css";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { headers } from "next/headers";
+import Script from "next/script";
 import type { Metadata } from "next";
 import ClientRootLayout from "./ClientRootLayout";
 
@@ -29,6 +30,42 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: "Camel Global", description: "Meet & greet car hire platform" };
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <ClientRootLayout fontClass={font.variable}>{children}</ClientRootLayout>;
+function getGaId(host: string): string {
+  // portal.camel-global.com → partner/admin property
+  if (host.includes("portal.camel-global.com")) return "G-YCZMDQJDM7";
+  // everything else (camel-global.com, test.camel-global.com, localhost dev)
+  return "G-1Y758X38G4";
+}
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const headerStore = await headers();
+  const host = headerStore.get("host") || "";
+  const gaId = getGaId(host);
+
+  return (
+    <ClientRootLayout fontClass={font.variable}>
+      <>
+        {/* Google Analytics — injected server-side so scripts are always present */}
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+          strategy="afterInteractive"
+        />
+        <Script id="ga-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){window.dataLayer.push(arguments);}
+            window.gtag = gtag;
+            window.__GA_IDS__ = ['${gaId}'];
+            gtag('js', new Date());
+            gtag('config', '${gaId}', {
+              page_path: window.location.pathname + window.location.search,
+              page_title: document.title,
+              page_location: window.location.href
+            });
+          `}
+        </Script>
+        {children}
+      </>
+    </ClientRootLayout>
+  );
 }
