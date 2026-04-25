@@ -1,5 +1,4 @@
 import Image from "next/image";
-import Link from "next/link";
 
 export const metadata = {
   title: "Coming Soon — Camel Global",
@@ -41,13 +40,6 @@ export default function ComingSoonPage() {
           </div>
         ))}
       </div>
-
-      <p className="mt-12 text-sm font-bold text-white/30">
-        Are you a car hire company?{" "}
-        <Link href="https://portal.camel-global.com" className="text-white/60 underline hover:text-white transition-colors">
-          Join as a partner →
-        </Link>
-      </p>
 
       <p className="mt-16 text-xs font-bold text-white/20">
         © {new Date().getFullYear()} Camel Global Ltd. Registered in England & Wales.
