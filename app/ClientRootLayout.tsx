@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import Script from "next/script";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import GoogleAnalyticsPageView from "@/app/components/GoogleAnalytics";
@@ -9,7 +10,15 @@ import CurrencySelector from "@/app/components/CurrencySelector";
 import CookieBanner from "@/app/components/CookieBanner";
 import Footer from "@/app/components/Footer";
 
-export default function ClientRootLayout({ children, fontClass }: { children: React.ReactNode; fontClass?: string }) {
+export default function ClientRootLayout({
+  children,
+  fontClass,
+  gaId,
+}: {
+  children: React.ReactNode;
+  fontClass?: string;
+  gaId?: string;
+}) {
   const pathname = usePathname();
 
   const isHomepage = pathname === "/";
@@ -133,6 +142,32 @@ export default function ClientRootLayout({ children, fontClass }: { children: Re
   return (
     <html lang="en">
       <body className={`${fontClass || ""} min-h-screen flex flex-col ${isHomepage || isNewCustomerArea || isCustomerPublicPage ? "bg-white" : "bg-[#f0f0f0]"}`}>
+
+        {/* Google Analytics — scripts live here so they're inside <html><body> */}
+        {gaId && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+              strategy="afterInteractive"
+            />
+            <Script id="ga-init" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){window.dataLayer.push(arguments);}
+                window.gtag = gtag;
+                window.__GA_IDS__ = ['${gaId}'];
+                gtag('js', new Date());
+                gtag('config', '${gaId}', {
+                  page_path: window.location.pathname + window.location.search,
+                  page_title: document.title,
+                  page_location: window.location.href
+                });
+              `}
+            </Script>
+          </>
+        )}
+
+        {/* SPA page view tracker */}
         <GoogleAnalyticsPageView />
 
         {showGlobalHeader && (
