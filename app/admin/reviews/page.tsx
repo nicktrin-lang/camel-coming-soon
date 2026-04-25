@@ -14,7 +14,7 @@ function Stars({ rating }: { rating: number }) {
   return (
     <span>
       {[1,2,3,4,5].map(i => (
-        <span key={i} className={i <= rating ? "text-amber-400" : "text-slate-200"}>★</span>
+        <span key={i} className={i <= rating ? "text-amber-400" : "text-black/10"}>★</span>
       ))}
     </span>
   );
@@ -67,45 +67,49 @@ export default function AdminReviewsPage() {
     filter === "all" ? true : filter === "visible" ? r.is_visible : !r.is_visible
   );
 
-  const avgAll   = reviews.length > 0 ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1) : "—";
-  const hidden   = reviews.filter(r => !r.is_visible).length;
+  const avgAll = reviews.length > 0
+    ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
+    : "—";
+  const hidden = reviews.filter(r => !r.is_visible).length;
 
   return (
     <div className="space-y-6 px-4 py-8 md:px-8">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold text-[#003768]">Review Moderation</h1>
-          <p className="mt-1 text-sm text-slate-500">All customer reviews across all partners. Hide reviews that violate community standards.</p>
+          <h1 className="text-3xl font-black text-black">Review Moderation</h1>
+          <p className="mt-1 text-sm text-black/50">All customer reviews across all partners. Hide reviews that violate community standards.</p>
         </div>
         <button type="button" onClick={load} disabled={loading}
-          className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[#003768] hover:bg-black/5 disabled:opacity-50">
+          className="border border-black/20 bg-white px-4 py-2 text-sm font-black text-black hover:bg-[#f0f0f0] disabled:opacity-50">
           {loading ? "Loading…" : "↻ Refresh"}
         </button>
       </div>
 
-      {error && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
-      {ok    && <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">{ok}</div>}
+      {error && <div className="border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">{error}</div>}
+      {ok    && <div className="border border-black/10 bg-[#f0f0f0] p-4 text-sm font-bold text-black">{ok}</div>}
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: "Total Reviews", value: reviews.length, color: "text-[#003768]" },
-          { label: "Platform Avg", value: avgAll + " ★", color: "text-amber-600" },
-          { label: "Hidden", value: hidden, color: hidden > 0 ? "text-red-600" : "text-slate-400" },
+          { label: "Total Reviews", value: String(reviews.length), color: "text-black" },
+          { label: "Platform Avg",  value: avgAll + " ★",          color: "text-amber-500" },
+          { label: "Hidden",        value: String(hidden),          color: hidden > 0 ? "text-red-600" : "text-black/30" },
         ].map(({ label, value, color }) => (
-          <div key={label} className="rounded-3xl border border-black/5 bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-            <p className="text-sm text-slate-500">{label}</p>
-            <p className={`mt-1 text-2xl font-bold ${color}`}>{value}</p>
+          <div key={label} className="border border-black/10 bg-white p-5">
+            <p className="text-xs font-black uppercase tracking-widest text-black/50">{label}</p>
+            <p className={`mt-2 text-3xl font-black ${color}`}>{value}</p>
           </div>
         ))}
       </div>
 
-      {/* Filter */}
+      {/* Filter tabs */}
       <div className="flex gap-2">
         {(["all", "visible", "hidden"] as const).map(f => (
           <button key={f} type="button" onClick={() => setFilter(f)}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold capitalize transition ${
-              filter === f ? "bg-[#003768] text-white" : "border border-black/10 bg-white text-slate-600 hover:bg-black/5"
+            className={`px-5 py-2 text-sm font-black uppercase tracking-widest transition ${
+              filter === f
+                ? "bg-black text-white"
+                : "border border-black/20 bg-white text-black hover:bg-[#f0f0f0]"
             }`}>
             {f}
           </button>
@@ -113,51 +117,53 @@ export default function AdminReviewsPage() {
       </div>
 
       {loading ? (
-        <div className="rounded-3xl border border-black/5 bg-white p-8 text-slate-500">Loading…</div>
+        <div className="border border-black/10 bg-white p-8 text-black/50">Loading…</div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-3xl border border-black/5 bg-white p-8 text-center text-slate-500">No reviews found.</div>
+        <div className="border border-black/10 bg-white p-8 text-center text-black/50">No reviews found.</div>
       ) : (
         <div className="space-y-4">
           {filtered.map(r => (
-            <div key={r.id} className={`rounded-3xl border p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)] ${
-              r.is_visible ? "border-black/5 bg-white" : "border-red-200 bg-red-50"
-            }`}>
+            <div key={r.id} className={`border p-6 ${r.is_visible ? "border-black/10 bg-white" : "border-red-200 bg-red-50"}`}>
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="font-semibold text-[#003768]">{r.partner_company_name}</p>
+                  <p className="text-lg font-black text-black">{r.partner_company_name}</p>
                   <div className="mt-1 flex items-center gap-3">
                     <Stars rating={r.rating} />
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs font-bold text-black/40">
                       {r.job_number ? `Booking #${r.job_number} · ` : ""}{fmt(r.created_at)}
                     </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {!r.is_visible && (
-                    <span className="rounded-full border border-red-200 bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">Hidden</span>
+                    <span className="border border-red-200 bg-red-100 px-3 py-1 text-xs font-black uppercase tracking-widest text-red-700">
+                      Hidden
+                    </span>
                   )}
                   <button type="button" onClick={() => toggleVisibility(r.id, r.is_visible)}
                     disabled={toggling === r.id}
-                    className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                    className={`px-4 py-1.5 text-xs font-black uppercase tracking-widest transition disabled:opacity-50 ${
                       r.is_visible
                         ? "border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
                         : "border border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
-                    } disabled:opacity-50`}>
+                    }`}>
                     {toggling === r.id ? "…" : r.is_visible ? "Hide" : "Restore"}
                   </button>
                 </div>
               </div>
 
               {r.comment ? (
-                <p className="mt-3 text-slate-700">{r.comment}</p>
+                <p className="mt-3 text-sm font-bold text-black">{r.comment}</p>
               ) : (
-                <p className="mt-3 text-sm italic text-slate-400">No written comment.</p>
+                <p className="mt-3 text-sm italic font-bold text-black/30">No written comment.</p>
               )}
 
               {r.partner_reply && (
-                <div className="mt-3 rounded-2xl border border-[#003768]/10 bg-[#003768]/5 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#003768]">Partner reply · {fmt(r.partner_replied_at)}</p>
-                  <p className="mt-1 text-sm text-slate-700">{r.partner_reply}</p>
+                <div className="mt-3 border border-black/10 bg-[#f0f0f0] p-4">
+                  <p className="text-xs font-black uppercase tracking-widest text-black/50">
+                    Partner reply · {fmt(r.partner_replied_at)}
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-black">{r.partner_reply}</p>
                 </div>
               )}
             </div>
