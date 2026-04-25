@@ -34,7 +34,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 function getGaId(host: string): string {
   if (host.includes("portal.camel-global.com")) return "G-YCZMDQJDM7";
-  return "G-1Y758X38G4";
+  if (host.includes("test.camel-global.com"))   return "G-G90QB28J12";
+  return "G-1Y758X38G4"; // camel-global.com (production customer site)
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
