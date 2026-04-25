@@ -172,30 +172,30 @@ function InsuranceStatusCard({ booking }: { booking: BookingRow }) {
   const customerConfirmed = !!booking.insurance_docs_confirmed_by_customer;
   const bothConfirmed     = driverConfirmed && customerConfirmed;
   return (
-    <div className={`border p-6 ${bothConfirmed ? "border-black/20 bg-black" : "border-amber-200 bg-amber-50"}`}>
+    <div className={`border p-6 ${bothConfirmed ? "border-[#1a1a1a] bg-[#1a1a1a]" : "border-amber-200 bg-amber-50"}`}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-3">
           <span className="text-2xl">📄</span>
           <h3 className={`text-base font-black ${bothConfirmed ? "text-white" : "text-black"}`}>Insurance Documents</h3>
         </div>
-        {bothConfirmed && <span className="border border-white/30 px-3 py-1 text-xs font-black text-white">✓ Confirmed</span>}
+        {bothConfirmed && <span className="border border-[#ff7a00] px-3 py-1 text-xs font-black text-[#ff7a00]">✓ Confirmed</span>}
       </div>
-      <p className={`text-xs font-bold mb-4 ${bothConfirmed ? "text-white/60" : "text-black/50"}`}>Driver confirms handover at delivery. Customer confirms receipt. Both must agree.</p>
+      <p className={`text-xs font-bold mb-4 ${bothConfirmed ? "text-white/50" : "text-black/50"}`}>Driver confirms handover at delivery. Customer confirms receipt. Both must agree.</p>
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className={`border p-4 ${driverConfirmed ? "border-black/20 bg-white/10" : "border-black/10 bg-[#f0f0f0]"}`}>
-          <p className="text-xs font-black uppercase tracking-widest text-black/40">Driver</p>
+        <div className={`border p-4 ${driverConfirmed ? "border-white/10 bg-white/5" : "border-black/10 bg-[#f0f0f0]"}`}>
+          <p className={`text-xs font-black uppercase tracking-widest ${bothConfirmed ? "text-white/40" : "text-black/40"}`}>Driver</p>
           {driverConfirmed
-            ? <><p className={`mt-1 font-black ${bothConfirmed ? "text-white" : "text-black"}`}>✓ Handed over</p><p className={`mt-0.5 text-xs ${bothConfirmed ? "text-white/40" : "text-black/40"}`}>{fmt(booking.insurance_docs_confirmed_by_driver_at)}</p></>
+            ? <><p className="mt-1 font-black text-white">✓ Handed over</p><p className="mt-0.5 text-xs text-white/40">{fmt(booking.insurance_docs_confirmed_by_driver_at)}</p></>
             : <p className="mt-1 text-sm font-bold italic text-black/40">Not yet confirmed</p>}
         </div>
-        <div className={`border p-4 ${customerConfirmed ? "border-black/20 bg-white/10" : "border-black/10 bg-[#f0f0f0]"}`}>
-          <p className="text-xs font-black uppercase tracking-widest text-black/40">Customer</p>
+        <div className={`border p-4 ${customerConfirmed ? "border-white/10 bg-white/5" : "border-black/10 bg-[#f0f0f0]"}`}>
+          <p className={`text-xs font-black uppercase tracking-widest ${bothConfirmed ? "text-white/40" : "text-black/40"}`}>Customer</p>
           {customerConfirmed
-            ? <><p className={`mt-1 font-black ${bothConfirmed ? "text-white" : "text-black"}`}>✓ Received</p><p className={`mt-0.5 text-xs ${bothConfirmed ? "text-white/40" : "text-black/40"}`}>{fmt(booking.insurance_docs_confirmed_by_customer_at)}</p></>
+            ? <><p className="mt-1 font-black text-white">✓ Received</p><p className="mt-0.5 text-xs text-white/40">{fmt(booking.insurance_docs_confirmed_by_customer_at)}</p></>
             : <p className="mt-1 text-sm font-bold italic text-black/40">Not yet confirmed</p>}
         </div>
       </div>
-      <div className={`mt-4 border p-3 text-sm font-bold ${bothConfirmed ? "border-white/20 bg-white/10 text-white" : "border-amber-300 bg-amber-100 text-amber-800"}`}>
+      <div className={`mt-4 border p-3 text-sm font-bold ${bothConfirmed ? "border-[#ff7a00]/30 bg-[#ff7a00]/10 text-[#ff7a00]" : "border-amber-300 bg-amber-100 text-amber-800"}`}>
         {bothConfirmed ? "✓ Both driver and customer confirm insurance documents were handed over at delivery."
           : !driverConfirmed && !customerConfirmed ? "Awaiting confirmation from driver and customer."
           : !driverConfirmed ? "Awaiting driver confirmation." : "Awaiting customer confirmation."}
@@ -223,7 +223,7 @@ function BookingSummaryCard({ booking, rates, isLive }: { booking: BookingRow; r
   const rateBadge = `1€ = ${new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(rates.GBP)} · 1€ = ${new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(rates.USD)}`;
 
   return (
-    <div className="bg-black p-8 text-white">
+    <div className="bg-[#1a1a1a] p-8 text-white">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-black text-white">Booking Summary</h2>
         <span className="border border-white/30 px-3 py-1 text-xs font-black text-white">Finalised</span>
@@ -272,7 +272,7 @@ function BookingSummaryCard({ booking, rates, isLive }: { booking: BookingRow; r
         </div>
       </div>
 
-      <div className={`mt-5 inline-flex items-center gap-2 px-4 py-2 text-sm font-black ${isLive ? "bg-white/10 text-white" : "bg-white/5 text-white/50"}`}>
+      <div className={`mt-5 inline-flex items-center gap-2 px-4 py-2 text-sm font-black ${isLive ? "bg-white/5 text-white" : "bg-white/5 text-white/40"}`}>
         <span className={`h-2 w-2 ${isLive ? "bg-[#ff7a00]" : "bg-white/30"}`} />
         {rateBadge}{isLive ? " · Live rate (frankfurter.app)" : ""}
       </div>
@@ -301,10 +301,10 @@ function FuelStageCard({ title, booking, stage, fuelValue, onFuelChange, confirm
   const hasOverride      = !!savedPartnerFuel && savedPartnerFuel !== driverFuel;
 
   return (
-    <div className={`border p-6 ${locked ? "border-black/20 bg-black text-white" : "border-black/5 bg-white"}`}>
+    <div className={`border p-6 ${locked ? "border-[#1a1a1a] bg-[#1a1a1a] text-white" : "border-black/5 bg-white"}`}>
       <div className="flex items-center justify-between mb-4">
         <h3 className={`text-base font-black ${locked ? "text-white" : "text-black"}`}>{title}</h3>
-        {locked && <span className="border border-white/30 px-3 py-1 text-xs font-black text-white">✓ Locked</span>}
+        {locked && <span className="border border-[#ff7a00] px-3 py-1 text-xs font-black text-[#ff7a00]">✓ Locked</span>}
       </div>
 
       {/* Driver recorded */}
@@ -324,7 +324,7 @@ function FuelStageCard({ title, booking, stage, fuelValue, onFuelChange, confirm
       </div>
 
       {locked ? (
-        <div className="border border-white/20 bg-white/10 p-3 text-sm font-black text-white">
+        <div className="border border-[#ff7a00]/30 bg-[#ff7a00]/10 p-3 text-sm font-black text-[#ff7a00]">
           ✓ Both driver and customer agree on {fuelLabel(effectiveFuel(driverFuel, savedPartnerFuel))}
         </div>
       ) : (
@@ -600,16 +600,16 @@ export default function PartnerBookingDetailPage() {
         <h2 className="text-lg font-black text-black mb-1">Driver Audit Trail</h2>
         <p className="text-xs font-bold text-black/40 mb-5">Exact record of who delivered and collected the vehicle and when. Stamped automatically — never editable.</p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className={`border p-5 ${bk.delivery_driver_name ? "border-black/20 bg-black text-white" : "border-black/10 bg-[#f0f0f0]"}`}>
+          <div className={`border p-5 ${bk.delivery_driver_name ? "border-[#1a1a1a] bg-[#1a1a1a] text-white" : "border-black/10 bg-[#f0f0f0]"}`}>
             <p className={`text-xs font-black uppercase tracking-widest ${bk.delivery_driver_name ? "text-white/40" : "text-black/40"}`}>🚗 Delivery driver</p>
             {bk.delivery_driver_name
-              ? <><p className="mt-2 text-lg font-black">{bk.delivery_driver_name}</p><p className="mt-1 text-xs font-bold text-white/40">Delivered at</p><p className="text-sm font-bold text-white/70">{fmt(bk.delivery_confirmed_at)}</p>{bk.delivery_driver_id !== bk.assigned_driver_id && <p className="mt-2 text-xs font-black text-[#ff7a00]">⚠ Different driver to current assignment</p>}</>
+              ? <><p className="mt-2 text-lg font-black text-white">{bk.delivery_driver_name}</p><p className="mt-1 text-xs font-bold text-white/40">Delivered at</p><p className="text-sm font-bold text-white/70">{fmt(bk.delivery_confirmed_at)}</p>{bk.delivery_driver_id !== bk.assigned_driver_id && <p className="mt-2 text-xs font-black text-[#ff7a00]">⚠ Different driver to current assignment</p>}</>
               : <p className="mt-2 text-sm font-bold italic text-black/40">Not yet delivered</p>}
           </div>
-          <div className={`border p-5 ${bk.collection_driver_name ? "border-black/20 bg-black text-white" : "border-black/10 bg-[#f0f0f0]"}`}>
+          <div className={`border p-5 ${bk.collection_driver_name ? "border-[#1a1a1a] bg-[#1a1a1a] text-white" : "border-black/10 bg-[#f0f0f0]"}`}>
             <p className={`text-xs font-black uppercase tracking-widest ${bk.collection_driver_name ? "text-white/40" : "text-black/40"}`}>🏁 Collection driver</p>
             {bk.collection_driver_name
-              ? <><p className="mt-2 text-lg font-black">{bk.collection_driver_name}</p><p className="mt-1 text-xs font-bold text-white/40">Collected at</p><p className="text-sm font-bold text-white/70">{fmt(bk.collection_confirmed_at)}</p>{bk.delivery_driver_id && bk.collection_driver_id && bk.delivery_driver_id !== bk.collection_driver_id && <p className="mt-2 text-xs font-black text-[#ff7a00]">⚠ Different driver to delivery</p>}</>
+              ? <><p className="mt-2 text-lg font-black text-white">{bk.collection_driver_name}</p><p className="mt-1 text-xs font-bold text-white/40">Collected at</p><p className="text-sm font-bold text-white/70">{fmt(bk.collection_confirmed_at)}</p>{bk.delivery_driver_id && bk.collection_driver_id && bk.delivery_driver_id !== bk.collection_driver_id && <p className="mt-2 text-xs font-black text-[#ff7a00]">⚠ Different driver to delivery</p>}</>
               : <p className="mt-2 text-sm font-bold italic text-black/40">Not yet collected</p>}
           </div>
         </div>
