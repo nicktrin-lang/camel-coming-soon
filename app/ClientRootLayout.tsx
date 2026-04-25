@@ -19,24 +19,6 @@ export default function ClientRootLayout({
 
   const isHomepage = pathname === "/";
 
-  const isPartnerAuthPage =
-    pathname === "/partner/login" ||
-    pathname === "/partner/signup" ||
-    pathname === "/partner/application-submitted";
-
-  const isPartnerInfoPage =
-    pathname === "/partner/terms" ||
-    pathname === "/partner/operating-rules" ||
-    pathname === "/partner/contact" ||
-    pathname === "/partner/privacy" ||
-    pathname === "/partner/cookies" ||
-    pathname === "/partner/about";
-
-  const isPortalAppPage =
-    (pathname?.startsWith("/partner") && !isPartnerAuthPage && !isPartnerInfoPage) ||
-    pathname?.startsWith("/admin") ||
-    pathname?.startsWith("/driver");
-
   const isNewCustomerArea =
     pathname?.startsWith("/bookings") ||
     pathname?.startsWith("/book") ||
@@ -55,46 +37,13 @@ export default function ClientRootLayout({
     pathname === "/terms";
 
   const showCurrencyInHeader = false;
-  const showGlobalHeader = !isHomepage && !isPartnerAuthPage && !isPortalAppPage && !isPartnerInfoPage;
-  const showCookieBanner = !isPortalAppPage;
-  const showCustomerNav  = isNewCustomerArea || isTestBookingArea || isCustomerPublicPage;
-  const showFooter       = !isPortalAppPage && !isPartnerInfoPage;
+  const showGlobalHeader = !isHomepage;
+  const showCustomerNav = isNewCustomerArea || isTestBookingArea || isCustomerPublicPage;
 
-  // Apply bg colour to body via useEffect since body is now in layout.tsx
-  useEffect(() => {
-    if (isHomepage || isNewCustomerArea || isCustomerPublicPage) {
-      document.body.classList.remove("bg-[#f0f0f0]");
-      document.body.classList.add("bg-white");
-    } else {
-      document.body.classList.remove("bg-white");
-      document.body.classList.add("bg-[#f0f0f0]");
-    }
-  }, [isHomepage, isNewCustomerArea, isCustomerPublicPage]);
-
-  const [isPartnerLoggedIn,  setIsPartnerLoggedIn]  = useState(false);
   const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState(false);
-  const [customerName,       setCustomerName]       = useState("");
+  const [customerName, setCustomerName] = useState("");
 
   useEffect(() => {
-    if (showCustomerNav || !showGlobalHeader) return;
-    let mounted = true;
-    let unsub: (() => void) | undefined;
-    async function check() {
-      const { createBrowserSupabaseClient } = await import("@/lib/supabase/browser");
-      const supabase = createBrowserSupabaseClient();
-      const { data } = await supabase.auth.getUser();
-      if (mounted) setIsPartnerLoggedIn(!!data?.user);
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_e: any, session: any) => {
-        if (mounted) setIsPartnerLoggedIn(!!session?.user);
-      });
-      unsub = () => subscription.unsubscribe();
-    }
-    check();
-    return () => { mounted = false; unsub?.(); };
-  }, [showCustomerNav, showGlobalHeader]);
-
-  useEffect(() => {
-    if (!showCustomerNav) return;
     let mounted = true;
     let unsub: (() => void) | undefined;
     async function check() {
@@ -120,16 +69,17 @@ export default function ClientRootLayout({
     }
     check();
     return () => { mounted = false; unsub?.(); };
-  }, [showCustomerNav]);
+  }, []);
 
-  async function handlePartnerLogout() {
-    try {
-      Object.keys(localStorage).filter(k => k.includes("sb-")).forEach(k => localStorage.removeItem(k));
-      const { createBrowserSupabaseClient } = await import("@/lib/supabase/browser");
-      await Promise.race([createBrowserSupabaseClient().auth.signOut(), new Promise(r => setTimeout(r, 3000))]);
-    } catch {}
-    window.location.replace("/partner/login?reason=signed_out");
-  }
+  useEffect(() => {
+    if (isHomepage || isNewCustomerArea || isCustomerPublicPage) {
+      document.body.classList.remove("bg-[#f0f0f0]");
+      document.body.classList.add("bg-white");
+    } else {
+      document.body.classList.remove("bg-white");
+      document.body.classList.add("bg-[#f0f0f0]");
+    }
+  }, [isHomepage, isNewCustomerArea, isCustomerPublicPage]);
 
   async function handleCustomerLogout() {
     try {
@@ -156,33 +106,22 @@ export default function ClientRootLayout({
                 <Image src="/camel-logo.png" alt="Camel Global" width={200} height={70} priority className="h-16 w-auto brightness-0 invert" />
               </Link>
               <nav className="flex items-center gap-4">
-                {showCustomerNav ? (
+                {showCurrencyInHeader && (
+                  <div className="hidden sm:block"><CurrencySelector /></div>
+                )}
+                {isCustomerLoggedIn ? (
                   <>
-                    {showCurrencyInHeader && (
-                      <div className="hidden sm:block"><CurrencySelector /></div>
-                    )}
-                    {isCustomerLoggedIn ? (
-                      <>
-                        <Link href={newBookingHref} className="bg-[#ff7a00] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity">New Booking</Link>
-                        <Link href={bookingsHref}   className="hidden text-sm font-bold text-white hover:underline md:block">My Bookings</Link>
-                        <Link href={settingsHref}   className="hidden text-sm font-bold text-white hover:underline md:block">Account</Link>
-                        {customerName && <span className="hidden text-sm font-bold text-white lg:block">Hi, {customerName}</span>}
-                        <button type="button" onClick={handleCustomerLogout} className="border border-white/30 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/10 transition-colors">Logout</button>
-                      </>
-                    ) : (
-                      <>
-                        <Link href={signupHref} className="hidden text-sm font-bold text-white hover:underline sm:block">Sign Up</Link>
-                        <Link href={loginHref}  className="bg-[#ff7a00] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity">Log In</Link>
-                      </>
-                    )}
-                  </>
-                ) : !isPartnerLoggedIn ? (
-                  <>
-                    <Link href="/partner/signup" className="text-sm font-bold text-white hover:underline">Partner Sign Up</Link>
-                    <Link href="/partner/login"  className="bg-[#ff7a00] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity">Partner Login</Link>
+                    <Link href={newBookingHref} className="bg-[#ff7a00] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity">New Booking</Link>
+                    <Link href={bookingsHref}   className="hidden text-sm font-bold text-white hover:underline md:block">My Bookings</Link>
+                    <Link href={settingsHref}   className="hidden text-sm font-bold text-white hover:underline md:block">Account</Link>
+                    {customerName && <span className="hidden text-sm font-bold text-white lg:block">Hi, {customerName}</span>}
+                    <button type="button" onClick={handleCustomerLogout} className="border border-white/30 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/10 transition-colors">Logout</button>
                   </>
                 ) : (
-                  <button type="button" onClick={handlePartnerLogout} className="bg-[#ff7a00] px-4 py-2.5 text-sm font-bold text-white hover:opacity-95 transition-opacity">Logout</button>
+                  <>
+                    <Link href={signupHref} className="hidden text-sm font-bold text-white hover:underline sm:block">Sign Up</Link>
+                    <Link href={loginHref}  className="bg-[#ff7a00] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity">Log In</Link>
+                  </>
                 )}
               </nav>
             </div>
@@ -192,8 +131,8 @@ export default function ClientRootLayout({
       )}
 
       <main className="flex-1">{children}</main>
-      {showFooter && <Footer />}
-      {showCookieBanner && <CookieBanner />}
+      <Footer />
+      <CookieBanner />
     </>
   );
 }

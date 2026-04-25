@@ -29,13 +29,12 @@ export async function generateMetadata(): Promise<Metadata> {
       },
     };
   }
-  return { title: "Camel Global", description: "Meet & greet car hire platform" };
+  return { title: "Camel Global", description: "Meet & greet car hire, delivered to your door." };
 }
 
 function getGaId(host: string): string {
-  if (host.includes("portal.camel-global.com")) return "G-YCZMDQJDM7";
-  if (host.includes("test.camel-global.com"))   return "G-G90QB28J12";
-  return "G-1Y758X38G4"; // camel-global.com (production customer site)
+  if (host.includes("test.camel-global.com")) return "G-G90QB28J12";
+  return "G-1Y758X38G4"; // camel-global.com production
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -46,15 +45,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en">
       <head>
-        {/* Google Analytics */}
-        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
         <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} />
-        <script
-          // biome-ignore lint: GA inline script
-          dangerouslySetInnerHTML={{
-            __html: `window.dataLayer=window.dataLayer||[];function gtag(){window.dataLayer.push(arguments);}window.gtag=gtag;gtag('js',new Date());gtag('config','${gaId}');`,
-          }}
-        />
+        <script dangerouslySetInnerHTML={{
+          __html: `window.dataLayer=window.dataLayer||[];function gtag(){window.dataLayer.push(arguments);}window.gtag=gtag;gtag('js',new Date());gtag('config','${gaId}');`,
+        }} />
       </head>
       <body className={`${font.variable} min-h-screen flex flex-col`}>
         <ClientRootLayout fontClass={font.variable}>
