@@ -49,11 +49,7 @@ type ResponseShape = {
 
 function fmtDateTime(value?: string | null) {
   if (!value) return "—";
-  try {
-    return new Date(value).toLocaleString();
-  } catch {
-    return value;
-  }
+  try { return new Date(value).toLocaleString(); } catch { return value; }
 }
 
 function fmtDuration(minutes?: number | null) {
@@ -63,6 +59,15 @@ function fmtDuration(minutes?: number | null) {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
   return mins ? `${hours}h ${mins}m` : `${hours}h`;
+}
+
+function Field({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs font-black uppercase tracking-widest text-black/50">{label}</p>
+      <p className="mt-0.5 text-sm text-black">{value || "—"}</p>
+    </div>
+  );
 }
 
 export default function AdminRequestDetailPage({
@@ -79,57 +84,33 @@ export default function AdminRequestDetailPage({
 
   useEffect(() => {
     let mounted = true;
-
     async function init() {
       const resolved = await params;
       if (!mounted) return;
       setRequestId(resolved.id);
     }
-
     init();
-
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [params]);
 
   async function load() {
     if (!requestId) return;
-
-    setLoading(true);
-    setError(null);
-
+    setLoading(true); setError(null);
     try {
-      const res = await fetch(`/api/admin/requests/${requestId}`, {
-        method: "GET",
-        cache: "no-store",
-        credentials: "include",
-      });
-
+      const res = await fetch(`/api/admin/requests/${requestId}`, { method: "GET", cache: "no-store", credentials: "include" });
       const json = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        throw new Error(json?.error || "Failed to load request.");
-      }
-
+      if (!res.ok) throw new Error(json?.error || "Failed to load request.");
       setData(json as ResponseShape);
     } catch (e: any) {
       setError(e?.message || "Failed to load request.");
       setData(null);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }
 
-  useEffect(() => {
-    load();
-  }, [requestId]);
+  useEffect(() => { load(); }, [requestId]);
 
   async function acceptBid(bidId: string) {
-    setAcceptingId(bidId);
-    setError(null);
-    setOk(null);
-
+    setAcceptingId(bidId); setError(null); setOk(null);
     try {
       const res = await fetch("/api/admin/bids/accept", {
         method: "POST",
@@ -137,33 +118,26 @@ export default function AdminRequestDetailPage({
         credentials: "include",
         body: JSON.stringify({ bid_id: bidId }),
       });
-
       const json = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        throw new Error(json?.error || "Failed to accept bid.");
-      }
-
+      if (!res.ok) throw new Error(json?.error || "Failed to accept bid.");
       setOk("Bid accepted and booking created.");
       await load();
     } catch (e: any) {
       setError(e?.message || "Failed to accept bid.");
-    } finally {
-      setAcceptingId(null);
-    }
+    } finally { setAcceptingId(null); }
   }
 
   if (loading) {
     return (
-      <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
-        <p className="text-slate-600">Loading request…</p>
+      <div className="border border-black/10 bg-white p-8">
+        <p className="text-black/50">Loading request…</p>
       </div>
     );
   }
 
   if (!data?.request) {
     return (
-      <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-red-700">
+      <div className="border border-red-200 bg-red-50 p-6 text-red-700">
         {error || "Request not found."}
       </div>
     );
@@ -171,102 +145,89 @@ export default function AdminRequestDetailPage({
 
   return (
     <div className="space-y-6">
-      {error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error}
-        </div>
-      ) : null}
-
-      {ok ? (
-        <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">
-          {ok}
-        </div>
-      ) : null}
+      {error && <div className="border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {ok && <div className="border border-green-200 bg-green-50 p-3 text-sm text-green-700">{ok}</div>}
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-[#003768]">Admin Request Detail</h1>
-          <p className="mt-2 text-slate-600">
-            Review all bids and choose the winning partner.
-          </p>
+          <h1 className="text-3xl font-black text-black">Admin Request Detail</h1>
+          <p className="mt-1 text-sm text-black/50">Review all bids and choose the winning partner.</p>
         </div>
-
-        <Link
-          href="/admin/requests"
-          className="rounded-full border border-black/10 bg-white px-5 py-2 font-semibold text-[#003768] hover:bg-black/5"
-        >
-          Back to Requests
+        <Link href="/admin/requests"
+          className="border border-black/20 bg-white px-5 py-2 text-sm font-black text-black hover:bg-[#f0f0f0]">
+          ← Back to Requests
         </Link>
       </div>
 
-      <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)] md:p-8">
-        <h2 className="text-2xl font-semibold text-[#003768]">Request Information</h2>
-
-        <div className="mt-6 space-y-4 text-slate-700">
-          <p><span className="font-semibold text-slate-900">Customer:</span> {data.request.customer_name || "—"}</p>
-          <p><span className="font-semibold text-slate-900">Email:</span> {data.request.customer_email || "—"}</p>
-          <p><span className="font-semibold text-slate-900">Phone:</span> {data.request.customer_phone || "—"}</p>
-          <p><span className="font-semibold text-slate-900">Pickup:</span> {data.request.pickup_address}</p>
-          <p><span className="font-semibold text-slate-900">Dropoff:</span> {data.request.dropoff_address || "—"}</p>
-          <p><span className="font-semibold text-slate-900">Pickup time:</span> {fmtDateTime(data.request.pickup_at)}</p>
-          <p><span className="font-semibold text-slate-900">Dropoff time:</span> {fmtDateTime(data.request.dropoff_at)}</p>
-          <p><span className="font-semibold text-slate-900">Journey duration:</span> {fmtDuration(data.request.journey_duration_minutes)}</p>
-          <p><span className="font-semibold text-slate-900">Passengers:</span> {data.request.passengers}</p>
-          <p><span className="font-semibold text-slate-900">Suitcases:</span> {data.request.suitcases}</p>
-          <p><span className="font-semibold text-slate-900">Hand luggage:</span> {data.request.hand_luggage}</p>
-          <p><span className="font-semibold text-slate-900">Requested vehicle:</span> {data.request.vehicle_category_name || "Any suitable vehicle"}</p>
-          <p><span className="font-semibold text-slate-900">Notes:</span> {data.request.notes || "—"}</p>
-          <p><span className="font-semibold text-slate-900">Status:</span> {data.request.status}</p>
+      {/* Request info */}
+      <div className="border border-black/10 bg-white p-6 md:p-8">
+        <h2 className="text-xl font-black uppercase tracking-widest text-black">Request Information</h2>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <Field label="Customer" value={data.request.customer_name} />
+          <Field label="Email" value={data.request.customer_email} />
+          <Field label="Phone" value={data.request.customer_phone} />
+          <Field label="Pickup" value={data.request.pickup_address} />
+          <Field label="Dropoff" value={data.request.dropoff_address} />
+          <Field label="Pickup time" value={fmtDateTime(data.request.pickup_at)} />
+          <Field label="Dropoff time" value={fmtDateTime(data.request.dropoff_at)} />
+          <Field label="Journey duration" value={fmtDuration(data.request.journey_duration_minutes)} />
+          <Field label="Passengers" value={String(data.request.passengers)} />
+          <Field label="Suitcases" value={String(data.request.suitcases)} />
+          <Field label="Hand luggage" value={String(data.request.hand_luggage)} />
+          <Field label="Requested vehicle" value={data.request.vehicle_category_name || "Any suitable vehicle"} />
+          <Field label="Notes" value={data.request.notes} />
+          <Field label="Status" value={data.request.status} />
         </div>
       </div>
 
-      <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)] md:p-8">
-        <h2 className="text-2xl font-semibold text-[#003768]">Partner Bids</h2>
+      {/* Bids */}
+      <div className="border border-black/10 bg-white p-6 md:p-8">
+        <h2 className="text-xl font-black uppercase tracking-widest text-black">Partner Bids</h2>
 
         {data.bids.length === 0 ? (
-          <p className="mt-4 text-slate-600">No bids submitted yet.</p>
+          <p className="mt-4 text-black/50">No bids submitted yet.</p>
         ) : (
           <div className="mt-6 space-y-4">
             {data.bids.map((bid) => (
-              <div
-                key={bid.id}
-                className="rounded-2xl border border-black/10 p-5"
-              >
+              <div key={bid.id} className={`border p-5 ${bid.status === "accepted" ? "border-black bg-black text-white" : "border-black/10 bg-white"}`}>
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                  <div className="space-y-2 text-slate-700">
-                    <h3 className="text-xl font-semibold text-[#003768]">
-                      {bid.partner_company_name || "Partner"}
-                    </h3>
-                    <p><span className="font-semibold text-slate-900">Contact:</span> {bid.partner_contact_name || "—"}</p>
-                    <p><span className="font-semibold text-slate-900">Phone:</span> {bid.partner_phone || "—"}</p>
-                    <p><span className="font-semibold text-slate-900">Address:</span> {bid.partner_address || "—"}</p>
-                    <p><span className="font-semibold text-slate-900">Vehicle:</span> {bid.vehicle_category_name}</p>
-                    <p><span className="font-semibold text-slate-900">Pickup:</span> {fmtDateTime(data.request.pickup_at)}</p>
-                    <p><span className="font-semibold text-slate-900">Dropoff:</span> {fmtDateTime(data.request.dropoff_at)}</p>
-                    <p><span className="font-semibold text-slate-900">Duration:</span> {fmtDuration(data.request.journey_duration_minutes)}</p>
-                    <p><span className="font-semibold text-slate-900">Car hire:</span> {bid.currency ?? "EUR"} {bid.car_hire_price?.toFixed(2)}</p>
-                    <p><span className="font-semibold text-slate-900">Fuel:</span> {bid.currency ?? "EUR"} {bid.fuel_price?.toFixed(2)}</p>
-                    <p><span className="font-semibold text-slate-900">Total:</span> {bid.currency ?? "EUR"} {bid.total_price?.toFixed(2)}</p>
-                    <p><span className="font-semibold text-slate-900">Full insurance:</span> {bid.full_insurance_included ? "Yes" : "No"}</p>
-                    <p><span className="font-semibold text-slate-900">Full tank:</span> {bid.full_tank_included ? "Yes" : "No"}</p>
-                    <p><span className="font-semibold text-slate-900">Notes:</span> {bid.notes || "—"}</p>
-                    <p><span className="font-semibold text-slate-900">Status:</span> {bid.status}</p>
-                    <p><span className="font-semibold text-slate-900">Submitted:</span> {fmtDateTime(bid.created_at)}</p>
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    <div>
+                      <p className={`text-xs font-black uppercase tracking-widest ${bid.status === "accepted" ? "text-white/50" : "text-black/50"}`}>Company</p>
+                      <p className={`mt-0.5 text-lg font-black ${bid.status === "accepted" ? "text-[#ff7a00]" : "text-black"}`}>{bid.partner_company_name || "Partner"}</p>
+                    </div>
+                    {[
+                      ["Contact", bid.partner_contact_name],
+                      ["Phone", bid.partner_phone],
+                      ["Address", bid.partner_address],
+                      ["Vehicle", bid.vehicle_category_name],
+                      ["Car hire", `${bid.currency ?? "EUR"} ${bid.car_hire_price?.toFixed(2)}`],
+                      ["Fuel deposit", `${bid.currency ?? "EUR"} ${bid.fuel_price?.toFixed(2)}`],
+                      ["Total", `${bid.currency ?? "EUR"} ${bid.total_price?.toFixed(2)}`],
+                      ["Full insurance", bid.full_insurance_included ? "Yes" : "No"],
+                      ["Full tank", bid.full_tank_included ? "Yes" : "No"],
+                      ["Notes", bid.notes],
+                      ["Status", bid.status],
+                      ["Submitted", fmtDateTime(bid.created_at)],
+                    ].map(([label, value]) => (
+                      <div key={label}>
+                        <p className={`text-xs font-black uppercase tracking-widest ${bid.status === "accepted" ? "text-white/50" : "text-black/50"}`}>{label}</p>
+                        <p className={`mt-0.5 text-sm ${bid.status === "accepted" ? "text-white" : "text-black"}`}>{value || "—"}</p>
+                      </div>
+                    ))}
                   </div>
-
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 xl:flex-col xl:items-end">
                     {bid.status === "accepted" ? (
-                      <span className="rounded-full border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700">
-                        Accepted
+                      <span className="border border-[#ff7a00] px-4 py-2 text-sm font-black text-[#ff7a00]">
+                        ✓ Accepted
                       </span>
                     ) : (
                       <button
                         type="button"
                         onClick={() => acceptBid(bid.id)}
                         disabled={!!acceptingId || data.request.status === "booked"}
-                        className="rounded-full bg-[#ff7a00] px-5 py-2 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] hover:opacity-95 disabled:opacity-60"
-                      >
-                        {acceptingId === bid.id ? "Accepting..." : "Accept Bid"}
+                        className="bg-[#ff7a00] px-5 py-2 text-sm font-black text-white hover:opacity-90 disabled:opacity-60">
+                        {acceptingId === bid.id ? "Accepting…" : "Accept Bid"}
                       </button>
                     )}
                   </div>
@@ -279,4 +240,3 @@ export default function AdminRequestDetailPage({
     </div>
   );
 }
-
