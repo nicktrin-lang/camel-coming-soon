@@ -3,14 +3,12 @@ import { useCurrency } from "@/lib/useCurrency";
 import type { Currency } from "@/lib/currency";
 
 const CURRENCIES: { value: Currency; label: string }[] = [
-  { value: "EUR", label: "€ EUR" },
   { value: "GBP", label: "£ GBP" },
+  { value: "EUR", label: "€ EUR" },
   { value: "USD", label: "$ USD" },
 ];
 
 type Props = {
-  // "dark" = white text on dark nav (default)
-  // "light" = dark text on white widget background
   variant?: "dark" | "light";
 };
 
@@ -45,7 +43,6 @@ export default function CurrencySelector({ variant = "dark" }: Props) {
     );
   }
 
-  // Default dark variant (navbar)
   return (
     <div className="flex items-center gap-2">
       <div className="flex rounded-full border border-white/20 bg-white/10 p-0.5">

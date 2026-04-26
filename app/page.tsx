@@ -375,8 +375,31 @@ function CustomerHome() {
               </div>
             </div>
 
+            {/* Row 4: currency + book now */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 items-end mb-3">
+              <div>
+                <label className={labelCls}>Booking currency</label>
+                <div className="bg-[#f0f0f0] px-4 py-3">
+                  <CurrencySelector variant="light" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={handleBookNow}
+                  disabled={submitting}
+                  className="w-full bg-[#ff7a00] py-5 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
+                >
+                  Book Now →
+                </button>
+                <p className="text-sm font-bold text-black">
+                  No account needed — sign in when you are ready to confirm
+                </p>
+              </div>
+            </div>
+
             {/* Special requirements — collapsible */}
-            <div className="mb-3">
+            <div>
               <button
                 type="button"
                 onClick={() => setNotesOpen(o => !o)}
@@ -397,29 +420,6 @@ function CustomerHome() {
                   />
                 </div>
               )}
-            </div>
-
-            {/* Row 4: currency + book now */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 items-end">
-              <div>
-                <label className={labelCls}>Booking currency</label>
-                <div className="bg-[#f0f0f0] px-4 py-3">
-                  <CurrencySelector variant="light" />
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={handleBookNow}
-                  disabled={submitting}
-                  className="w-full bg-[#ff7a00] py-5 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
-                >
-                  Book Now →
-                </button>
-                <p className="text-sm font-bold text-black">
-                  No account needed — sign in when you are ready to confirm
-                </p>
-              </div>
             </div>
           </div>
         </div>
