@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -8,6 +8,7 @@ import { translations } from "./marketing/translations";
 import { FLEET_CATEGORIES } from "@/app/components/portal/fleetCategories";
 import { CITIES, DEFAULT_CITY, citiesByCountry, type CityEntry } from "@/lib/cities";
 import CurrencySelector from "@/app/components/CurrencySelector";
+import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
 
 type Lang = keyof typeof translations;
 type AddressResult = {
@@ -44,6 +45,13 @@ const TYPE_ICON: Record<string, string> = {
   place:   "📍",
 };
 
+function calculateDurationMinutes(a: string, b: string): number | null {
+  if (!a || !b) return null;
+  const diff = new Date(b).getTime() - new Date(a).getTime();
+  if (diff <= 0) return null;
+  return Math.ceil(diff / (24 * 60 * 60 * 1000)) * 24 * 60;
+}
+
 function ResultRow({ r, onClick }: { r: AddressResult; onClick: () => void }) {
   const icon = TYPE_ICON[r.type] || "📍";
   return (
@@ -59,7 +67,8 @@ function ResultRow({ r, onClick }: { r: AddressResult; onClick: () => void }) {
 }
 
 function CustomerHome() {
-  const router = useRouter();
+  const router   = useRouter();
+  const supabase = useMemo(() => createCustomerBrowserClient(), []);
 
   const [city,           setCity]          = useState<CityEntry>(DEFAULT_CITY);
   const [pickupAddress,  setPickupAddress]  = useState("");
@@ -74,6 +83,10 @@ function CustomerHome() {
   const [suitcases,      setSuitcases]      = useState(1);
   const [vehicleSlug,    setVehicleSlug]    = useState(FLEET_CATEGORIES[0]?.slug || "");
   const [sportEquipment, setSportEquipment] = useState("none");
+  const [notes,          setNotes]          = useState("");
+  const [notesOpen,      setNotesOpen]      = useState(false);
+  const [error,          setError]          = useState<string | null>(null);
+  const [submitting,     setSubmitting]     = useState(false);
 
   const [pickupResults,  setPickupResults]  = useState<AddressResult[]>([]);
   const [dropoffResults, setDropoffResults] = useState<AddressResult[]>([]);
@@ -85,8 +98,8 @@ function CustomerHome() {
 
   useEffect(() => {
     if (window.location.hash.includes("access_token")) {
-      const hash  = window.location.hash;
-      const p     = new URLSearchParams(window.location.search);
+      const hash   = window.location.hash;
+      const p      = new URLSearchParams(window.location.search);
       const portal = p.get("portal");
       if (portal === "customer")    window.location.replace("/reset-password" + hash);
       else if (portal === "driver") window.location.replace("/driver/reset-password" + hash);
@@ -126,19 +139,87 @@ function CustomerHome() {
     }, 300);
   }
 
-  function handleBookNow() {
+  function saveDraft() {
     sessionStorage.setItem("camel_booking_draft", JSON.stringify({
-      pickupAddress, pickupLat, pickupLng, dropoffAddress, dropoffLat, dropoffLng,
-      pickupAt, dropoffAt, passengers, suitcases, vehicleSlug, sportEquipment,
+      pickupAddress, pickupLat, pickupLng,
+      dropoffAddress, dropoffLat, dropoffLng,
+      pickupAt, dropoffAt, passengers, suitcases, vehicleSlug, sportEquipment, notes,
       cityKey: `${city.country}|${city.city}`,
     }));
-    router.push("/book");
+  }
+
+  async function handleBookNow() {
+    setError(null);
+
+    // Validation
+    if (!pickupLat || !pickupLng)   { setError("Please select a pickup address from the suggestions."); return; }
+    if (!dropoffLat || !dropoffLng) { setError("Please select a drop-off address from the suggestions."); return; }
+    if (!pickupAt)                  { setError("Please select a pickup date and time."); return; }
+    if (!dropoffAt)                 { setError("Please select a drop-off date and time."); return; }
+    const duration = calculateDurationMinutes(pickupAt, dropoffAt);
+    if (!duration)                  { setError("Drop-off must be at least 1 day after pickup."); return; }
+    const cat = FLEET_CATEGORIES.find(c => c.slug === vehicleSlug);
+    if (!cat)                       { setError("Please select a vehicle category."); return; }
+
+    saveDraft();
+
+    // Check auth — if not logged in, go to login and come back
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      router.push("/login?next=/book");
+      return;
+    }
+
+    // Logged in — submit directly from homepage
+    setSubmitting(true);
+    try {
+      const res  = await fetch("/api/test-booking/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          pickup_address: pickupAddress, pickup_lat: pickupLat, pickup_lng: pickupLng,
+          dropoff_address: dropoffAddress, dropoff_lat: dropoffLat, dropoff_lng: dropoffLng,
+          pickup_at: pickupAt, dropoff_at: dropoffAt,
+          journey_duration_minutes: duration,
+          passengers: Number(passengers),
+          suitcases: Number(suitcases),
+          sport_equipment: sportEquipment !== "none" ? sportEquipment : null,
+          vehicle_category_slug: cat.slug, vehicle_category_name: cat.name,
+          notes: notes.trim(),
+        }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error || "Failed to create booking.");
+      sessionStorage.removeItem("camel_booking_draft");
+      router.push(`/bookings/${json?.data?.id}`);
+    } catch (e: any) {
+      setError(e?.message || "Failed to submit booking. Please try again.");
+      setSubmitting(false);
+    }
   }
 
   const inputCls  = "w-full bg-[#f0f0f0] px-4 py-4 text-base font-medium text-black outline-none focus:bg-[#e8e8e8] transition-colors placeholder:text-black/40";
   const selectCls = "w-full bg-[#f0f0f0] px-4 py-4 text-base font-medium text-black outline-none focus:bg-[#e8e8e8] transition-colors appearance-none cursor-pointer";
   const labelCls  = "block text-xs font-black uppercase tracking-widest text-black mb-2";
   const grouped   = citiesByCountry();
+
+  if (submitting) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col">
+        <nav className="fixed left-0 top-0 z-50 w-full bg-black">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5">
+            <Image src="/camel-logo.png" alt="Camel" width={200} height={70} priority className="h-16 w-auto brightness-0 invert" />
+          </div>
+        </nav>
+        <div className="h-[68px]" />
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 bg-[#f0f0f0] px-6 py-20">
+          <div className="h-10 w-10 rounded-full border-4 border-[#ff7a00] border-t-transparent animate-spin" />
+          <p className="text-base font-black text-black">Submitting your booking request…</p>
+          <p className="text-sm font-semibold text-black/50">Sending to local car hire partners</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -177,6 +258,13 @@ function CustomerHome() {
             <p className="text-2xl font-black text-black mb-3 sm:text-3xl lg:text-4xl">
               Where do you need your car?
             </p>
+
+            {/* Error */}
+            {error && (
+              <div className="mb-3 border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                {error}
+              </div>
+            )}
 
             {/* City selector bar */}
             <div className="bg-black px-4 py-3 flex flex-wrap items-center gap-3 mb-3">
@@ -220,9 +308,7 @@ function CustomerHome() {
                   <div className="absolute z-30 left-0 right-0 mt-0.5 bg-white shadow-xl overflow-hidden border border-black/10">
                     {pickupResults.map((r, i) => (
                       <ResultRow key={i} r={r} onClick={() => {
-                        setPickupAddress(r.display_name);
-                        setPickupLat(r.lat); setPickupLng(r.lng);
-                        setPickupResults([]);
+                        setPickupAddress(r.display_name); setPickupLat(r.lat); setPickupLng(r.lng); setPickupResults([]);
                       }} />
                     ))}
                   </div>
@@ -241,9 +327,7 @@ function CustomerHome() {
                   <div className="absolute z-30 left-0 right-0 mt-0.5 bg-white shadow-xl overflow-hidden border border-black/10">
                     {dropoffResults.map((r, i) => (
                       <ResultRow key={i} r={r} onClick={() => {
-                        setDropoffAddress(r.display_name);
-                        setDropoffLat(r.lat); setDropoffLng(r.lng);
-                        setDropoffResults([]);
+                        setDropoffAddress(r.display_name); setDropoffLat(r.lat); setDropoffLng(r.lng); setDropoffResults([]);
                       }} />
                     ))}
                   </div>
@@ -291,6 +375,30 @@ function CustomerHome() {
               </div>
             </div>
 
+            {/* Special requirements — collapsible */}
+            <div className="mb-3">
+              <button
+                type="button"
+                onClick={() => setNotesOpen(o => !o)}
+                className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors"
+              >
+                <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
+                Add special requirements
+              </button>
+              {notesOpen && (
+                <div className="mt-2">
+                  <textarea
+                    rows={3}
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    placeholder="Flight number, hotel name, special equipment, anything the car hire company should know…"
+                    className={inputCls + " resize-none"}
+                    autoFocus
+                  />
+                </div>
+              )}
+            </div>
+
             {/* Row 4: currency + book now */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 items-end">
               <div>
@@ -300,8 +408,12 @@ function CustomerHome() {
                 </div>
               </div>
               <div className="flex flex-col gap-2">
-                <button type="button" onClick={handleBookNow}
-                  className="w-full bg-[#ff7a00] py-5 text-base font-black text-white hover:opacity-90 transition-opacity">
+                <button
+                  type="button"
+                  onClick={handleBookNow}
+                  disabled={submitting}
+                  className="w-full bg-[#ff7a00] py-5 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
+                >
                   Book Now →
                 </button>
                 <p className="text-sm font-bold text-black">
@@ -324,18 +436,9 @@ function CustomerHome() {
           </div>
           <div className="grid gap-4 lg:grid-cols-3">
             {[
-              {
-                step: "01", title: "Submit your request",
-                points: ["Enter your pickup and drop-off location","Choose your dates, passengers and vehicle type","Your request is sent to local car hire companies","Takes less than 2 minutes"],
-              },
-              {
-                step: "02", title: "Receive competitive bids",
-                points: ["Local car hire companies within range are notified","Each company submits their best price for car hire and fuel","You see full price breakdowns — no hidden extras","Compare ratings and reviews from real customers"],
-              },
-              {
-                step: "03", title: "Accept and confirm",
-                points: ["Choose the offer that suits you best","The full fuel deposit is taken upon booking — refunded for what you don't use","Your driver meets you at the agreed location","Confirm fuel level and insurance, take the keys and go"],
-              },
+              { step: "01", title: "Submit your request", points: ["Enter your pickup and drop-off location","Choose your dates, passengers and vehicle type","Your request is sent to local car hire companies","Takes less than 2 minutes"] },
+              { step: "02", title: "Receive competitive bids", points: ["Local car hire companies within range are notified","Each company submits their best price for car hire and fuel","You see full price breakdowns — no hidden extras","Compare ratings and reviews from real customers"] },
+              { step: "03", title: "Accept and confirm", points: ["Choose the offer that suits you best","The full fuel deposit is taken upon booking — refunded for what you don't use","Your driver meets you at the agreed location","Confirm fuel level and insurance, take the keys and go"] },
             ].map((s, i) => (
               <div key={i} className="bg-[#f0f0f0] p-7">
                 <div className="mb-4"><span className="text-3xl font-black text-black/20">{s.step}</span></div>
@@ -441,7 +544,7 @@ function CustomerHome() {
   );
 }
 
-// ── Partner Marketing Homepage ────────────────────────────────────────────────
+// ── Partner Marketing Homepage (unchanged) ────────────────────────────────────
 function PartnerMarketingHome() {
   const [lang, setLang] = useState<Lang>("en");
 
@@ -637,8 +740,6 @@ function PartnerMarketingHome() {
 }
 
 export default function Page() {
-  const [host, setHost] = useState("");
-
   useEffect(() => {
     if (window.location.hash.includes("access_token")) {
       const hash   = window.location.hash;
@@ -649,7 +750,6 @@ export default function Page() {
       else                          window.location.replace("/partner/reset-password" + hash);
       return;
     }
-    setHost(window.location.hostname);
   }, []);
 
   return <CustomerHome />;
