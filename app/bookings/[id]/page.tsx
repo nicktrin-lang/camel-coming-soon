@@ -293,7 +293,7 @@ function InsuranceConfirmCard({ driverConfirmed,driverConfirmedAt,customerConfir
       <div className={`px-4 py-3 mb-4 ${driverConfirmed?"bg-black":"bg-[#f0f0f0]"}`}>
         <p className={`text-xs font-black uppercase tracking-widest mb-1 ${driverConfirmed?"text-white":"text-black/50"}`}>Driver confirmed handover</p>
         {driverConfirmed
-          ? <><p className="text-base font-black text-white">✓ Driver confirmed</p><p className="text-xs text-white">{fmt(driverConfirmedAt)}</p></>
+          ? <><p className="text-base font-black text-white">✓ Driver confirmed</p><p className="text-xs text-white/70">{fmt(driverConfirmedAt)}</p></>
           : <p className="text-sm font-semibold text-black/40">Waiting for driver…</p>}
       </div>
       {locked ? (
@@ -335,7 +335,7 @@ function FuelConfirmCard({ title,driverConfirmed,driverFuel,driverConfirmedAt,cu
       <div className={`px-4 py-3 mb-4 ${driverConfirmed&&driverFuel?"bg-black":"bg-[#f0f0f0]"}`}>
         <p className={`text-xs font-black uppercase tracking-widest mb-1 ${driverConfirmed&&driverFuel?"text-white":"text-black/50"}`}>Driver recorded</p>
         {driverConfirmed&&driverFuel
-          ? <><p className="text-2xl font-black text-white">{fuelLabel(driverFuel)}</p><FuelBar level={driverFuel} light /><p className="text-xs text-white mt-1">{fmt(driverConfirmedAt)}</p></>
+          ? <><p className="text-2xl font-black text-white">{fuelLabel(driverFuel)}</p><FuelBar level={driverFuel} light /><p className="text-xs text-white/70 mt-1">{fmt(driverConfirmedAt)}</p></>
           : <p className="text-sm font-semibold text-black/40">Waiting for driver…</p>}
       </div>
       {locked ? (
@@ -455,10 +455,11 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
 
   useEffect(() => { params.then(r => setRequestId(r.id)); }, [params]);
 
+  // ── Auth check — use getUser() not getSession() to avoid false logouts ──
   useEffect(() => {
     if (!requestId) return;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) { router.replace(`/login?next=/bookings/${requestId}`); }
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) { router.replace(`/login?next=/bookings/${requestId}`); }
       else { setAuthChecked(true); }
     });
   }, [requestId, supabase, router]);
@@ -470,28 +471,46 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     }).catch(()=>{});
   }, []);
 
+  // ── Get a fresh access token reliably ──
+  async function getToken(): Promise<string | null> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) return session.access_token;
+    // Session missing — try refreshing
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    return refreshed?.session?.access_token ?? null;
+  }
+
   async function load(showSpinner = false) {
-    if (!requestId||!authChecked) return;
+    if (!requestId || !authChecked) return;
     if (showSpinner) setLoading(true);
-    setError(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Not signed in");
-      setAccessToken(session.access_token);
-      const res=await fetch(`/api/test-booking/requests/${requestId}`,{cache:"no-store",headers:{Authorization:`Bearer ${session.access_token}`}});
-      const json=await res.json().catch(()=>null);
-      if (!res.ok) throw new Error(json?.error||"Failed to load.");
+      const token = await getToken();
+      if (!token) return; // silently skip — don't redirect or show error on poll
+      setAccessToken(token);
+      const res = await fetch(`/api/test-booking/requests/${requestId}`, {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) { if (showSpinner) setError(json?.error || "Failed to load."); return; }
       setData(json);
-      if (json.booking) { setCollectionNotes(json.booking.collection_customer_notes||""); setReturnNotes(json.booking.return_customer_notes||""); }
-    } catch(e:any) { setError(e?.message||"Failed to load."); }
-    finally { if (showSpinner) setLoading(false); }
+      if (json.booking) {
+        setCollectionNotes(json.booking.collection_customer_notes || "");
+        setReturnNotes(json.booking.return_customer_notes || "");
+      }
+    } catch {
+      // silent fail on background polls
+      if (showSpinner) setError("Failed to load.");
+    } finally {
+      if (showSpinner) setLoading(false);
+    }
   }
 
   useEffect(() => { load(true); }, [requestId, authChecked]);
   useEffect(() => {
-    if (!requestId||!authChecked) return;
-    const t = setInterval(()=>load(false), 10000);
-    return ()=>clearInterval(t);
+    if (!requestId || !authChecked) return;
+    const t = setInterval(() => load(false), 10000);
+    return () => clearInterval(t);
   }, [requestId, authChecked]);
 
   useEffect(() => {
@@ -504,9 +523,9 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   async function acceptBid(bidId: string) {
     setAcceptingId(bidId); setError(null); setOk(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Not signed in");
-      const res=await fetch("/api/test-booking/bids/accept",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({bid_id:bidId,currency})});
+      const token = await getToken();
+      if (!token) throw new Error("Not signed in");
+      const res=await fetch("/api/test-booking/bids/accept",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify({bid_id:bidId,currency})});
       const json=await res.json().catch(()=>null);
       if (!res.ok) throw new Error(json?.error||"Failed to accept bid.");
       setOk("Bid accepted. Booking confirmed."); await load(false);
@@ -518,9 +537,9 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     if (!data?.booking?.id) return;
     setSavingConfirm(section); setError(null); setOk(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Not signed in");
-      const res=await fetch(`/api/test-booking/bookings/${data.booking.id}/update`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({section,confirmed,notes:section==="collection"?collectionNotes:returnNotes})});
+      const token = await getToken();
+      if (!token) throw new Error("Not signed in");
+      const res=await fetch(`/api/test-booking/bookings/${data.booking.id}/update`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify({section,confirmed,notes:section==="collection"?collectionNotes:returnNotes})});
       const json=await res.json().catch(()=>null);
       if (!res.ok) throw new Error(json?.error||"Failed to save.");
       setOk(section==="collection"?"Delivery fuel confirmed.":"Collection fuel confirmed."); await load(false);
@@ -532,9 +551,9 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     if (!data?.booking?.id) return;
     setSavingConfirm("insurance"); setError(null); setOk(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Not signed in");
-      const res=await fetch(`/api/test-booking/bookings/${data.booking.id}/update`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({section:"collection",insurance_only:true,insurance_confirmed:confirmed})});
+      const token = await getToken();
+      if (!token) throw new Error("Not signed in");
+      const res=await fetch(`/api/test-booking/bookings/${data.booking.id}/update`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify({section:"collection",insurance_only:true,insurance_confirmed:confirmed})});
       const json=await res.json().catch(()=>null);
       if (!res.ok) throw new Error(json?.error||"Failed to save.");
       setOk(confirmed?"Insurance documents confirmed.":"Insurance confirmation removed."); await load(false);
@@ -647,7 +666,6 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                 </div>
               </div>
 
-              {/* Booking summary — only when completed */}
               {bk.booking_status === "completed" && (
                 <BookingSummaryCard bk={bk} rates={liveRates} rateIsLive={rateIsLive} />
               )}
