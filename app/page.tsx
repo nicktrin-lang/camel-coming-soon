@@ -375,14 +375,35 @@ function CustomerHome() {
               </div>
             </div>
 
-            {/* Row 4: currency + book now */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 items-end mb-3">
+            {/* Row 4: currency (left) + book now (right) — notes sits between on mobile */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 items-end">
               <div>
                 <label className={labelCls}>Booking currency</label>
                 <div className="bg-[#f0f0f0] px-4 py-3">
                   <CurrencySelector variant="light" />
                 </div>
               </div>
+
+              {/* Special requirements — visible between currency and Book Now on mobile,
+                  sits below currency col on desktop via row-start */}
+              <div className="sm:hidden">
+                <button
+                  type="button"
+                  onClick={() => setNotesOpen(o => !o)}
+                  className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors"
+                >
+                  <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
+                  Add special requirements
+                </button>
+                {notesOpen && (
+                  <div className="mt-2">
+                    <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
+                      placeholder="Flight number, hotel name, special equipment, anything the car hire company should know…"
+                      className={inputCls + " resize-none"} autoFocus />
+                  </div>
+                )}
+              </div>
+
               <div className="flex flex-col gap-2">
                 <button
                   type="button"
@@ -396,30 +417,25 @@ function CustomerHome() {
                   No account needed — sign in when you are ready to confirm
                 </p>
               </div>
-            </div>
 
-            {/* Special requirements — collapsible */}
-            <div>
-              <button
-                type="button"
-                onClick={() => setNotesOpen(o => !o)}
-                className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors"
-              >
-                <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
-                Add special requirements
-              </button>
-              {notesOpen && (
-                <div className="mt-2">
-                  <textarea
-                    rows={3}
-                    value={notes}
-                    onChange={e => setNotes(e.target.value)}
-                    placeholder="Flight number, hotel name, special equipment, anything the car hire company should know…"
-                    className={inputCls + " resize-none"}
-                    autoFocus
-                  />
-                </div>
-              )}
+              {/* Desktop-only notes — shown below currency col, hidden on mobile */}
+              <div className="hidden sm:block">
+                <button
+                  type="button"
+                  onClick={() => setNotesOpen(o => !o)}
+                  className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors"
+                >
+                  <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
+                  Add special requirements
+                </button>
+                {notesOpen && (
+                  <div className="mt-2">
+                    <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
+                      placeholder="Flight number, hotel name, special equipment, anything the car hire company should know…"
+                      className={inputCls + " resize-none"} autoFocus />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
