@@ -276,7 +276,7 @@ function CustomerHome() {
                   const found = CITIES.find(x => x.country === country && x.city === c);
                   if (found) { setCity(found); setPickupResults([]); setDropoffResults([]); }
                 }}
-                className="bg-[#ff7a00] text-white font-black text-sm px-3 py-1.5 outline-none cursor-pointer appearance-none"
+                className="bg-[#ff7a00] text-white font-black text-sm px-3 py-1.5 outline-none cursor-pointer appearance-none [&>option]:text-black [&>optgroup]:text-black"
               >
                 {Object.entries(grouped).map(([country, cities]) => (
                   <optgroup key={country} label={country}>
@@ -288,7 +288,7 @@ function CustomerHome() {
                   </optgroup>
                 ))}
               </select>
-              <span className="text-xs font-semibold text-white/40">
+              <span className="text-xs font-semibold text-white/70">
                 Change if your pickup is in a different city
               </span>
             </div>
