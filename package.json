@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@react-google-maps/api": "^2.20.8",
-    "@supabase/ssr": "^0.5.2",
+    "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.101.1",
     "jspdf": "^4.2.1",
     "leaflet": "^1.9.4",
