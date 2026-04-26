@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import CurrencySelector from "@/app/components/CurrencySelector";
 import CookieBanner from "@/app/components/CookieBanner";
 import Footer from "@/app/components/Footer";
+import GoogleAnalyticsPageView from "@/app/components/GoogleAnalytics";
 
 export default function ClientRootLayout({
   children,
@@ -100,6 +101,8 @@ export default function ClientRootLayout({
 
   return (
     <>
+      <GoogleAnalyticsPageView />
+
       {showGlobalHeader && (
         <>
           <header className="fixed left-0 top-0 z-50 w-full bg-black">
