@@ -31,7 +31,8 @@ async function reverseLookup(lat: number, lng: number): Promise<string> {
   try {
     const res  = await fetch(`/api/maps/reverse?lat=${lat}&lng=${lng}`, { cache: "no-store" });
     const json = await res.json().catch(() => null);
-    return String(json?.data?.display_name || "").trim() || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    // API returns { display_name, address_line1, ... } at top level — no data wrapper
+    return String(json?.display_name || "").trim() || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
   } catch {
     return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
   }
@@ -95,7 +96,6 @@ export default function BookPage() {
 
     if (!draft) return;
 
-    // Restore all fields
     if (draft.pickupAddress)  setPickupAddress(draft.pickupAddress);
     if (draft.pickupLat)      setPickupLat(draft.pickupLat);
     if (draft.pickupLng)      setPickupLng(draft.pickupLng);
@@ -119,7 +119,7 @@ export default function BookPage() {
       const dLat = d.dropoffLat, dLng = d.dropoffLng;
       const pAt  = d.pickupAt,   dAt  = d.dropoffAt;
 
-      if (!pLat || !pLng || !dLat || !dLng || !pAt || !dAt) return; // incomplete, let them fill manually
+      if (!pLat || !pLng || !dLat || !dLng || !pAt || !dAt) return;
 
       const duration = calculateDurationMinutes(pAt, dAt);
       if (!duration) return;
@@ -156,13 +156,10 @@ export default function BookPage() {
         });
     }
 
-    // First try immediately (covers already-logged-in users)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.access_token) tryAutoSubmit(session.access_token);
     });
 
-    // Also listen for auth state changes (covers just-signed-up/logged-in users
-    // where the session isn't ready on first render)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.access_token) tryAutoSubmit(session.access_token);
     });
