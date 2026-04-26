@@ -34,7 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 function getGaId(host: string): string {
   if (host.includes("test.camel-global.com")) return "G-G90QB28J12";
-  return "G-1Y758X38G4"; // camel-global.com production
+  return "G-1Y758X38G4";
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -45,10 +45,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en">
       <head>
-        <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} />
+        {/* GA4 — initialise dataLayer before the async script loads */}
         <script dangerouslySetInnerHTML={{
-          __html: `window.dataLayer=window.dataLayer||[];function gtag(){window.dataLayer.push(arguments);}window.gtag=gtag;gtag('js',new Date());gtag('config','${gaId}');`,
+          __html: `window.dataLayer=window.dataLayer||[];function gtag(){window.dataLayer.push(arguments);}window.gtag=gtag;gtag('js',new Date());gtag('config','${gaId}',{send_page_view:true});`,
         }} />
+        <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} />
       </head>
       <body className={`${font.variable} min-h-screen flex flex-col`}>
         <ClientRootLayout fontClass={font.variable}>
