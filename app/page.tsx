@@ -6,10 +6,18 @@ import Link from "next/link";
 import Image from "next/image";
 import { translations } from "./marketing/translations";
 import { FLEET_CATEGORIES } from "@/app/components/portal/fleetCategories";
+import { CITIES, DEFAULT_CITY, citiesByCountry, type CityEntry } from "@/lib/cities";
 import CurrencySelector from "@/app/components/CurrencySelector";
 
 type Lang = keyof typeof translations;
-type AddressResult = { display_name: string; lat: number; lng: number };
+type AddressResult = {
+  display_name: string;
+  label: string;
+  subtitle: string;
+  type: string;
+  lat: number;
+  lng: number;
+};
 
 const SPORT_OPTIONS = [
   { value: "none",        label: "None" },
@@ -26,9 +34,34 @@ const SPORT_OPTIONS = [
   { value: "other",       label: "Other large equipment" },
 ];
 
+const TYPE_ICON: Record<string, string> = {
+  airport: "✈",
+  hotel:   "🏨",
+  food:    "🍽",
+  train:   "🚆",
+  bus:     "🚌",
+  street:  "🏠",
+  place:   "📍",
+};
+
+function ResultRow({ r, onClick }: { r: AddressResult; onClick: () => void }) {
+  const icon = TYPE_ICON[r.type] || "📍";
+  return (
+    <button type="button" onClick={onClick}
+      className="w-full text-left px-4 py-3 hover:bg-[#f0f0f0] border-b border-black/5 last:border-b-0 flex items-start gap-3">
+      <span className="mt-0.5 text-base shrink-0 w-5 text-center">{icon}</span>
+      <span className="flex flex-col min-w-0">
+        <span className="text-sm font-black text-black truncate">{r.label || r.display_name}</span>
+        {r.subtitle && <span className="text-xs font-semibold text-black/50 truncate">{r.subtitle}</span>}
+      </span>
+    </button>
+  );
+}
+
 function CustomerHome() {
   const router = useRouter();
 
+  const [city,           setCity]          = useState<CityEntry>(DEFAULT_CITY);
   const [pickupAddress,  setPickupAddress]  = useState("");
   const [pickupLat,      setPickupLat]      = useState<number | null>(null);
   const [pickupLng,      setPickupLng]      = useState<number | null>(null);
@@ -52,8 +85,8 @@ function CustomerHome() {
 
   useEffect(() => {
     if (window.location.hash.includes("access_token")) {
-      const hash = window.location.hash;
-      const p    = new URLSearchParams(window.location.search);
+      const hash  = window.location.hash;
+      const p     = new URLSearchParams(window.location.search);
       const portal = p.get("portal");
       if (portal === "customer")    window.location.replace("/reset-password" + hash);
       else if (portal === "driver") window.location.replace("/driver/reset-password" + hash);
@@ -61,25 +94,35 @@ function CustomerHome() {
     }
   }, []);
 
+  function buildSearchUrl(q: string) {
+    return `/api/maps/search?q=${encodeURIComponent(q)}&lat=${city.lat}&lon=${city.lng}`;
+  }
+
   async function searchPickup(q: string) {
     setPickupAddress(q); setPickupLat(null); setPickupLng(null);
     if (pickupTimer.current) clearTimeout(pickupTimer.current);
-    if (q.length < 3) { setPickupResults([]); return; }
+    if (q.length < 2) { setPickupResults([]); return; }
     pickupTimer.current = setTimeout(async () => {
       setPickupLoading(true);
-      try { const r = await fetch(`/api/maps/search?q=${encodeURIComponent(q)}`,{cache:"no-store"}); const j = await r.json().catch(()=>null); setPickupResults(j?.data||[]); }
-      catch { setPickupResults([]); } finally { setPickupLoading(false); }
+      try {
+        const r = await fetch(buildSearchUrl(q), { cache: "no-store" });
+        const j = await r.json().catch(() => null);
+        setPickupResults(j?.data || []);
+      } catch { setPickupResults([]); } finally { setPickupLoading(false); }
     }, 300);
   }
 
   async function searchDropoff(q: string) {
     setDropoffAddress(q); setDropoffLat(null); setDropoffLng(null);
     if (dropoffTimer.current) clearTimeout(dropoffTimer.current);
-    if (q.length < 3) { setDropoffResults([]); return; }
+    if (q.length < 2) { setDropoffResults([]); return; }
     dropoffTimer.current = setTimeout(async () => {
       setDropoffLoading(true);
-      try { const r = await fetch(`/api/maps/search?q=${encodeURIComponent(q)}`,{cache:"no-store"}); const j = await r.json().catch(()=>null); setDropoffResults(j?.data||[]); }
-      catch { setDropoffResults([]); } finally { setDropoffLoading(false); }
+      try {
+        const r = await fetch(buildSearchUrl(q), { cache: "no-store" });
+        const j = await r.json().catch(() => null);
+        setDropoffResults(j?.data || []);
+      } catch { setDropoffResults([]); } finally { setDropoffLoading(false); }
     }, 300);
   }
 
@@ -87,6 +130,7 @@ function CustomerHome() {
     sessionStorage.setItem("camel_booking_draft", JSON.stringify({
       pickupAddress, pickupLat, pickupLng, dropoffAddress, dropoffLat, dropoffLng,
       pickupAt, dropoffAt, passengers, suitcases, vehicleSlug, sportEquipment,
+      cityKey: `${city.country}|${city.city}`,
     }));
     router.push("/book");
   }
@@ -94,11 +138,12 @@ function CustomerHome() {
   const inputCls  = "w-full bg-[#f0f0f0] px-4 py-4 text-base font-medium text-black outline-none focus:bg-[#e8e8e8] transition-colors placeholder:text-black/40";
   const selectCls = "w-full bg-[#f0f0f0] px-4 py-4 text-base font-medium text-black outline-none focus:bg-[#e8e8e8] transition-colors appearance-none cursor-pointer";
   const labelCls  = "block text-xs font-black uppercase tracking-widest text-black mb-2";
+  const grouped   = citiesByCountry();
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
 
-      {/* Navbar — no currency selector here, it lives in the widget below */}
+      {/* Navbar */}
       <nav className="fixed left-0 top-0 z-50 w-full bg-black">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5">
           <Link href="/">
@@ -129,9 +174,36 @@ function CustomerHome() {
           </div>
 
           <div className="bg-white">
-            <p className="text-2xl font-black text-black mb-5 sm:text-3xl lg:text-4xl">
+            <p className="text-2xl font-black text-black mb-3 sm:text-3xl lg:text-4xl">
               Where do you need your car?
             </p>
+
+            {/* City selector bar */}
+            <div className="bg-black px-4 py-3 flex flex-wrap items-center gap-3 mb-3">
+              <span className="text-xs font-black uppercase tracking-widest text-white/60">Searching near</span>
+              <select
+                value={`${city.country}|${city.city}`}
+                onChange={e => {
+                  const [country, c] = e.target.value.split("|");
+                  const found = CITIES.find(x => x.country === country && x.city === c);
+                  if (found) { setCity(found); setPickupResults([]); setDropoffResults([]); }
+                }}
+                className="bg-[#ff7a00] text-white font-black text-sm px-3 py-1.5 outline-none cursor-pointer appearance-none"
+              >
+                {Object.entries(grouped).map(([country, cities]) => (
+                  <optgroup key={country} label={country}>
+                    {cities.map(c => (
+                      <option key={c.city} value={`${c.country}|${c.city}`}>
+                        {c.city}, {c.country}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <span className="text-xs font-semibold text-white/40">
+                Change if your pickup is in a different city
+              </span>
+            </div>
 
             {/* Row 1: pickup + dropoff */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 mb-3">
@@ -140,16 +212,18 @@ function CustomerHome() {
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base pointer-events-none">📍</span>
                   <input value={pickupAddress} onChange={e => searchPickup(e.target.value)}
-                    placeholder="Airport, hotel, address…"
+                    placeholder={`Airport, hotel, address in ${city.city}…`}
                     className={inputCls + " pl-10"} />
                   {pickupLoading && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-black/30">…</span>}
                 </div>
                 {pickupResults.length > 0 && (
                   <div className="absolute z-30 left-0 right-0 mt-0.5 bg-white shadow-xl overflow-hidden border border-black/10">
                     {pickupResults.map((r, i) => (
-                      <button key={i} type="button"
-                        onClick={() => { setPickupAddress(r.display_name); setPickupLat(r.lat); setPickupLng(r.lng); setPickupResults([]); }}
-                        className="w-full text-left px-4 py-3 text-sm font-medium text-black hover:bg-[#f0f0f0] border-b border-black/5 last:border-b-0">{r.display_name}</button>
+                      <ResultRow key={i} r={r} onClick={() => {
+                        setPickupAddress(r.display_name);
+                        setPickupLat(r.lat); setPickupLng(r.lng);
+                        setPickupResults([]);
+                      }} />
                     ))}
                   </div>
                 )}
@@ -166,9 +240,11 @@ function CustomerHome() {
                 {dropoffResults.length > 0 && (
                   <div className="absolute z-30 left-0 right-0 mt-0.5 bg-white shadow-xl overflow-hidden border border-black/10">
                     {dropoffResults.map((r, i) => (
-                      <button key={i} type="button"
-                        onClick={() => { setDropoffAddress(r.display_name); setDropoffLat(r.lat); setDropoffLng(r.lng); setDropoffResults([]); }}
-                        className="w-full text-left px-4 py-3 text-sm font-medium text-black hover:bg-[#f0f0f0] border-b border-black/5 last:border-b-0">{r.display_name}</button>
+                      <ResultRow key={i} r={r} onClick={() => {
+                        setDropoffAddress(r.display_name);
+                        setDropoffLat(r.lat); setDropoffLng(r.lng);
+                        setDropoffResults([]);
+                      }} />
                     ))}
                   </div>
                 )}
@@ -215,7 +291,7 @@ function CustomerHome() {
               </div>
             </div>
 
-            {/* Row 4: currency + book now — aligned on same row */}
+            {/* Row 4: currency + book now */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 items-end">
               <div>
                 <label className={labelCls}>Booking currency</label>
@@ -249,40 +325,20 @@ function CustomerHome() {
           <div className="grid gap-4 lg:grid-cols-3">
             {[
               {
-                step: "01",
-                title: "Submit your request",
-                points: [
-                  "Enter your pickup and drop-off location",
-                  "Choose your dates, passengers and vehicle type",
-                  "Your request is sent to local car hire companies",
-                  "Takes less than 2 minutes",
-                ],
+                step: "01", title: "Submit your request",
+                points: ["Enter your pickup and drop-off location","Choose your dates, passengers and vehicle type","Your request is sent to local car hire companies","Takes less than 2 minutes"],
               },
               {
-                step: "02",
-                title: "Receive competitive bids",
-                points: [
-                  "Local car hire companies within range are notified",
-                  "Each company submits their best price for car hire and fuel",
-                  "You see full price breakdowns — no hidden extras",
-                  "Compare ratings and reviews from real customers",
-                ],
+                step: "02", title: "Receive competitive bids",
+                points: ["Local car hire companies within range are notified","Each company submits their best price for car hire and fuel","You see full price breakdowns — no hidden extras","Compare ratings and reviews from real customers"],
               },
               {
-                step: "03",
-                title: "Accept and confirm",
-                points: [
-                  "Choose the offer that suits you best",
-                  "The full fuel deposit is taken upon booking — refunded for what you don't use",
-                  "Your driver meets you at the agreed location",
-                  "Confirm fuel level and insurance, take the keys and go",
-                ],
+                step: "03", title: "Accept and confirm",
+                points: ["Choose the offer that suits you best","The full fuel deposit is taken upon booking — refunded for what you don't use","Your driver meets you at the agreed location","Confirm fuel level and insurance, take the keys and go"],
               },
             ].map((s, i) => (
               <div key={i} className="bg-[#f0f0f0] p-7">
-                <div className="mb-4">
-                  <span className="text-3xl font-black text-black/20">{s.step}</span>
-                </div>
+                <div className="mb-4"><span className="text-3xl font-black text-black/20">{s.step}</span></div>
                 <h3 className="text-xl font-black text-black mb-4">{s.title}</h3>
                 <ul className="space-y-3">
                   {s.points.map((p, j) => (
@@ -295,15 +351,8 @@ function CustomerHome() {
               </div>
             ))}
           </div>
-
-          {/* Feature tiles */}
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[
-              ["🚗", "Car delivered to your door"],
-              ["🛡️", "Full insurance, zero excess"],
-              ["⛽", "Pay only for fuel used"],
-              ["✅", "No airport queues"],
-            ].map(([icon, text]) => (
+            {[["🚗","Car delivered to your door"],["🛡️","Full insurance, zero excess"],["⛽","Pay only for fuel used"],["✅","No airport queues"]].map(([icon, text]) => (
               <div key={text} className="flex items-center gap-3 bg-[#f0f0f0] px-4 py-5">
                 <span className="text-xl">{icon}</span>
                 <span className="text-sm font-black text-black">{text}</span>
@@ -313,7 +362,7 @@ function CustomerHome() {
         </div>
       </section>
 
-      {/* Fuel system — moved above No surprises */}
+      {/* Fuel system */}
       <section className="bg-[#f0f0f0] py-12 lg:py-16">
         <div className="mx-auto max-w-7xl px-4">
           <div className="mb-8">
@@ -340,38 +389,25 @@ function CustomerHome() {
         </div>
       </section>
 
-      {/* No surprises + Why Book a Camel Car — two equal grey cards side by side */}
+      {/* No surprises + Why Book */}
       <section className="bg-white py-12 lg:py-16">
         <div className="mx-auto max-w-7xl px-4">
           <div className="grid gap-4 lg:grid-cols-2">
-
-            {/* No surprises card */}
             <div className="bg-[#f0f0f0] overflow-hidden">
               <div className="px-6 py-5">
                 <h2 className="text-3xl font-black text-black sm:text-4xl">No surprises when you arrive</h2>
-                <p className="mt-3 text-base font-semibold text-black leading-relaxed">
-                  Payment including fuel deposit is taken in full at the time of booking. When your driver arrives there is nothing left to do except confirm the fuel tank level, confirm you received your insurance documents, take the keys and go.
-                </p>
+                <p className="mt-3 text-base font-semibold text-black leading-relaxed">Payment including fuel deposit is taken in full at the time of booking. When your driver arrives there is nothing left to do except confirm the fuel tank level, confirm you received your insurance documents, take the keys and go.</p>
               </div>
               <div className="px-6 pb-6">
                 <ul className="space-y-4">
-                  {[
-                    ["🚗", "Car delivered to your exact location — hotel, apartment, airport exit"],
-                    ["🛡️", "Full insurance with zero excess included in the price"],
-                    ["⛽", "Full tank on delivery — pay only for the fuel you actually use"],
-                    ["📄", "All paperwork completed at booking — nothing to sign on arrival"],
-                    ["⭐", "Reviews from real customers so you can choose with confidence"],
-                  ].map(([icon, text]) => (
+                  {[["🚗","Car delivered to your exact location — hotel, apartment, airport exit"],["🛡️","Full insurance with zero excess included in the price"],["⛽","Full tank on delivery — pay only for the fuel you actually use"],["📄","All paperwork completed at booking — nothing to sign on arrival"],["⭐","Reviews from real customers so you can choose with confidence"]].map(([icon, text]) => (
                     <li key={text as string} className="flex items-start gap-4 text-base font-semibold text-black">
-                      <span className="text-xl shrink-0">{icon}</span>
-                      <span>{text}</span>
+                      <span className="text-xl shrink-0">{icon}</span><span>{text}</span>
                     </li>
                   ))}
                 </ul>
               </div>
             </div>
-
-            {/* Why Book a Camel Car card */}
             <div className="overflow-hidden">
               <div className="bg-[#f0f0f0] px-6 py-5">
                 <h3 className="text-3xl font-black text-black sm:text-4xl">Why Book a Camel Car?</h3>
@@ -380,15 +416,9 @@ function CustomerHome() {
               <div className="bg-[#e8e8e8] px-6 py-5">
                 <p className="text-xs font-black uppercase tracking-widest text-black mb-4">Traditional car hire</p>
                 <ul className="space-y-3">
-                  {[
-                    "Queue at airport desk — often 30–60 minutes",
-                    "Surprise extras added on arrival",
-                    "Fuel penalties if not returned full",
-                    "Hidden insurance charges and excess fees",
-                  ].map(p => (
+                  {["Queue at airport desk — often 30–60 minutes","Surprise extras added on arrival","Fuel penalties if not returned full","Hidden insurance charges and excess fees"].map(p => (
                     <li key={p} className="flex items-center gap-3 text-base font-semibold text-black">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center bg-black/20 text-black text-[10px] font-black">✗</span>
-                      {p}
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center bg-black/20 text-black text-[10px] font-black">✗</span>{p}
                     </li>
                   ))}
                 </ul>
@@ -396,25 +426,17 @@ function CustomerHome() {
               <div className="bg-[#f0f0f0] px-6 py-5">
                 <p className="text-xs font-black uppercase tracking-widest text-black mb-4">Camel Global</p>
                 <ul className="space-y-3">
-                  {[
-                    "Car delivered directly to you — no queuing",
-                    "Price fixed and confirmed at booking",
-                    "Pay only for the fuel you actually use",
-                    "Full insurance with zero excess, always included",
-                  ].map(p => (
+                  {["Car delivered directly to you — no queuing","Price fixed and confirmed at booking","Pay only for the fuel you actually use","Full insurance with zero excess, always included"].map(p => (
                     <li key={p} className="flex items-center gap-3 text-base font-semibold text-black">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center bg-green-500 text-white text-[10px] font-black">✓</span>
-                      {p}
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center bg-green-500 text-white text-[10px] font-black">✓</span>{p}
                     </li>
                   ))}
                 </ul>
               </div>
             </div>
-
           </div>
         </div>
       </section>
-
     </div>
   );
 }
@@ -619,8 +641,8 @@ export default function Page() {
 
   useEffect(() => {
     if (window.location.hash.includes("access_token")) {
-      const hash = window.location.hash;
-      const p    = new URLSearchParams(window.location.search);
+      const hash   = window.location.hash;
+      const p      = new URLSearchParams(window.location.search);
       const portal = p.get("portal");
       if (portal === "customer")    window.location.replace("/reset-password" + hash);
       else if (portal === "driver") window.location.replace("/driver/reset-password" + hash);

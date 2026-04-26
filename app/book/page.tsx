@@ -4,13 +4,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
 import { FLEET_CATEGORIES } from "@/app/components/portal/fleetCategories";
+import { CITIES, DEFAULT_CITY, citiesByCountry, type CityEntry } from "@/lib/cities";
 import dynamic from "next/dynamic";
 
 const MapPicker = dynamic(() => import("@/app/partner/profile/MapPicker"), { ssr: false });
 
-type SearchResult = { display_name: string; lat: number; lng: number };
-
-const DEFAULT_CENTER: [number, number] = [38.3452, -0.481];
+type SearchResult = {
+  display_name: string;
+  label: string;
+  subtitle: string;
+  type: string;
+  lat: number;
+  lng: number;
+};
 
 const SPORT_OPTIONS = [
   { value: "none",        label: "None" },
@@ -27,11 +33,20 @@ const SPORT_OPTIONS = [
   { value: "other",       label: "Other large equipment" },
 ];
 
+const TYPE_ICON: Record<string, string> = {
+  airport: "✈",
+  hotel:   "🏨",
+  food:    "🍽",
+  train:   "🚆",
+  bus:     "🚌",
+  street:  "🏠",
+  place:   "📍",
+};
+
 async function reverseLookup(lat: number, lng: number): Promise<string> {
   try {
     const res  = await fetch(`/api/maps/reverse?lat=${lat}&lng=${lng}`, { cache: "no-store" });
     const json = await res.json().catch(() => null);
-    // API returns { display_name, address_line1, ... } at top level — no data wrapper
     return String(json?.display_name || "").trim() || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
   } catch {
     return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
@@ -55,10 +70,58 @@ const inputCls  = "w-full bg-[#f0f0f0] px-4 py-4 text-base font-medium text-blac
 const selectCls = "w-full bg-[#f0f0f0] px-4 py-4 text-base font-medium text-black outline-none focus:bg-[#e8e8e8] transition-colors appearance-none cursor-pointer";
 const labelCls  = "block text-xs font-black uppercase tracking-widest text-black mb-2";
 
+// ── City selector dropdown ────────────────────────────────────────────────────
+function CitySelector({ value, onChange }: { value: CityEntry; onChange: (c: CityEntry) => void }) {
+  const grouped = citiesByCountry();
+  return (
+    <div className="bg-black px-4 py-3 flex flex-wrap items-center gap-3">
+      <span className="text-xs font-black uppercase tracking-widest text-white/60">Searching near</span>
+      <select
+        value={`${value.country}|${value.city}`}
+        onChange={e => {
+          const [country, city] = e.target.value.split("|");
+          const found = CITIES.find(c => c.country === country && c.city === city);
+          if (found) onChange(found);
+        }}
+        className="bg-[#ff7a00] text-white font-black text-sm px-3 py-1.5 outline-none cursor-pointer appearance-none"
+      >
+        {Object.entries(grouped).map(([country, cities]) => (
+          <optgroup key={country} label={country}>
+            {cities.map(c => (
+              <option key={c.city} value={`${c.country}|${c.city}`}>
+                {c.city}, {c.country}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      <span className="text-xs font-semibold text-white/40">
+        Change city if your pickup is elsewhere
+      </span>
+    </div>
+  );
+}
+
+// ── Search result dropdown row ────────────────────────────────────────────────
+function ResultRow({ r, onClick }: { r: SearchResult; onClick: () => void }) {
+  const icon = TYPE_ICON[r.type] || "📍";
+  return (
+    <button type="button" onClick={onClick}
+      className="w-full text-left px-4 py-3 hover:bg-[#f0f0f0] border-b border-black/5 last:border-b-0 flex items-start gap-3">
+      <span className="mt-0.5 text-base shrink-0 w-5 text-center">{icon}</span>
+      <span className="flex flex-col min-w-0">
+        <span className="text-sm font-black text-black truncate">{r.label || r.display_name}</span>
+        {r.subtitle && <span className="text-xs font-semibold text-black/50 truncate">{r.subtitle}</span>}
+      </span>
+    </button>
+  );
+}
+
 export default function BookPage() {
   const router   = useRouter();
   const supabase = useMemo(() => createCustomerBrowserClient(), []);
 
+  const [city,           setCity]          = useState<CityEntry>(DEFAULT_CITY);
   const [pickupAddress,  setPickupAddress]  = useState("");
   const [pickupLat,      setPickupLat]      = useState<number | null>(null);
   const [pickupLng,      setPickupLng]      = useState<number | null>(null);
@@ -86,7 +149,7 @@ export default function BookPage() {
   const dropoffTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoSubmitting = useRef(false);
 
-  // Pre-fill from homepage widget, then auto-submit if user just signed up/logged in
+  // Pre-fill from homepage draft, then auto-submit if just signed in
   useEffect(() => {
     let draft: Record<string, any> | null = null;
     try {
@@ -108,25 +171,24 @@ export default function BookPage() {
     if (draft.suitcases)      setSuitcases(String(draft.suitcases));
     if (draft.vehicleSlug)    setVehicleSlug(draft.vehicleSlug);
     if (draft.sportEquipment) setSportEquipment(draft.sportEquipment);
+    if (draft.cityKey) {
+      const found = CITIES.find(c => `${c.country}|${c.city}` === draft!.cityKey);
+      if (found) setCity(found);
+    }
 
     const d = draft;
 
     function tryAutoSubmit(token: string) {
       if (autoSubmitting.current) return;
       autoSubmitting.current = true;
-
       const pLat = d.pickupLat, pLng = d.pickupLng;
       const dLat = d.dropoffLat, dLng = d.dropoffLng;
-      const pAt  = d.pickupAt,   dAt  = d.dropoffAt;
-
+      const pAt = d.pickupAt, dAt = d.dropoffAt;
       if (!pLat || !pLng || !dLat || !dLng || !pAt || !dAt) return;
-
       const duration = calculateDurationMinutes(pAt, dAt);
       if (!duration) return;
-
       const cat = FLEET_CATEGORIES.find(c => c.slug === (d.vehicleSlug || FLEET_CATEGORIES[0]?.slug));
       if (!cat) return;
-
       setLoading(true);
       fetch("/api/test-booking/requests", {
         method: "POST",
@@ -159,23 +221,25 @@ export default function BookPage() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.access_token) tryAutoSubmit(session.access_token);
     });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       if (session?.access_token) tryAutoSubmit(session.access_token);
     });
-
     return () => subscription.unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  function buildSearchUrl(q: string) {
+    return `/api/maps/search?q=${encodeURIComponent(q)}&lat=${city.lat}&lon=${city.lng}`;
+  }
+
   function searchPickup(q: string) {
     setPickupAddress(q); setPickupLat(null); setPickupLng(null);
     if (pickupTimer.current) clearTimeout(pickupTimer.current);
-    if (q.length < 3) { setPickupResults([]); return; }
+    if (q.length < 2) { setPickupResults([]); return; }
     pickupTimer.current = setTimeout(async () => {
       setPickupLoading(true);
       try {
-        const res  = await fetch(`/api/maps/search?q=${encodeURIComponent(q)}`, { cache: "no-store" });
+        const res  = await fetch(buildSearchUrl(q), { cache: "no-store" });
         const json = await res.json().catch(() => null);
         setPickupResults(json?.data || []);
       } catch { setPickupResults([]); }
@@ -186,11 +250,11 @@ export default function BookPage() {
   function searchDropoff(q: string) {
     setDropoffAddress(q); setDropoffLat(null); setDropoffLng(null);
     if (dropoffTimer.current) clearTimeout(dropoffTimer.current);
-    if (q.length < 3) { setDropoffResults([]); return; }
+    if (q.length < 2) { setDropoffResults([]); return; }
     dropoffTimer.current = setTimeout(async () => {
       setDropoffLoading(true);
       try {
-        const res  = await fetch(`/api/maps/search?q=${encodeURIComponent(q)}`, { cache: "no-store" });
+        const res  = await fetch(buildSearchUrl(q), { cache: "no-store" });
         const json = await res.json().catch(() => null);
         setDropoffResults(json?.data || []);
       } catch { setDropoffResults([]); }
@@ -219,6 +283,7 @@ export default function BookPage() {
         pickupAddress, pickupLat, pickupLng,
         dropoffAddress, dropoffLat, dropoffLng,
         pickupAt, dropoffAt, passengers, suitcases, vehicleSlug, sportEquipment, notes,
+        cityKey: `${city.country}|${city.city}`,
       }));
       router.push("/login?next=/book");
       return;
@@ -263,8 +328,8 @@ export default function BookPage() {
     }
   }
 
-  const mapLat   = pickupLat ?? dropoffLat ?? DEFAULT_CENTER[0];
-  const mapLng   = pickupLng ?? dropoffLng ?? DEFAULT_CENTER[1];
+  const mapLat   = pickupLat ?? dropoffLat ?? city.lat;
+  const mapLng   = pickupLng ?? dropoffLng ?? city.lng;
   const duration = calculateDurationMinutes(pickupAt, dropoffAt);
 
   return (
@@ -285,7 +350,6 @@ export default function BookPage() {
         </div>
       </div>
 
-      {/* Loading overlay for auto-submit */}
       {loading && (
         <div className="w-full bg-[#f0f0f0] px-6 py-20 flex flex-col items-center justify-center gap-4">
           <div className="h-10 w-10 rounded-full border-4 border-[#ff7a00] border-t-transparent animate-spin" />
@@ -293,7 +357,6 @@ export default function BookPage() {
         </div>
       )}
 
-      {/* Form — hidden while auto-submitting */}
       {!loading && (
         <div className="w-full bg-[#f0f0f0] px-6 py-10">
           <div className="mx-auto max-w-3xl">
@@ -307,75 +370,94 @@ export default function BookPage() {
             <form onSubmit={onSubmit} className="space-y-4">
 
               {/* Locations */}
-              <div className="bg-white p-6">
-                <p className={labelCls}>Locations</p>
+              <div className="bg-white overflow-hidden">
 
-                {/* Map mode toggle */}
-                <div className="flex gap-2 mb-4">
-                  {(["pickup", "dropoff"] as const).map(m => (
-                    <button key={m} type="button" onClick={() => setMapMode(m)}
-                      className={`px-4 py-2 text-xs font-black uppercase tracking-wide transition-colors ${mapMode === m ? "bg-black text-white" : "bg-[#f0f0f0] text-black hover:bg-[#e8e8e8]"}`}>
-                      Map sets {m}
-                    </button>
-                  ))}
-                  {mapPicking && <span className="self-center text-xs font-semibold text-black/40">Looking up address…</span>}
-                </div>
+                {/* City selector bar */}
+                <CitySelector value={city} onChange={c => {
+                  setCity(c);
+                  setPickupResults([]);
+                  setDropoffResults([]);
+                }} />
 
-                {/* Pickup */}
-                <div className="relative mb-3">
-                  <label className={labelCls}>
-                    Pickup address <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base pointer-events-none">📍</span>
-                    <input value={pickupAddress} onChange={e => searchPickup(e.target.value)}
-                      placeholder="Airport, hotel, address…"
-                      className={inputCls + " pl-10"} />
+                <div className="p-6">
+                  <p className={labelCls}>Locations</p>
+
+                  {/* Map mode toggle */}
+                  <div className="flex gap-2 mb-4">
+                    {(["pickup", "dropoff"] as const).map(m => (
+                      <button key={m} type="button" onClick={() => setMapMode(m)}
+                        className={`px-4 py-2 text-xs font-black uppercase tracking-wide transition-colors ${mapMode === m ? "bg-black text-white" : "bg-[#f0f0f0] text-black hover:bg-[#e8e8e8]"}`}>
+                        Map sets {m}
+                      </button>
+                    ))}
+                    {mapPicking && <span className="self-center text-xs font-semibold text-black/40">Looking up address…</span>}
                   </div>
-                  {pickupLoading && <p className="mt-1 text-xs font-semibold text-black/30">Searching…</p>}
-                  {pickupResults.length > 0 && (
-                    <div className="absolute z-20 left-0 right-0 mt-0.5 bg-white shadow-xl overflow-hidden border border-black/10">
-                      {pickupResults.map((r, i) => (
-                        <button key={i} type="button"
-                          onClick={() => { setPickupAddress(r.display_name); setPickupLat(r.lat); setPickupLng(r.lng); setPickupResults([]); }}
-                          className="w-full text-left px-4 py-3 text-sm font-medium text-black hover:bg-[#f0f0f0] border-b border-black/5 last:border-b-0">
-                          {r.display_name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
 
-                {/* Dropoff */}
-                <div className="relative mb-5">
-                  <label className={labelCls}>
-                    Drop-off address <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base pointer-events-none">🏁</span>
-                    <input value={dropoffAddress} onChange={e => searchDropoff(e.target.value)}
-                      placeholder="Return location"
-                      className={inputCls + " pl-10"} />
+                  {/* Pickup */}
+                  <div className="relative mb-3">
+                    <label className={labelCls}>
+                      Pickup address <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base pointer-events-none">📍</span>
+                      <input
+                        value={pickupAddress}
+                        onChange={e => searchPickup(e.target.value)}
+                        onFocus={() => { if (pickupResults.length) {} }}
+                        placeholder={`Airport, hotel, address in ${city.city}…`}
+                        className={inputCls + " pl-10"}
+                      />
+                    </div>
+                    {pickupLoading && <p className="mt-1 text-xs font-semibold text-black/30">Searching…</p>}
+                    {pickupResults.length > 0 && (
+                      <div className="absolute z-20 left-0 right-0 mt-0.5 bg-white shadow-xl overflow-hidden border border-black/10">
+                        {pickupResults.map((r, i) => (
+                          <ResultRow key={i} r={r} onClick={() => {
+                            setPickupAddress(r.display_name);
+                            setPickupLat(r.lat);
+                            setPickupLng(r.lng);
+                            setPickupResults([]);
+                          }} />
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {dropoffLoading && <p className="mt-1 text-xs font-semibold text-black/30">Searching…</p>}
-                  {dropoffResults.length > 0 && (
-                    <div className="absolute z-20 left-0 right-0 mt-0.5 bg-white shadow-xl overflow-hidden border border-black/10">
-                      {dropoffResults.map((r, i) => (
-                        <button key={i} type="button"
-                          onClick={() => { setDropoffAddress(r.display_name); setDropoffLat(r.lat); setDropoffLng(r.lng); setDropoffResults([]); }}
-                          className="w-full text-left px-4 py-3 text-sm font-medium text-black hover:bg-[#f0f0f0] border-b border-black/5 last:border-b-0">
-                          {r.display_name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
 
-                {/* Map */}
-                <MapPicker lat={mapLat} lng={mapLng} onPick={handleMapPick} />
-                <p className="mt-2 text-xs font-semibold text-black/30">
-                  💡 Click the map to set the {mapMode} location pin.
-                </p>
+                  {/* Dropoff */}
+                  <div className="relative mb-5">
+                    <label className={labelCls}>
+                      Drop-off address <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base pointer-events-none">🏁</span>
+                      <input
+                        value={dropoffAddress}
+                        onChange={e => searchDropoff(e.target.value)}
+                        placeholder="Return location"
+                        className={inputCls + " pl-10"}
+                      />
+                    </div>
+                    {dropoffLoading && <p className="mt-1 text-xs font-semibold text-black/30">Searching…</p>}
+                    {dropoffResults.length > 0 && (
+                      <div className="absolute z-20 left-0 right-0 mt-0.5 bg-white shadow-xl overflow-hidden border border-black/10">
+                        {dropoffResults.map((r, i) => (
+                          <ResultRow key={i} r={r} onClick={() => {
+                            setDropoffAddress(r.display_name);
+                            setDropoffLat(r.lat);
+                            setDropoffLng(r.lng);
+                            setDropoffResults([]);
+                          }} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Map */}
+                  <MapPicker lat={mapLat} lng={mapLng} onPick={handleMapPick} />
+                  <p className="mt-2 text-xs font-semibold text-black/30">
+                    💡 Click the map to set the {mapMode} location pin.
+                  </p>
+                </div>
               </div>
 
               {/* Dates */}
@@ -384,13 +466,11 @@ export default function BookPage() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label className={labelCls}>Pickup date &amp; time <span className="text-red-500">*</span></label>
-                    <input type="datetime-local" value={pickupAt} onChange={e => setPickupAt(e.target.value)}
-                      className={inputCls} />
+                    <input type="datetime-local" value={pickupAt} onChange={e => setPickupAt(e.target.value)} className={inputCls} />
                   </div>
                   <div>
                     <label className={labelCls}>Drop-off date &amp; time <span className="text-red-500">*</span></label>
-                    <input type="datetime-local" value={dropoffAt} onChange={e => setDropoffAt(e.target.value)}
-                      className={inputCls} />
+                    <input type="datetime-local" value={dropoffAt} onChange={e => setDropoffAt(e.target.value)} className={inputCls} />
                   </div>
                 </div>
                 {duration && (
@@ -452,7 +532,6 @@ export default function BookPage() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
