@@ -268,7 +268,7 @@ function CustomerHome() {
 
             {/* City selector bar */}
             <div className="bg-black px-4 py-3 flex flex-wrap items-center gap-3 mb-3">
-              <span className="text-xs font-black uppercase tracking-widest text-white/60">Searching near</span>
+              <span className="text-xs font-black uppercase tracking-widest text-white">Searching near</span>
               <select
                 value={`${city.country}|${city.city}`}
                 onChange={e => {
@@ -288,7 +288,7 @@ function CustomerHome() {
                   </optgroup>
                 ))}
               </select>
-              <span className="text-xs font-semibold text-white/70">
+              <span className="text-xs font-black text-white">
                 Change if your pickup is in a different city
               </span>
             </div>
