@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import CurrencySelector from "@/app/components/CurrencySelector";
 import CookieBanner from "@/app/components/CookieBanner";
 import Footer from "@/app/components/Footer";
 import GoogleAnalyticsPageView from "@/app/components/GoogleAnalytics";
+import ChatWidget from "@/app/components/ChatWidget";
 
 export default function ClientRootLayout({
   children,
@@ -41,7 +42,6 @@ export default function ClientRootLayout({
   const isComingSoonPage = pathname === "/coming-soon";
 
   const showGlobalHeader = !isHomepage && !isComingSoonPage;
-  const showCustomerNav = isNewCustomerArea || isTestBookingArea || isCustomerPublicPage;
 
   const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState(false);
   const [customerName, setCustomerName] = useState("");
@@ -93,6 +93,18 @@ export default function ClientRootLayout({
     window.location.replace("/login?reason=signed_out");
   }
 
+  // Stable token getter for ChatWidget — gets a fresh token on each call
+  const getToken = useCallback(async (): Promise<string | null> => {
+    try {
+      const { createCustomerBrowserClient } = await import("@/lib/supabase-customer/browser");
+      const supabase = createCustomerBrowserClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) return session.access_token;
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      return refreshed?.session?.access_token ?? null;
+    } catch { return null; }
+  }, []);
+
   const bookingsHref   = isTestBookingArea ? "/test-booking/requests" : "/bookings";
   const newBookingHref = isTestBookingArea ? "/test-booking/new"      : "/book";
   const settingsHref   = isTestBookingArea ? "/test-booking/settings" : "/account";
@@ -138,6 +150,11 @@ export default function ClientRootLayout({
       <main className="flex-1">{children}</main>
       {!isComingSoonPage && <Footer />}
       {!isComingSoonPage && <CookieBanner />}
+
+      {/* AI chat widget — only shown when logged in, not on coming soon */}
+      {isCustomerLoggedIn && !isComingSoonPage && (
+        <ChatWidget getToken={getToken} apiPath="/api/chat" />
+      )}
     </>
   );
 }
