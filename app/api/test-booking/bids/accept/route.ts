@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceRoleSupabaseClient } from "@/lib/supabase/server";
 import { createCustomerServiceRoleSupabaseClient } from "@/lib/supabase-customer/server";
 import { syncBookingStatuses } from "@/lib/portal/syncBookingStatuses";
+import { calculateCommission } from "@/lib/portal/calculateCommission";
 
 function getBearerToken(req: Request) {
   const auth = req.headers.get("authorization") || "";
@@ -46,12 +47,12 @@ export async function POST(req: Request) {
     const bidCurrency: "EUR" | "GBP" =
       (bidRow.currency === "EUR" || bidRow.currency === "GBP") ? bidRow.currency : "EUR";
 
-    const requestId = String(bidRow.request_id || "");
+    const requestId     = String(bidRow.request_id || "");
     const partnerUserId = String(bidRow.partner_user_id || "");
-    const totalPrice = Number(bidRow.total_price || 0);
-    const fuelPrice = Number(bidRow.fuel_price || 0);
-    const carHirePrice = Number(bidRow.car_hire_price || 0);
-    const bidNotes = String(bidRow.notes || "").trim() || null;
+    const totalPrice    = Number(bidRow.total_price || 0);
+    const fuelPrice     = Number(bidRow.fuel_price || 0);
+    const carHirePrice  = Number(bidRow.car_hire_price || 0);
+    const bidNotes      = String(bidRow.notes || "").trim() || null;
 
     const { data: requestRow, error: requestErr } = await db
       .from("customer_requests")
@@ -73,6 +74,31 @@ export async function POST(req: Request) {
 
     const jobNumber = requestRow.job_number ?? null;
 
+    // Get partner's commission rate (profile override → platform default → 20%)
+    const [profileRes, platformRes] = await Promise.all([
+      db.from("partner_profiles")
+        .select("commission_rate")
+        .eq("user_id", partnerUserId)
+        .maybeSingle(),
+      db.from("platform_settings")
+        .select("default_commission_rate, minimum_commission_amount")
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    const commissionRatePct: number =
+      profileRes.data?.commission_rate ??
+      platformRes.data?.default_commission_rate ??
+      20;
+    const minimumCommission: number =
+      platformRes.data?.minimum_commission_amount ?? 10;
+
+    const { commissionAmount, partnerPayoutAmount, rateApplied } = calculateCommission(
+      carHirePrice,
+      commissionRatePct,
+      minimumCommission
+    );
+
     // Mark this bid accepted, others unsuccessful
     await db.from("partner_bids").update({ status: "accepted" }).eq("id", bidId);
     await db.from("partner_bids").update({ status: "unsuccessful" }).eq("request_id", requestId).neq("id", bidId);
@@ -93,16 +119,19 @@ export async function POST(req: Request) {
       const { data: insertedBooking, error: bookingErr } = await db
         .from("partner_bookings")
         .insert({
-          request_id: requestId,
-          winning_bid_id: bidId,
-          partner_user_id: partnerUserId,
-          booking_status: "confirmed",
-          amount: totalPrice,
-          fuel_price: fuelPrice,
-          car_hire_price: carHirePrice,
-          notes: bidNotes,
-          job_number: jobNumber,
-          currency: bidCurrency,  // stored in partner's currency
+          request_id:            requestId,
+          winning_bid_id:        bidId,
+          partner_user_id:       partnerUserId,
+          booking_status:        "confirmed",
+          amount:                totalPrice,
+          currency:              bidCurrency,
+          car_hire_price:        carHirePrice,
+          fuel_price:            fuelPrice,
+          commission_rate:       rateApplied,
+          commission_amount:     commissionAmount,
+          partner_payout_amount: partnerPayoutAmount,
+          notes:                 bidNotes,
+          job_number:            jobNumber,
         })
         .select("id")
         .single();
