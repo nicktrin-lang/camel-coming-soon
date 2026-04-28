@@ -55,7 +55,7 @@ export async function POST(
 
     if (booking.booking_status === "cancelled") return NextResponse.json({ error: "Already cancelled" }, { status: 400 });
     if (!PRE_COLLECTION_STATUSES.includes(booking.booking_status)) {
-      return NextResponse.json({ error: "This booking cannot be cancelled — the car has already been collected" }, { status: 400 });
+      return NextResponse.json({ error: "This booking cannot be cancelled — the car has already been collected or the hire is underway. No refund is available once the hire has started." }, { status: 400 });
     }
 
     // Calculate refund based on 48hr rule

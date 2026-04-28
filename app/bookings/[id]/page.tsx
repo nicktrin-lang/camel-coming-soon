@@ -235,8 +235,7 @@ function CustomerCancellationSummary({ bk }: { bk: BookingData }) {
       </div>
 
       <p className="text-xs font-semibold text-black/50">
-        Refunds are processed manually — if you have not received your refund within 5 working days, please contact us at{" "}
-        <a href="mailto:contact@camel-global.com" className="text-[#ff7a00] underline">contact@camel-global.com</a>
+        Refunds are processed automatically and will appear in your account within 5–10 working days depending on your bank.
       </p>
     </div>
   );
