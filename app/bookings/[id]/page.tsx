@@ -148,6 +148,100 @@ function BookingAmount({ amount, storedCurrency, customerCurrency, rates }: { am
   return <span>{fmtCurr(p,customerCurrency)} <span className="opacity-60 text-[0.85em]">({fmtCurr(convertAmount(n,storedCurrency,o,rates),o)})</span></span>;
 }
 
+function CustomerCancellationSummary({ bk }: { bk: BookingData }) {
+  const curr: Currency = bk.currency ?? "EUR";
+  const carHire  = Number(bk.car_hire_price || 0);
+  const fuel     = Number(bk.fuel_price || 0);
+  const total    = carHire + fuel;
+  const isFull   = bk.refund_status === "full";
+  const isPartial = bk.refund_status === "partial";
+  const within48 = isPartial;
+
+  const carHireRefund  = isFull ? carHire : 0;
+  const fuelRefund     = fuel; // always refunded
+  const totalRefund    = carHireRefund + fuelRefund;
+  const nonRefundable  = isPartial ? carHire : 0;
+
+  const cancelledByLabel = bk.cancelled_by === "partner"
+    ? "The car hire company"
+    : bk.cancelled_by === "admin"
+    ? "Camel Global"
+    : "You";
+
+  return (
+    <div className="border border-red-200 bg-red-50 px-6 py-5 space-y-5">
+      {/* Header */}
+      <div>
+        <p className="text-base font-black text-red-800">❌ This booking has been cancelled</p>
+        <p className="text-sm font-semibold text-red-600 mt-1">
+          Cancelled by: <strong>{cancelledByLabel}</strong> on {fmt(bk.cancelled_at)}
+        </p>
+        {bk.cancellation_reason && (
+          <p className="text-sm font-semibold text-red-600">Reason: {bk.cancellation_reason}</p>
+        )}
+      </div>
+
+      {/* 48hr explanation */}
+      <div className={`px-4 py-3 text-sm font-semibold border ${within48 ? "bg-amber-50 border-amber-300 text-amber-800" : "bg-green-50 border-green-300 text-green-800"}`}>
+        {within48
+          ? "⚠ This cancellation was made within 48 hours of your pickup time. Under our cancellation policy, the car hire fee is non-refundable. However, your full fuel deposit will be returned."
+          : "✅ This cancellation was made more than 48 hours before your pickup time. You are entitled to a full refund of everything you paid."}
+      </div>
+
+      {/* What you paid */}
+      <div className="bg-white border border-red-100 p-4">
+        <p className="text-xs font-black uppercase tracking-widest text-black/50 mb-3">What You Paid</p>
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="font-semibold text-black/60">Car hire</span>
+            <span className="font-black text-black">{fmtCurr(carHire, curr)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="font-semibold text-black/60">Full tank deposit</span>
+            <span className="font-black text-black">{fmtCurr(fuel, curr)}</span>
+          </div>
+          <div className="flex justify-between text-sm font-black border-t border-black/10 pt-2">
+            <span className="text-black/60">Total paid</span>
+            <span className="text-black">{fmtCurr(total, curr)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Refund breakdown */}
+      <div className="bg-white border border-red-100 p-4">
+        <p className="text-xs font-black uppercase tracking-widest text-black/50 mb-3">Your Refund</p>
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="font-semibold text-black/60">Car hire refund</span>
+            <span className={`font-black ${carHireRefund > 0 ? "text-green-700" : "text-red-500"}`}>
+              {carHireRefund > 0 ? fmtCurr(carHireRefund, curr) : `Not refunded — within 48hrs of pickup`}
+            </span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="font-semibold text-black/60">Fuel deposit refund</span>
+            <span className="font-black text-green-700">{fmtCurr(fuelRefund, curr)}</span>
+          </div>
+          {nonRefundable > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="font-semibold text-black/60">Non-refundable amount</span>
+              <span className="font-black text-red-600">{fmtCurr(nonRefundable, curr)}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-sm font-black border-t border-black/10 pt-2">
+            <span className="text-black">Total refund to you</span>
+            <span className="text-green-700 text-base">{fmtCurr(totalRefund, curr)}</span>
+          </div>
+        </div>
+      </div>
+
+      <p className="text-xs font-semibold text-black/50">
+        Refunds are processed manually — if you have not received your refund within 5 working days, please contact us at{" "}
+        <a href="mailto:contact@camel-global.com" className="text-[#ff7a00] underline">contact@camel-global.com</a>
+      </p>
+    </div>
+  );
+}
+
 function BookingSummaryCard({ bk, rates, rateIsLive }: { bk: BookingData; rates: Rates; rateIsLive: boolean }) {
   const stored: Currency = bk.currency??"EUR";
   const sec1: Currency   = stored==="USD"?"EUR":stored==="GBP"?"EUR":"GBP";
@@ -553,20 +647,8 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             </div>
           )}
 
-          {/* Cancelled banner */}
-          {isCancelled&&(
-            <div className="border border-red-300 bg-red-50 px-6 py-4">
-              <p className="text-base font-black text-red-800">❌ This booking has been cancelled</p>
-              {bk?.cancelled_by&&<p className="mt-1 text-sm font-semibold text-red-600">Cancelled by: {bk.cancelled_by}</p>}
-              {bk?.cancelled_at&&<p className="text-sm font-semibold text-red-600">At: {fmt(bk.cancelled_at)}</p>}
-              {bk?.cancellation_reason&&<p className="text-sm font-semibold text-red-600">Reason: {bk.cancellation_reason}</p>}
-              {bk?.refund_status&&(
-                <p className="mt-2 text-sm font-black text-red-800">
-                  {bk.refund_status==="full"?`Full refund of ${fmtCurr(carHire+fuel,bkCurr)} will be processed.`:bk.refund_status==="partial"?`Partial refund of ${fmtCurr(fuel,bkCurr)} (fuel deposit) will be processed. Car hire fee is non-refundable.`:"No refund applicable."}
-                </p>
-              )}
-            </div>
-          )}
+          {/* Cancellation summary */}
+          {isCancelled && bk && <CustomerCancellationSummary bk={bk} />}
 
           {/* Cancel section */}
           {canCancel&&(
