@@ -132,7 +132,7 @@ export async function GET(
           collection_confirmed_by_customer, collection_confirmed_by_customer_at, collection_fuel_level_customer, collection_customer_notes,
           return_confirmed_by_customer, return_confirmed_by_customer_at, return_fuel_level_customer, return_customer_notes,
           insurance_docs_confirmed_by_driver, insurance_docs_confirmed_by_driver_at,
-          insurance_docs_confirmed_by_customer, insurance_docs_confirmed_by_customer_at
+          insurance_docs_confirmed_by_customer, insurance_docs_confirmed_by_customer_at, cancelled_by, cancelled_at, cancellation_reason, refund_status
         `)
         .eq("winning_bid_id", acceptedBid.id)
         .order("created_at", { ascending: false })
@@ -201,6 +201,10 @@ export async function GET(
           insurance_docs_confirmed_by_driver_at: bk.insurance_docs_confirmed_by_driver_at || null,
           insurance_docs_confirmed_by_customer: !!bk.insurance_docs_confirmed_by_customer,
           insurance_docs_confirmed_by_customer_at: bk.insurance_docs_confirmed_by_customer_at || null,
+          cancelled_by: bk.cancelled_by || null,
+          cancelled_at: bk.cancelled_at || null,
+          cancellation_reason: bk.cancellation_reason || null,
+          refund_status: bk.refund_status || null,
           // Review
           has_review: !!existingReview,
           existing_review: existingReview || null,
