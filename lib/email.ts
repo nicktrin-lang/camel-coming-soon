@@ -57,7 +57,7 @@ export async function sendEmail({
 }
 
 export async function sendApplicationReceivedEmail(to: string) {
-  const baseUrl = process.env.PORTAL_BASE_URL || "http://localhost:3000";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://camel-global.com";
   return sendEmail({
     to,
     subject: "Your Camel Global partner application has been received",
@@ -75,7 +75,7 @@ export async function sendApplicationReceivedEmail(to: string) {
 }
 
 export async function sendApprovalEmail(to: string) {
-  const baseUrl = process.env.PORTAL_BASE_URL || "http://localhost:3000";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://camel-global.com";
   return sendEmail({
     to,
     subject: "Your Camel Global account has been approved ✅",
@@ -114,7 +114,7 @@ export async function sendRejectionEmail(to: string) {
 }
 
 export async function sendAccountLiveEmail(to: string) {
-  const baseUrl = process.env.PORTAL_BASE_URL || "http://localhost:3000";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://camel-global.com";
   return sendEmail({
     to,
     subject: "Your Camel Global account is now live 🚀",
@@ -136,7 +136,7 @@ export async function sendAccountLiveEmail(to: string) {
 }
 
 export async function sendCustomerBidReceivedEmail(to: string, jobNumber?: number | null) {
-  const baseUrl = process.env.PORTAL_BASE_URL || "http://localhost:3000";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://camel-global.com";
   return sendEmail({
     to,
     subject: `A new partner bid has been received${jobNumber ? ` for booking ${jobNumber}` : ""}`,
@@ -145,7 +145,7 @@ export async function sendCustomerBidReceivedEmail(to: string, jobNumber?: numbe
         <h2>New partner bid received</h2>
         <p>A partner has submitted a bid for your booking request${jobNumber ? ` <strong>${jobNumber}</strong>` : ""}.</p>
         <p>You can now log in and review the bid details.</p>
-        <p><a href="${baseUrl}/test-booking/requests">View your requests</a></p>
+        <p><a href="${baseUrl}/bookings">View your requests</a></p>
         <p style="margin-top:24px;">Best Regards,<br />The Camel Global Team</p>
       </div>
     `,
@@ -153,7 +153,7 @@ export async function sendCustomerBidReceivedEmail(to: string, jobNumber?: numbe
 }
 
 export async function sendCustomerBookingCompletedEmail(to: string, jobNumber?: number | null) {
-  const baseUrl = process.env.PORTAL_BASE_URL || "http://localhost:3000";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://camel-global.com";
   return sendEmail({
     to,
     subject: `Your Camel Global booking is now completed${jobNumber ? ` - ${jobNumber}` : ""}`,
@@ -162,7 +162,7 @@ export async function sendCustomerBookingCompletedEmail(to: string, jobNumber?: 
         <h2>Booking completed</h2>
         <p>Your booking${jobNumber ? ` <strong>${jobNumber}</strong>` : ""} has now been marked as completed.</p>
         <p>The vehicle return has been confirmed.</p>
-        <p><a href="${baseUrl}/test-booking/requests">View booking details</a></p>
+        <p><a href="${baseUrl}/bookings">View booking details</a></p>
         <p style="margin-top:24px;">Best Regards,<br />The Camel Global Team</p>
       </div>
     `,
@@ -174,10 +174,10 @@ export async function sendReviewReminderEmail(
   jobNumber?: number | null,
   requestId?: string | null
 ) {
-  const baseUrl   = process.env.PORTAL_BASE_URL || "http://localhost:3000";
+  const baseUrl   = process.env.NEXT_PUBLIC_SITE_URL || "https://camel-global.com";
   const reviewUrl = requestId
-    ? `${baseUrl}/test-booking/requests/${requestId}`
-    : `${baseUrl}/test-booking/requests`;
+    ? `${baseUrl}/bookings/${requestId}`
+    : `${baseUrl}/bookings`;
 
   return sendEmail({
     to,
