@@ -69,11 +69,12 @@ export default function BookingsPage() {
 
   const active    = rows.filter(r => ["open","confirmed","driver_assigned","en_route","arrived","collected","returned"].includes(r.status));
   const completed = rows.filter(r => r.status === "completed");
-  const other     = rows.filter(r => !["open","confirmed","driver_assigned","en_route","arrived","collected","returned","completed"].includes(r.status));
+  const cancelled = rows.filter(r => r.status === "cancelled");
 
   const tabs = [
     { key: "active",    label: "Active",    count: active.length,    items: active,    bar: "bg-[#ff7a00]" },
     { key: "completed", label: "Completed", count: completed.length, items: completed, bar: "bg-green-500" },
+    { key: "cancelled", label: "Cancelled", count: cancelled.length, items: cancelled, bar: "bg-red-500" },
     { key: "all",       label: "All",       count: rows.length,      items: rows,      bar: "bg-black" },
   ];
 
