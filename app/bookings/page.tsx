@@ -96,7 +96,7 @@ export default function BookingsPage() {
       {/* Summary tabs */}
       <div className="w-full bg-[#f0f0f0] px-6 py-8">
         <div className="mx-auto max-w-5xl">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-4">
             {tabs.map(t => (
               <button key={t.key} type="button" onClick={() => setActiveTab(t.key)}
                 className={`text-left p-6 transition-colors ${activeTab === t.key ? "bg-black text-white" : "bg-white hover:bg-[#e8e8e8] text-black"}`}>
