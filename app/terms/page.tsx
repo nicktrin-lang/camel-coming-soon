@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   description: "The terms that apply when you use the Camel Global platform to book a hire car.",
 };
 
-const EFFECTIVE_DATE  = "1 April 2026";
+const EFFECTIVE_DATE  = "1 May 2026";
 const COMPANY_NAME    = "Camel Global Ltd";
 const COMPANY_REG     = "XXXXXXXX"; // TODO: Replace with real registration number
 const COMPANY_ADDRESS = "123 Placeholder Street, London, EC1A 1BB, United Kingdom"; // TODO: Replace
@@ -78,7 +78,7 @@ export default function CustomerTermsPage() {
           <div>
             <h2 className="text-2xl font-black text-black mb-3">4. Making a booking</h2>
             <p className="text-base font-semibold mb-3">
-              When you submit a request, it&apos;s sent to verified partners within 30km of your pickup location.
+              When you submit a request, it&apos;s sent to verified partners within range of your pickup location.
               Partners may or may not place a bid — we can&apos;t guarantee that any specific partner or number
               of partners will respond.
             </p>
@@ -119,15 +119,70 @@ export default function CustomerTermsPage() {
           </div>
 
           <div>
-            <h2 className="text-2xl font-black text-black mb-3">7. Cancellations</h2>
-            <p className="text-base font-semibold mb-3">
-              Cancellation terms vary by partner and are shown at the time of booking. Camel Global
-              will apply those terms when processing any cancellation or refund request.
-            </p>
-            <p className="text-base font-semibold">
-              To cancel a booking, use the platform or use our{" "}
-              <a href="/contact" className="text-[#ff7a00] hover:underline">contact form</a>.
-            </p>
+            <h2 className="text-2xl font-black text-black mb-3">7. Cancellations and refunds</h2>
+
+            <div className="bg-[#f0f0f0] px-5 py-4 mb-5">
+              <p className="text-base font-black text-black mb-1">Cancellation policy summary</p>
+              <p className="text-sm font-semibold text-black/70">
+                The refund you receive depends on when you cancel relative to your scheduled pickup time.
+                This policy is fixed and applies to all bookings on the platform.
+              </p>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div className="border-l-4 border-green-500 pl-4">
+                <p className="text-base font-black text-black mb-1">More than 48 hours before pickup — Full refund</p>
+                <p className="text-base font-semibold text-black/70">
+                  If you cancel more than 48 hours before your scheduled pickup time, you will receive a full
+                  refund of everything you paid — including the car hire fee and the fuel deposit.
+                </p>
+              </div>
+
+              <div className="border-l-4 border-amber-500 pl-4">
+                <p className="text-base font-black text-black mb-1">Within 48 hours of pickup — Partial refund</p>
+                <p className="text-base font-semibold text-black/70">
+                  If you cancel within 48 hours of your scheduled pickup time, the car hire fee is
+                  non-refundable. The car hire company has reserved the vehicle for you and is entitled
+                  to retain that fee. However, the full fuel deposit will always be refunded in full,
+                  as the fuel has not been used.
+                </p>
+              </div>
+
+              <div className="border-l-4 border-red-500 pl-4">
+                <p className="text-base font-black text-black mb-1">Once the hire has started — No refund</p>
+                <p className="text-base font-semibold text-black/70">
+                  Once the vehicle has been delivered and the hire is underway, cancellations are not
+                  possible and no refund is available for the car hire fee. Fuel is settled based on
+                  actual usage recorded at the end of the hire.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-base font-semibold">
+                <strong>Partner cancellations:</strong> If the car hire company cancels your booking for any
+                reason, you will receive a full refund of everything you paid, regardless of timing.
+              </p>
+
+              <p className="text-base font-semibold">
+                <strong>The 48-hour threshold</strong> is measured from the scheduled pickup time recorded
+                on your booking at the time of confirmation. The cancellation timestamp is recorded
+                automatically by the platform at the moment you confirm the cancellation — this is the
+                timestamp used to determine which tier applies.
+              </p>
+
+              <p className="text-base font-semibold">
+                <strong>How to cancel:</strong> You can cancel a booking directly from your bookings page,
+                provided the hire has not yet started. You do not need to contact us to cancel — the
+                platform handles it automatically.
+              </p>
+
+              <p className="text-base font-semibold">
+                <strong>Refunds</strong> are processed automatically and will appear in your account
+                within 5–10 working days depending on your bank or card provider. You do not need to
+                request a refund — it is issued automatically when you cancel.
+              </p>
+            </div>
           </div>
 
           <div>
