@@ -691,7 +691,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
               ].map(([l,v])=>(
                 <p key={String(l)} className="text-sm font-semibold text-black"><span className="font-black">{l}:</span> {String(v)}</p>
               ))}
-              {bk&&<p className="text-sm font-semibold text-black sm:col-span-2"><span className="font-black">Booking currency:</span> {bk.currency??"EUR"}</p>}
+              {bk&&<p className="text-sm font-semibold text-black sm:col-span-2"><span className="font-black">Booking currency:</span> {(bk as any).charge_currency ?? bk.currency ?? "EUR"}</p>}
               {req.notes&&<p className="text-sm font-semibold text-black sm:col-span-2"><span className="font-black">Notes:</span> {req.notes}</p>}
             </div>
           </div>
