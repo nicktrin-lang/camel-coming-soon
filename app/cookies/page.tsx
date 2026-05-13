@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Cookie Policy | Camel Global",
-  description: "How Camel Global uses cookies and how to manage your preferences.",
+  description: "How NTUK Ltd (trading as Camel Global) uses cookies and how to manage your preferences.",
 };
 
 const EFFECTIVE_DATE = "1 April 2026";

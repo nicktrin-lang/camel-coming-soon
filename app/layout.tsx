@@ -11,6 +11,8 @@ const font = Plus_Jakarta_Sans({
   display: "swap",
 });
 
+const BASE_URL = "https://camel-global.com";
+
 export async function generateMetadata(): Promise<Metadata> {
   const headerStore = await headers();
   const host = headerStore.get("host") || "";
@@ -29,7 +31,72 @@ export async function generateMetadata(): Promise<Metadata> {
       },
     };
   }
-  return { title: "Camel Global", description: "Meet & greet car hire, delivered to your door." };
+
+  return {
+    title: {
+      default: "Camel Global | Meet & Greet Car Hire Delivered to You in Spain",
+      template: "%s | Camel Global",
+    },
+    description: "Camel Global delivers hire cars directly to you at Málaga, Alicante, Valencia, Madrid, Barcelona and all major Spanish airports. No queues, no bus transfers — your car comes to you.",
+    keywords: [
+      "meet and greet car hire Spain",
+      "car hire delivered to airport",
+      "Málaga airport car hire delivery",
+      "Alicante airport meet and greet car hire",
+      "Valencia airport car hire",
+      "Madrid airport car hire delivery",
+      "Barcelona airport meet and greet",
+      "Palma Mallorca airport car hire",
+      "Ibiza airport car hire",
+      "Tenerife airport car hire delivery",
+      "Gran Canaria car hire",
+      "Seville airport car hire",
+      "car delivered to hotel Spain",
+      "hire car delivered to you",
+      "meet and greet car rental Spain",
+      "airport car hire delivery service",
+    ],
+    authors: [{ name: "Camel Global", url: BASE_URL }],
+    creator: "Camel Global",
+    publisher: "NTUK Ltd",
+    metadataBase: new URL(BASE_URL),
+    alternates: {
+      canonical: BASE_URL,
+    },
+    openGraph: {
+      type: "website",
+      locale: "en_GB",
+      url: BASE_URL,
+      siteName: "Camel Global",
+      title: "Camel Global | Meet & Greet Car Hire Delivered to You in Spain",
+      description: "Skip the airport desk. We deliver hire cars directly to you at Málaga, Alicante, Valencia, Madrid, Barcelona and all major Spanish airports.",
+      images: [
+        {
+          url: `${BASE_URL}/camel-logo.png`,
+          width: 1200,
+          height: 630,
+          alt: "Camel Global — Meet & Greet Car Hire Spain",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "Camel Global | Meet & Greet Car Hire Spain",
+      description: "Your hire car delivered to you at any Spanish airport or hotel. No queues, no bus transfers.",
+      images: [`${BASE_URL}/camel-logo.png`],
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
+    },
+  };
 }
 
 function getGaId(host: string): string {
@@ -45,7 +112,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en">
       <head>
-        {/* GA4 — initialise dataLayer before the async script loads */}
         <script dangerouslySetInnerHTML={{
           __html: `window.dataLayer=window.dataLayer||[];function gtag(){window.dataLayer.push(arguments);}window.gtag=gtag;gtag('js',new Date());gtag('config','${gaId}',{send_page_view:true});`,
         }} />

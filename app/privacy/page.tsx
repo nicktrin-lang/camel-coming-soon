@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Privacy Policy | Camel Global",
-  description: "How Camel Global collects, uses, and protects your personal data.",
+  description: "How NTUK Ltd (trading as Camel Global) collects, uses and protects your personal data in accordance with UK and EU GDPR.",
 };
 
 const EFFECTIVE_DATE   = "1 April 2026";

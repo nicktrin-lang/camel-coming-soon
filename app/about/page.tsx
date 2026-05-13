@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "About Us | Camel Global",
-  description: "Learn about Camel Global — the meet & greet car hire platform connecting customers with trusted local car hire partners.",
+  title: "About Camel Global | Meet & Greet Car Hire Platform Spain",
+  description: "Camel Global is the meet & greet car hire platform for Spain. We connect customers with trusted local car hire companies who deliver directly to airports, hotels and homes.",
 };
 
 export default function AboutPage() {

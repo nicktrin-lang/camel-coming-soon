@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Customer Terms of Use | Camel Global",
-  description: "The terms that apply when you use the Camel Global platform to book a hire car.",
+  description: "The terms that apply when you use Camel Global to book meet & greet car hire in Spain. Includes our 48-hour cancellation policy and refund terms.",
 };
 
 const EFFECTIVE_DATE  = "1 May 2026";
