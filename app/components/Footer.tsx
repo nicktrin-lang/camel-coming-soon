@@ -67,7 +67,7 @@ function CustomerFooter() {
         </div>
 
         <div className="mt-10 border-t border-white/20 pt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-bold text-white">© {year} Camel Global Ltd. All rights reserved.</p>
+          <p className="text-sm font-bold text-white">© {year} NTUK Ltd. All rights reserved. Trading as Camel Global.</p>
           <p className="text-sm font-bold text-white">Registered in England &amp; Wales</p>
         </div>
       </div>

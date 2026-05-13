@@ -6,9 +6,9 @@ export const metadata: Metadata = {
 };
 
 const EFFECTIVE_DATE  = "1 May 2026";
-const COMPANY_NAME    = "Camel Global Ltd";
-const COMPANY_REG     = "XXXXXXXX"; // TODO: Replace with real registration number
-const COMPANY_ADDRESS = "123 Placeholder Street, London, EC1A 1BB, United Kingdom"; // TODO: Replace
+const COMPANY_NAME    = "NTUK Ltd (trading as Camel Global)";
+const COMPANY_REG     = "08765474";
+const COMPANY_ADDRESS = "Office 7, 35-37 Ludgate Hill, London, England, EC4M 7JN";
 
 export default function CustomerTermsPage() {
   return (

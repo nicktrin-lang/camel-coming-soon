@@ -42,7 +42,7 @@ export default function ComingSoonPage() {
       </div>
 
       <p className="mt-16 text-xs font-bold text-white/20">
-        © {new Date().getFullYear()} Camel Global Ltd. Registered in England & Wales.
+        © {new Date().getFullYear()} NTUK Ltd. Trading as Camel Global. Registered in England & Wales.
       </p>
     </div>
   );
