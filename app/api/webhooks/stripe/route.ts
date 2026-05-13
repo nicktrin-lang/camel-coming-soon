@@ -11,6 +11,43 @@ const db = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+/**
+ * Fetches Stripe fee + exchange rate from the charge's balance transaction.
+ * Returns null values gracefully if anything fails — we never want fee lookup
+ * to block booking creation.
+ */
+async function getStripeFeeData(chargeId: string | null): Promise<{
+  stripe_fee: number | null;
+  stripe_fee_currency: string | null;
+  exchange_rate: number | null;
+}> {
+  const empty = { stripe_fee: null, stripe_fee_currency: null, exchange_rate: null };
+  if (!chargeId) return empty;
+
+  try {
+    const charge = await stripe.charges.retrieve(chargeId, {
+      expand: ["balance_transaction"],
+    });
+
+    const bt = charge.balance_transaction as Stripe.BalanceTransaction | null;
+    if (!bt || typeof bt === "string") return empty;
+
+    // fee is in smallest currency unit (cents) — convert to major unit
+    const fee = bt.fee != null ? bt.fee / 100 : null;
+    const feeCurrency = bt.fee_details?.[0]?.currency?.toUpperCase() || null;
+    const exchangeRate = bt.exchange_rate ?? null;
+
+    return {
+      stripe_fee: fee,
+      stripe_fee_currency: feeCurrency,
+      exchange_rate: exchangeRate,
+    };
+  } catch (e: any) {
+    console.error("getStripeFeeData error:", e?.message);
+    return empty;
+  }
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const sig  = req.headers.get("stripe-signature");
@@ -29,17 +66,18 @@ export async function POST(req: NextRequest) {
       const pi = event.data.object as Stripe.PaymentIntent;
       const m  = pi.metadata;
 
-      const bidId           = m.bid_id;
-      const requestId       = m.request_id;
-      const customerUserId  = m.customer_user_id;
-      const partnerUserId   = m.partner_user_id;
-      const carHirePrice    = Number(m.car_hire_price  || 0);
-      const fuelPrice       = Number(m.fuel_price      || 0);
-      const commissionAmt   = Number(m.commission_amount || 0);
-      const commissionRate  = Number(m.commission_rate  || 20);
-      const partnerNet      = Number(m.partner_net      || 0);
-      const jobNumber       = m.job_number ? Number(m.job_number) : null;
-      const totalPrice      = carHirePrice + fuelPrice;
+      const bidId          = m.bid_id;
+      const requestId      = m.request_id;
+      const partnerUserId  = m.partner_user_id;
+      const carHirePrice   = Number(m.car_hire_price   || 0);
+      const fuelPrice      = Number(m.fuel_price       || 0);
+      const commissionAmt  = Number(m.commission_amount || 0);
+      const commissionRate = Number(m.commission_rate   || 20);
+      const partnerNet     = Number(m.partner_net       || 0);
+      const jobNumber      = m.job_number ? Number(m.job_number) : null;
+      const totalPrice     = carHirePrice + fuelPrice;
+
+      const chargeId = typeof pi.latest_charge === "string" ? pi.latest_charge : null;
 
       // Load bid for currency + notes
       const { data: bid } = await db
@@ -59,7 +97,7 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       if (request?.status !== "open") {
-        console.log(`Payment succeeded but request ${requestId} is ${request?.status} — skipping booking creation`);
+        console.log(`Payment succeeded but request ${requestId} is ${request?.status} — skipping`);
         return NextResponse.json({ received: true });
       }
 
@@ -108,12 +146,15 @@ export async function POST(req: NextRequest) {
         bookingId = inserted.id;
       }
 
-      // Record payment
+      // Fetch Stripe fee + exchange rate from balance transaction
+      const feeData = await getStripeFeeData(chargeId);
+
+      // Record payment — includes fee data
       await db.from("payments").insert({
         booking_id:               bookingId,
-        customer_id:              null, // customer_profiles lookup optional
+        customer_id:              null,
         stripe_payment_intent_id: pi.id,
-        stripe_charge_id:         typeof pi.latest_charge === "string" ? pi.latest_charge : null,
+        stripe_charge_id:         chargeId,
         amount_total:             totalPrice,
         amount_car_hire:          carHirePrice,
         amount_fuel_deposit:      fuelPrice,
@@ -122,6 +163,9 @@ export async function POST(req: NextRequest) {
         currency:                 currency.toUpperCase(),
         status:                   "succeeded",
         payout_status:            "held",
+        stripe_fee:               feeData.stripe_fee,
+        stripe_fee_currency:      feeData.stripe_fee_currency,
+        exchange_rate:            feeData.exchange_rate,
       });
 
       // Update booking with payment_id
@@ -138,7 +182,7 @@ export async function POST(req: NextRequest) {
       // Sync booking statuses
       await syncBookingStatuses(bookingId);
 
-      console.log(`payment_intent.succeeded: booking ${bookingId} created, payment recorded`);
+      console.log(`payment_intent.succeeded: booking ${bookingId}, fee ${feeData.stripe_fee} ${feeData.stripe_fee_currency}, rate ${feeData.exchange_rate}`);
     }
   } catch (e: any) {
     console.error("Webhook handler error:", e.message);
