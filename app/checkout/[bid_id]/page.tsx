@@ -53,6 +53,9 @@ function CheckoutForm({ intent, requestId, onError }: {
       elements,
       confirmParams: {
         return_url: `${window.location.origin}${successUrl}`,
+        payment_method_data: {
+          billing_details: { name: intent.partner_name },
+        },
       },
       redirect: "if_required",
     });
@@ -94,10 +97,7 @@ function CheckoutForm({ intent, requestId, onError }: {
       <div>
         <p className="text-xs font-black uppercase tracking-widest text-black mb-3">Payment Details</p>
         <PaymentElement
-          options={{
-            layout: "tabs",
-            fields: { billingDetails: { name: "never" } },
-          }}
+          options={{ layout: "tabs" }}
           onReady={() => setReady(true)}
         />
       </div>
@@ -228,7 +228,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ bid_id: str
         <div className="mx-auto max-w-2xl">
           <p className="text-xs font-black uppercase tracking-widest text-[#ff7a00] mb-2">Secure Checkout</p>
           <h1 className="text-3xl font-black">Complete your booking</h1>
-          <p className="mt-2 text-sm font-bold text-white/60">{intent.partner_name}</p>
+
         </div>
       </div>
 
