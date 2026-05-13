@@ -45,13 +45,13 @@ export async function getRate(from: Currency, to: Currency): Promise<number> {
   const rates = await getEurRates();
 
   // EUR → X
-  if (from === "EUR") return rates[to];
+  if (from === "EUR" && to !== "EUR") return rates[to as "GBP" | "USD"];
 
   // X → EUR
-  if (to === "EUR") return 1 / rates[from];
+  if (to === "EUR" && from !== "EUR") return 1 / rates[from as "GBP" | "USD"];
 
-  // X → Y (via EUR)
-  return (1 / rates[from]) * rates[to];
+  // X → Y (via EUR) e.g. GBP → USD
+  return (1 / rates[from as "GBP" | "USD"]) * rates[to as "GBP" | "USD"];
 }
 
 /**
