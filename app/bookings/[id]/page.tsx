@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
 import { useCurrency } from "@/lib/useCurrency";
 import type { Currency } from "@/lib/currency";
@@ -156,87 +156,39 @@ function CustomerCancellationSummary({ bk }: { bk: BookingData }) {
   const isFull   = bk.refund_status === "full";
   const isPartial = bk.refund_status === "partial";
   const within48 = isPartial;
-
   const carHireRefund  = isFull ? carHire : 0;
-  const fuelRefund     = fuel; // always refunded
+  const fuelRefund     = fuel;
   const totalRefund    = carHireRefund + fuelRefund;
   const nonRefundable  = isPartial ? carHire : 0;
-
-  const cancelledByLabel = bk.cancelled_by === "partner"
-    ? "The car hire company"
-    : bk.cancelled_by === "admin"
-    ? "Camel Global"
-    : "You";
-
+  const cancelledByLabel = bk.cancelled_by === "partner" ? "The car hire company" : bk.cancelled_by === "admin" ? "Camel Global" : "You";
   return (
     <div className="border border-red-200 bg-red-50 px-6 py-5 space-y-5">
-      {/* Header */}
       <div>
         <p className="text-base font-black text-red-800">❌ This booking has been cancelled</p>
-        <p className="text-sm font-semibold text-red-600 mt-1">
-          Cancelled by: <strong>{cancelledByLabel}</strong> on {fmt(bk.cancelled_at)}
-        </p>
-        {bk.cancellation_reason && (
-          <p className="text-sm font-semibold text-red-600">Reason: {bk.cancellation_reason}</p>
-        )}
+        <p className="text-sm font-semibold text-red-600 mt-1">Cancelled by: <strong>{cancelledByLabel}</strong> on {fmt(bk.cancelled_at)}</p>
+        {bk.cancellation_reason && <p className="text-sm font-semibold text-red-600">Reason: {bk.cancellation_reason}</p>}
       </div>
-
-      {/* 48hr explanation */}
       <div className={`px-4 py-3 text-sm font-semibold border ${within48 ? "bg-amber-50 border-amber-300 text-amber-800" : "bg-green-50 border-green-300 text-green-800"}`}>
-        {within48
-          ? "⚠ This cancellation was made within 48 hours of your pickup time. Under our cancellation policy, the car hire fee is non-refundable. However, your full fuel deposit will be returned."
-          : "✅ This cancellation was made more than 48 hours before your pickup time. You are entitled to a full refund of everything you paid."}
+        {within48 ? "⚠ This cancellation was made within 48 hours of your pickup time. Under our cancellation policy, the car hire fee is non-refundable. However, your full fuel deposit will be returned." : "✅ This cancellation was made more than 48 hours before your pickup time. You are entitled to a full refund of everything you paid."}
       </div>
-
-      {/* What you paid */}
       <div className="bg-white border border-red-100 p-4">
         <p className="text-xs font-black uppercase tracking-widest text-black/50 mb-3">What You Paid</p>
         <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="font-semibold text-black/60">Car hire</span>
-            <span className="font-black text-black">{fmtCurr(carHire, curr)}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="font-semibold text-black/60">Full tank deposit</span>
-            <span className="font-black text-black">{fmtCurr(fuel, curr)}</span>
-          </div>
-          <div className="flex justify-between text-sm font-black border-t border-black/10 pt-2">
-            <span className="text-black/60">Total paid</span>
-            <span className="text-black">{fmtCurr(total, curr)}</span>
-          </div>
+          <div className="flex justify-between text-sm"><span className="font-semibold text-black/60">Car hire</span><span className="font-black text-black">{fmtCurr(carHire, curr)}</span></div>
+          <div className="flex justify-between text-sm"><span className="font-semibold text-black/60">Full tank deposit</span><span className="font-black text-black">{fmtCurr(fuel, curr)}</span></div>
+          <div className="flex justify-between text-sm font-black border-t border-black/10 pt-2"><span className="text-black/60">Total paid</span><span className="text-black">{fmtCurr(total, curr)}</span></div>
         </div>
       </div>
-
-      {/* Refund breakdown */}
       <div className="bg-white border border-red-100 p-4">
         <p className="text-xs font-black uppercase tracking-widest text-black/50 mb-3">Your Refund</p>
         <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="font-semibold text-black/60">Car hire refund</span>
-            <span className={`font-black ${carHireRefund > 0 ? "text-green-700" : "text-red-500"}`}>
-              {carHireRefund > 0 ? fmtCurr(carHireRefund, curr) : `Not refunded — within 48hrs of pickup`}
-            </span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="font-semibold text-black/60">Fuel deposit refund</span>
-            <span className="font-black text-green-700">{fmtCurr(fuelRefund, curr)}</span>
-          </div>
-          {nonRefundable > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="font-semibold text-black/60">Non-refundable amount</span>
-              <span className="font-black text-red-600">{fmtCurr(nonRefundable, curr)}</span>
-            </div>
-          )}
-          <div className="flex justify-between text-sm font-black border-t border-black/10 pt-2">
-            <span className="text-black">Total refund to you</span>
-            <span className="text-green-700 text-base">{fmtCurr(totalRefund, curr)}</span>
-          </div>
+          <div className="flex justify-between text-sm"><span className="font-semibold text-black/60">Car hire refund</span><span className={`font-black ${carHireRefund > 0 ? "text-green-700" : "text-red-500"}`}>{carHireRefund > 0 ? fmtCurr(carHireRefund, curr) : "Not refunded — within 48hrs of pickup"}</span></div>
+          <div className="flex justify-between text-sm"><span className="font-semibold text-black/60">Fuel deposit refund</span><span className="font-black text-green-700">{fmtCurr(fuelRefund, curr)}</span></div>
+          {nonRefundable > 0 && <div className="flex justify-between text-sm"><span className="font-semibold text-black/60">Non-refundable amount</span><span className="font-black text-red-600">{fmtCurr(nonRefundable, curr)}</span></div>}
+          <div className="flex justify-between text-sm font-black border-t border-black/10 pt-2"><span className="text-black">Total refund to you</span><span className="text-green-700 text-base">{fmtCurr(totalRefund, curr)}</span></div>
         </div>
       </div>
-
-      <p className="text-xs font-semibold text-black/50">
-        Refunds are processed automatically and will appear in your account within 5–10 working days depending on your bank.
-      </p>
+      <p className="text-xs font-semibold text-black/50">Refunds are processed automatically and will appear in your account within 5–10 working days depending on your bank.</p>
     </div>
   );
 }
@@ -452,8 +404,19 @@ function BidCard({ bid,currency,rates,requestStatus,acceptingId,expired,onAccept
           {bid.notes&&<p className="text-sm font-semibold text-black"><span className="font-black">Notes:</span> {bid.notes}</p>}
         </div>
         <div className="shrink-0">
-          {bid.status==="accepted"?<span className="bg-green-100 px-4 py-2 text-sm font-black text-green-800">Accepted</span>:requestStatus==="confirmed"?<span className="bg-[#f0f0f0] px-4 py-2 text-sm font-black text-black/40">Closed</span>:(
-            <button type="button" onClick={()=>onAccept(bid.id)} disabled={!!acceptingId||expired} className="bg-[#ff7a00] px-6 py-3 text-sm font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">{acceptingId===bid.id?"Accepting…":"Accept Bid"}</button>
+          {bid.status==="accepted" ? (
+            <span className="bg-green-100 px-4 py-2 text-sm font-black text-green-800">Accepted ✓</span>
+          ) : requestStatus==="confirmed" ? (
+            <span className="bg-[#f0f0f0] px-4 py-2 text-sm font-black text-black/40">Closed</span>
+          ) : (
+            <button
+              type="button"
+              onClick={()=>onAccept(bid.id)}
+              disabled={!!acceptingId||expired}
+              className="bg-[#ff7a00] px-6 py-3 text-sm font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
+            >
+              {acceptingId===bid.id ? "Going to checkout…" : "Accept & Pay →"}
+            </button>
           )}
         </div>
       </div>
@@ -462,8 +425,9 @@ function BidCard({ bid,currency,rates,requestStatus,acceptingId,expired,onAccept
 }
 
 export default function BookingDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const supabase = useMemo(()=>createCustomerBrowserClient(),[]);
-  const router   = useRouter();
+  const supabase     = useMemo(()=>createCustomerBrowserClient(),[]);
+  const router       = useRouter();
+  const searchParams = useSearchParams();
   const { rates: hookRates, currency } = useCurrency();
   const [liveRates,        setLiveRates]        = useState<Rates>(hookRates??{ GBP:0.85, USD:1.08 });
   const [rateIsLive,       setRateIsLive]       = useState(false);
@@ -484,6 +448,8 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const [showCancel,       setShowCancel]       = useState(false);
   const [cancelReason,     setCancelReason]     = useState("");
   const [cancelling,       setCancelling]       = useState(false);
+
+  const paymentSuccess = searchParams.get("payment") === "success";
 
   useEffect(()=>{ params.then(r=>setRequestId(r.id)); },[params]);
 
@@ -538,16 +504,19 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     tick(); const t=setInterval(tick,1000); return ()=>clearInterval(t);
   },[data?.request?.expires_at]);
 
+  // ── Accept bid → redirect to checkout ─────────────────────────────────────
   async function acceptBid(bidId: string) {
     setAcceptingId(bidId); setError(null); setOk(null);
     try {
-      const token=await getToken(); if (!token) throw new Error("Not signed in");
-      const res=await fetch("/api/test-booking/bids/accept",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify({bid_id:bidId,currency})});
-      const json=await res.json().catch(()=>null);
-      if (!res.ok) throw new Error(json?.error||"Failed to accept bid.");
-      setOk("Bid accepted. Booking confirmed."); await load(false);
-    } catch(e:any) { setError(e?.message||"Failed to accept bid."); }
-    finally { setAcceptingId(null); }
+      // Store request_id so checkout page can build the success redirect URL
+      if (requestId) {
+        sessionStorage.setItem(`request_for_bid_${bidId}`, requestId);
+      }
+      router.push(`/checkout/${bidId}`);
+    } catch (e: any) {
+      setError(e?.message || "Failed to proceed to checkout.");
+      setAcceptingId(null);
+    }
   }
 
   async function saveConfirmation(section: ConfirmSection, confirmed: boolean) {
@@ -585,8 +554,8 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
       const json=await res.json().catch(()=>null);
       if (!res.ok) throw new Error(json?.error||"Failed to cancel.");
       const msg = json.within_48hrs
-        ? `Booking cancelled. Fuel deposit will be refunded. Car hire fee is non-refundable (within 48hrs of pickup).`
-        : `Booking cancelled. Full refund will be processed.`;
+        ? "Booking cancelled. Fuel deposit will be refunded. Car hire fee is non-refundable (within 48hrs of pickup)."
+        : "Booking cancelled. Full refund will be processed.";
       setOk(msg); setShowCancel(false); await load(false);
     } catch(e:any) { setError(e?.message||"Failed to cancel."); }
     finally { setCancelling(false); }
@@ -612,13 +581,11 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const req = data.request;
   const isCancelled = bk?.booking_status==="cancelled";
   const canCancel = !!bk && !isCancelled && PRE_COLLECTION.includes(bk.booking_status);
-
-  // 48hr warning for customer
-  const pickupMs = req.pickup_at ? new Date(req.pickup_at).getTime() : null;
+  const pickupMs   = req.pickup_at ? new Date(req.pickup_at).getTime() : null;
   const hoursUntil = pickupMs ? (pickupMs - Date.now()) : null;
   const isWithin48 = hoursUntil !== null && hoursUntil < HOURS_48 && hoursUntil > 0;
   const carHire = Number(bk?.car_hire_price||0);
-  const fuel = Number(bk?.fuel_price||0);
+  const fuel    = Number(bk?.fuel_price||0);
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -636,6 +603,17 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
 
       <div className="w-full bg-[#f0f0f0] px-6 py-10">
         <div className="mx-auto max-w-6xl space-y-4">
+
+          {/* Payment success banner */}
+          {paymentSuccess && (
+            <div className="border border-green-200 bg-green-50 px-4 py-4 flex items-center gap-3">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center bg-green-600 text-white font-black text-sm">✓</span>
+              <div>
+                <p className="font-black text-green-800">Payment successful — your booking is confirmed!</p>
+                <p className="text-sm font-bold text-green-700">You will receive a confirmation email shortly. The car hire company has been notified.</p>
+              </div>
+            </div>
+          )}
 
           {error&&<div className="border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div>}
           {ok&&<div className="border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">{ok}</div>}
@@ -700,16 +678,16 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             <p className="text-xs font-black uppercase tracking-widest text-black mb-5">Booking Details</p>
             <div className="grid gap-3 sm:grid-cols-2">
               {[
-                ["Pickup",         req.pickup_address],
-                ["Drop-off",       req.dropoff_address||"—"],
-                ["Pickup time",    fmt(req.pickup_at)],
-                ["Drop-off time",  fmt(req.dropoff_at)],
-                ["Duration",       formatDuration(req.journey_duration_minutes)],
-                ["Passengers",     req.passengers],
-                ["Suitcases",      req.suitcases],
-                ["Sport equipment",sportEquipmentLabel(req.sport_equipment)],
-                ["Vehicle",        req.vehicle_category_name||"—"],
-                ["Status",         req.status],
+                ["Pickup",          req.pickup_address],
+                ["Drop-off",        req.dropoff_address||"—"],
+                ["Pickup time",     fmt(req.pickup_at)],
+                ["Drop-off time",   fmt(req.dropoff_at)],
+                ["Duration",        formatDuration(req.journey_duration_minutes)],
+                ["Passengers",      req.passengers],
+                ["Suitcases",       req.suitcases],
+                ["Sport equipment", sportEquipmentLabel(req.sport_equipment)],
+                ["Vehicle",         req.vehicle_category_name||"—"],
+                ["Status",          req.status],
               ].map(([l,v])=>(
                 <p key={String(l)} className="text-sm font-semibold text-black"><span className="font-black">{l}:</span> {String(v)}</p>
               ))}
@@ -725,12 +703,12 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                 <p className="text-xs font-black uppercase tracking-widest text-black mb-5">Your Confirmed Booking</p>
                 <div className="grid gap-3 sm:grid-cols-2 mb-5">
                   {[
-                    ["Status",          bookingStatusLabel(bk.booking_status)],
+                    ["Status",           bookingStatusLabel(bk.booking_status)],
                     ["Car hire company", bk.company_name||"—"],
-                    ["Company phone",   bk.company_phone||"—"],
-                    ["Driver",          bk.driver_name||"—"],
-                    ["Driver phone",    bk.driver_phone||"—"],
-                    ["Vehicle",         bk.driver_vehicle||"—"],
+                    ["Company phone",    bk.company_phone||"—"],
+                    ["Driver",           bk.driver_name||"—"],
+                    ["Driver phone",     bk.driver_phone||"—"],
+                    ["Vehicle",          bk.driver_vehicle||"—"],
                   ].map(([l,v])=>(
                     <p key={String(l)} className="text-sm font-semibold text-black"><span className="font-black">{l}:</span> {String(v)}</p>
                   ))}
