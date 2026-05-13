@@ -3,12 +3,19 @@ import Stripe from "stripe";
 import { createServiceRoleSupabaseClient } from "@/lib/supabase/server";
 import { createCustomerServiceRoleSupabaseClient } from "@/lib/supabase-customer/server";
 import { calculateCommission } from "@/lib/portal/calculateCommission";
+import { convertCurrency, type Currency } from "@/lib/serverCurrency";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-04-22.dahlia" as any });
 
 function getBearerToken(req: Request) {
   const auth = req.headers.get("authorization") || "";
   return auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : null;
+}
+
+function normalizeCurrency(v: unknown): Currency {
+  const s = String(v || "").toUpperCase().trim();
+  if (s === "GBP" || s === "USD") return s;
+  return "EUR";
 }
 
 export async function POST(req: Request) {
@@ -37,10 +44,10 @@ export async function POST(req: Request) {
 
     if (!bid) return NextResponse.json({ error: "Bid not found" }, { status: 404 });
 
-    // Verify request belongs to customer and is still open
+    // Load request — need customer's chosen currency
     const { data: request } = await db
       .from("customer_requests")
-      .select("id, status, expires_at, job_number")
+      .select("id, status, expires_at, job_number, currency")
       .eq("id", bid.request_id)
       .eq("customer_user_id", customerUser.id)
       .maybeSingle();
@@ -51,7 +58,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "This request has expired." }, { status: 400 });
     }
 
-    // Get partner's Stripe account
+    // ── Currency resolution ───────────────────────────────────────────────────
+    // Customer pays in their chosen currency (request.currency).
+    // Partner bid is in bid.currency — convert if different.
+    const chargeCurrency = normalizeCurrency(request.currency); // what customer pays in
+    const bidCurrency    = normalizeCurrency(bid.currency);     // what partner bid in
+
+    const bidCarHire = Number(bid.car_hire_price || 0);
+    const bidFuel    = Number(bid.fuel_price || 0);
+
+    let carHirePrice: number;
+    let fuelPrice: number;
+    let conversionRate: number = 1;
+
+    if (chargeCurrency === bidCurrency) {
+      // No conversion needed
+      carHirePrice = bidCarHire;
+      fuelPrice    = bidFuel;
+      conversionRate = 1;
+    } else {
+      // Convert bid amounts to customer's currency
+      const { convertedAmount: convertedCarHire, rate } = await convertCurrency(bidCarHire, bidCurrency, chargeCurrency);
+      const { convertedAmount: convertedFuel }          = await convertCurrency(bidFuel, bidCurrency, chargeCurrency);
+      carHirePrice   = convertedCarHire;
+      fuelPrice      = convertedFuel;
+      conversionRate = rate;
+    }
+
+    const totalPrice = Math.round((carHirePrice + fuelPrice) * 100) / 100;
+
+    // ── Commission ────────────────────────────────────────────────────────────
+    // Calculated on converted car hire price (in charge currency)
     const { data: partnerProfile } = await db
       .from("partner_profiles")
       .select("stripe_account_id, stripe_onboarding_complete, commission_rate")
@@ -62,7 +99,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "This partner has not set up payouts yet. Please choose another bid." }, { status: 400 });
     }
 
-    // Get platform commission settings
     const { data: platform } = await db
       .from("platform_settings")
       .select("default_commission_rate, minimum_commission_amount")
@@ -72,44 +108,49 @@ export async function POST(req: Request) {
     const commissionRatePct = partnerProfile.commission_rate ?? platform?.default_commission_rate ?? 20;
     const minimumCommission = platform?.minimum_commission_amount ?? 10;
 
-    const carHirePrice = Number(bid.car_hire_price || 0);
-    const fuelPrice    = Number(bid.fuel_price || 0);
-    const totalPrice   = Number(bid.total_price || 0);
-    const currency     = String(bid.currency || "EUR").toLowerCase();
+    // minimum_commission is in EUR — convert to charge currency if needed
+    const { convertedAmount: minCommissionConverted } = await convertCurrency(
+      minimumCommission,
+      "EUR",
+      chargeCurrency
+    );
 
     const { commissionAmount, partnerPayoutAmount } = calculateCommission(
       carHirePrice,
       commissionRatePct,
-      minimumCommission
+      minCommissionConverted
     );
 
-    // Stripe works in smallest currency unit (cents)
+    // ── Stripe amounts (smallest unit) ────────────────────────────────────────
     const totalCents      = Math.round(totalPrice * 100);
     const commissionCents = Math.round(commissionAmount * 100);
     const partnerCents    = totalCents - commissionCents;
 
-    // Create PaymentIntent with destination charge
-    // Funds split: commissionCents stays with Camel, partnerCents transferred to partner
+    // ── Create PaymentIntent ──────────────────────────────────────────────────
     const paymentIntent = await stripe.paymentIntents.create({
       amount:   totalCents,
-      currency: currency,
+      currency: chargeCurrency.toLowerCase(),
       transfer_data: {
         destination: partnerProfile.stripe_account_id,
-        amount: partnerCents, // partner receives this after Stripe fees
+        amount: partnerCents,
       },
       metadata: {
-        bid_id:             bidId,
-        request_id:         bid.request_id,
-        customer_user_id:   customerUser.id,
-        partner_user_id:    bid.partner_user_id,
-        car_hire_price:     carHirePrice.toString(),
-        fuel_price:         fuelPrice.toString(),
-        commission_amount:  commissionAmount.toString(),
-        commission_rate:    commissionRatePct.toString(),
-        partner_net:        partnerPayoutAmount.toString(),
-        job_number:         String(request.job_number || ""),
+        bid_id:            bidId,
+        request_id:        bid.request_id,
+        customer_user_id:  customerUser.id,
+        partner_user_id:   bid.partner_user_id,
+        // Amounts in charge currency
+        car_hire_price:    carHirePrice.toString(),
+        fuel_price:        fuelPrice.toString(),
+        commission_amount: commissionAmount.toString(),
+        commission_rate:   commissionRatePct.toString(),
+        partner_net:       partnerPayoutAmount.toString(),
+        job_number:        String(request.job_number || ""),
+        // Conversion info for webhook
+        charge_currency:   chargeCurrency,
+        bid_currency:      bidCurrency,
+        conversion_rate:   conversionRate.toString(),
       },
-      // Hold funds — partner payout is manual (monthly batch)
       capture_method: "automatic",
     });
 
@@ -120,7 +161,7 @@ export async function POST(req: Request) {
       amount_car_hire:   carHirePrice,
       amount_fuel:       fuelPrice,
       commission:        commissionAmount,
-      currency:          bid.currency,
+      currency:          chargeCurrency, // customer always sees their currency
       partner_name:      bid.partner_company_name || "Car Hire Company",
     });
   } catch (e: any) {

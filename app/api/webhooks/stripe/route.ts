@@ -77,7 +77,8 @@ export async function POST(req: NextRequest) {
       const jobNumber      = m.job_number ? Number(m.job_number) : null;
       const totalPrice     = carHirePrice + fuelPrice;
 
-      const chargeId = typeof pi.latest_charge === "string" ? pi.latest_charge : null;
+      const chargeId       = typeof pi.latest_charge === "string" ? pi.latest_charge : null;
+      const conversionRate = m.conversion_rate ? Number(m.conversion_rate) : null;
 
       // Load bid for currency + notes
       const { data: bid } = await db
@@ -165,7 +166,7 @@ export async function POST(req: NextRequest) {
         payout_status:            "held",
         stripe_fee:               feeData.stripe_fee,
         stripe_fee_currency:      feeData.stripe_fee_currency,
-        exchange_rate:            feeData.exchange_rate,
+        exchange_rate:            feeData.exchange_rate ?? conversionRate,
       });
 
       // Update booking with payment_id
