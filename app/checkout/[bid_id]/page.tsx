@@ -94,7 +94,10 @@ function CheckoutForm({ intent, requestId, onError }: {
       <div>
         <p className="text-xs font-black uppercase tracking-widest text-black mb-3">Payment Details</p>
         <PaymentElement
-          options={{ layout: "tabs" }}
+          options={{
+            layout: "tabs",
+            fields: { billingDetails: { name: "never" } },
+          }}
           onReady={() => setReady(true)}
         />
       </div>
