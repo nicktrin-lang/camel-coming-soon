@@ -38,6 +38,12 @@ function addHoursToNow(hours: number) {
   return now.toISOString();
 }
 
+function normalizeCurrency(v: unknown): "EUR" | "GBP" | "USD" {
+  const s = String(v || "").toUpperCase().trim();
+  if (s === "GBP" || s === "USD") return s;
+  return "EUR";
+}
+
 export async function GET(req: Request) {
   try {
     const accessToken  = getBearerToken(req);
@@ -52,7 +58,7 @@ export async function GET(req: Request) {
         pickup_at, dropoff_at, journey_duration_minutes,
         passengers, suitcases, hand_luggage, sport_equipment,
         vehicle_category_slug, vehicle_category_name,
-        notes, status, created_at, expires_at
+        notes, status, created_at, expires_at, currency
       `)
       .eq("customer_user_id", customerUser.id)
       .order("created_at", { ascending: false });
@@ -72,22 +78,23 @@ export async function POST(req: Request) {
 
     const body = await req.json().catch(() => null);
 
-    const pickup_address         = String(body?.pickup_address || "").trim();
-    const pickup_lat             = body?.pickup_lat == null ? null : Number(body.pickup_lat);
-    const pickup_lng             = body?.pickup_lng == null ? null : Number(body.pickup_lng);
-    const dropoff_address        = String(body?.dropoff_address || "").trim();
-    const dropoff_lat            = body?.dropoff_lat == null || body?.dropoff_lat === "" ? null : Number(body.dropoff_lat);
-    const dropoff_lng            = body?.dropoff_lng == null || body?.dropoff_lng === "" ? null : Number(body.dropoff_lng);
-    const pickup_at              = String(body?.pickup_at || "").trim();
-    const dropoff_at             = String(body?.dropoff_at || "").trim();
+    const pickup_address           = String(body?.pickup_address || "").trim();
+    const pickup_lat               = body?.pickup_lat == null ? null : Number(body.pickup_lat);
+    const pickup_lng               = body?.pickup_lng == null ? null : Number(body.pickup_lng);
+    const dropoff_address          = String(body?.dropoff_address || "").trim();
+    const dropoff_lat              = body?.dropoff_lat == null || body?.dropoff_lat === "" ? null : Number(body.dropoff_lat);
+    const dropoff_lng              = body?.dropoff_lng == null || body?.dropoff_lng === "" ? null : Number(body.dropoff_lng);
+    const pickup_at                = String(body?.pickup_at || "").trim();
+    const dropoff_at               = String(body?.dropoff_at || "").trim();
     const journey_duration_minutes = Number(body?.journey_duration_minutes || 0);
-    const passengers             = Number(body?.passengers || 0);
-    const suitcases              = Number(body?.suitcases || 0);
-    const hand_luggage           = Number(body?.hand_luggage || 0);
-    const sport_equipment        = String(body?.sport_equipment || "none").trim() || "none";
-    const vehicle_category_slug  = String(body?.vehicle_category_slug || "").trim();
-    const vehicle_category_name  = String(body?.vehicle_category_name || "").trim();
-    const notes                  = String(body?.notes || "").trim();
+    const passengers               = Number(body?.passengers || 0);
+    const suitcases                = Number(body?.suitcases || 0);
+    const hand_luggage             = Number(body?.hand_luggage || 0);
+    const sport_equipment          = String(body?.sport_equipment || "none").trim() || "none";
+    const vehicle_category_slug    = String(body?.vehicle_category_slug || "").trim();
+    const vehicle_category_name    = String(body?.vehicle_category_name || "").trim();
+    const notes                    = String(body?.notes || "").trim();
+    const currency                 = normalizeCurrency(body?.currency);
 
     if (!pickup_address)  return NextResponse.json({ error: "Pickup is required" }, { status: 400 });
     if (pickup_lat === null || pickup_lng === null) return NextResponse.json({ error: "Pickup coordinates are required" }, { status: 400 });
@@ -119,6 +126,7 @@ export async function POST(req: Request) {
         sport_equipment: sport_equipment !== "none" ? sport_equipment : null,
         vehicle_category_slug, vehicle_category_name,
         notes: notes || null,
+        currency,
         status: "open",
         expires_at,
       })

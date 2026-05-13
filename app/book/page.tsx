@@ -19,6 +19,12 @@ function calculateDurationMinutes(a: string, b: string): number | null {
   return Math.ceil(diff / (24 * 60 * 60 * 1000)) * 24 * 60;
 }
 
+function normalizeCurrency(v: unknown): "EUR" | "GBP" | "USD" {
+  const s = String(v || "").toUpperCase().trim();
+  if (s === "GBP" || s === "USD") return s;
+  return "EUR";
+}
+
 export default function BookPage() {
   const router   = useRouter();
   const supabase = useMemo(() => createCustomerBrowserClient(), []);
@@ -40,7 +46,8 @@ export default function BookPage() {
       if (!draft) { router.replace("/"); return; }
 
       const { pickupAddress, pickupLat, pickupLng, dropoffAddress, dropoffLat, dropoffLng,
-              pickupAt, dropoffAt, passengers, suitcases, vehicleSlug, sportEquipment, notes } = draft;
+              pickupAt, dropoffAt, passengers, suitcases, vehicleSlug, sportEquipment, notes,
+              currency } = draft;
 
       const duration = calculateDurationMinutes(pickupAt, dropoffAt);
       const cat      = FLEET_CATEGORIES.find(c => c.slug === (vehicleSlug || FLEET_CATEGORIES[0]?.slug));
@@ -53,7 +60,7 @@ export default function BookPage() {
       }
 
       try {
-        const res  = await fetch("/api/test-booking/requests", {
+        const res = await fetch("/api/test-booking/requests", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
@@ -66,6 +73,7 @@ export default function BookPage() {
             sport_equipment: sportEquipment && sportEquipment !== "none" ? sportEquipment : null,
             vehicle_category_slug: cat.slug, vehicle_category_name: cat.name,
             notes: notes || "",
+            currency: normalizeCurrency(currency),
           }),
         });
         const json = await res.json().catch(() => null);

@@ -139,13 +139,21 @@ function CustomerHome() {
     }, 300);
   }
 
-  function saveDraft() {
-    sessionStorage.setItem("camel_booking_draft", JSON.stringify({
-      pickupAddress, pickupLat, pickupLng,
-      dropoffAddress, dropoffLat, dropoffLng,
-      pickupAt, dropoffAt, passengers, suitcases, vehicleSlug, sportEquipment, notes,
-      cityKey: `${city.country}|${city.city}`,
-    }));
+function saveDraft() {
+  let currency: "EUR" | "GBP" | "USD" = "EUR";
+  try {
+    const saved = localStorage.getItem("camel_currency_pref");
+    if (saved === "GBP" || saved === "USD") currency = saved;
+  } catch {}
+
+  sessionStorage.setItem("camel_booking_draft", JSON.stringify({
+    pickupAddress, pickupLat, pickupLng,
+    dropoffAddress, dropoffLat, dropoffLng,
+    pickupAt, dropoffAt, passengers, suitcases, vehicleSlug, sportEquipment, notes,
+    cityKey: `${city.country}|${city.city}`,
+    currency,
+  }));
+}
   }
 
   async function handleBookNow() {
@@ -173,21 +181,27 @@ function CustomerHome() {
     // Logged in — submit directly from homepage
     setSubmitting(true);
     try {
-      const res  = await fetch("/api/test-booking/requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({
-          pickup_address: pickupAddress, pickup_lat: pickupLat, pickup_lng: pickupLng,
-          dropoff_address: dropoffAddress, dropoff_lat: dropoffLat, dropoff_lng: dropoffLng,
-          pickup_at: pickupAt, dropoff_at: dropoffAt,
-          journey_duration_minutes: duration,
-          passengers: Number(passengers),
-          suitcases: Number(suitcases),
-          sport_equipment: sportEquipment !== "none" ? sportEquipment : null,
-          vehicle_category_slug: cat.slug, vehicle_category_name: cat.name,
-          notes: notes.trim(),
-        }),
-      });
+ const res = await fetch("/api/test-booking/requests", {
+  method: "POST",
+  headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+  body: JSON.stringify({
+    pickup_address: pickupAddress, pickup_lat: pickupLat, pickup_lng: pickupLng,
+    dropoff_address: dropoffAddress, dropoff_lat: dropoffLat, dropoff_lng: dropoffLng,
+    pickup_at: pickupAt, dropoff_at: dropoffAt,
+    journey_duration_minutes: duration,
+    passengers: Number(passengers),
+    suitcases: Number(suitcases),
+    sport_equipment: sportEquipment !== "none" ? sportEquipment : null,
+    vehicle_category_slug: cat.slug, vehicle_category_name: cat.name,
+    notes: notes.trim(),
+    currency: (() => {
+      try {
+        const saved = localStorage.getItem("camel_currency_pref");
+        return (saved === "GBP" || saved === "USD") ? saved : "EUR";
+      } catch { return "EUR"; }
+    })(),
+  }),
+});
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.error || "Failed to create booking.");
       sessionStorage.removeItem("camel_booking_draft");
