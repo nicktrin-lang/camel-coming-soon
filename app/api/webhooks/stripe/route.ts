@@ -87,7 +87,8 @@ export async function POST(req: NextRequest) {
         .eq("id", bidId)
         .maybeSingle();
 
-      const currency = bid?.currency || "EUR";
+      // Use the currency the customer was actually charged in, not the bid currency
+      const currency = (m.charge_currency as string) || bid?.currency || "EUR";
       const notes    = bid?.notes    || null;
 
       // Check request still open
