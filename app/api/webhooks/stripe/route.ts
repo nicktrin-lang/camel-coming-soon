@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
-import { calculateCommission } from "@/lib/portal/calculateCommission";
 import { syncBookingStatuses } from "@/lib/portal/syncBookingStatuses";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-04-22.dahlia" as any });
@@ -13,8 +12,7 @@ const db = createClient(
 
 /**
  * Fetches Stripe fee + exchange rate from the charge's balance transaction.
- * Returns null values gracefully if anything fails — we never want fee lookup
- * to block booking creation.
+ * Returns null values gracefully — fee lookup must never block booking creation.
  */
 async function getStripeFeeData(chargeId: string | null): Promise<{
   stripe_fee: number | null;
@@ -23,24 +21,16 @@ async function getStripeFeeData(chargeId: string | null): Promise<{
 }> {
   const empty = { stripe_fee: null, stripe_fee_currency: null, exchange_rate: null };
   if (!chargeId) return empty;
-
   try {
     const charge = await stripe.charges.retrieve(chargeId, {
       expand: ["balance_transaction"],
     });
-
     const bt = charge.balance_transaction as Stripe.BalanceTransaction | null;
     if (!bt || typeof bt === "string") return empty;
-
-    // fee is in smallest currency unit (cents) — convert to major unit
-    const fee = bt.fee != null ? bt.fee / 100 : null;
-    const feeCurrency = bt.fee_details?.[0]?.currency?.toUpperCase() || null;
-    const exchangeRate = bt.exchange_rate ?? null;
-
     return {
-      stripe_fee: fee,
-      stripe_fee_currency: feeCurrency,
-      exchange_rate: exchangeRate,
+      stripe_fee:          bt.fee != null ? bt.fee / 100 : null,
+      stripe_fee_currency: bt.fee_details?.[0]?.currency?.toUpperCase() || null,
+      exchange_rate:       bt.exchange_rate ?? null,
     };
   } catch (e: any) {
     console.error("getStripeFeeData error:", e?.message);
@@ -69,27 +59,37 @@ export async function POST(req: NextRequest) {
       const bidId          = m.bid_id;
       const requestId      = m.request_id;
       const partnerUserId  = m.partner_user_id;
-      const carHirePrice   = Number(m.car_hire_price   || 0);
-      const fuelPrice      = Number(m.fuel_price       || 0);
-      const commissionAmt  = Number(m.commission_amount || 0);
-      const commissionRate = Number(m.commission_rate   || 20);
-      const partnerNet     = Number(m.partner_net       || 0);
       const jobNumber      = m.job_number ? Number(m.job_number) : null;
-      const totalPrice     = carHirePrice + fuelPrice;
-
       const chargeId       = typeof pi.latest_charge === "string" ? pi.latest_charge : null;
-      const conversionRate = m.conversion_rate ? Number(m.conversion_rate) : null;
 
-      // Load bid for currency + notes
+      // ── Currency split ──────────────────────────────────────────────────────
+      // charge_currency = what the customer paid in (used for payments table)
+      // bid_currency    = what the partner bid in (used for partner_bookings)
+      // All amounts in metadata are in charge_currency (already converted)
+      const chargeCurrency = (m.charge_currency || "EUR").toUpperCase();
+      const conversionRate = m.conversion_rate ? Number(m.conversion_rate) : 1;
+
+      // Amounts in charge currency (what customer paid)
+      const chargeCarHire   = Number(m.car_hire_price   || 0);
+      const chargeFuel      = Number(m.fuel_price       || 0);
+      const commissionAmt   = Number(m.commission_amount || 0);
+      const commissionRate  = Number(m.commission_rate   || 20);
+      const partnerNet      = Number(m.partner_net       || 0);
+      const chargeTotalPrice = chargeCarHire + chargeFuel;
+
+      // Load bid for bid currency + original bid amounts + notes
       const { data: bid } = await db
         .from("partner_bids")
-        .select("currency, notes, total_price")
+        .select("currency, notes, car_hire_price, fuel_price, total_price")
         .eq("id", bidId)
         .maybeSingle();
 
-      // Use the currency the customer was actually charged in, not the bid currency
-      const currency = (m.charge_currency as string) || bid?.currency || "EUR";
-      const notes    = bid?.notes    || null;
+      // partner_bookings stores amounts in BID currency (what partner quoted)
+      const bidCurrency    = (bid?.currency || "EUR").toUpperCase();
+      const bidCarHire     = Number(bid?.car_hire_price || 0);
+      const bidFuel        = Number(bid?.fuel_price     || 0);
+      const bidTotalPrice  = Number(bid?.total_price    || bidCarHire + bidFuel);
+      const notes          = bid?.notes || null;
 
       // Check request still open
       const { data: request } = await db
@@ -127,10 +127,15 @@ export async function POST(req: NextRequest) {
             winning_bid_id:        bidId,
             partner_user_id:       partnerUserId,
             booking_status:        "confirmed",
-            amount:                totalPrice,
-            currency:              currency,
-            car_hire_price:        carHirePrice,
-            fuel_price:            fuelPrice,
+            // ── Partner-facing amounts — always in bid currency ──
+            currency:              bidCurrency,
+            amount:                bidTotalPrice,
+            car_hire_price:        bidCarHire,
+            fuel_price:            bidFuel,
+            // ── Charge currency — what customer actually paid ──
+            charge_currency:       chargeCurrency,
+            conversion_rate:       conversionRate,
+            // ── Commission + payout — in charge currency ──
             commission_rate:       commissionRate,
             commission_amount:     commissionAmt,
             partner_payout_amount: partnerNet,
@@ -151,23 +156,23 @@ export async function POST(req: NextRequest) {
       // Fetch Stripe fee + exchange rate from balance transaction
       const feeData = await getStripeFeeData(chargeId);
 
-      // Record payment — includes fee data
+      // payments table — always in charge currency (what customer paid)
       await db.from("payments").insert({
         booking_id:               bookingId,
         customer_id:              null,
         stripe_payment_intent_id: pi.id,
         stripe_charge_id:         chargeId,
-        amount_total:             totalPrice,
-        amount_car_hire:          carHirePrice,
-        amount_fuel_deposit:      fuelPrice,
+        amount_total:             chargeTotalPrice,
+        amount_car_hire:          chargeCarHire,
+        amount_fuel_deposit:      chargeFuel,
         amount_commission:        commissionAmt,
         amount_partner_net:       partnerNet,
-        currency:                 currency.toUpperCase(),
+        currency:                 chargeCurrency,
         status:                   "succeeded",
         payout_status:            "held",
         stripe_fee:               feeData.stripe_fee,
         stripe_fee_currency:      feeData.stripe_fee_currency,
-        exchange_rate:            feeData.exchange_rate ?? conversionRate,
+        exchange_rate:            feeData.exchange_rate ?? (conversionRate !== 1 ? conversionRate : null),
       });
 
       // Update booking with payment_id
@@ -184,7 +189,7 @@ export async function POST(req: NextRequest) {
       // Sync booking statuses
       await syncBookingStatuses(bookingId);
 
-      console.log(`payment_intent.succeeded: booking ${bookingId}, fee ${feeData.stripe_fee} ${feeData.stripe_fee_currency}, rate ${feeData.exchange_rate}`);
+      console.log(`payment_intent.succeeded: booking ${bookingId} — bid ${bidCurrency}, charge ${chargeCurrency}, rate ${conversionRate}, fee ${feeData.stripe_fee} ${feeData.stripe_fee_currency}`);
     }
   } catch (e: any) {
     console.error("Webhook handler error:", e.message);
