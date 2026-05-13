@@ -139,27 +139,27 @@ function CustomerHome() {
     }, 300);
   }
 
-function saveDraft() {
-  let currency: "EUR" | "GBP" | "USD" = "EUR";
-  try {
-    const saved = localStorage.getItem("camel_currency_pref");
-    if (saved === "GBP" || saved === "USD") currency = saved;
-  } catch {}
+function getSelectedCurrency(): "EUR" | "GBP" | "USD" {
+    try {
+      const saved = localStorage.getItem("camel_currency_pref");
+      if (saved === "GBP" || saved === "USD") return saved;
+    } catch {}
+    return "EUR";
+  }
 
-  sessionStorage.setItem("camel_booking_draft", JSON.stringify({
-    pickupAddress, pickupLat, pickupLng,
-    dropoffAddress, dropoffLat, dropoffLng,
-    pickupAt, dropoffAt, passengers, suitcases, vehicleSlug, sportEquipment, notes,
-    cityKey: `${city.country}|${city.city}`,
-    currency,
-  }));
-}
+  function saveDraft() {
+    sessionStorage.setItem("camel_booking_draft", JSON.stringify({
+      pickupAddress, pickupLat, pickupLng,
+      dropoffAddress, dropoffLat, dropoffLng,
+      pickupAt, dropoffAt, passengers, suitcases, vehicleSlug, sportEquipment, notes,
+      cityKey: `${city.country}|${city.city}`,
+      currency: getSelectedCurrency(),
+    }));
   }
 
   async function handleBookNow() {
     setError(null);
 
-    // Validation
     if (!pickupLat || !pickupLng)   { setError("Please select a pickup address from the suggestions."); return; }
     if (!dropoffLat || !dropoffLng) { setError("Please select a drop-off address from the suggestions."); return; }
     if (!pickupAt)                  { setError("Please select a pickup date and time."); return; }
@@ -171,37 +171,30 @@ function saveDraft() {
 
     saveDraft();
 
-    // Check auth — if not logged in, go to login and come back
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) {
       router.push("/login?next=/book");
       return;
     }
 
-    // Logged in — submit directly from homepage
     setSubmitting(true);
     try {
- const res = await fetch("/api/test-booking/requests", {
-  method: "POST",
-  headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-  body: JSON.stringify({
-    pickup_address: pickupAddress, pickup_lat: pickupLat, pickup_lng: pickupLng,
-    dropoff_address: dropoffAddress, dropoff_lat: dropoffLat, dropoff_lng: dropoffLng,
-    pickup_at: pickupAt, dropoff_at: dropoffAt,
-    journey_duration_minutes: duration,
-    passengers: Number(passengers),
-    suitcases: Number(suitcases),
-    sport_equipment: sportEquipment !== "none" ? sportEquipment : null,
-    vehicle_category_slug: cat.slug, vehicle_category_name: cat.name,
-    notes: notes.trim(),
-    currency: (() => {
-      try {
-        const saved = localStorage.getItem("camel_currency_pref");
-        return (saved === "GBP" || saved === "USD") ? saved : "EUR";
-      } catch { return "EUR"; }
-    })(),
-  }),
-});
+      const res = await fetch("/api/test-booking/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          pickup_address: pickupAddress, pickup_lat: pickupLat, pickup_lng: pickupLng,
+          dropoff_address: dropoffAddress, dropoff_lat: dropoffLat, dropoff_lng: dropoffLng,
+          pickup_at: pickupAt, dropoff_at: dropoffAt,
+          journey_duration_minutes: duration,
+          passengers: Number(passengers),
+          suitcases: Number(suitcases),
+          sport_equipment: sportEquipment !== "none" ? sportEquipment : null,
+          vehicle_category_slug: cat.slug, vehicle_category_name: cat.name,
+          notes: notes.trim(),
+          currency: getSelectedCurrency(),
+        }),
+      });
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.error || "Failed to create booking.");
       sessionStorage.removeItem("camel_booking_draft");
