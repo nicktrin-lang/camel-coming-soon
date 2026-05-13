@@ -33,7 +33,7 @@ function CustomerFooter() {
 
           {/* Logo + tagline */}
           <div className="shrink-0">
-            <Image src="/camel-logo.png" alt="Camel" width={200} height={70} className="h-14 w-auto mb-4 brightness-0 invert" />
+            <Image src="/camel-logo.png" alt="Camel Global — Meet and Greet Car Hire Spain" width={200} height={70} className="h-14 w-auto mb-4 brightness-0 invert" />
             <p className="max-w-[200px] text-sm font-bold text-white/60 leading-relaxed">
               Meet &amp; greet car hire, delivered to your door.
             </p>

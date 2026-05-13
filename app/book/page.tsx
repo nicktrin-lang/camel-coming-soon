@@ -97,7 +97,7 @@ export default function BookPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <nav className="w-full bg-black px-4 py-2.5 flex items-center">
-        <Image src="/camel-logo.png" alt="Camel" width={200} height={70} priority className="h-16 w-auto brightness-0 invert" />
+        <Image src="/camel-logo.png" alt="Camel Global — Meet and Greet Car Hire Spain" width={200} height={70} priority className="h-16 w-auto brightness-0 invert" />
       </nav>
 
       <div className="flex-1 flex flex-col items-center justify-center gap-4 bg-[#f0f0f0] px-6 py-20">

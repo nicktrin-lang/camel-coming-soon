@@ -208,7 +208,7 @@ function CustomerHome() {
       <div className="min-h-screen bg-white flex flex-col">
         <nav className="fixed left-0 top-0 z-50 w-full bg-black">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5">
-            <Image src="/camel-logo.png" alt="Camel" width={200} height={70} priority className="h-16 w-auto brightness-0 invert" />
+            <Image src="/camel-logo.png" alt="Camel Global — Meet and Greet Car Hire Spain" width={200} height={70} priority className="h-16 w-auto brightness-0 invert" />
           </div>
         </nav>
         <div className="h-[68px]" />
@@ -228,7 +228,7 @@ function CustomerHome() {
       <nav className="fixed left-0 top-0 z-50 w-full bg-black">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5">
           <Link href="/">
-            <Image src="/camel-logo.png" alt="Camel" width={200} height={70} priority className="h-16 w-auto brightness-0 invert" />
+            <Image src="/camel-logo.png" alt="Camel Global — Meet and Greet Car Hire Spain" width={200} height={70} priority className="h-16 w-auto brightness-0 invert" />
           </Link>
           <div className="flex items-center gap-3">
             <Link href="/login" className="border border-white/30 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/10 transition-colors">
