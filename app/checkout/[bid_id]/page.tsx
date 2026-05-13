@@ -228,9 +228,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ bid_id: str
         <div className="mx-auto max-w-2xl">
           <p className="text-xs font-black uppercase tracking-widest text-[#ff7a00] mb-2">Secure Checkout</p>
           <h1 className="text-3xl font-black">Complete your booking</h1>
-          <p className="mt-2 text-sm font-bold text-white/60">
-            {intent.partner_name} · {fmtCurr(intent.amount_total, curr)}
-          </p>
+          <p className="mt-2 text-sm font-bold text-white/60">{intent.partner_name}</p>
         </div>
       </div>
 
