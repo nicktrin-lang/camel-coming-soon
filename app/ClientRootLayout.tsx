@@ -24,6 +24,7 @@ export default function ClientRootLayout({
   const isNewCustomerArea =
     pathname?.startsWith("/bookings") ||
     pathname?.startsWith("/book") ||
+    pathname?.startsWith("/checkout") ||  // ← suppress global header on checkout
     pathname === "/login" ||
     pathname === "/signup" ||
     pathname === "/account" ||
@@ -93,7 +94,6 @@ export default function ClientRootLayout({
     window.location.replace("/login?reason=signed_out");
   }
 
-  // Stable token getter for ChatWidget — gets a fresh token on each call
   const getToken = useCallback(async (): Promise<string | null> => {
     try {
       const { createCustomerBrowserClient } = await import("@/lib/supabase-customer/browser");
@@ -115,7 +115,7 @@ export default function ClientRootLayout({
     <>
       <GoogleAnalyticsPageView />
 
-      {showGlobalHeader && (
+      {showGlobalHeader && !isNewCustomerArea && (
         <>
           <header className="fixed left-0 top-0 z-50 w-full bg-black">
             <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5">
@@ -151,7 +151,6 @@ export default function ClientRootLayout({
       {!isComingSoonPage && <Footer />}
       {!isComingSoonPage && <CookieBanner />}
 
-      {/* AI chat widget — only shown when logged in, not on coming soon */}
       {isCustomerLoggedIn && !isComingSoonPage && (
         <ChatWidget getToken={getToken} apiPath="/api/chat" />
       )}

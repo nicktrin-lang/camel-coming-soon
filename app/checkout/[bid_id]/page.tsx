@@ -24,11 +24,10 @@ type IntentData = {
 const LOCALE_MAP: Record<string, string> = { EUR: "es-ES", GBP: "en-GB", USD: "en-US" };
 function fmtCurr(amount: number, currency: string) {
   const curr = currency.toUpperCase();
-  const locale = LOCALE_MAP[curr] || "en-GB";
-  return new Intl.NumberFormat(locale, { style: "currency", currency: curr }).format(amount);
+  return new Intl.NumberFormat(LOCALE_MAP[curr] || "en-GB", { style: "currency", currency: curr }).format(amount);
 }
 
-// ── Inner payment form (needs Stripe context) ──────────────────────────────────
+// ── Inner payment form ─────────────────────────────────────────────────────────
 function CheckoutForm({ intent, requestId, onError }: {
   intent: IntentData;
   requestId: string;
@@ -39,8 +38,12 @@ function CheckoutForm({ intent, requestId, onError }: {
   const router   = useRouter();
   const [paying,  setPaying]  = useState(false);
   const [formErr, setFormErr] = useState("");
+  const [ready,   setReady]   = useState(false);
 
   const curr = intent.currency.toUpperCase();
+  const successUrl = requestId
+    ? `/bookings/${requestId}?payment=success`
+    : "/bookings";
 
   async function handlePay() {
     if (!stripe || !elements) return;
@@ -49,7 +52,7 @@ function CheckoutForm({ intent, requestId, onError }: {
     const { error } = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        return_url: `${window.location.origin}/bookings/${requestId}?payment=success`,
+        return_url: `${window.location.origin}${successUrl}`,
       },
       redirect: "if_required",
     });
@@ -60,8 +63,7 @@ function CheckoutForm({ intent, requestId, onError }: {
       return;
     }
 
-    // Payment succeeded without redirect
-    router.push(`/bookings/${requestId}?payment=success`);
+    router.push(successUrl);
   }
 
   return (
@@ -91,8 +93,18 @@ function CheckoutForm({ intent, requestId, onError }: {
       {/* Stripe payment form */}
       <div>
         <p className="text-xs font-black uppercase tracking-widest text-black mb-3">Payment Details</p>
-        <PaymentElement options={{ layout: "tabs" }} />
+        <PaymentElement
+          options={{ layout: "tabs" }}
+          onReady={() => setReady(true)}
+        />
       </div>
+
+      {!ready && (
+        <div className="flex items-center gap-2 text-sm font-bold text-black/40">
+          <div className="h-4 w-4 rounded-full border-2 border-[#ff7a00] border-t-transparent animate-spin" />
+          Loading payment form…
+        </div>
+      )}
 
       {formErr && (
         <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
@@ -103,7 +115,7 @@ function CheckoutForm({ intent, requestId, onError }: {
       <button
         type="button"
         onClick={handlePay}
-        disabled={!stripe || !elements || paying}
+        disabled={!stripe || !elements || !ready || paying}
         className="w-full bg-[#ff7a00] py-4 text-base font-black text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
       >
         {paying ? "Processing payment…" : `Pay ${fmtCurr(intent.amount_total, curr)}`}
@@ -127,20 +139,23 @@ export default function CheckoutPage({ params }: { params: Promise<{ bid_id: str
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState("");
 
+  // Resolve params
   useEffect(() => { params.then(p => setBidId(p.bid_id)); }, [params]);
 
   useEffect(() => {
     if (!bidId) return;
 
+    // Read requestId from sessionStorage immediately — set before redirecting to checkout
+    const storedRequestId = sessionStorage.getItem(`request_for_bid_${bidId}`) || "";
+    if (storedRequestId) setRequestId(storedRequestId);
+
     async function init() {
-      // Check auth
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         router.replace(`/login?next=/checkout/${bidId}`);
         return;
       }
 
-      // Load bid to get request_id for redirect
       const res = await fetch("/api/payments/create-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
@@ -154,31 +169,12 @@ export default function CheckoutPage({ params }: { params: Promise<{ bid_id: str
         return;
       }
 
-      // Get request_id from bid — need it for redirect URL
-      const bidRes = await fetch(`/api/test-booking/requests?bid_id=${bidId}`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      // Fallback: extract from metadata after payment via URL param
-      // Store request_id in sessionStorage so we can redirect correctly
-      sessionStorage.setItem("checkout_bid_id",    bidId);
-      sessionStorage.setItem("checkout_partner",   json.partner_name);
-
       setIntent(json);
-      setRequestId(""); // will be set from payment success redirect
       setLoading(false);
     }
 
     init();
   }, [bidId, supabase, router]);
-
-  // Get request_id separately for the redirect
-  useEffect(() => {
-    if (!bidId) return;
-    // We need the request_id to build the success redirect URL
-    // Load it from the booking detail page URL (stored in referrer or sessionStorage)
-    const stored = sessionStorage.getItem(`request_for_bid_${bidId}`);
-    if (stored) setRequestId(stored);
-  }, [bidId]);
 
   if (loading) return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -239,11 +235,6 @@ export default function CheckoutPage({ params }: { params: Promise<{ bid_id: str
       <div className="flex-1 bg-[#f0f0f0] px-6 py-10">
         <div className="mx-auto max-w-2xl">
           <div className="bg-white p-8">
-            {error && (
-              <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 mb-6">
-                {error}
-              </div>
-            )}
             <Elements
               stripe={stripePromise}
               options={{
