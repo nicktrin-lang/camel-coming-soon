@@ -77,11 +77,11 @@ function fuelLabel(v: unknown): string {
     case "full": return "Full Tank"; default: return "—";
   }
 }
-const FUEL_BARS: Record<string,number> = { empty:0, quarter:1, half:2, "3/4":3, full:4 };
+const FUEL_BARS_MAP: Record<string,number> = { empty:0, quarter:1, half:2, "3/4":3, full:4 };
 const QUARTER_LABELS: Record<number,string> = { 0:"Empty", 1:"¼ Tank", 2:"½ Tank", 3:"¾ Tank", 4:"Full Tank" };
 
 function FuelBar({ level, light }: { level: string|null; light?: boolean }) {
-  const n = normalizeFuel(level); const filled = n?(FUEL_BARS[n]??0):0;
+  const n = normalizeFuel(level); const filled = n?(FUEL_BARS_MAP[n]??0):0;
   return (
     <div className="flex gap-1 mt-2">
       {[0,1,2,3].map(i=>(
@@ -148,6 +148,140 @@ function BookingAmount({ amount, storedCurrency, customerCurrency, rates }: { am
   return <span>{fmtCurr(p,customerCurrency)} <span className="opacity-60 text-[0.85em]">({fmtCurr(convertAmount(n,storedCurrency,o,rates),o)})</span></span>;
 }
 
+// ── PDF Receipt ───────────────────────────────────────────────────────────────
+async function downloadReceipt(bk: BookingData, req: RequestData) {
+  const { jsPDF } = await import("jspdf");
+  const doc = new jsPDF({ unit:"mm", format:"a4" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const margin = 15;
+  const usableW = pageW - margin * 2;
+  let y = margin;
+
+  const curr = bk.currency ?? "EUR";
+  const locale = curr === "GBP" ? "en-GB" : curr === "USD" ? "en-US" : "es-ES";
+  const fmt2 = (n: number) => new Intl.NumberFormat(locale, { style:"currency", currency:curr }).format(n);
+  const dateStr = new Date().toLocaleDateString("en-GB", { day:"2-digit", month:"long", year:"numeric" });
+
+  // Header
+  doc.setFillColor(0,0,0);
+  doc.rect(0,0,pageW,18,"F");
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(13); doc.setFont("helvetica","bold");
+  doc.text("CAMEL GLOBAL", margin, 7);
+  doc.setFontSize(8); doc.setFont("helvetica","normal");
+  doc.text("Meet and greet car hire · camel-global.com", margin, 12);
+  doc.text(`Receipt · ${dateStr}`, pageW-margin, 10, { align:"right" });
+  y = 26;
+
+  doc.setTextColor(0,0,0);
+  doc.setFontSize(18); doc.setFont("helvetica","bold");
+  doc.text("Booking Receipt", margin, y); y += 8;
+  doc.setFontSize(9); doc.setFont("helvetica","normal"); doc.setTextColor(100,100,100);
+  doc.text(`Job #${bk.job_number ?? "—"} · ${req.pickup_address}`, margin, y); y += 10;
+
+  doc.setDrawColor(220,220,220); doc.setLineWidth(0.3);
+  doc.line(margin, y, pageW-margin, y); y += 6;
+
+  // Booking details
+  doc.setTextColor(0,0,0); doc.setFontSize(10); doc.setFont("helvetica","bold");
+  doc.text("Booking Details", margin, y); y += 6;
+  doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(60,60,60);
+  const details = [
+    ["Booking reference", `#${bk.job_number ?? "—"}`],
+    ["Status",            "Completed"],
+    ["Car hire company",  bk.company_name ?? "—"],
+    ["Pickup address",    req.pickup_address],
+    ["Dropoff address",   req.dropoff_address ?? "—"],
+    ["Pickup time",       req.pickup_at ? new Date(req.pickup_at).toLocaleString("en-GB") : "—"],
+    ["Vehicle",           req.vehicle_category_name ?? "—"],
+    ["Currency",          curr],
+  ];
+  for (const [label, value] of details) {
+    doc.setFont("helvetica","bold"); doc.text(label, margin, y);
+    doc.setFont("helvetica","normal"); doc.text(String(value), margin+50, y);
+    y += 5;
+  }
+  y += 4;
+
+  doc.line(margin, y, pageW-margin, y); y += 6;
+
+  // Payment breakdown
+  doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(0,0,0);
+  doc.text("Payment Breakdown", margin, y); y += 6;
+  doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(60,60,60);
+
+  const carHire   = Number(bk.car_hire_price ?? 0);
+  const fuelDep   = Number(bk.fuel_price ?? 0);
+  const total     = Number(bk.amount ?? 0);
+  const fuelCharge = Number(bk.fuel_charge ?? 0);
+  const fuelRefund = Number(bk.fuel_refund ?? 0);
+  const finalNet   = carHire + fuelCharge - fuelRefund;
+
+  const payRows: [string, string][] = [
+    ["Car hire",               fmt2(carHire)],
+    ["Full tank deposit paid", fmt2(fuelDep)],
+    ["Total paid",             fmt2(total)],
+  ];
+  for (const [l, v] of payRows) {
+    doc.text(l, margin, y);
+    doc.text(v, pageW-margin, y, { align:"right" });
+    y += 5;
+  }
+  y += 3;
+
+  // Fuel section
+  doc.line(margin, y, pageW-margin, y); y += 6;
+  doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(0,0,0);
+  doc.text("Fuel Settlement", margin, y); y += 6;
+  doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(60,60,60);
+
+  const collFuel = normalizeFuel(bk.collection_fuel_level_partner) || normalizeFuel(bk.collection_fuel_level_driver);
+  const retFuel  = normalizeFuel(bk.return_fuel_level_partner) || normalizeFuel(bk.return_fuel_level_driver);
+  const usedQ    = bk.fuel_used_quarters;
+
+  const fuelRows: [string, string][] = [
+    ["Delivery fuel level",    fuelLabel(collFuel)],
+    ["Collection fuel level",  fuelLabel(retFuel)],
+    ["Fuel used",              usedQ !== null ? (QUARTER_LABELS[usedQ] ?? `${usedQ}/4`) : "—"],
+    ["Fuel charge to you",     fmt2(fuelCharge)],
+    ["Fuel refund to you",     fuelRefund > 0 ? fmt2(fuelRefund) : "None"],
+  ];
+  for (const [l, v] of fuelRows) {
+    doc.text(l, margin, y);
+    doc.text(v, pageW-margin, y, { align:"right" });
+    y += 5;
+  }
+  y += 5;
+
+  // Final amount
+  doc.setFillColor(240,240,240);
+  doc.rect(margin, y-4, usableW, 10, "F");
+  doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(0,0,0);
+  doc.text("Final amount (car hire + fuel charge)", margin+3, y+2);
+  doc.text(fmt2(finalNet), pageW-margin, y+2, { align:"right" });
+  y += 14;
+
+  if (fuelRefund > 0) {
+    doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(100,100,100);
+    const refundNote = doc.splitTextToSize(`A fuel deposit refund of ${fmt2(fuelRefund)} has been issued to your original payment method. Please allow 5–10 business days for it to appear.`, usableW);
+    doc.text(refundNote, margin, y); y += refundNote.length * 4 + 4;
+  }
+
+  // Footer
+  const totalPages = (doc.internal as any).getNumberOfPages();
+  for (let p=1; p<=totalPages; p++) {
+    doc.setPage(p);
+    doc.setDrawColor(220,220,220); doc.setLineWidth(0.3);
+    const pageH = doc.internal.pageSize.getHeight();
+    doc.line(margin, pageH-10, pageW-margin, pageH-10);
+    doc.setFontSize(7); doc.setTextColor(150,150,150); doc.setFont("helvetica","normal");
+    doc.text("Camel Global · NTUK Ltd · Office 7, 35-37 Ludgate Hill, London EC4M 7JN · camel-global.com", margin, pageH-6);
+    doc.text(`Page ${p} of ${totalPages}`, pageW-margin, pageH-6, { align:"right" });
+  }
+
+  doc.save(`Camel-Receipt-${bk.job_number ?? bk.id.slice(0,8)}.pdf`);
+}
+
 function CustomerCancellationSummary({ bk }: { bk: BookingData }) {
   const curr: Currency = bk.currency ?? "EUR";
   const carHire  = Number(bk.car_hire_price || 0);
@@ -193,7 +327,7 @@ function CustomerCancellationSummary({ bk }: { bk: BookingData }) {
   );
 }
 
-function BookingSummaryCard({ bk, rates, rateIsLive }: { bk: BookingData; rates: Rates; rateIsLive: boolean }) {
+function BookingSummaryCard({ bk, rates, rateIsLive, req }: { bk: BookingData; rates: Rates; rateIsLive: boolean; req: RequestData }) {
   const stored: Currency = bk.currency??"EUR";
   const sec1: Currency   = stored==="USD"?"EUR":stored==="GBP"?"EUR":"GBP";
   const sec2: Currency   = stored==="EUR"?"USD":stored==="GBP"?"USD":"GBP";
@@ -209,11 +343,23 @@ function BookingSummaryCard({ bk, rates, rateIsLive }: { bk: BookingData; rates:
   const primary = (v:number)=>fmtCurr(v,stored);
   const sec = (v:number)=>{ const inEur=convertAmount(v,stored,"EUR",rates); return `(${fmtCurr(convertAmount(inEur,"EUR",sec1,rates),sec1)} · ${fmtCurr(convertAmount(inEur,"EUR",sec2,rates),sec2)})`; };
   const rateBadge = `1€ = ${new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(rates.GBP)} · 1€ = ${new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(rates.USD)}`;
+  const [downloading, setDownloading] = useState(false);
+  async function handleDownload() {
+    setDownloading(true);
+    try { await downloadReceipt(bk, req); } catch(e) { console.error(e); }
+    finally { setDownloading(false); }
+  }
   return (
     <div className="bg-[#003768] p-6">
       <div className="flex items-center justify-between mb-4">
         <p className="text-xs font-black uppercase tracking-widest text-white/50">Booking Summary</p>
-        <span className="bg-green-400 px-3 py-1 text-xs font-black text-green-900">Finalised</span>
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={handleDownload} disabled={downloading}
+            className="bg-white/10 hover:bg-white/20 px-4 py-1.5 text-xs font-black text-white transition-colors disabled:opacity-50">
+            {downloading ? "Generating…" : "⬇ Download Receipt"}
+          </button>
+          <span className="bg-green-400 px-3 py-1 text-xs font-black text-green-900">Finalised</span>
+        </div>
       </div>
       <div className="bg-white/10 p-4 mb-4">
         <p className="text-xs font-black uppercase tracking-widest text-white/50 mb-1">Total booking value</p>
@@ -409,12 +555,8 @@ function BidCard({ bid,currency,rates,requestStatus,acceptingId,expired,onAccept
           ) : requestStatus==="confirmed" ? (
             <span className="bg-[#f0f0f0] px-4 py-2 text-sm font-black text-black/40">Closed</span>
           ) : (
-            <button
-              type="button"
-              onClick={()=>onAccept(bid.id)}
-              disabled={!!acceptingId||expired}
-              className="bg-[#ff7a00] px-6 py-3 text-sm font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
-            >
+            <button type="button" onClick={()=>onAccept(bid.id)} disabled={!!acceptingId||expired}
+              className="bg-[#ff7a00] px-6 py-3 text-sm font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
               {acceptingId===bid.id ? "Going to checkout…" : "Accept & Pay →"}
             </button>
           )}
@@ -479,8 +621,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     if (!requestId||!authChecked) return;
     if (showSpinner) setLoading(true);
     try {
-      const token = await getToken();
-      if (!token) return;
+      const token = await getToken(); if (!token) return;
       setAccessToken(token);
       const res = await fetch(`/api/test-booking/requests/${requestId}`,{cache:"no-store",headers:{Authorization:`Bearer ${token}`}});
       const json = await res.json().catch(()=>null);
@@ -504,19 +645,12 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     tick(); const t=setInterval(tick,1000); return ()=>clearInterval(t);
   },[data?.request?.expires_at]);
 
-  // ── Accept bid → redirect to checkout ─────────────────────────────────────
   async function acceptBid(bidId: string) {
     setAcceptingId(bidId); setError(null); setOk(null);
     try {
-      // Store request_id so checkout page can build the success redirect URL
-      if (requestId) {
-        sessionStorage.setItem(`request_for_bid_${bidId}`, requestId);
-      }
+      if (requestId) sessionStorage.setItem(`request_for_bid_${bidId}`, requestId);
       router.push(`/checkout/${bidId}`);
-    } catch (e: any) {
-      setError(e?.message || "Failed to proceed to checkout.");
-      setAcceptingId(null);
-    }
+    } catch (e: any) { setError(e?.message || "Failed to proceed to checkout."); setAcceptingId(null); }
   }
 
   async function saveConfirmation(section: ConfirmSection, confirmed: boolean) {
@@ -589,7 +723,6 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      {/* Hero */}
       <div className="w-full bg-black px-6 py-16 text-white">
         <div className="mx-auto max-w-6xl flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -604,7 +737,6 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
       <div className="w-full bg-[#f0f0f0] px-6 py-10">
         <div className="mx-auto max-w-6xl space-y-4">
 
-          {/* Payment success banner */}
           {paymentSuccess && (
             <div className="border border-green-200 bg-green-50 px-4 py-4 flex items-center gap-3">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center bg-green-600 text-white font-black text-sm">✓</span>
@@ -624,56 +756,36 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             </div>
           )}
 
-          {/* Cancellation summary */}
           {isCancelled && bk && <CustomerCancellationSummary bk={bk} />}
 
-          {/* Cancel section */}
           {canCancel&&(
             <div className="border border-red-200 bg-white px-6 py-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-sm font-black text-red-700">Cancel this booking</p>
                   {isWithin48?(
-                    <p className="mt-1 text-xs font-semibold text-red-500">
-                      ⚠ Your pickup is within 48 hours. If you cancel now, the car hire fee of {fmtCurr(carHire,bkCurr)} is non-refundable. Your fuel deposit of {fmtCurr(fuel,bkCurr)} will be refunded.
-                    </p>
+                    <p className="mt-1 text-xs font-semibold text-red-500">⚠ Your pickup is within 48 hours. If you cancel now, the car hire fee of {fmtCurr(carHire,bkCurr)} is non-refundable. Your fuel deposit of {fmtCurr(fuel,bkCurr)} will be refunded.</p>
                   ):(
-                    <p className="mt-1 text-xs font-semibold text-black/50">
-                      More than 48 hours before pickup — you will receive a full refund of {fmtCurr(carHire+fuel,bkCurr)}.
-                    </p>
+                    <p className="mt-1 text-xs font-semibold text-black/50">More than 48 hours before pickup — you will receive a full refund of {fmtCurr(carHire+fuel,bkCurr)}.</p>
                   )}
                 </div>
-                {!showCancel&&(
-                  <button type="button" onClick={()=>setShowCancel(true)}
-                    className="shrink-0 border border-red-300 px-4 py-2 text-sm font-black text-red-700 hover:bg-red-50 transition-colors">
-                    Cancel Booking
-                  </button>
-                )}
+                {!showCancel&&<button type="button" onClick={()=>setShowCancel(true)} className="shrink-0 border border-red-300 px-4 py-2 text-sm font-black text-red-700 hover:bg-red-50 transition-colors">Cancel Booking</button>}
               </div>
               {showCancel&&(
                 <div className="mt-4 space-y-3">
                   <div>
                     <label className="text-xs font-black uppercase tracking-widest text-red-700">Reason (optional)</label>
-                    <textarea rows={2} value={cancelReason} onChange={e=>setCancelReason(e.target.value)}
-                      placeholder="Tell us why you're cancelling…"
-                      className="mt-1 w-full border border-red-200 bg-[#f0f0f0] px-3 py-2.5 text-sm font-medium text-black outline-none focus:border-red-400 resize-none"/>
+                    <textarea rows={2} value={cancelReason} onChange={e=>setCancelReason(e.target.value)} placeholder="Tell us why you're cancelling…" className="mt-1 w-full border border-red-200 bg-[#f0f0f0] px-3 py-2.5 text-sm font-medium text-black outline-none focus:border-red-400 resize-none"/>
                   </div>
                   <div className="flex gap-3">
-                    <button type="button" onClick={cancelBooking} disabled={cancelling}
-                      className="bg-red-600 px-6 py-3 text-sm font-black text-white hover:bg-red-700 disabled:opacity-50 transition-colors">
-                      {cancelling?"Cancelling…":"Confirm Cancellation"}
-                    </button>
-                    <button type="button" onClick={()=>setShowCancel(false)} disabled={cancelling}
-                      className="border border-black/20 px-6 py-3 text-sm font-black text-black hover:bg-black/5 transition-colors">
-                      Keep Booking
-                    </button>
+                    <button type="button" onClick={cancelBooking} disabled={cancelling} className="bg-red-600 px-6 py-3 text-sm font-black text-white hover:bg-red-700 disabled:opacity-50 transition-colors">{cancelling?"Cancelling…":"Confirm Cancellation"}</button>
+                    <button type="button" onClick={()=>setShowCancel(false)} disabled={cancelling} className="border border-black/20 px-6 py-3 text-sm font-black text-black hover:bg-black/5 transition-colors">Keep Booking</button>
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* Booking details */}
           <div className="bg-white p-6">
             <p className="text-xs font-black uppercase tracking-widest text-black mb-5">Booking Details</p>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -696,7 +808,6 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             </div>
           </div>
 
-          {/* Confirmed booking */}
           {bk&&!isCancelled&&(
             <>
               <div className="bg-white p-6 border-l-4 border-green-500">
@@ -725,7 +836,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                 </div>
               </div>
 
-              {bk.booking_status==="completed"&&<BookingSummaryCard bk={bk} rates={liveRates} rateIsLive={rateIsLive}/>}
+              {bk.booking_status==="completed"&&<BookingSummaryCard bk={bk} rates={liveRates} rateIsLive={rateIsLive} req={req}/>}
               {bk.booking_status==="completed"&&<ReviewCard bookingId={bk.id} accessToken={accessToken} existingReview={bk.existing_review} onReviewSubmitted={()=>load(false)}/>}
 
               <InsuranceConfirmCard
@@ -745,7 +856,6 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             </>
           )}
 
-          {/* Bids */}
           <div className="bg-white p-6">
             <p className="text-xs font-black uppercase tracking-widest text-black mb-5">{bk?"Accepted Bid":"Car Hire Company Bids"}</p>
             {expired||req.status==="expired"?(
