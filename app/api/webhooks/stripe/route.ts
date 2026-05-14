@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { syncBookingStatuses } from "@/lib/portal/syncBookingStatuses";
+import { sendEmail } from "@/lib/email";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-04-22.dahlia" as any });
 
@@ -10,10 +11,6 @@ const db = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-/**
- * Fetches Stripe fee + exchange rate from the charge's balance transaction.
- * Returns null values gracefully — fee lookup must never block booking creation.
- */
 async function getStripeFeeData(chargeId: string | null): Promise<{
   stripe_fee: number | null;
   stripe_fee_currency: string | null;
@@ -22,9 +19,7 @@ async function getStripeFeeData(chargeId: string | null): Promise<{
   const empty = { stripe_fee: null, stripe_fee_currency: null, exchange_rate: null };
   if (!chargeId) return empty;
   try {
-    const charge = await stripe.charges.retrieve(chargeId, {
-      expand: ["balance_transaction"],
-    });
+    const charge = await stripe.charges.retrieve(chargeId, { expand: ["balance_transaction"] });
     const bt = charge.balance_transaction as Stripe.BalanceTransaction | null;
     if (!bt || typeof bt === "string") return empty;
     return {
@@ -56,45 +51,38 @@ export async function POST(req: NextRequest) {
       const pi = event.data.object as Stripe.PaymentIntent;
       const m  = pi.metadata;
 
-      const bidId          = m.bid_id;
-      const requestId      = m.request_id;
-      const partnerUserId  = m.partner_user_id;
-      const jobNumber      = m.job_number ? Number(m.job_number) : null;
-      const chargeId       = typeof pi.latest_charge === "string" ? pi.latest_charge : null;
+      const bidId         = m.bid_id;
+      const requestId     = m.request_id;
+      const partnerUserId = m.partner_user_id;
+      const jobNumber     = m.job_number ? Number(m.job_number) : null;
+      const chargeId      = typeof pi.latest_charge === "string" ? pi.latest_charge : null;
 
-      // ── Currency split ──────────────────────────────────────────────────────
-      // charge_currency = what the customer paid in (used for payments table)
-      // bid_currency    = what the partner bid in (used for partner_bookings)
-      // All amounts in metadata are in charge_currency (already converted)
-      const chargeCurrency = (m.charge_currency || "EUR").toUpperCase();
-      const conversionRate = m.conversion_rate ? Number(m.conversion_rate) : 1;
-
-      // Amounts in charge currency (what customer paid)
-      const chargeCarHire   = Number(m.car_hire_price   || 0);
-      const chargeFuel      = Number(m.fuel_price       || 0);
+      const chargeCurrency  = (m.charge_currency || "EUR").toUpperCase();
+      const conversionRate  = m.conversion_rate ? Number(m.conversion_rate) : 1;
+      const chargeCarHire   = Number(m.car_hire_price    || 0);
+      const chargeFuel      = Number(m.fuel_price        || 0);
       const commissionAmt   = Number(m.commission_amount || 0);
       const commissionRate  = Number(m.commission_rate   || 20);
       const partnerNet      = Number(m.partner_net       || 0);
       const chargeTotalPrice = chargeCarHire + chargeFuel;
 
-      // Load bid for bid currency + original bid amounts + notes
+      // Load bid for bid currency + original amounts + notes
       const { data: bid } = await db
         .from("partner_bids")
         .select("currency, notes, car_hire_price, fuel_price, total_price")
         .eq("id", bidId)
         .maybeSingle();
 
-      // partner_bookings stores amounts in BID currency (what partner quoted)
-      const bidCurrency    = (bid?.currency || "EUR").toUpperCase();
-      const bidCarHire     = Number(bid?.car_hire_price || 0);
-      const bidFuel        = Number(bid?.fuel_price     || 0);
-      const bidTotalPrice  = Number(bid?.total_price    || bidCarHire + bidFuel);
-      const notes          = bid?.notes || null;
+      const bidCurrency   = (bid?.currency || "EUR").toUpperCase();
+      const bidCarHire    = Number(bid?.car_hire_price || 0);
+      const bidFuel       = Number(bid?.fuel_price     || 0);
+      const bidTotalPrice = Number(bid?.total_price    || bidCarHire + bidFuel);
+      const notes         = bid?.notes || null;
 
-      // Check request still open
+      // Load request for customer info + pickup details
       const { data: request } = await db
         .from("customer_requests")
-        .select("status")
+        .select("status, customer_name, customer_email, pickup_address, dropoff_address, pickup_at")
         .eq("id", requestId)
         .maybeSingle();
 
@@ -127,15 +115,12 @@ export async function POST(req: NextRequest) {
             winning_bid_id:        bidId,
             partner_user_id:       partnerUserId,
             booking_status:        "confirmed",
-            // ── Partner-facing amounts — always in bid currency ──
             currency:              bidCurrency,
             amount:                bidTotalPrice,
             car_hire_price:        bidCarHire,
             fuel_price:            bidFuel,
-            // ── Charge currency — what customer actually paid ──
             charge_currency:       chargeCurrency,
             conversion_rate:       conversionRate,
-            // ── Commission + payout — in charge currency ──
             commission_rate:       commissionRate,
             commission_amount:     commissionAmt,
             partner_payout_amount: partnerNet,
@@ -153,10 +138,10 @@ export async function POST(req: NextRequest) {
         bookingId = inserted.id;
       }
 
-      // Fetch Stripe fee + exchange rate from balance transaction
+      // Stripe fee data
       const feeData = await getStripeFeeData(chargeId);
 
-      // payments table — always in charge currency (what customer paid)
+      // Insert payment record
       await db.from("payments").insert({
         booking_id:               bookingId,
         customer_id:              null,
@@ -175,7 +160,7 @@ export async function POST(req: NextRequest) {
         exchange_rate:            feeData.exchange_rate ?? (conversionRate !== 1 ? conversionRate : null),
       });
 
-      // Update booking with payment_id
+      // Link payment_id back to booking
       const { data: payment } = await db
         .from("payments")
         .select("id")
@@ -186,8 +171,131 @@ export async function POST(req: NextRequest) {
         await db.from("partner_bookings").update({ payment_id: payment.id }).eq("id", bookingId);
       }
 
-      // Sync booking statuses
       await syncBookingStatuses(bookingId);
+
+      // ── Load partner profile for emails ─────────────────────────────────
+      const { data: partnerProfile } = await db
+        .from("partner_profiles")
+        .select("company_name, contact_name")
+        .eq("user_id", partnerUserId)
+        .maybeSingle();
+
+      const { data: partnerAuthData } = await db.auth.admin.getUserById(partnerUserId);
+      const partnerEmail = partnerAuthData?.user?.email || null;
+
+      const jobNo       = jobNumber ? `#${jobNumber}` : "";
+      const companyName = partnerProfile?.company_name || "your car hire partner";
+      const siteUrl     = process.env.NEXT_PUBLIC_SITE_URL || "https://camel-global.com";
+      const portalUrl   = process.env.NEXT_PUBLIC_PORTAL_URL || "https://portal.camel-global.com";
+      const fmtCharge   = (n: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: chargeCurrency }).format(n);
+      const fmtBid      = (n: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: bidCurrency }).format(n);
+      const pickupTime  = request?.pickup_at
+        ? new Date(request.pickup_at).toLocaleString("en-GB", { timeZone: "Europe/Madrid" })
+        : "—";
+      const adminEmails = String(process.env.CAMEL_ADMIN_EMAILS || "").split(",").map(e => e.trim()).filter(Boolean);
+
+      // ── Email customer — booking confirmed ───────────────────────────────
+      if (request?.customer_email) {
+        await sendEmail({
+          to: request.customer_email,
+          subject: `Booking confirmed ${jobNo} — payment received`,
+          html: `
+            <div style="font-family:system-ui,sans-serif;color:#222;max-width:600px;">
+              <div style="background:#000;padding:20px 28px;">
+                <h2 style="color:#fff;margin:0;">Booking Confirmed ✅</h2>
+                <p style="color:#999;margin:4px 0 0;font-size:13px;">Booking ${jobNo}</p>
+              </div>
+              <div style="padding:24px 28px;background:#fff;border:1px solid #eee;">
+                <p>Hi ${request.customer_name || "there"},</p>
+                <p>Your payment has been received and your booking is confirmed with <strong>${companyName}</strong>.</p>
+                <div style="background:#f8f8f8;padding:16px;margin:16px 0;border-left:4px solid #ff7a00;">
+                  <p style="margin:0 0 8px;font-weight:700;">Booking Summary</p>
+                  <table style="width:100%;font-size:14px;border-collapse:collapse;">
+                    <tr><td style="padding:4px 0;color:#666;">Booking reference</td><td style="text-align:right;font-weight:700;">${jobNo}</td></tr>
+                    <tr><td style="padding:4px 0;color:#666;">Car hire partner</td><td style="text-align:right;">${companyName}</td></tr>
+                    <tr><td style="padding:4px 0;color:#666;">Pickup</td><td style="text-align:right;">${pickupTime}</td></tr>
+                    <tr><td style="padding:4px 0;color:#666;">Pickup address</td><td style="text-align:right;">${request.pickup_address || "—"}</td></tr>
+                    ${request.dropoff_address ? `<tr><td style="padding:4px 0;color:#666;">Drop-off address</td><td style="text-align:right;">${request.dropoff_address}</td></tr>` : ""}
+                    <tr style="border-top:1px solid #ddd;">
+                      <td style="padding:8px 0 4px;color:#666;">Car hire</td><td style="text-align:right;">${fmtCharge(chargeCarHire)}</td>
+                    </tr>
+                    <tr><td style="padding:4px 0;color:#666;">Fuel deposit</td><td style="text-align:right;">${fmtCharge(chargeFuel)}</td></tr>
+                    <tr style="border-top:1px solid #ddd;">
+                      <td style="padding:8px 0 4px;font-weight:700;">Total paid</td>
+                      <td style="text-align:right;font-weight:700;">${fmtCharge(chargeTotalPrice)}</td>
+                    </tr>
+                  </table>
+                  <p style="margin:8px 0 0;font-size:13px;color:#666;">The fuel deposit will be refunded at the end of your hire based on fuel used.</p>
+                </div>
+                <a href="${siteUrl}/bookings/${requestId}" style="display:inline-block;background:#ff7a00;color:#fff;padding:12px 24px;text-decoration:none;font-weight:700;margin-top:8px;">View Booking</a>
+                <p style="margin-top:24px;color:#999;font-size:13px;">The Camel Global Team</p>
+              </div>
+            </div>
+          `,
+        }).catch(e => console.error("Customer booking confirmed email failed:", e?.message));
+      }
+
+      // ── Email partner — new booking ──────────────────────────────────────
+      if (partnerEmail) {
+        await sendEmail({
+          to: partnerEmail,
+          subject: `New booking confirmed ${jobNo}`,
+          html: `
+            <div style="font-family:system-ui,sans-serif;color:#222;max-width:600px;">
+              <div style="background:#000;padding:20px 28px;">
+                <h2 style="color:#fff;margin:0;">New Booking Confirmed</h2>
+                <p style="color:#999;margin:4px 0 0;font-size:13px;">Booking ${jobNo}</p>
+              </div>
+              <div style="padding:24px 28px;background:#fff;border:1px solid #eee;">
+                <p>Hi ${partnerProfile?.contact_name || companyName},</p>
+                <p>A customer has paid and confirmed booking ${jobNo}. Please prepare for collection.</p>
+                <div style="background:#f8f8f8;padding:16px;margin:16px 0;border-left:4px solid #ff7a00;">
+                  <p style="margin:0 0 8px;font-weight:700;">Booking Details</p>
+                  <table style="width:100%;font-size:14px;border-collapse:collapse;">
+                    <tr><td style="padding:4px 0;color:#666;">Booking reference</td><td style="text-align:right;font-weight:700;">${jobNo}</td></tr>
+                    <tr><td style="padding:4px 0;color:#666;">Customer</td><td style="text-align:right;">${request?.customer_name || "—"}</td></tr>
+                    <tr><td style="padding:4px 0;color:#666;">Pickup time</td><td style="text-align:right;">${pickupTime}</td></tr>
+                    <tr><td style="padding:4px 0;color:#666;">Pickup address</td><td style="text-align:right;">${request?.pickup_address || "—"}</td></tr>
+                    ${request?.dropoff_address ? `<tr><td style="padding:4px 0;color:#666;">Drop-off address</td><td style="text-align:right;">${request.dropoff_address}</td></tr>` : ""}
+                    <tr style="border-top:1px solid #ddd;">
+                      <td style="padding:8px 0 4px;color:#666;">Car hire</td><td style="text-align:right;">${fmtBid(bidCarHire)}</td>
+                    </tr>
+                    <tr><td style="padding:4px 0;color:#666;">Fuel deposit</td><td style="text-align:right;">${fmtBid(bidFuel)}</td>
+                    </tr>
+                  </table>
+                </div>
+                <a href="${portalUrl}/partner/bookings/${bookingId}" style="display:inline-block;background:#ff7a00;color:#fff;padding:12px 24px;text-decoration:none;font-weight:700;margin-top:8px;">View Booking</a>
+                <p style="margin-top:24px;color:#999;font-size:13px;">The Camel Global Team</p>
+              </div>
+            </div>
+          `,
+        }).catch(e => console.error("Partner new booking email failed:", e?.message));
+      }
+
+      // ── Email admin — new booking ────────────────────────────────────────
+      for (const adminEmail of adminEmails) {
+        await sendEmail({
+          to: adminEmail,
+          subject: `[Admin] New booking ${jobNo} — ${companyName}`,
+          html: `
+            <div style="font-family:system-ui,sans-serif;color:#222;max-width:600px;">
+              <p>New booking confirmed.</p>
+              <p>
+                <strong>Booking:</strong> ${jobNo}<br/>
+                <strong>Partner:</strong> ${companyName}<br/>
+                <strong>Customer:</strong> ${request?.customer_name || "—"} (${request?.customer_email || "—"})<br/>
+                <strong>Pickup:</strong> ${pickupTime}<br/>
+                <strong>Pickup address:</strong> ${request?.pickup_address || "—"}<br/>
+                <strong>Charge currency:</strong> ${chargeCurrency} — car hire ${fmtCharge(chargeCarHire)}, fuel ${fmtCharge(chargeFuel)}, total ${fmtCharge(chargeTotalPrice)}<br/>
+                <strong>Bid currency:</strong> ${bidCurrency} — car hire ${fmtBid(bidCarHire)}, fuel ${fmtBid(bidFuel)}<br/>
+                <strong>Commission:</strong> ${fmtCharge(commissionAmt)} (${commissionRate}%)<br/>
+                <strong>Partner net:</strong> ${fmtCharge(partnerNet)}<br/>
+                <strong>Stripe fee:</strong> ${feeData.stripe_fee != null ? `${feeData.stripe_fee} ${feeData.stripe_fee_currency}` : "pending"}
+              </p>
+            </div>
+          `,
+        }).catch(e => console.error("Admin new booking email failed:", e?.message));
+      }
 
       console.log(`payment_intent.succeeded: booking ${bookingId} — bid ${bidCurrency}, charge ${chargeCurrency}, rate ${conversionRate}, fee ${feeData.stripe_fee} ${feeData.stripe_fee_currency}`);
     }
