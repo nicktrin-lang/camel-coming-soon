@@ -582,14 +582,16 @@ function BidCard({ bid,currency,rates,requestStatus,acceptingId,expired,onAccept
 }
 
 // ── Booking Confirmation Receipt download button (all statuses) ───────────────
-function ReceiptDownloadButton({ bookingId }: { bookingId: string }) {
+function ReceiptDownloadButton({ bookingId, accessToken }: { bookingId: string; accessToken: string }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr]         = useState<string|null>(null);
 
   async function handleDownload() {
     setLoading(true); setErr(null);
     try {
-      const res  = await fetch(`/api/test-booking/bookings/${bookingId}/receipt`);
+      const res  = await fetch(`/api/test-booking/bookings/${bookingId}/receipt`, {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      });
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.error || "Failed to get receipt");
       // Open signed URL in new tab (triggers browser PDF download)
@@ -883,7 +885,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
 
                 {/* Booking Confirmation Receipt — available at all statuses */}
                 <div className="mb-4">
-                  <ReceiptDownloadButton bookingId={bk.id} />
+                  <ReceiptDownloadButton bookingId={bk.id} accessToken={accessToken} />
                 </div>
 
                 <div className="flex flex-wrap gap-2">
