@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { syncBookingStatuses } from "@/lib/portal/syncBookingStatuses";
 import { sendEmail } from "@/lib/email";
+import { sendBookingReceiptEmail } from "@/lib/portal/generateBookingReceiptPDF";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-04-22.dahlia" as any });
 
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
       // Load bid for bid currency + original amounts + notes
       const { data: bid } = await db
         .from("partner_bids")
-        .select("currency, notes, car_hire_price, fuel_price, total_price")
+        .select("currency, notes, car_hire_price, fuel_price, total_price, vehicle_category_name")
         .eq("id", bidId)
         .maybeSingle();
 
@@ -78,11 +79,12 @@ export async function POST(req: NextRequest) {
       const bidFuel       = Number(bid?.fuel_price     || 0);
       const bidTotalPrice = Number(bid?.total_price    || bidCarHire + bidFuel);
       const notes         = bid?.notes || null;
+      const vehicleCategory = bid?.vehicle_category_name || null;
 
       // Load request for customer info + pickup details
       const { data: request } = await db
         .from("customer_requests")
-        .select("status, customer_name, customer_email, pickup_address, dropoff_address, pickup_at")
+        .select("status, customer_name, customer_email, pickup_address, dropoff_address, pickup_at, vehicle_category_name")
         .eq("id", requestId)
         .maybeSingle();
 
@@ -194,6 +196,27 @@ export async function POST(req: NextRequest) {
         : "—";
       const adminEmails = String(process.env.CAMEL_ADMIN_EMAILS || "").split(",").map(e => e.trim()).filter(Boolean);
 
+      // ── Generate & email booking receipt PDF ─────────────────────────────
+      // Fire-and-forget — don't block webhook response
+      if (request?.customer_email) {
+        sendBookingReceiptEmail({
+          jobNumber,
+          bookingId,
+          requestId,
+          customerName:    request.customer_name || null,
+          customerEmail:   request.customer_email,
+          pickupAddress:   request.pickup_address || null,
+          dropoffAddress:  request.dropoff_address || null,
+          pickupAt:        request.pickup_at || null,
+          vehicleCategory: request.vehicle_category_name || vehicleCategory || null,
+          companyName,
+          chargeCurrency,
+          chargeCarHire,
+          chargeFuel,
+          chargeTotal:     chargeTotalPrice,
+        }).catch(e => console.error("Booking receipt PDF email failed:", e?.message));
+      }
+
       // ── Email customer — booking confirmed ───────────────────────────────
       if (request?.customer_email) {
         await sendEmail({
@@ -227,6 +250,7 @@ export async function POST(req: NextRequest) {
                   </table>
                   <p style="margin:8px 0 0;font-size:13px;color:#666;">The fuel deposit will be refunded at the end of your hire based on fuel used.</p>
                 </div>
+                <p style="font-size:13px;color:#666;">Your booking confirmation receipt will arrive in a separate email shortly.</p>
                 <a href="${siteUrl}/bookings/${requestId}" style="display:inline-block;background:#ff7a00;color:#fff;padding:12px 24px;text-decoration:none;font-weight:700;margin-top:8px;">View Booking</a>
                 <p style="margin-top:24px;color:#999;font-size:13px;">The Camel Global Team</p>
               </div>

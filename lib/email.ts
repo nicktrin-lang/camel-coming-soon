@@ -2,14 +2,22 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+type EmailAttachment = {
+  filename: string;
+  content: string;   // base64-encoded
+  encoding: "base64";
+};
+
 export async function sendEmail({
   to,
   subject,
   html,
+  attachments,
 }: {
   to: string;
   subject: string;
   html: string;
+  attachments?: EmailAttachment[];
 }) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM;
@@ -36,13 +44,16 @@ export async function sendEmail({
 
   console.log("📧 Sending email to:", cleanTo);
 
+  const body: Record<string, unknown> = { from, to: cleanTo, subject, html };
+  if (attachments?.length) body.attachments = attachments;
+
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from, to: cleanTo, subject, html }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
@@ -184,16 +195,16 @@ export async function sendReviewReminderEmail(
     subject: `How was your car hire experience?${jobNumber ? ` (Booking ${jobNumber})` : ""}`,
     html: `
       <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#222; line-height:1.6; max-width:600px;">
-        <div style="background:#003768; padding:24px 32px; border-radius:12px 12px 0 0;">
+        <div style="background:#000000; padding:24px 32px;">
           <h2 style="color:#fff; margin:0;">How was your car hire experience? ⭐</h2>
         </div>
-        <div style="background:#f8fafc; padding:24px 32px; border-radius:0 0 12px 12px; border:1px solid #e2e8f0;">
+        <div style="background:#f8f8f8; padding:24px 32px; border:1px solid #e5e5e5;">
           <p>Hi,</p>
           <p>Your Camel Global car hire booking${jobNumber ? ` <strong>#${jobNumber}</strong>` : ""} is now complete. We'd love to hear how it went.</p>
           <p>Your review helps other customers choose the right car hire company for their trip.</p>
           <p style="margin:24px 0;">
             <a href="${reviewUrl}"
-              style="background:#ff7a00; color:#fff; padding:12px 28px; border-radius:999px; text-decoration:none; font-weight:600; display:inline-block;">
+              style="background:#ff7a00; color:#fff; padding:12px 28px; text-decoration:none; font-weight:700; display:inline-block;">
               Leave a Review
             </a>
           </p>
