@@ -181,6 +181,9 @@ function ReceiptDocument({ d }: { d: ReceiptData }) {
             and return. Any unused fuel will be refunded to your original payment method within 5–10 business days
             of booking completion.
           </Text>
+          <Text style={[s.note, { color: "#ff7a00", fontFamily: "Helvetica-Bold" }]}>
+            Important: Please bring your driving licence for yourself and any additional driver.
+          </Text>
           <Text style={s.note}>
             To view your booking, visit camel-global.com/bookings/{d.requestId}
           </Text>

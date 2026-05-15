@@ -6,7 +6,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createCustomerServiceRoleSupabaseClient } from "@/lib/supabase-customer/server";
-import { createClient } from "@supabase/supabase-js";
 import { generateBookingReceiptPDF } from "@/lib/portal/generateBookingReceiptPDF";
 
 const BUCKET = "booking-receipts";
@@ -28,19 +27,16 @@ export async function GET(
   const token = getBearerToken(req);
   if (!token) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
-  const customerDb = createCustomerServiceRoleSupabaseClient();
-  const { data: authData, error: authErr } = await customerDb.auth.getUser(token);
+  // Use the customer DB client throughout — this is what has the right credentials
+  const db = createCustomerServiceRoleSupabaseClient();
+
+  const { data: authData, error: authErr } = await db.auth.getUser(token);
   if (authErr || !authData?.user) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
   const user = authData.user;
 
-  const db = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
-  // Load booking + verify it belongs to this customer via customer_requests.customer_user_id
+  // Load booking + verify ownership via customer_requests.customer_user_id
   const { data: bk, error: bkErr } = await db
     .from("partner_bookings")
     .select(`
@@ -56,11 +52,15 @@ export async function GET(
     .eq("id", bookingId)
     .maybeSingle();
 
-  if (bkErr || !bk) {
+  if (bkErr) {
+    console.error("receipt/route: booking fetch error", bkErr);
+    return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+  }
+  if (!bk) {
     return NextResponse.json({ error: "Booking not found" }, { status: 404 });
   }
 
-  // Verify ownership via customer_user_id
+  // Verify ownership
   const cr = bk.customer_requests as any;
   if (cr?.customer_user_id !== user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
