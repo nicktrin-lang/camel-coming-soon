@@ -1,16 +1,22 @@
 /**
  * GET /api/test-booking/bookings/[id]/receipt
  * Returns a signed download URL for the booking confirmation receipt PDF.
- * If the PDF doesn't exist yet (edge case), regenerates it.
+ * Uses Bearer token auth — same pattern as all other customer API routes.
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createCustomerServerClient } from "@/lib/supabase-customer/server";
+import { createCustomerServiceRoleSupabaseClient } from "@/lib/supabase-customer/server";
 import { createClient } from "@supabase/supabase-js";
 import { generateBookingReceiptPDF } from "@/lib/portal/generateBookingReceiptPDF";
 
 const BUCKET = "booking-receipts";
 const SIGNED_URL_EXPIRY = 60; // seconds
+
+function getBearerToken(req: NextRequest): string | null {
+  const auth = req.headers.get("authorization") || "";
+  if (!auth.toLowerCase().startsWith("bearer ")) return null;
+  return auth.slice(7).trim() || null;
+}
 
 export async function GET(
   req: NextRequest,
@@ -18,17 +24,23 @@ export async function GET(
 ) {
   const { id: bookingId } = await params;
 
-  // Auth check
-  const supabase = await createCustomerServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+  // Auth — Bearer token, same as all other customer routes
+  const token = getBearerToken(req);
+  if (!token) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+
+  const customerDb = createCustomerServiceRoleSupabaseClient();
+  const { data: authData, error: authErr } = await customerDb.auth.getUser(token);
+  if (authErr || !authData?.user) {
+    return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+  }
+  const user = authData.user;
 
   const db = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // Load booking — verify it belongs to this customer's request
+  // Load booking + verify it belongs to this customer via customer_requests.customer_user_id
   const { data: bk, error: bkErr } = await db
     .from("partner_bookings")
     .select(`
@@ -36,8 +48,8 @@ export async function GET(
       currency, charge_currency, car_hire_price, fuel_price, amount,
       receipt_storage_path,
       customer_requests!inner(
-        customer_email, customer_name, pickup_address, dropoff_address,
-        pickup_at, vehicle_category_name
+        customer_user_id, customer_name, customer_email,
+        pickup_address, dropoff_address, pickup_at, vehicle_category_name
       ),
       partner_profiles!partner_user_id(company_name)
     `)
@@ -48,19 +60,10 @@ export async function GET(
     return NextResponse.json({ error: "Booking not found" }, { status: 404 });
   }
 
-  // Verify the customer owns this request
-  const req2 = bk.customer_requests as any;
-  if (req2?.customer_email?.toLowerCase() !== user.email?.toLowerCase()) {
-    // Also allow lookup by user_id on customer_requests if available
-    const { data: cr } = await db
-      .from("customer_requests")
-      .select("id")
-      .eq("id", bk.request_id)
-      .eq("customer_id", user.id)
-      .maybeSingle();
-    if (!cr) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+  // Verify ownership via customer_user_id
+  const cr = bk.customer_requests as any;
+  if (cr?.customer_user_id !== user.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const storagePath = bk.receipt_storage_path as string | null;
@@ -74,7 +77,6 @@ export async function GET(
     if (!signErr && signed?.signedUrl) {
       return NextResponse.json({ url: signed.signedUrl });
     }
-    // Fall through to regenerate if signed URL failed
     console.warn("receipt/route: signed URL failed, regenerating", signErr);
   }
 
@@ -86,16 +88,16 @@ export async function GET(
   const profile        = bk.partner_profiles as any;
 
   try {
-    const { storagePath: newPath, base64 } = await generateBookingReceiptPDF({
+    const { storagePath: newPath } = await generateBookingReceiptPDF({
       jobNumber:       bk.job_number,
       bookingId:       bk.id,
       requestId:       bk.request_id,
-      customerName:    req2?.customer_name || null,
-      customerEmail:   req2?.customer_email || null,
-      pickupAddress:   req2?.pickup_address || null,
-      dropoffAddress:  req2?.dropoff_address || null,
-      pickupAt:        req2?.pickup_at || null,
-      vehicleCategory: req2?.vehicle_category_name || null,
+      customerName:    cr?.customer_name || null,
+      customerEmail:   cr?.customer_email || null,
+      pickupAddress:   cr?.pickup_address || null,
+      dropoffAddress:  cr?.dropoff_address || null,
+      pickupAt:        cr?.pickup_at || null,
+      vehicleCategory: cr?.vehicle_category_name || null,
       companyName:     profile?.company_name || null,
       chargeCurrency,
       chargeCarHire,
@@ -111,11 +113,7 @@ export async function GET(
       return NextResponse.json({ url: signed.signedUrl });
     }
 
-    // Last resort — return base64 data URL
-    return NextResponse.json({
-      url: `data:application/pdf;base64,${base64}`,
-      isDataUrl: true,
-    });
+    return NextResponse.json({ error: "Failed to generate receipt URL" }, { status: 500 });
   } catch (e: any) {
     console.error("receipt/route: regeneration failed", e?.message);
     return NextResponse.json({ error: "Failed to generate receipt" }, { status: 500 });
