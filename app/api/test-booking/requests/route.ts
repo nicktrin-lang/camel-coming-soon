@@ -58,7 +58,8 @@ export async function GET(req: Request) {
         pickup_at, dropoff_at, journey_duration_minutes,
         passengers, suitcases, hand_luggage, sport_equipment,
         vehicle_category_slug, vehicle_category_name,
-        notes, status, created_at, expires_at, currency
+        notes, status, created_at, expires_at, currency,
+        driver_age, additional_drivers, additional_driver_ages
       `)
       .eq("customer_user_id", customerUser.id)
       .order("created_at", { ascending: false });
@@ -96,12 +97,20 @@ export async function POST(req: Request) {
     const notes                    = String(body?.notes || "").trim();
     const currency                 = normalizeCurrency(body?.currency);
 
+    // Driver age fields
+    const driver_age_raw        = body?.driver_age == null ? null : Number(body.driver_age);
+    const driver_age            = driver_age_raw != null && !isNaN(driver_age_raw) ? driver_age_raw : null;
+    const additional_drivers    = Math.min(4, Math.max(0, Number(body?.additional_drivers || 0)));
+    const additional_driver_ages = String(body?.additional_driver_ages || "").trim();
+
+    // Validations
     if (!pickup_address)  return NextResponse.json({ error: "Pickup is required" }, { status: 400 });
     if (pickup_lat === null || pickup_lng === null) return NextResponse.json({ error: "Pickup coordinates are required" }, { status: 400 });
     if (Number.isNaN(pickup_lat) || Number.isNaN(pickup_lng)) return NextResponse.json({ error: "Pickup coordinates must be valid numbers" }, { status: 400 });
     if (!dropoff_address) return NextResponse.json({ error: "Dropoff is required" }, { status: 400 });
     if (!pickup_at)       return NextResponse.json({ error: "Pickup time is required" }, { status: 400 });
     if (!vehicle_category_slug || !vehicle_category_name) return NextResponse.json({ error: "Vehicle category is required" }, { status: 400 });
+    if (driver_age !== null && driver_age < 18) return NextResponse.json({ error: "Main driver must be 18 or over" }, { status: 400 });
 
     const db = createServiceRoleSupabaseClient();
     const bidWindowHours = await getBidWindowHours(db);
@@ -129,6 +138,9 @@ export async function POST(req: Request) {
         currency,
         status: "open",
         expires_at,
+        driver_age,
+        additional_drivers,
+        additional_driver_ages: additional_driver_ages || null,
       })
       .select(`id, job_number, passengers, suitcases, hand_luggage, vehicle_category_slug, pickup_lat, pickup_lng, expires_at`)
       .single();

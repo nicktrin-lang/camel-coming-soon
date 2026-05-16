@@ -45,18 +45,29 @@ export default function BookPage() {
       // No draft — send back to homepage
       if (!draft) { router.replace("/"); return; }
 
-      const { pickupAddress, pickupLat, pickupLng, dropoffAddress, dropoffLat, dropoffLng,
-              pickupAt, dropoffAt, passengers, suitcases, vehicleSlug, sportEquipment, notes,
-              currency } = draft;
+      const {
+        pickupAddress, pickupLat, pickupLng,
+        dropoffAddress, dropoffLat, dropoffLng,
+        pickupAt, dropoffAt, passengers, suitcases,
+        vehicleSlug, sportEquipment, notes, currency,
+        driverAge, additionalDrivers, additionalDriverAges,
+      } = draft;
 
       const duration = calculateDurationMinutes(pickupAt, dropoffAt);
       const cat      = FLEET_CATEGORIES.find(c => c.slug === (vehicleSlug || FLEET_CATEGORIES[0]?.slug));
 
       if (!pickupLat || !pickupLng || !dropoffLat || !dropoffLng || !pickupAt || !dropoffAt || !duration || !cat) {
-        // Draft is incomplete — send back to homepage to re-fill
         sessionStorage.removeItem("camel_booking_draft");
         router.replace("/");
         return;
+      }
+
+      // Build additional_driver_ages string from array or existing string
+      let additionalDriverAgesStr = "";
+      if (Array.isArray(additionalDriverAges)) {
+        additionalDriverAgesStr = additionalDriverAges.filter(Boolean).join(",");
+      } else if (typeof additionalDriverAges === "string") {
+        additionalDriverAgesStr = additionalDriverAges;
       }
 
       try {
@@ -74,6 +85,9 @@ export default function BookPage() {
             vehicle_category_slug: cat.slug, vehicle_category_name: cat.name,
             notes: notes || "",
             currency: normalizeCurrency(currency),
+            driver_age: driverAge ? Number(driverAge) : null,
+            additional_drivers: Number(additionalDrivers || 0),
+            additional_driver_ages: additionalDriverAgesStr,
           }),
         });
         const json = await res.json().catch(() => null);
@@ -86,14 +100,11 @@ export default function BookPage() {
       }
     }
 
-    // Check session — if already logged in, submit immediately
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.access_token) { trySubmit(session.access_token); return; }
-      // No session — shouldn't normally reach here, but bounce to login
       router.replace("/login?next=/book");
     });
 
-    // Also listen for auth state change (fires after login redirect)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       if (session?.access_token) trySubmit(session.access_token);
     });

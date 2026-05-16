@@ -88,6 +88,11 @@ function CustomerHome() {
   const [error,          setError]          = useState<string | null>(null);
   const [submitting,     setSubmitting]     = useState(false);
 
+  // Driver age fields
+  const [driverAge,            setDriverAge]            = useState<string>("");
+  const [additionalDrivers,    setAdditionalDrivers]    = useState(0);
+  const [additionalDriverAges, setAdditionalDriverAges] = useState<string[]>([]);
+
   const [pickupResults,  setPickupResults]  = useState<AddressResult[]>([]);
   const [dropoffResults, setDropoffResults] = useState<AddressResult[]>([]);
   const [pickupLoading,  setPickupLoading]  = useState(false);
@@ -95,6 +100,15 @@ function CustomerHome() {
 
   const pickupTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropoffTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync additionalDriverAges array length when additionalDrivers changes
+  useEffect(() => {
+    setAdditionalDriverAges(prev => {
+      const next = [...prev];
+      while (next.length < additionalDrivers) next.push("");
+      return next.slice(0, additionalDrivers);
+    });
+  }, [additionalDrivers]);
 
   useEffect(() => {
     if (window.location.hash.includes("access_token")) {
@@ -139,7 +153,7 @@ function CustomerHome() {
     }, 300);
   }
 
-function getSelectedCurrency(): "EUR" | "GBP" | "USD" {
+  function getSelectedCurrency(): "EUR" | "GBP" | "USD" {
     try {
       const saved = localStorage.getItem("camel_currency_pref");
       if (saved === "GBP" || saved === "USD") return saved;
@@ -154,6 +168,9 @@ function getSelectedCurrency(): "EUR" | "GBP" | "USD" {
       pickupAt, dropoffAt, passengers, suitcases, vehicleSlug, sportEquipment, notes,
       cityKey: `${city.country}|${city.city}`,
       currency: getSelectedCurrency(),
+      driverAge,
+      additionalDrivers,
+      additionalDriverAges,
     }));
   }
 
@@ -168,6 +185,22 @@ function getSelectedCurrency(): "EUR" | "GBP" | "USD" {
     if (!duration)                  { setError("Drop-off must be at least 1 day after pickup."); return; }
     const cat = FLEET_CATEGORIES.find(c => c.slug === vehicleSlug);
     if (!cat)                       { setError("Please select a vehicle category."); return; }
+
+    // Validate driver age
+    const driverAgeNum = Number(driverAge);
+    if (!driverAge || isNaN(driverAgeNum) || driverAgeNum < 18) {
+      setError("Main driver must be 18 or over.");
+      return;
+    }
+
+    // Validate additional driver ages
+    for (let i = 0; i < additionalDrivers; i++) {
+      const age = Number(additionalDriverAges[i]);
+      if (!additionalDriverAges[i] || isNaN(age) || age < 18) {
+        setError(`Additional driver ${i + 1} must be 18 or over.`);
+        return;
+      }
+    }
 
     saveDraft();
 
@@ -193,6 +226,9 @@ function getSelectedCurrency(): "EUR" | "GBP" | "USD" {
           vehicle_category_slug: cat.slug, vehicle_category_name: cat.name,
           notes: notes.trim(),
           currency: getSelectedCurrency(),
+          driver_age: driverAgeNum,
+          additional_drivers: additionalDrivers,
+          additional_driver_ages: additionalDriverAges.join(","),
         }),
       });
       const json = await res.json().catch(() => null);
@@ -382,7 +418,43 @@ function getSelectedCurrency(): "EUR" | "GBP" | "USD" {
               </div>
             </div>
 
-            {/* Row 4: currency (left) + book now (right) — notes sits between on mobile */}
+            {/* Row 4: driver age + additional drivers */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-3">
+              <div>
+                <label className={labelCls}>Main driver age</label>
+                <input
+                  type="number" min={18} max={99} value={driverAge}
+                  onChange={e => setDriverAge(e.target.value)}
+                  placeholder="e.g. 35"
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Additional drivers</label>
+                <select value={additionalDrivers} onChange={e => setAdditionalDrivers(Number(e.target.value))} className={selectCls}>
+                  {[0,1,2,3,4].map(n => <option key={n} value={n}>{n === 0 ? "None" : `${n} additional`}</option>)}
+                </select>
+              </div>
+              {/* Additional driver age inputs — shown inline when > 0 */}
+              {additionalDrivers > 0 && Array.from({ length: additionalDrivers }).map((_, i) => (
+                <div key={i}>
+                  <label className={labelCls}>Driver {i + 2} age</label>
+                  <input
+                    type="number" min={18} max={99}
+                    value={additionalDriverAges[i] ?? ""}
+                    onChange={e => {
+                      const next = [...additionalDriverAges];
+                      next[i] = e.target.value;
+                      setAdditionalDriverAges(next);
+                    }}
+                    placeholder="e.g. 28"
+                    className={inputCls}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Row 5: currency (left) + book now (right) */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 items-end">
               <div>
                 <label className={labelCls}>Booking currency</label>
@@ -391,8 +463,7 @@ function getSelectedCurrency(): "EUR" | "GBP" | "USD" {
                 </div>
               </div>
 
-              {/* Special requirements — visible between currency and Book Now on mobile,
-                  sits below currency col on desktop via row-start */}
+              {/* Special requirements — mobile */}
               <div className="sm:hidden">
                 <button
                   type="button"
@@ -425,7 +496,7 @@ function getSelectedCurrency(): "EUR" | "GBP" | "USD" {
                 </p>
               </div>
 
-              {/* Desktop-only notes — shown below currency col, hidden on mobile */}
+              {/* Special requirements — desktop */}
               <div className="hidden sm:block">
                 <button
                   type="button"

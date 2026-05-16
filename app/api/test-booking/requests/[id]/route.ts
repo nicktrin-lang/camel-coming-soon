@@ -34,7 +34,8 @@ export async function GET(
         id, job_number, customer_user_id, pickup_address, dropoff_address,
         pickup_at, dropoff_at, journey_duration_minutes, passengers,
         suitcases, hand_luggage, vehicle_category_name, notes,
-        status, created_at, expires_at
+        status, created_at, expires_at,
+        driver_age, additional_drivers, additional_driver_ages
       `)
       .eq("id", id)
       .eq("customer_user_id", customerUser.id)
@@ -69,7 +70,6 @@ export async function GET(
       profileMap = new Map((profileRows || []).map((r: any) => [String(r.user_id), r]));
     }
 
-    // Fetch avg ratings per partner for bid display
     const ratingMap = new Map<string, { avg: number; count: number }>();
     if (partnerIds.length > 0) {
       const { data: ratingRows } = await db
@@ -144,7 +144,6 @@ export async function GET(
       if (bk) {
         const winnerProfile = profileMap.get(String(bk.partner_user_id || "")) || null;
 
-        // Check if customer has already left a review for this booking
         const { data: existingReview } = await db
           .from("partner_reviews")
           .select("id, rating, comment, partner_reply, partner_replied_at, created_at")
@@ -206,7 +205,6 @@ export async function GET(
           cancelled_at: bk.cancelled_at || null,
           cancellation_reason: bk.cancellation_reason || null,
           refund_status: bk.refund_status || null,
-          // Review
           has_review: !!existingReview,
           existing_review: existingReview || null,
         };

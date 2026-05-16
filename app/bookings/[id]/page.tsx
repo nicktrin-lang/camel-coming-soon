@@ -14,6 +14,9 @@ type RequestData = {
   hand_luggage: number; sport_equipment: string|null;
   vehicle_category_name: string|null; notes: string|null;
   status: string; created_at: string; expires_at: string|null;
+  driver_age: number|null;
+  additional_drivers: number;
+  additional_driver_ages: string|null;
 };
 type BidRow = {
   id: string; partner_user_id: string; partner_company_name: string|null;
@@ -851,6 +854,10 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                 ["Suitcases",       req.suitcases],
                 ["Sport equipment", sportEquipmentLabel(req.sport_equipment)],
                 ["Vehicle",         req.vehicle_category_name||"—"],
+                ["Main driver age", req.driver_age ?? "—"],
+                ["Additional drivers", req.additional_drivers > 0
+                  ? `${req.additional_drivers} (ages: ${req.additional_driver_ages || "—"})`
+                  : "None"],
                 ["Status",          req.status],
               ].map(([l,v])=>(
                 <p key={String(l)} className="text-sm font-semibold text-black"><span className="font-black">{l}:</span> {String(v)}</p>
