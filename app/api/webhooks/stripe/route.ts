@@ -81,10 +81,16 @@ export async function POST(req: NextRequest) {
       const notes         = bid?.notes || null;
       const vehicleCategory = bid?.vehicle_category_name || null;
 
-      // Load request for customer info + pickup details
+      // Load request for customer info + pickup details + driver age fields
       const { data: request } = await db
         .from("customer_requests")
-        .select("status, customer_name, customer_email, pickup_address, dropoff_address, pickup_at, vehicle_category_name")
+        .select(`
+          status, customer_name, customer_email,
+          pickup_address, dropoff_address, pickup_at,
+          vehicle_category_name,
+          passengers, suitcases, hand_luggage, sport_equipment,
+          driver_age, additional_drivers, additional_driver_ages
+        `)
         .eq("id", requestId)
         .maybeSingle();
 
@@ -203,17 +209,25 @@ export async function POST(req: NextRequest) {
           jobNumber,
           bookingId,
           requestId,
-          customerName:    request.customer_name || null,
-          customerEmail:   request.customer_email,
-          pickupAddress:   request.pickup_address || null,
-          dropoffAddress:  request.dropoff_address || null,
-          pickupAt:        request.pickup_at || null,
-          vehicleCategory: request.vehicle_category_name || vehicleCategory || null,
+          customerName:         request.customer_name || null,
+          customerEmail:        request.customer_email,
+          pickupAddress:        request.pickup_address || null,
+          dropoffAddress:       request.dropoff_address || null,
+          pickupAt:             request.pickup_at || null,
+          vehicleCategory:      request.vehicle_category_name || vehicleCategory || null,
           companyName,
           chargeCurrency,
           chargeCarHire,
           chargeFuel,
-          chargeTotal:     chargeTotalPrice,
+          chargeTotal:          chargeTotalPrice,
+          // Journey details for PDF
+          passengers:           request.passengers ?? null,
+          suitcases:            request.suitcases ?? null,
+          handLuggage:          request.hand_luggage ?? null,
+          sportEquipment:       request.sport_equipment ?? null,
+          driverAge:            request.driver_age ?? null,
+          additionalDrivers:    request.additional_drivers ?? 0,
+          additionalDriverAges: request.additional_driver_ages ?? null,
         }).catch(e => console.error("Booking receipt PDF email failed:", e?.message));
       }
 

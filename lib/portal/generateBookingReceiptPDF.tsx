@@ -19,10 +19,8 @@ import {
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/email";
 
-// ── Supabase storage bucket ───────────────────────────────────────────────────
 const BUCKET = "booking-receipts";
 
-// ── Styles ────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   page:        { fontFamily: "Helvetica", fontSize: 9, color: "#222", backgroundColor: "#fff", paddingBottom: 40 },
   topBar:      { backgroundColor: "#ff7a00", height: 8 },
@@ -43,11 +41,11 @@ const s = StyleSheet.create({
   totalLabel:  { fontFamily: "Helvetica-Bold", color: "#fff", fontSize: 10 },
   totalValue:  { fontFamily: "Helvetica-Bold", color: "#ff7a00", fontSize: 10 },
   note:        { fontSize: 7.5, color: "#888", marginTop: 10, lineHeight: 1.5 },
+  noteOrange:  { fontSize: 7.5, color: "#ff7a00", fontFamily: "Helvetica-Bold", marginTop: 6, lineHeight: 1.5 },
   footer:      { position: "absolute", bottom: 0, left: 0, right: 0, borderTop: "1 solid #e5e5e5", padding: "6 24", flexDirection: "row", justifyContent: "space-between" },
   footerText:  { fontSize: 7, color: "#aaa" },
 });
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtMoney(amount: number, currency: string): string {
   const locale = currency === "GBP" ? "en-GB" : currency === "USD" ? "en-US" : "es-ES";
   return new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount);
@@ -72,37 +70,59 @@ function fmtDateShort(iso: string | null | undefined): string {
   } catch { return iso; }
 }
 
-// ── PDF Document ──────────────────────────────────────────────────────────────
+function sportEquipmentLabel(v: string | null | undefined): string {
+  if (!v || v === "none") return "None";
+  const map: Record<string, string> = {
+    golf_single: "Golf clubs — 1 bag", golf_two: "Golf clubs — 2 bags",
+    golf_three: "Golf clubs — 3 bags", golf_four: "Golf clubs — 4+ bags",
+    skis_pair: "Skis / snowboard — 1 set", skis_two: "Skis / snowboard — 2 sets",
+    skis_three: "Skis / snowboard — 3+ sets",
+    bikes_one: "Bikes — 1", bikes_two: "Bikes — 2", bikes_three: "Bikes — 3+",
+    other: "Other large equipment",
+  };
+  return map[v] || v;
+}
+
 interface ReceiptData {
-  jobNumber:        number | null;
-  bookingId:        string;
-  requestId:        string;
-  customerName:     string | null;
-  customerEmail:    string | null;
-  pickupAddress:    string | null;
-  dropoffAddress:   string | null;
-  pickupAt:         string | null;
-  vehicleCategory:  string | null;
-  companyName:      string | null;
-  chargeCurrency:   string;
-  chargeCarHire:    number;
-  chargeFuel:       number;
-  chargeTotal:      number;
-  issuedAt:         string;
-  logoBase64:       string | null;
+  jobNumber:              number | null;
+  bookingId:              string;
+  requestId:              string;
+  customerName:           string | null;
+  customerEmail:          string | null;
+  pickupAddress:          string | null;
+  dropoffAddress:         string | null;
+  pickupAt:               string | null;
+  vehicleCategory:        string | null;
+  companyName:            string | null;
+  chargeCurrency:         string;
+  chargeCarHire:          number;
+  chargeFuel:             number;
+  chargeTotal:            number;
+  issuedAt:               string;
+  logoBase64:             string | null;
+  // New fields
+  passengers:             number | null;
+  suitcases:              number | null;
+  handLuggage:            number | null;
+  sportEquipment:         string | null;
+  driverAge:              number | null;
+  additionalDrivers:      number;
+  additionalDriverAges:   string | null;
 }
 
 function ReceiptDocument({ d }: { d: ReceiptData }) {
   const cur = d.chargeCurrency;
   const ref = d.jobNumber ? `#${d.jobNumber}` : d.bookingId.slice(0, 8).toUpperCase();
 
+  const additionalDriversText = d.additionalDrivers > 0
+    ? `${d.additionalDrivers}${d.additionalDriverAges ? ` (ages: ${d.additionalDriverAges})` : ""}`
+    : "None";
+
   return (
     <Document>
       <Page size="A4" style={s.page}>
-        {/* Orange top bar */}
         <View style={s.topBar} />
 
-        {/* Header */}
         <View style={s.header}>
           {d.logoBase64 ? (
             <Image src={`data:image/png;base64,${d.logoBase64}`} style={s.logo} />
@@ -117,11 +137,8 @@ function ReceiptDocument({ d }: { d: ReceiptData }) {
         </View>
 
         <View style={s.body}>
-          {/* Title */}
           <Text style={s.title}>Booking Confirmation Receipt</Text>
-          <Text style={s.subtitle}>
-            Thank you for your payment. Your booking is confirmed.
-          </Text>
+          <Text style={s.subtitle}>Thank you for your payment. Your booking is confirmed.</Text>
 
           {/* Booking details */}
           <View style={s.section}>
@@ -158,6 +175,41 @@ function ReceiptDocument({ d }: { d: ReceiptData }) {
             </View>
           </View>
 
+          {/* Journey details */}
+          <View style={s.section}>
+            <Text style={s.sectionHead}>Journey Details</Text>
+            {d.passengers != null && (
+              <View style={s.row}>
+                <Text style={s.rowLabel}>Passengers</Text>
+                <Text style={s.rowValue}>{d.passengers}</Text>
+              </View>
+            )}
+            {d.suitcases != null && (
+              <View style={s.row}>
+                <Text style={s.rowLabel}>Suitcases</Text>
+                <Text style={s.rowValue}>{d.suitcases}</Text>
+              </View>
+            )}
+            {d.handLuggage != null && d.handLuggage > 0 && (
+              <View style={s.row}>
+                <Text style={s.rowLabel}>Hand luggage</Text>
+                <Text style={s.rowValue}>{d.handLuggage}</Text>
+              </View>
+            )}
+            <View style={s.row}>
+              <Text style={s.rowLabel}>Sport equipment</Text>
+              <Text style={s.rowValue}>{sportEquipmentLabel(d.sportEquipment)}</Text>
+            </View>
+            <View style={s.row}>
+              <Text style={s.rowLabel}>Main driver age</Text>
+              <Text style={s.rowValue}>{d.driverAge ?? "—"}</Text>
+            </View>
+            <View style={s.row}>
+              <Text style={s.rowLabel}>Additional drivers</Text>
+              <Text style={s.rowValue}>{additionalDriversText}</Text>
+            </View>
+          </View>
+
           {/* Payment */}
           <View style={s.section}>
             <Text style={s.sectionHead}>Payment Summary ({cur})</Text>
@@ -175,13 +227,12 @@ function ReceiptDocument({ d }: { d: ReceiptData }) {
             </View>
           </View>
 
-          {/* Notes */}
           <Text style={s.note}>
             The fuel deposit will be refunded at the end of your hire based on the fuel level recorded at collection
             and return. Any unused fuel will be refunded to your original payment method within 5–10 business days
             of booking completion.
           </Text>
-          <Text style={[s.note, { color: "#ff7a00", fontFamily: "Helvetica-Bold" }]}>
+          <Text style={s.noteOrange}>
             Important: Please bring your driving licence for yourself and any additional driver.
           </Text>
           <Text style={s.note}>
@@ -189,7 +240,6 @@ function ReceiptDocument({ d }: { d: ReceiptData }) {
           </Text>
         </View>
 
-        {/* Footer */}
         <View style={s.footer} fixed>
           <Text style={s.footerText}>Camel Global · NTUK Ltd · Office 7, 35-37 Ludgate Hill, London EC4M 7JN · Company No. 08765474</Text>
           <Text style={s.footerText}>camel-global.com</Text>
@@ -199,22 +249,29 @@ function ReceiptDocument({ d }: { d: ReceiptData }) {
   );
 }
 
-// ── Main export ───────────────────────────────────────────────────────────────
 export interface GenerateBookingReceiptParams {
-  jobNumber:        number | null;
-  bookingId:        string;
-  requestId:        string;
-  customerName:     string | null;
-  customerEmail:    string | null;
-  pickupAddress:    string | null;
-  dropoffAddress:   string | null;
-  pickupAt:         string | null;
-  vehicleCategory:  string | null;
-  companyName:      string | null;
-  chargeCurrency:   string;
-  chargeCarHire:    number;
-  chargeFuel:       number;
-  chargeTotal:      number;
+  jobNumber:              number | null;
+  bookingId:              string;
+  requestId:              string;
+  customerName:           string | null;
+  customerEmail:          string | null;
+  pickupAddress:          string | null;
+  dropoffAddress:         string | null;
+  pickupAt:               string | null;
+  vehicleCategory:        string | null;
+  companyName:            string | null;
+  chargeCurrency:         string;
+  chargeCarHire:          number;
+  chargeFuel:             number;
+  chargeTotal:            number;
+  // New fields — optional so callers that don't have them yet don't break
+  passengers?:            number | null;
+  suitcases?:             number | null;
+  handLuggage?:           number | null;
+  sportEquipment?:        string | null;
+  driverAge?:             number | null;
+  additionalDrivers?:     number;
+  additionalDriverAges?:  string | null;
 }
 
 export async function generateBookingReceiptPDF(params: GenerateBookingReceiptParams): Promise<{
@@ -229,7 +286,6 @@ export async function generateBookingReceiptPDF(params: GenerateBookingReceiptPa
   const issuedAt = new Date().toISOString();
   const ref = params.jobNumber ? params.jobNumber : params.bookingId.slice(0, 8).toUpperCase();
 
-  // Load logo
   let logoBase64: string | null = null;
   try {
     const logoUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://camel-global.com"}/camel-invoice-logo.png`;
@@ -242,13 +298,22 @@ export async function generateBookingReceiptPDF(params: GenerateBookingReceiptPa
     console.warn("generateBookingReceiptPDF: logo fetch failed", e);
   }
 
-  const data: ReceiptData = { ...params, issuedAt, logoBase64 };
+  const data: ReceiptData = {
+    ...params,
+    issuedAt,
+    logoBase64,
+    passengers:           params.passengers ?? null,
+    suitcases:            params.suitcases ?? null,
+    handLuggage:          params.handLuggage ?? null,
+    sportEquipment:       params.sportEquipment ?? null,
+    driverAge:            params.driverAge ?? null,
+    additionalDrivers:    params.additionalDrivers ?? 0,
+    additionalDriverAges: params.additionalDriverAges ?? null,
+  };
 
-  // Render PDF
   const pdfBuffer = await renderToBuffer(<ReceiptDocument d={data} />);
   const base64 = pdfBuffer.toString("base64");
 
-  // Upload to Supabase Storage
   const storagePath = `${params.requestId}/booking-receipt-${ref}.pdf`;
   const { error: uploadErr } = await db.storage
     .from(BUCKET)
@@ -259,10 +324,8 @@ export async function generateBookingReceiptPDF(params: GenerateBookingReceiptPa
 
   if (uploadErr) {
     console.error("generateBookingReceiptPDF: storage upload failed", uploadErr);
-    // Don't throw — still return base64 so email can be sent
   }
 
-  // Store path on booking record
   await db
     .from("partner_bookings")
     .update({ receipt_storage_path: storagePath })
@@ -271,7 +334,6 @@ export async function generateBookingReceiptPDF(params: GenerateBookingReceiptPa
   return { storagePath, base64 };
 }
 
-// ── Send receipt email ────────────────────────────────────────────────────────
 export async function sendBookingReceiptEmail(params: GenerateBookingReceiptParams): Promise<void> {
   const { base64 } = await generateBookingReceiptPDF(params);
 

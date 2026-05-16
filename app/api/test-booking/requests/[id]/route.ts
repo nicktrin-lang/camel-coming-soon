@@ -33,7 +33,7 @@ export async function GET(
       .select(`
         id, job_number, customer_user_id, pickup_address, dropoff_address,
         pickup_at, dropoff_at, journey_duration_minutes, passengers,
-        suitcases, hand_luggage, vehicle_category_name, notes,
+        suitcases, hand_luggage, sport_equipment, vehicle_category_name, notes,
         status, created_at, expires_at,
         driver_age, additional_drivers, additional_driver_ages
       `)
@@ -132,7 +132,8 @@ export async function GET(
           collection_confirmed_by_customer, collection_confirmed_by_customer_at, collection_fuel_level_customer, collection_customer_notes,
           return_confirmed_by_customer, return_confirmed_by_customer_at, return_fuel_level_customer, return_customer_notes,
           insurance_docs_confirmed_by_driver, insurance_docs_confirmed_by_driver_at,
-          insurance_docs_confirmed_by_customer, insurance_docs_confirmed_by_customer_at, cancelled_by, cancelled_at, cancellation_reason, refund_status
+          insurance_docs_confirmed_by_customer, insurance_docs_confirmed_by_customer_at,
+          cancelled_by, cancelled_at, cancellation_reason, refund_status
         `)
         .eq("winning_bid_id", acceptedBid.id)
         .order("created_at", { ascending: false })
