@@ -196,25 +196,24 @@ function CustomerCancellationSummary({ bk }: { bk: BookingData }) {
   );
 }
 
-// ── Completion Statement download — server-side PDF via @react-pdf/renderer ───
-function CompletionStatementButton({ bookingId, jobNumber, accessToken }: { bookingId: string; jobNumber: number|null; accessToken: string }) {
-  const [downloading, setDownloading] = useState(false);
-  const [err, setErr] = useState<string|null>(null);
+// ── Completion Statement download button ──────────────────────────────────────
+function CompletionStatementButton({ bookingId, accessToken }: { bookingId: string; accessToken: string }) {
+  const [loading, setLoading] = useState(false);
+  const [err, setErr]         = useState<string|null>(null);
 
   async function handleDownload() {
-    setDownloading(true); setErr(null);
+    setLoading(true); setErr(null);
     try {
       const res  = await fetch(`/api/test-booking/bookings/${bookingId}/completion-statement`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
       });
       const json = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(json?.error || "Failed to generate statement");
-      // Open signed URL — works in all browsers including incognito
+      if (!res.ok || !json?.url) throw new Error(json?.error || "Failed to get statement");
       window.open(json.url, "_blank");
     } catch (e: any) {
       setErr(e?.message || "Failed to download statement");
     } finally {
-      setDownloading(false);
+      setLoading(false);
     }
   }
 
@@ -223,12 +222,12 @@ function CompletionStatementButton({ bookingId, jobNumber, accessToken }: { book
       <button
         type="button"
         onClick={handleDownload}
-        disabled={downloading}
-        className="bg-white/10 hover:bg-white/20 px-4 py-1.5 text-xs font-black text-white transition-colors disabled:opacity-50"
+        disabled={loading}
+        className="inline-flex items-center gap-2 border border-[#ff7a00] px-5 py-2.5 text-sm font-black text-[#ff7a00] hover:bg-[#ff7a00] hover:text-white transition-colors disabled:opacity-50"
       >
-        {downloading ? "Generating…" : "⬇ Booking Completion Statement"}
+        {loading ? "Loading…" : "⬇ Booking Completion Statement"}
       </button>
-      {err && <p className="mt-1 text-xs font-semibold text-red-300">{err}</p>}
+      {err && <p className="mt-2 text-xs font-semibold text-red-600">{err}</p>}
     </div>
   );
 }
@@ -251,35 +250,39 @@ function BookingSummaryCard({ bk, rates, rateIsLive, accessToken }: { bk: Bookin
   const rateBadge = `1€ = ${new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(rates.GBP)} · 1€ = ${new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(rates.USD)}`;
 
   return (
-    <div className="bg-[#003768] p-6">
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-xs font-black uppercase tracking-widest text-white/50">Booking Summary</p>
-        <div className="flex items-center gap-3">
-          <CompletionStatementButton bookingId={bk.id} jobNumber={bk.job_number} accessToken={accessToken} />
+    <>
+      <div className="bg-[#003768] p-6">
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-xs font-black uppercase tracking-widest text-white/50">Booking Summary</p>
           <span className="bg-green-400 px-3 py-1 text-xs font-black text-green-900">Finalised</span>
         </div>
-      </div>
-      <div className="bg-white/10 p-4 mb-4">
-        <p className="text-xs font-black uppercase tracking-widest text-white/50 mb-1">Total booking value</p>
-        <p className="text-3xl font-black text-white">{primary(totalAmt)} <span className="text-lg font-normal opacity-60">{sec(totalAmt)}</span></p>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <div className="bg-white/10 px-3 py-2"><p className="text-xs font-black text-white/50 uppercase tracking-wide">Car hire</p><p className="font-bold text-white">{primary(carHireAmt)}</p><p className="text-xs text-white/40">{sec(carHireAmt)}</p></div>
-          <div className="bg-white/10 px-3 py-2"><p className="text-xs font-black text-white/50 uppercase tracking-wide">Full tank deposit</p><p className="font-bold text-white">{primary(fullTankAmt)}</p><p className="text-xs text-white/40">{sec(fullTankAmt)}</p></div>
+        <div className="bg-white/10 p-4 mb-4">
+          <p className="text-xs font-black uppercase tracking-widest text-white/50 mb-1">Total booking value</p>
+          <p className="text-3xl font-black text-white">{primary(totalAmt)} <span className="text-lg font-normal opacity-60">{sec(totalAmt)}</span></p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="bg-white/10 px-3 py-2"><p className="text-xs font-black text-white/50 uppercase tracking-wide">Car hire</p><p className="font-bold text-white">{primary(carHireAmt)}</p><p className="text-xs text-white/40">{sec(carHireAmt)}</p></div>
+            <div className="bg-white/10 px-3 py-2"><p className="text-xs font-black text-white/50 uppercase tracking-wide">Full tank deposit</p><p className="font-bold text-white">{primary(fullTankAmt)}</p><p className="text-xs text-white/40">{sec(fullTankAmt)}</p></div>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 mb-4">
+          {[{label:"Delivery fuel",value:fuelLabel(collFuel),bar:collFuel},{label:"Collection fuel",value:fuelLabel(retFuel),bar:retFuel},{label:"Fuel used",value:usedQ!==null?QUARTER_LABELS[usedQ]??`${usedQ}/4`:"—",bar:null},{label:"Per quarter",value:primary(perQtrAmt),bar:null}].map(({label,value,bar})=>(
+            <div key={label} className="bg-white/10 p-3"><p className="text-xs font-black text-white/50 uppercase tracking-wide mb-1">{label}</p><p className="font-black text-white">{value}</p>{bar&&<FuelBar level={bar} light/>}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <div className="bg-[#ff7a00]/20 border border-[#ff7a00]/40 p-4"><p className="text-xs font-black text-white/70 uppercase tracking-wide mb-2">Fuel charge to you</p><p className="text-2xl font-black text-white">{fuelCharge!=null?<>{primary(fuelCharge)} <span className="text-base font-normal opacity-70">{sec(fuelCharge)}</span></>:"—"}</p></div>
+          <div className="bg-green-500/20 border border-green-400/40 p-4"><p className="text-xs font-black text-white/70 uppercase tracking-wide mb-2">Refund to you</p><p className="text-2xl font-black text-white">{fuelRefund!=null?<>{primary(fuelRefund)} <span className="text-base font-normal opacity-70">{sec(fuelRefund)}</span></>:"—"}</p></div>
+        </div>
+        <div className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-bold ${rateIsLive?"bg-green-400/20 text-green-200":"bg-white/10 text-white/60"}`}>
+          <span className={`h-2.5 w-2.5 rounded-full ${rateIsLive?"bg-green-400":"bg-white/40"}`}/>{rateBadge}{rateIsLive?" · Live rate (frankfurter.app)":""}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 mb-4">
-        {[{label:"Delivery fuel",value:fuelLabel(collFuel),bar:collFuel},{label:"Collection fuel",value:fuelLabel(retFuel),bar:retFuel},{label:"Fuel used",value:usedQ!==null?QUARTER_LABELS[usedQ]??`${usedQ}/4`:"—",bar:null},{label:"Per quarter",value:primary(perQtrAmt),bar:null}].map(({label,value,bar})=>(
-          <div key={label} className="bg-white/10 p-3"><p className="text-xs font-black text-white/50 uppercase tracking-wide mb-1">{label}</p><p className="font-black text-white">{value}</p>{bar&&<FuelBar level={bar} light/>}</div>
-        ))}
+      {/* Completion statement download — white box matching receipt button style */}
+      <div className="bg-white p-6">
+        <p className="text-xs font-black uppercase tracking-widest text-black mb-4">Booking Documents</p>
+        <CompletionStatementButton bookingId={bk.id} accessToken={accessToken} />
       </div>
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        <div className="bg-[#ff7a00]/20 border border-[#ff7a00]/40 p-4"><p className="text-xs font-black text-white/70 uppercase tracking-wide mb-2">Fuel charge to you</p><p className="text-2xl font-black text-white">{fuelCharge!=null?<>{primary(fuelCharge)} <span className="text-base font-normal opacity-70">{sec(fuelCharge)}</span></>:"—"}</p></div>
-        <div className="bg-green-500/20 border border-green-400/40 p-4"><p className="text-xs font-black text-white/70 uppercase tracking-wide mb-2">Refund to you</p><p className="text-2xl font-black text-white">{fuelRefund!=null?<>{primary(fuelRefund)} <span className="text-base font-normal opacity-70">{sec(fuelRefund)}</span></>:"—"}</p></div>
-      </div>
-      <div className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-bold ${rateIsLive?"bg-green-400/20 text-green-200":"bg-white/10 text-white/60"}`}>
-        <span className={`h-2.5 w-2.5 rounded-full ${rateIsLive?"bg-green-400":"bg-white/40"}`}/>{rateBadge}{rateIsLive?" · Live rate (frankfurter.app)":""}
-      </div>
-    </div>
+    </>
   );
 }
 
