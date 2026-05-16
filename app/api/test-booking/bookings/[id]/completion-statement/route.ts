@@ -1,114 +1,171 @@
-import { NextResponse } from "next/server";
-import { createServiceRoleSupabaseClient } from "@/lib/supabase/server";
+/**
+ * GET /api/test-booking/bookings/[id]/completion-statement
+ * Returns a signed download URL for the booking completion statement PDF.
+ * Mirrors the receipt route exactly — single customer DB client throughout.
+ */
+
+import { NextRequest, NextResponse } from "next/server";
 import { createCustomerServiceRoleSupabaseClient } from "@/lib/supabase-customer/server";
 import { generateCompletionStatementPDF } from "@/lib/portal/generateCompletionStatementPDF";
 
-function getBearerToken(req: Request) {
+const BUCKET            = "booking-receipts";
+const SIGNED_URL_EXPIRY = 60;
+
+function getBearerToken(req: NextRequest): string | null {
   const auth = req.headers.get("authorization") || "";
   if (!auth.toLowerCase().startsWith("bearer ")) return null;
   return auth.slice(7).trim() || null;
 }
 
-async function getCustomerUserFromAccessToken(accessToken?: string | null) {
-  if (!accessToken) return null;
-  const customerSupabase = createCustomerServiceRoleSupabaseClient();
-  const { data, error } = await customerSupabase.auth.getUser(accessToken);
-  if (error || !data?.user) return null;
-  return data.user;
+function normalizeFuel(v: unknown): string | null {
+  if (!v) return null;
+  const s = String(v).toLowerCase().trim();
+  if (s === "empty")   return "empty";
+  if (s === "quarter") return "quarter";
+  if (s === "half")    return "half";
+  if (s === "three_quarter" || s === "3/4") return "3/4";
+  if (s === "full")    return "full";
+  return null;
 }
 
 export async function GET(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: bookingId } = await params;
+
+  const token = getBearerToken(req);
+  if (!token) return NextResponse.json({ error: "Unauthorised — no token" }, { status: 401 });
+
+  // Single client for everything — mirrors receipt route exactly
+  const db = createCustomerServiceRoleSupabaseClient();
+
+  // Auth
+  const { data: authData, error: authErr } = await db.auth.getUser(token);
+  if (authErr || !authData?.user) {
+    return NextResponse.json({ error: "Unauthorised — bad token" }, { status: 401 });
+  }
+  const user = authData.user;
+
+  // Load booking
+  const { data: bk, error: bkErr } = await db
+    .from("partner_bookings")
+    .select(`
+      id, request_id, partner_user_id, job_number,
+      booking_status, currency, charge_currency,
+      car_hire_price, fuel_price, amount,
+      fuel_used_quarters, fuel_charge, fuel_refund,
+      collection_fuel_level_partner, collection_fuel_level_driver,
+      return_fuel_level_partner, return_fuel_level_driver
+    `)
+    .eq("id", bookingId)
+    .maybeSingle();
+
+  if (bkErr) return NextResponse.json({ error: bkErr.message }, { status: 500 });
+  if (!bk)   return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+
+  if (bk.booking_status !== "completed") {
+    return NextResponse.json({ error: "Completion statement only available for completed bookings" }, { status: 400 });
+  }
+
+  // Load request — verify customer ownership
+  const { data: cr, error: crErr } = await db
+    .from("customer_requests")
+    .select("id, customer_user_id, pickup_address, dropoff_address, pickup_at, vehicle_category_name")
+    .eq("id", bk.request_id)
+    .maybeSingle();
+
+  if (crErr) return NextResponse.json({ error: crErr.message }, { status: 500 });
+  if (!cr)   return NextResponse.json({ error: "Request not found" }, { status: 404 });
+  if (cr.customer_user_id !== user.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Load partner company name
+  const { data: profile } = await db
+    .from("partner_profiles")
+    .select("company_name")
+    .eq("user_id", bk.partner_user_id)
+    .maybeSingle();
+
+  const currency    = (bk.charge_currency || bk.currency || "EUR").toUpperCase();
+  const ref         = bk.job_number ?? bookingId.slice(0, 8);
+  const storagePath = `${bk.request_id}/completion-statement-${ref}.pdf`;
+
+  // Try existing stored file first
+  const { data: existing } = await db.storage
+    .from(BUCKET)
+    .createSignedUrl(storagePath, SIGNED_URL_EXPIRY);
+
+  if (existing?.signedUrl) {
+    return NextResponse.json({ url: existing.signedUrl });
+  }
+
+  // Generate PDF
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://camel-global.com";
+
+  let logoBase64: string | null = null;
   try {
-    const accessToken  = getBearerToken(req);
-    const customerUser = await getCustomerUserFromAccessToken(accessToken);
-    if (!customerUser) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
-
-    const { id: bookingId } = await params;
-    const db = createServiceRoleSupabaseClient();
-
-    // Load booking — verify it belongs to this customer via request
-    const { data: booking, error: bkErr } = await db
-      .from("partner_bookings")
-      .select(`
-        id, job_number, booking_status, request_id, partner_user_id,
-        currency, charge_currency, car_hire_price, fuel_price, amount,
-        fuel_used_quarters, fuel_charge, fuel_refund,
-        collection_fuel_level_partner, collection_fuel_level_driver,
-        return_fuel_level_partner, return_fuel_level_driver
-      `)
-      .eq("id", bookingId)
-      .maybeSingle();
-
-    if (bkErr) return NextResponse.json({ error: bkErr.message }, { status: 400 });
-    if (!booking) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
-    if (booking.booking_status !== "completed") {
-      return NextResponse.json({ error: "Completion statement only available for completed bookings" }, { status: 400 });
+    const logoRes = await fetch(`${siteUrl}/camel-invoice-logo.png`);
+    if (logoRes.ok) {
+      const buf = await logoRes.arrayBuffer();
+      logoBase64 = Buffer.from(buf).toString("base64");
     }
+  } catch { /* logo optional */ }
 
-    // Load request — verify customer ownership
-    const { data: request, error: reqErr } = await db
-      .from("customer_requests")
-      .select("id, customer_user_id, pickup_address, dropoff_address, pickup_at, vehicle_category_name")
-      .eq("id", booking.request_id)
-      .maybeSingle();
+  const collectionFuel =
+    normalizeFuel(bk.collection_fuel_level_partner) ||
+    normalizeFuel(bk.collection_fuel_level_driver);
+  const returnFuel =
+    normalizeFuel(bk.return_fuel_level_partner) ||
+    normalizeFuel(bk.return_fuel_level_driver);
 
-    if (reqErr) return NextResponse.json({ error: reqErr.message }, { status: 400 });
-    if (!request) return NextResponse.json({ error: "Request not found" }, { status: 404 });
-    if (request.customer_user_id !== customerUser.id) {
-      return NextResponse.json({ error: "Not authorised" }, { status: 403 });
-    }
-
-    // Load partner company name
-    const { data: partnerProfile } = await db
-      .from("partner_profiles")
-      .select("company_name")
-      .eq("user_id", booking.partner_user_id)
-      .maybeSingle();
-
-    const currency = (booking.charge_currency || booking.currency || "EUR") as string;
-
-    const collectionFuel =
-      booking.collection_fuel_level_partner || booking.collection_fuel_level_driver || null;
-    const returnFuel =
-      booking.return_fuel_level_partner || booking.return_fuel_level_driver || null;
-
-    // Generate PDF
+  try {
     const pdfBuffer = await generateCompletionStatementPDF({
-      jobNumber:       booking.job_number,
+      jobNumber:       bk.job_number,
       bookingId,
-      customerName:    null, // not needed on customer-facing download
-      pickupAddress:   request.pickup_address || null,
-      dropoffAddress:  request.dropoff_address || null,
-      pickupAt:        request.pickup_at || null,
-      vehicleCategory: request.vehicle_category_name || null,
-      companyName:     partnerProfile?.company_name || null,
+      customerName:    null,
+      pickupAddress:   cr.pickup_address || null,
+      dropoffAddress:  cr.dropoff_address || null,
+      pickupAt:        cr.pickup_at || null,
+      vehicleCategory: cr.vehicle_category_name || null,
+      companyName:     profile?.company_name || null,
       currency,
-      carHire:         Number(booking.car_hire_price || 0),
-      fuelDeposit:     Number(booking.fuel_price || 0),
-      totalPaid:       Number(booking.amount || 0),
+      carHire:         Number(bk.car_hire_price || 0),
+      fuelDeposit:     Number(bk.fuel_price || 0),
+      totalPaid:       Number(bk.amount || 0),
       collectionFuel,
       returnFuel,
-      usedQuarters:    booking.fuel_used_quarters ?? 0,
-      fuelCharge:      Number(booking.fuel_charge || 0),
-      fuelRefund:      Number(booking.fuel_refund || 0),
+      usedQuarters:    bk.fuel_used_quarters ?? 0,
+      fuelCharge:      Number(bk.fuel_charge || 0),
+      fuelRefund:      Number(bk.fuel_refund || 0),
       issuedAt:        new Date().toISOString(),
     });
 
-    const filename = `Camel-Completion-Statement-${booking.job_number ?? bookingId.slice(0, 8)}.pdf`;
+    // Upload to storage
+    const { error: uploadErr } = await db.storage
+      .from(BUCKET)
+      .upload(storagePath, pdfBuffer, {
+        contentType: "application/pdf",
+        upsert: true,
+      });
 
-    return new Response(new Uint8Array(pdfBuffer), {
-      status: 200,
-      headers: {
-        "Content-Type":        "application/pdf",
-        "Content-Disposition": `attachment; filename="${filename}"`,
-        "Content-Length":      String(pdfBuffer.length),
-      },
-    });
+    if (uploadErr) {
+      console.error("completion-statement: upload failed", uploadErr.message);
+      return NextResponse.json({ error: "Failed to store statement" }, { status: 500 });
+    }
+
+    const { data: signed, error: signErr } = await db.storage
+      .from(BUCKET)
+      .createSignedUrl(storagePath, SIGNED_URL_EXPIRY);
+
+    if (signErr || !signed?.signedUrl) {
+      return NextResponse.json({ error: "Failed to create download URL" }, { status: 500 });
+    }
+
+    return NextResponse.json({ url: signed.signedUrl });
   } catch (e: any) {
-    console.error("Completion statement route error:", e?.message);
-    return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
+    console.error("completion-statement: generation failed", e?.message);
+    return NextResponse.json({ error: "Failed to generate statement" }, { status: 500 });
   }
 }
