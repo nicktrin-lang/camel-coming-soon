@@ -99,7 +99,7 @@ export async function GET(
 
     const filename = `Camel-Completion-Statement-${booking.job_number ?? bookingId.slice(0, 8)}.pdf`;
 
-    return new Response(pdfBuffer, {
+    return new Response(new Uint8Array(pdfBuffer), {
       status: 200,
       headers: {
         "Content-Type":        "application/pdf",
