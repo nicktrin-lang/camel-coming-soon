@@ -175,7 +175,7 @@ async function downloadCompletionStatement(bk: BookingData, req: RequestData) {
     if (logoRes.ok) {
       const buf = await logoRes.arrayBuffer();
       const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-      doc.addImage(b64, "PNG", margin, 4, 40, 12);
+     doc.addImage(b64, "PNG", margin, 3, 52, 17);
       logoLoaded = true;
     }
   } catch { /* skip logo */ }
@@ -233,7 +233,7 @@ async function downloadCompletionStatement(bk: BookingData, req: RequestData) {
   const total      = Number(bk.amount ?? 0);
   const fuelCharge = Number(bk.fuel_charge ?? 0);
   const fuelRefund = Number(bk.fuel_refund ?? 0);
-  const finalNet   = carHire + fuelCharge - fuelRefund;
+  const finalNet   = carHire + fuelCharge;
 
   const payRows: [string, string][] = [
     ["Car hire",               fmt2(carHire)],
