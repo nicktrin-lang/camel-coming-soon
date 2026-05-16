@@ -175,7 +175,22 @@ async function downloadCompletionStatement(bk: BookingData, req: RequestData) {
     if (logoRes.ok) {
       const buf = await logoRes.arrayBuffer();
       const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-     doc.addImage(b64, "PNG", margin, 3, 52, 17);
+      // Measure natural dimensions via an off-screen Image element
+      const logoW = 55; // fixed print width in mm
+      const naturalH = await new Promise<number>((resolve) => {
+        const img = new window.Image();
+        img.onload = () => resolve(img.naturalHeight);
+        img.onerror = () => resolve(0);
+        img.src = "data:image/png;base64," + b64;
+      });
+      const naturalW = await new Promise<number>((resolve) => {
+        const img = new window.Image();
+        img.onload = () => resolve(img.naturalWidth);
+        img.onerror = () => resolve(1);
+        img.src = "data:image/png;base64," + b64;
+      });
+      const logoH = naturalW > 0 ? Math.round((logoW * naturalH / naturalW) * 10) / 10 : 18;
+      doc.addImage(b64, "PNG", margin, 3, logoW, logoH);
       logoLoaded = true;
     }
   } catch { /* skip logo */ }
