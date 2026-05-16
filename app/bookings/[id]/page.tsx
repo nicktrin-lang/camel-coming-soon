@@ -40,8 +40,7 @@ type BookingData = {
   driver_vehicle: string|null; driver_notes: string|null; driver_assigned_at: string|null;
   fuel_price: number|null; car_hire_price: number|null;
   fuel_used_quarters: number|null; fuel_charge: number|null; fuel_refund: number|null;
-  currency: Currency;
-  charge_currency: Currency|null;
+  currency: Currency; charge_currency: Currency|null;
   cancelled_by?: string|null; cancelled_at?: string|null;
   cancellation_reason?: string|null; refund_status?: string|null;
   collection_confirmed_by_driver: boolean; collection_confirmed_by_driver_at: string|null;
@@ -152,169 +151,6 @@ function BookingAmount({ amount, storedCurrency, customerCurrency, rates }: { am
   return <span>{fmtCurr(p,customerCurrency)} <span className="opacity-60 text-[0.85em]">({fmtCurr(convertAmount(n,storedCurrency,o,rates),o)})</span></span>;
 }
 
-// ── Booking Completion Statement (completed bookings only) ────────────────────
-// Uses charge_currency — what the customer actually paid
-async function downloadCompletionStatement(bk: BookingData, req: RequestData) {
-  const { jsPDF } = await import("jspdf");
-  const doc = new jsPDF({ unit:"mm", format:"a4" });
-  const pageW = doc.internal.pageSize.getWidth();
-  const margin = 15;
-  const usableW = pageW - margin * 2;
-  let y = margin;
-
-  // Use charge_currency (what customer paid) — fall back to bid currency
-  const curr: Currency = (bk.charge_currency || bk.currency || "EUR") as Currency;
-  const locale = curr === "GBP" ? "en-GB" : curr === "USD" ? "en-US" : "es-ES";
-  const fmt2 = (n: number) => new Intl.NumberFormat(locale, { style:"currency", currency:curr }).format(n);
-  const dateStr = new Date().toLocaleDateString("en-GB", { day:"2-digit", month:"long", year:"numeric" });
-
-  // Try to load logo as base64
-  let logoLoaded = false;
-  try {
-    const logoRes = await fetch("/camel-invoice-logo.png");
-    if (logoRes.ok) {
-      const buf = await logoRes.arrayBuffer();
-      const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-      // Measure natural dimensions via an off-screen Image element
-      const logoW = 55; // fixed print width in mm
-      const naturalH = await new Promise<number>((resolve) => {
-        const img = new window.Image();
-        img.onload = () => resolve(img.naturalHeight);
-        img.onerror = () => resolve(0);
-        img.src = "data:image/png;base64," + b64;
-      });
-      const naturalW = await new Promise<number>((resolve) => {
-        const img = new window.Image();
-        img.onload = () => resolve(img.naturalWidth);
-        img.onerror = () => resolve(1);
-        img.src = "data:image/png;base64," + b64;
-      });
-      const logoH = naturalW > 0 ? Math.round((logoW * naturalH / naturalW) * 10) / 10 : 18;
-      doc.addImage(b64, "PNG", margin, 3, logoW, logoH);
-      logoLoaded = true;
-    }
-  } catch { /* skip logo */ }
-
-  // Header bar
-  doc.setFillColor(255, 122, 0);
-  doc.rect(0, 0, pageW, 6, "F");
-  y = logoLoaded ? 20 : 10;
-
-  // Header right — date + title
-  doc.setTextColor(100, 100, 100);
-  doc.setFontSize(8); doc.setFont("helvetica","normal");
-  doc.text(`Booking Completion Statement · ${dateStr}`, pageW-margin, 10, { align:"right" });
-  y = 24;
-
-  doc.setTextColor(0, 0, 0);
-  doc.setFontSize(18); doc.setFont("helvetica","bold");
-  doc.text("Booking Completion Statement", margin, y); y += 8;
-  doc.setFontSize(9); doc.setFont("helvetica","normal"); doc.setTextColor(100,100,100);
-  doc.text(`Job #${bk.job_number ?? "—"} · ${req.pickup_address} · Settled in ${curr}`, margin, y); y += 10;
-
-  doc.setDrawColor(220,220,220); doc.setLineWidth(0.3);
-  doc.line(margin, y, pageW-margin, y); y += 6;
-
-  // Booking details
-  doc.setTextColor(0,0,0); doc.setFontSize(10); doc.setFont("helvetica","bold");
-  doc.text("Booking Details", margin, y); y += 6;
-  doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(60,60,60);
-  const details = [
-    ["Booking reference", `#${bk.job_number ?? "—"}`],
-    ["Status",            "Completed"],
-    ["Car hire company",  bk.company_name ?? "—"],
-    ["Pickup address",    req.pickup_address],
-    ["Dropoff address",   req.dropoff_address ?? "—"],
-    ["Pickup time",       req.pickup_at ? new Date(req.pickup_at).toLocaleString("en-GB") : "—"],
-    ["Vehicle",           req.vehicle_category_name ?? "—"],
-    ["Settlement currency", curr],
-  ];
-  for (const [label, value] of details) {
-    doc.setFont("helvetica","bold"); doc.text(label, margin, y);
-    doc.setFont("helvetica","normal"); doc.text(String(value), margin+55, y);
-    y += 5;
-  }
-  y += 4;
-
-  doc.line(margin, y, pageW-margin, y); y += 6;
-
-  // Payment breakdown — use charge amounts
-  doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(0,0,0);
-  doc.text("Payment Breakdown", margin, y); y += 6;
-  doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(60,60,60);
-
-  const carHire    = Number(bk.car_hire_price ?? 0);
-  const fuelDep    = Number(bk.fuel_price ?? 0);
-  const total      = Number(bk.amount ?? 0);
-  const fuelCharge = Number(bk.fuel_charge ?? 0);
-  const fuelRefund = Number(bk.fuel_refund ?? 0);
-  const finalNet   = carHire + fuelCharge;
-
-  const payRows: [string, string][] = [
-    ["Car hire",               fmt2(carHire)],
-    ["Full tank deposit paid", fmt2(fuelDep)],
-    ["Total paid",             fmt2(total)],
-  ];
-  for (const [l, v] of payRows) {
-    doc.text(l, margin, y);
-    doc.text(v, pageW-margin, y, { align:"right" });
-    y += 5;
-  }
-  y += 3;
-
-  // Fuel section
-  doc.line(margin, y, pageW-margin, y); y += 6;
-  doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(0,0,0);
-  doc.text("Fuel Settlement", margin, y); y += 6;
-  doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(60,60,60);
-
-  const collFuel = normalizeFuel(bk.collection_fuel_level_partner) || normalizeFuel(bk.collection_fuel_level_driver);
-  const retFuel  = normalizeFuel(bk.return_fuel_level_partner) || normalizeFuel(bk.return_fuel_level_driver);
-  const usedQ    = bk.fuel_used_quarters;
-
-  const fuelRows: [string, string][] = [
-    ["Delivery fuel level",   fuelLabel(collFuel)],
-    ["Collection fuel level", fuelLabel(retFuel)],
-    ["Fuel used",             usedQ !== null ? (QUARTER_LABELS[usedQ] ?? `${usedQ}/4`) : "—"],
-    ["Fuel charge to you",    fmt2(fuelCharge)],
-    ["Fuel refund to you",    fuelRefund > 0 ? fmt2(fuelRefund) : "None"],
-  ];
-  for (const [l, v] of fuelRows) {
-    doc.text(l, margin, y);
-    doc.text(v, pageW-margin, y, { align:"right" });
-    y += 5;
-  }
-  y += 5;
-
-  // Final amount
-  doc.setFillColor(240,240,240);
-  doc.rect(margin, y-4, usableW, 10, "F");
-  doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(0,0,0);
-  doc.text("Final amount (car hire + fuel charge)", margin+3, y+2);
-  doc.text(fmt2(finalNet), pageW-margin, y+2, { align:"right" });
-  y += 14;
-
-  if (fuelRefund > 0) {
-    doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(100,100,100);
-    const refundNote = doc.splitTextToSize(`A fuel deposit refund of ${fmt2(fuelRefund)} has been issued to your original payment method. Please allow 5–10 business days for it to appear.`, usableW);
-    doc.text(refundNote, margin, y); y += refundNote.length * 4 + 4;
-  }
-
-  // Footer
-  const totalPages = (doc.internal as any).getNumberOfPages();
-  for (let p=1; p<=totalPages; p++) {
-    doc.setPage(p);
-    doc.setDrawColor(220,220,220); doc.setLineWidth(0.3);
-    const pageH = doc.internal.pageSize.getHeight();
-    doc.line(margin, pageH-10, pageW-margin, pageH-10);
-    doc.setFontSize(7); doc.setTextColor(150,150,150); doc.setFont("helvetica","normal");
-    doc.text("Camel Global · NTUK Ltd · Office 7, 35-37 Ludgate Hill, London EC4M 7JN · camel-global.com", margin, pageH-6);
-    doc.text(`Page ${p} of ${totalPages}`, pageW-margin, pageH-6, { align:"right" });
-  }
-
-  doc.save(`Camel-Completion-Statement-${bk.job_number ?? bk.id.slice(0,8)}.pdf`);
-}
-
 function CustomerCancellationSummary({ bk }: { bk: BookingData }) {
   const curr: Currency = bk.currency ?? "EUR";
   const carHire  = Number(bk.car_hire_price || 0);
@@ -360,7 +196,53 @@ function CustomerCancellationSummary({ bk }: { bk: BookingData }) {
   );
 }
 
-function BookingSummaryCard({ bk, rates, rateIsLive, req }: { bk: BookingData; rates: Rates; rateIsLive: boolean; req: RequestData }) {
+// ── Completion Statement download — server-side PDF via @react-pdf/renderer ───
+function CompletionStatementButton({ bookingId, jobNumber, accessToken }: { bookingId: string; jobNumber: number|null; accessToken: string }) {
+  const [downloading, setDownloading] = useState(false);
+  const [err, setErr] = useState<string|null>(null);
+
+  async function handleDownload() {
+    setDownloading(true); setErr(null);
+    try {
+      const res = await fetch(`/api/test-booking/bookings/${bookingId}/completion-statement`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        throw new Error(j?.error || "Failed to generate statement");
+      }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = `Camel-Completion-Statement-${jobNumber ?? bookingId.slice(0,8)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      setErr(e?.message || "Failed to download statement");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={handleDownload}
+        disabled={downloading}
+        className="bg-white/10 hover:bg-white/20 px-4 py-1.5 text-xs font-black text-white transition-colors disabled:opacity-50"
+      >
+        {downloading ? "Generating…" : "⬇ Booking Completion Statement"}
+      </button>
+      {err && <p className="mt-1 text-xs font-semibold text-red-300">{err}</p>}
+    </div>
+  );
+}
+
+function BookingSummaryCard({ bk, rates, rateIsLive, accessToken }: { bk: BookingData; rates: Rates; rateIsLive: boolean; accessToken: string }) {
   const stored: Currency = bk.currency??"EUR";
   const sec1: Currency   = stored==="USD"?"EUR":stored==="GBP"?"EUR":"GBP";
   const sec2: Currency   = stored==="EUR"?"USD":stored==="GBP"?"USD":"GBP";
@@ -376,21 +258,13 @@ function BookingSummaryCard({ bk, rates, rateIsLive, req }: { bk: BookingData; r
   const primary = (v:number)=>fmtCurr(v,stored);
   const sec = (v:number)=>{ const inEur=convertAmount(v,stored,"EUR",rates); return `(${fmtCurr(convertAmount(inEur,"EUR",sec1,rates),sec1)} · ${fmtCurr(convertAmount(inEur,"EUR",sec2,rates),sec2)})`; };
   const rateBadge = `1€ = ${new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(rates.GBP)} · 1€ = ${new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(rates.USD)}`;
-  const [downloading, setDownloading] = useState(false);
-  async function handleDownload() {
-    setDownloading(true);
-    try { await downloadCompletionStatement(bk, req); } catch(e) { console.error(e); }
-    finally { setDownloading(false); }
-  }
+
   return (
     <div className="bg-[#003768] p-6">
       <div className="flex items-center justify-between mb-4">
         <p className="text-xs font-black uppercase tracking-widest text-white/50">Booking Summary</p>
         <div className="flex items-center gap-3">
-          <button type="button" onClick={handleDownload} disabled={downloading}
-            className="bg-white/10 hover:bg-white/20 px-4 py-1.5 text-xs font-black text-white transition-colors disabled:opacity-50">
-            {downloading ? "Generating…" : "⬇ Booking Completion Statement"}
-          </button>
+          <CompletionStatementButton bookingId={bk.id} jobNumber={bk.job_number} accessToken={accessToken} />
           <span className="bg-green-400 px-3 py-1 text-xs font-black text-green-900">Finalised</span>
         </div>
       </div>
@@ -599,11 +473,9 @@ function BidCard({ bid,currency,rates,requestStatus,acceptingId,expired,onAccept
   );
 }
 
-// ── Booking Confirmation Receipt download button (all statuses) ───────────────
 function ReceiptDownloadButton({ bookingId, accessToken }: { bookingId: string; accessToken: string }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr]         = useState<string|null>(null);
-
   async function handleDownload() {
     setLoading(true); setErr(null);
     try {
@@ -612,23 +484,14 @@ function ReceiptDownloadButton({ bookingId, accessToken }: { bookingId: string; 
       });
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.error || "Failed to get receipt");
-      // Open signed URL in new tab (triggers browser PDF download)
       window.open(json.url, "_blank");
-    } catch(e: any) {
-      setErr(e?.message || "Failed to download receipt");
-    } finally {
-      setLoading(false);
-    }
+    } catch(e: any) { setErr(e?.message || "Failed to download receipt"); }
+    finally { setLoading(false); }
   }
-
   return (
     <div>
-      <button
-        type="button"
-        onClick={handleDownload}
-        disabled={loading}
-        className="inline-flex items-center gap-2 border border-[#ff7a00] px-5 py-2.5 text-sm font-black text-[#ff7a00] hover:bg-[#ff7a00] hover:text-white transition-colors disabled:opacity-50"
-      >
+      <button type="button" onClick={handleDownload} disabled={loading}
+        className="inline-flex items-center gap-2 border border-[#ff7a00] px-5 py-2.5 text-sm font-black text-[#ff7a00] hover:bg-[#ff7a00] hover:text-white transition-colors disabled:opacity-50">
         {loading ? "Loading…" : "⬇ Booking Confirmation Receipt"}
       </button>
       {err && <p className="mt-2 text-xs font-semibold text-red-600">{err}</p>}
@@ -904,19 +767,16 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                   <div className="flex justify-between text-sm font-semibold text-black"><span>Full tank deposit <span className="text-black/40">(refundable)</span></span><span><BookingAmount amount={bk.fuel_price} storedCurrency={bkCurr} customerCurrency={currency} rates={liveRates}/></span></div>
                   <div className="flex justify-between text-sm font-black text-black border-t border-black/10 pt-2"><span>Total paid</span><span><BookingAmount amount={bk.amount} storedCurrency={bkCurr} customerCurrency={currency} rates={liveRates}/></span></div>
                 </div>
-
-                {/* Booking Confirmation Receipt — available at all statuses */}
                 <div className="mb-4">
                   <ReceiptDownloadButton bookingId={bk.id} accessToken={accessToken} />
                 </div>
-
                 <div className="flex flex-wrap gap-2">
                   {bk.company_phone&&<a href={`https://wa.me/${bk.company_phone.replace(/\D/g,"")}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-green-500 px-4 py-2 text-xs font-black text-white hover:bg-green-600">💬 WhatsApp Car Hire Company</a>}
                   {bk.driver_phone&&<a href={`https://wa.me/${bk.driver_phone.replace(/\D/g,"")}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-green-500 px-4 py-2 text-xs font-black text-white hover:bg-green-600">💬 WhatsApp Driver</a>}
                 </div>
               </div>
 
-              {bk.booking_status==="completed"&&<BookingSummaryCard bk={bk} rates={liveRates} rateIsLive={rateIsLive} req={req}/>}
+              {bk.booking_status==="completed"&&<BookingSummaryCard bk={bk} rates={liveRates} rateIsLive={rateIsLive} accessToken={accessToken}/>}
               {bk.booking_status==="completed"&&<ReviewCard bookingId={bk.id} accessToken={accessToken} existingReview={bk.existing_review} onReviewSubmitted={()=>load(false)}/>}
 
               <InsuranceConfirmCard
