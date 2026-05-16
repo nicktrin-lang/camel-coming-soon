@@ -204,22 +204,13 @@ function CompletionStatementButton({ bookingId, jobNumber, accessToken }: { book
   async function handleDownload() {
     setDownloading(true); setErr(null);
     try {
-      const res = await fetch(`/api/test-booking/bookings/${bookingId}/completion-statement`, {
+      const res  = await fetch(`/api/test-booking/bookings/${bookingId}/completion-statement`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-      if (!res.ok) {
-        const j = await res.json().catch(() => null);
-        throw new Error(j?.error || "Failed to generate statement");
-      }
-      const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      a.href     = url;
-      a.download = `Camel-Completion-Statement-${jobNumber ?? bookingId.slice(0,8)}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error || "Failed to generate statement");
+      // Open signed URL — works in all browsers including incognito
+      window.open(json.url, "_blank");
     } catch (e: any) {
       setErr(e?.message || "Failed to download statement");
     } finally {
