@@ -40,10 +40,25 @@ const s = StyleSheet.create({
   totalRow:    { flexDirection: "row", justifyContent: "space-between", backgroundColor: "#111", padding: "8 10", marginTop: 6 },
   totalLabel:  { fontFamily: "Helvetica-Bold", color: "#fff", fontSize: 10 },
   totalValue:  { fontFamily: "Helvetica-Bold", color: "#ff7a00", fontSize: 10 },
-  note:        { fontSize: 7.5, color: "#888", marginTop: 10, lineHeight: 1.5 },
-  noteOrange:  { fontSize: 7.5, color: "#ff7a00", fontFamily: "Helvetica-Bold", marginTop: 6, lineHeight: 1.5 },
-  footer:      { position: "absolute", bottom: 0, left: 0, right: 0, borderTop: "1 solid #e5e5e5", padding: "6 24", flexDirection: "row", justifyContent: "space-between" },
-  footerText:  { fontSize: 7, color: "#aaa" },
+  // Checklist styles
+  checklistItem:  { flexDirection: "row", alignItems: "flex-start", marginBottom: 5 },
+  checklistDot:   { width: 14, height: 14, backgroundColor: "#ff7a00", marginRight: 8, marginTop: 1, flexShrink: 0, justifyContent: "center", alignItems: "center" },
+  checklistTick:  { fontSize: 7, color: "#fff", fontFamily: "Helvetica-Bold" },
+  checklistText:  { flex: 1 },
+  checklistTitle: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#111" },
+  checklistDesc:  { fontSize: 7.5, color: "#666", marginTop: 1, lineHeight: 1.4 },
+  // Additional terms box
+  termsBox:     { backgroundColor: "#fff8f0", borderLeft: "3 solid #ff7a00", padding: "8 10", marginBottom: 6 },
+  termsLabel:   { fontSize: 7, fontFamily: "Helvetica-Bold", color: "#ff7a00", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 3 },
+  termsText:    { fontSize: 7.5, color: "#333", lineHeight: 1.4 },
+  // Amber deposit box
+  depositBox:   { backgroundColor: "#fffbeb", borderLeft: "3 solid #f59e0b", padding: "8 10", marginBottom: 6 },
+  depositLabel: { fontSize: 7, fontFamily: "Helvetica-Bold", color: "#b45309", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 3 },
+  depositText:  { fontSize: 7.5, color: "#333", lineHeight: 1.4 },
+  note:         { fontSize: 7.5, color: "#888", marginTop: 10, lineHeight: 1.5 },
+  noteOrange:   { fontSize: 7.5, color: "#ff7a00", fontFamily: "Helvetica-Bold", marginTop: 6, lineHeight: 1.5 },
+  footer:       { position: "absolute", bottom: 0, left: 0, right: 0, borderTop: "1 solid #e5e5e5", padding: "6 24", flexDirection: "row", justifyContent: "space-between" },
+  footerText:   { fontSize: 7, color: "#aaa" },
 });
 
 function fmtMoney(amount: number, currency: string): string {
@@ -100,7 +115,6 @@ interface ReceiptData {
   chargeTotal:            number;
   issuedAt:               string;
   logoBase64:             string | null;
-  // New fields
   passengers:             number | null;
   suitcases:              number | null;
   handLuggage:            number | null;
@@ -108,6 +122,22 @@ interface ReceiptData {
   driverAge:              number | null;
   additionalDrivers:      number;
   additionalDriverAges:   string | null;
+  mileageLimit:           string | null;
+  securityDepositNotes:   string | null;
+}
+
+function ChecklistItem({ title, desc }: { title: string; desc: string }) {
+  return (
+    <View style={s.checklistItem}>
+      <View style={s.checklistDot}>
+        <Text style={s.checklistTick}>✓</Text>
+      </View>
+      <View style={s.checklistText}>
+        <Text style={s.checklistTitle}>{title}</Text>
+        <Text style={s.checklistDesc}>{desc}</Text>
+      </View>
+    </View>
+  );
 }
 
 function ReceiptDocument({ d }: { d: ReceiptData }) {
@@ -117,6 +147,8 @@ function ReceiptDocument({ d }: { d: ReceiptData }) {
   const additionalDriversText = d.additionalDrivers > 0
     ? `${d.additionalDrivers}${d.additionalDriverAges ? ` (ages: ${d.additionalDriverAges})` : ""}`
     : "None";
+
+  const hasAdditionalTerms = !!(d.mileageLimit || d.securityDepositNotes);
 
   return (
     <Document>
@@ -227,13 +259,54 @@ function ReceiptDocument({ d }: { d: ReceiptData }) {
             </View>
           </View>
 
+          {/* Additional terms — only shown if partner set mileage/deposit */}
+          {hasAdditionalTerms && (
+            <View style={s.section}>
+              <Text style={s.sectionHead}>Additional Terms from Car Hire Company</Text>
+              {d.mileageLimit && (
+                <View style={[s.termsBox, { marginBottom: 6 }]}>
+                  <Text style={s.termsLabel}>Mileage limit</Text>
+                  <Text style={s.termsText}>{d.mileageLimit}</Text>
+                  <Text style={[s.termsText, { marginTop: 3, color: "#888" }]}>Any excess mileage charges are payable directly to the car hire company at collection. Credit card required.</Text>
+                </View>
+              )}
+              {d.securityDepositNotes && (
+                <View style={s.depositBox}>
+                  <Text style={s.depositLabel}>Security deposit required</Text>
+                  <Text style={s.depositText}>{d.securityDepositNotes}</Text>
+                  <Text style={[s.depositText, { marginTop: 3, color: "#888" }]}>Payable directly to the car hire company at collection. Credit card only — debit cards cannot be used for deposit blocking.</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* What to bring checklist */}
+          <View style={s.section}>
+            <Text style={s.sectionHead}>What to Bring When Collecting Your Car</Text>
+            <ChecklistItem
+              title="Driving licence — all drivers"
+              desc="A full EU driving licence in Roman alphabet is required for every driver. If your licence does not meet this requirement, you must also bring an international driving permit alongside your original licence."
+            />
+            <ChecklistItem
+              title="Passport or national identity document — all drivers"
+              desc="A valid passport or national ID card must be presented for every driver named on this booking."
+            />
+            <ChecklistItem
+              title="Photocopies recommended"
+              desc="Bring a photocopy of your driving licence and passport for all drivers. Some car hire companies require these for their records. All documents must be originals — digital copies and mobile photos are not accepted."
+            />
+            {d.securityDepositNotes && (
+              <ChecklistItem
+                title="Credit card required at collection"
+                desc={`This car hire company requires a security deposit. Credit card only — debit cards cannot be used for deposit blocking. ${d.securityDepositNotes}`}
+              />
+            )}
+          </View>
+
           <Text style={s.note}>
             The fuel deposit will be refunded at the end of your hire based on the fuel level recorded at collection
             and return. Any unused fuel will be refunded to your original payment method within 5–10 business days
             of booking completion.
-          </Text>
-          <Text style={s.noteOrange}>
-            Important: Please bring your driving licence for yourself and any additional driver.
           </Text>
           <Text style={s.note}>
             To view your booking, visit camel-global.com/bookings/{d.requestId}
@@ -264,7 +337,7 @@ export interface GenerateBookingReceiptParams {
   chargeCarHire:          number;
   chargeFuel:             number;
   chargeTotal:            number;
-  // New fields — optional so callers that don't have them yet don't break
+  // Optional so existing callers don't break
   passengers?:            number | null;
   suitcases?:             number | null;
   handLuggage?:           number | null;
@@ -272,6 +345,8 @@ export interface GenerateBookingReceiptParams {
   driverAge?:             number | null;
   additionalDrivers?:     number;
   additionalDriverAges?:  string | null;
+  mileageLimit?:          string | null;
+  securityDepositNotes?:  string | null;
 }
 
 export async function generateBookingReceiptPDF(params: GenerateBookingReceiptParams): Promise<{
@@ -309,6 +384,8 @@ export async function generateBookingReceiptPDF(params: GenerateBookingReceiptPa
     driverAge:            params.driverAge ?? null,
     additionalDrivers:    params.additionalDrivers ?? 0,
     additionalDriverAges: params.additionalDriverAges ?? null,
+    mileageLimit:         params.mileageLimit ?? null,
+    securityDepositNotes: params.securityDepositNotes ?? null,
   };
 
   const pdfBuffer = await renderToBuffer(<ReceiptDocument d={data} />);
@@ -372,7 +449,8 @@ export async function sendBookingReceiptEmail(params: GenerateBookingReceiptPara
               </tr>
             </table>
           </div>
-          <p style="font-size:13px;color:#666;">Your receipt is attached as a PDF. You can also download it any time from your booking page.</p>
+          <p style="font-size:13px;color:#666;">Your receipt is attached as a PDF. You can also download it any time from your booking page at <a href="https://camel-global.com/bookings/${params.requestId}" style="color:#ff7a00;">camel-global.com</a>.</p>
+          <p style="font-size:13px;color:#333;font-weight:700;">Please bring your driving licence and passport (or national ID) for all drivers when collecting your car.</p>
           <p style="margin-top:24px;color:#999;font-size:13px;">The Camel Global Team</p>
         </div>
       </div>

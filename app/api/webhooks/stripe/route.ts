@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
       // Load bid for bid currency + original amounts + notes
       const { data: bid } = await db
         .from("partner_bids")
-        .select("currency, notes, car_hire_price, fuel_price, total_price, vehicle_category_name")
+        .select("currency, notes, car_hire_price, fuel_price, total_price, vehicle_category_name, mileage_limit, security_deposit_notes")
         .eq("id", bidId)
         .maybeSingle();
 
@@ -228,6 +228,8 @@ export async function POST(req: NextRequest) {
           driverAge:            request.driver_age ?? null,
           additionalDrivers:    request.additional_drivers ?? 0,
           additionalDriverAges: request.additional_driver_ages ?? null,
+          mileageLimit:         bid?.mileage_limit ?? null,
+          securityDepositNotes: bid?.security_deposit_notes ?? null,
         }).catch(e => console.error("Booking receipt PDF email failed:", e?.message));
       }
 
