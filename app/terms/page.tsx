@@ -105,10 +105,10 @@ export default function CustomerTermsPage() {
               old at the time of collection. Bookings cannot be made for drivers under 21.
             </p>
             <p className="text-base font-semibold mb-3">
-              Drivers aged 21 to 24 may be subject to a <strong>young driver surcharge</strong> payable
-              directly to the car hire company at the time of collection. Where this applies, the partner
-              will state the surcharge amount on their bid. This amount is separate from the price paid
-              through Camel Global and is collected by the partner at the time of vehicle handover.
+              Drivers aged 21 to 24 may be subject to a <strong>young driver surcharge</strong>. Where a
+              partner applies a young driver surcharge, it will be included in their bid price — the total
+              you see on the bid already reflects this charge. The full amount is paid through Camel Global
+              at the time of booking in the same way as the car hire fee.
             </p>
             <p className="text-base font-semibold">
               All drivers must have held a full, valid driving licence for at least one year. It is your
@@ -144,8 +144,8 @@ export default function CustomerTermsPage() {
               <li className="flex items-start gap-3">
                 <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-[#ff7a00] text-white text-[10px] font-black">3</span>
                 <div>
-                  <p className="font-black text-black">Payment card in the name of the lead driver</p>
-                  <p className="text-sm font-semibold text-black/60">A credit or debit card bearing the lead driver&apos;s name is required. Credit cards are preferred as they allow the car hire company to block a security deposit. Ensure your card has sufficient available credit before collection.</p>
+                  <p className="font-black text-black">Credit card — only if a security deposit applies</p>
+                  <p className="text-sm font-semibold text-black/60">Most Camel Global bookings require no payment at collection. However, if the car hire company requires a security deposit, this will be clearly stated on their bid before you accept. In that case, a credit card in the lead driver&apos;s name must be presented at collection. Debit cards cannot be used for deposit blocking. The deposit is handled directly between you and the car hire company — it is not collected by Camel Global.</p>
                 </div>
               </li>
               <li className="flex items-start gap-3">
