@@ -450,7 +450,13 @@ export async function sendBookingReceiptEmail(params: GenerateBookingReceiptPara
             </table>
           </div>
           <p style="font-size:13px;color:#666;">Your receipt is attached as a PDF. You can also download it any time from your booking page at <a href="https://camel-global.com/bookings/${params.requestId}" style="color:#ff7a00;">camel-global.com</a>.</p>
-          <p style="font-size:13px;color:#333;font-weight:700;">Please bring your driving licence and passport (or national ID) for all drivers when collecting your car.</p>
+          <p style="font-size:13px;color:#333;font-weight:700;border-left:4px solid #ff7a00;padding-left:12px;margin:16px 0;">What to bring when collecting your car:</p>
+          <ul style="font-size:13px;color:#333;margin:0 0 16px;padding-left:20px;line-height:1.8;">
+            <li><strong>Driving licence</strong> — full EU licence in Roman alphabet required for all drivers. If your licence does not meet this, bring an international driving permit alongside your original.</li>
+            <li><strong>Passport or national ID</strong> — valid for every driver on this booking.</li>
+            <li><strong>Photocopies recommended</strong> — bring a photocopy of your driving licence and passport for all drivers. All documents must be originals — digital copies are not accepted.</li>
+            ${params.securityDepositNotes ? `<li><strong>Credit card required</strong> — ${params.securityDepositNotes} Credit card only, debit cards cannot be used for deposit blocking.</li>` : ""}
+          </ul>
           <p style="margin-top:24px;color:#999;font-size:13px;">The Camel Global Team</p>
         </div>
       </div>
