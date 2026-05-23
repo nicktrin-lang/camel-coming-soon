@@ -98,9 +98,9 @@ export async function POST(req: Request) {
     const currency                 = normalizeCurrency(body?.currency);
 
     // Driver age fields
-    const driver_age_raw        = body?.driver_age == null ? null : Number(body.driver_age);
-    const driver_age            = driver_age_raw != null && !isNaN(driver_age_raw) ? driver_age_raw : null;
-    const additional_drivers    = Math.min(4, Math.max(0, Number(body?.additional_drivers || 0)));
+    const driver_age_raw         = body?.driver_age == null ? null : Number(body.driver_age);
+    const driver_age             = driver_age_raw != null && !isNaN(driver_age_raw) ? driver_age_raw : null;
+    const additional_drivers     = Math.min(4, Math.max(0, Number(body?.additional_drivers || 0)));
     const additional_driver_ages = String(body?.additional_driver_ages || "").trim();
 
     // Validations
@@ -110,7 +110,8 @@ export async function POST(req: Request) {
     if (!dropoff_address) return NextResponse.json({ error: "Dropoff is required" }, { status: 400 });
     if (!pickup_at)       return NextResponse.json({ error: "Pickup time is required" }, { status: 400 });
     if (!vehicle_category_slug || !vehicle_category_name) return NextResponse.json({ error: "Vehicle category is required" }, { status: 400 });
-    if (driver_age !== null && driver_age < 18) return NextResponse.json({ error: "Main driver must be 18 or over" }, { status: 400 });
+    // Minimum age 21 — most car hire companies require this
+    if (driver_age !== null && driver_age < 21) return NextResponse.json({ error: "Main driver must be 21 or over" }, { status: 400 });
 
     const db = createServiceRoleSupabaseClient();
     const bidWindowHours = await getBidWindowHours(db);

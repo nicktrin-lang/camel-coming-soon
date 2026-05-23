@@ -174,6 +174,15 @@ function CustomerHome() {
     }));
   }
 
+  // Derive young driver warning
+  const driverAgeNum = Number(driverAge);
+  const isYoungDriver = driverAge !== "" && !isNaN(driverAgeNum) && driverAgeNum >= 21 && driverAgeNum <= 24;
+  const additionalYoungDrivers = additionalDriverAges.filter(a => {
+    const n = Number(a);
+    return a !== "" && !isNaN(n) && n >= 21 && n <= 24;
+  });
+  const hasYoungDriverWarning = isYoungDriver || additionalYoungDrivers.length > 0;
+
   async function handleBookNow() {
     setError(null);
 
@@ -186,18 +195,17 @@ function CustomerHome() {
     const cat = FLEET_CATEGORIES.find(c => c.slug === vehicleSlug);
     if (!cat)                       { setError("Please select a vehicle category."); return; }
 
-    // Validate driver age
-    const driverAgeNum = Number(driverAge);
-    if (!driverAge || isNaN(driverAgeNum) || driverAgeNum < 18) {
-      setError("Main driver must be 18 or over.");
+    // Validate driver age — minimum 21
+    if (!driverAge || isNaN(driverAgeNum) || driverAgeNum < 21) {
+      setError("Main driver must be 21 or over. Most car hire companies require a minimum age of 21.");
       return;
     }
 
-    // Validate additional driver ages
+    // Validate additional driver ages — minimum 21
     for (let i = 0; i < additionalDrivers; i++) {
       const age = Number(additionalDriverAges[i]);
-      if (!additionalDriverAges[i] || isNaN(age) || age < 18) {
-        setError(`Additional driver ${i + 1} must be 18 or over.`);
+      if (!additionalDriverAges[i] || isNaN(age) || age < 21) {
+        setError(`Additional driver ${i + 1} must be 21 or over.`);
         return;
       }
     }
@@ -423,7 +431,7 @@ function CustomerHome() {
               <div>
                 <label className={labelCls}>Main driver age</label>
                 <input
-                  type="number" min={18} max={99} value={driverAge}
+                  type="number" min={21} max={99} value={driverAge}
                   onChange={e => setDriverAge(e.target.value)}
                   placeholder="e.g. 35"
                   className={inputCls}
@@ -435,12 +443,11 @@ function CustomerHome() {
                   {[0,1,2,3,4].map(n => <option key={n} value={n}>{n === 0 ? "None" : `${n} additional`}</option>)}
                 </select>
               </div>
-              {/* Additional driver age inputs — shown inline when > 0 */}
               {additionalDrivers > 0 && Array.from({ length: additionalDrivers }).map((_, i) => (
                 <div key={i}>
                   <label className={labelCls}>Driver {i + 2} age</label>
                   <input
-                    type="number" min={18} max={99}
+                    type="number" min={21} max={99}
                     value={additionalDriverAges[i] ?? ""}
                     onChange={e => {
                       const next = [...additionalDriverAges];
@@ -454,8 +461,19 @@ function CustomerHome() {
               ))}
             </div>
 
+            {/* Young driver warning */}
+            {hasYoungDriverWarning && (
+              <div className="mb-3 border border-amber-300 bg-amber-50 px-4 py-3">
+                <p className="text-sm font-black text-amber-800 mb-1">⚠ Young driver surcharge may apply</p>
+                <p className="text-sm font-semibold text-amber-700">
+                  Drivers aged 21–24 are typically subject to a young driver surcharge. This fee is set by the car hire company
+                  and will be included in their bid price. You will see the full cost before you confirm.
+                </p>
+              </div>
+            )}
+
             {/* Row 5: currency (left) + book now (right) */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 items-end">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 items-end mb-3">
               <div>
                 <label className={labelCls}>Booking currency</label>
                 <div className="bg-[#f0f0f0] px-4 py-3">
@@ -515,6 +533,31 @@ function CustomerHome() {
                 )}
               </div>
             </div>
+
+            {/* Document checklist */}
+            <div className="border border-black/10 bg-[#f0f0f0] px-5 py-4 mb-3">
+              <p className="text-xs font-black uppercase tracking-widest text-black mb-3">📋 What to bring when collecting your car</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {[
+                  { icon: "🪪", title: "Driving licence", desc: "Full EU licence in Roman alphabet required. If your licence does not meet this, bring an international driving permit alongside your original." },
+                  { icon: "🛂", title: "Passport or national ID", desc: "A valid passport or national identity document for all drivers." },
+                  { icon: "💳", title: "Payment card in driver's name", desc: "A credit or debit card in the lead driver's name is required. Credit cards are preferred as they allow the deposit to be blocked." },
+                  { icon: "📄", title: "Photocopies recommended", desc: "Bring a photocopy of your driving licence and passport for all drivers. Some companies require these for their records." },
+                ].map(item => (
+                  <div key={item.title} className="flex items-start gap-3 bg-white px-4 py-3">
+                    <span className="text-xl shrink-0 mt-0.5">{item.icon}</span>
+                    <div>
+                      <p className="text-sm font-black text-black">{item.title}</p>
+                      <p className="text-xs font-semibold text-black/60 mt-0.5">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-xs font-semibold text-black/50">
+                All documents must be originals — digital copies and mobile photos are not accepted. Failure to provide the correct documentation may result in denial of the vehicle.
+              </p>
+            </div>
+
           </div>
         </div>
       </section>

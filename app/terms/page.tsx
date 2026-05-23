@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Customer Terms of Use | Camel Global",
-  description: "The terms that apply when you use Camel Global to book meet & greet car hire in Spain. Includes our 48-hour cancellation policy and refund terms.",
+  description: "The terms that apply when you use Camel Global to book meet & greet car hire in Spain. Includes our 48-hour cancellation policy, document requirements and refund terms.",
 };
 
-const EFFECTIVE_DATE  = "1 May 2026";
+const EFFECTIVE_DATE  = "1 June 2026";
 const COMPANY_NAME    = "NTUK Ltd (trading as Camel Global)";
 const COMPANY_REG     = "08765474";
 const COMPANY_ADDRESS = "Office 7, 35-37 Ludgate Hill, London, England, EC4M 7JN";
@@ -94,7 +94,109 @@ export default function CustomerTermsPage() {
           </div>
 
           <div>
-            <h2 className="text-2xl font-black text-black mb-3">5. Fuel charges</h2>
+            <h2 className="text-2xl font-black text-black mb-3">5. Driver age requirements</h2>
+            <div className="bg-[#f0f0f0] px-5 py-4 mb-4">
+              <p className="text-base font-black text-black">
+                The minimum age to hire a car through Camel Global is 21 years old.
+              </p>
+            </div>
+            <p className="text-base font-semibold mb-3">
+              All drivers — including the main driver and any additional drivers — must be at least 21 years
+              old at the time of collection. Bookings cannot be made for drivers under 21.
+            </p>
+            <p className="text-base font-semibold mb-3">
+              Drivers aged 21 to 24 may be subject to a <strong>young driver surcharge</strong> payable
+              directly to the car hire company at the time of collection. Where this applies, the partner
+              will state the surcharge amount on their bid. This amount is separate from the price paid
+              through Camel Global and is collected by the partner at the time of vehicle handover.
+            </p>
+            <p className="text-base font-semibold">
+              All drivers must have held a full, valid driving licence for at least one year. It is your
+              responsibility to ensure all drivers listed on the booking meet these requirements.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-2xl font-black text-black mb-3">6. Documents required at collection</h2>
+            <div className="bg-[#f0f0f0] px-5 py-4 mb-4">
+              <p className="text-base font-black text-black">
+                All drivers must bring physical copies of the following documents. Digital copies on a mobile phone may not be accepted.
+              </p>
+            </div>
+            <p className="text-base font-semibold mb-4">
+              The following must be presented for <strong>every driver</strong> listed on the booking at the time of vehicle collection:
+            </p>
+            <ul className="space-y-3 mb-5">
+              <li className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-[#ff7a00] text-white text-[10px] font-black">1</span>
+                <div>
+                  <p className="font-black text-black">Valid driving licence</p>
+                  <p className="text-sm font-semibold text-black/60">Must be a full licence held for at least one year. EU licences in Roman alphabet are required. If your licence is not in Roman alphabet (e.g. Arabic, Chinese, Cyrillic), you must also bring a valid International Driving Permit alongside your original licence.</p>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-[#ff7a00] text-white text-[10px] font-black">2</span>
+                <div>
+                  <p className="font-black text-black">Passport or national identity document</p>
+                  <p className="text-sm font-semibold text-black/60">A valid passport or government-issued photo ID is required for all drivers listed on the booking.</p>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-[#ff7a00] text-white text-[10px] font-black">3</span>
+                <div>
+                  <p className="font-black text-black">Payment card in the name of the lead driver</p>
+                  <p className="text-sm font-semibold text-black/60">A credit or debit card bearing the lead driver&apos;s name is required. Credit cards are preferred as they allow the car hire company to block a security deposit. Ensure your card has sufficient available credit before collection.</p>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-[#ff7a00] text-white text-[10px] font-black">4</span>
+                <div>
+                  <p className="font-black text-black">Booking confirmation receipt</p>
+                  <p className="text-sm font-semibold text-black/60">Your booking confirmation receipt is emailed to you immediately after payment. Print a copy or have it ready to show on your device at collection.</p>
+                </div>
+              </li>
+            </ul>
+            <div className="border border-amber-200 bg-amber-50 px-5 py-4">
+              <p className="text-sm font-black text-amber-800 mb-1">⚠ Important</p>
+              <p className="text-sm font-semibold text-amber-700">
+                Failure to present the required documents for all drivers at the time of collection may result in the vehicle being withheld by the car hire company. In this circumstance, Camel Global cannot be held responsible and cancellation terms will apply.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-2xl font-black text-black mb-3">7. Security deposit</h2>
+            <p className="text-base font-semibold mb-3">
+              The car hire company may place a <strong>security deposit hold</strong> on the lead driver&apos;s
+              credit card at the time of collection. This is separate from the fuel deposit paid through
+              Camel Global. The security deposit is held as a guarantee against damage or loss during the hire
+              period and is released when the vehicle is returned in satisfactory condition.
+            </p>
+            <p className="text-base font-semibold mb-3">
+              Where a security deposit applies, the partner is required to state the amount and method
+              on their bid before you accept it. You should review this before confirming your booking.
+            </p>
+            <p className="text-base font-semibold">
+              Camel Global does not collect or hold security deposits. Any security deposit is handled
+              entirely between you and the car hire company.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-2xl font-black text-black mb-3">8. Mileage</h2>
+            <p className="text-base font-semibold mb-3">
+              Some hire rates include unlimited mileage; others impose a daily or total kilometre limit.
+              Where a mileage limit applies, the partner is required to state it clearly on their bid.
+              You should review the mileage terms before accepting a bid.
+            </p>
+            <p className="text-base font-semibold">
+              Exceeding a stated mileage allowance may result in additional charges payable directly to the
+              car hire company. Camel Global is not responsible for excess mileage charges.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-2xl font-black text-black mb-3">9. Fuel charges</h2>
             <p className="text-base font-semibold mb-3">
               Fuel is recorded by the driver at delivery and again at collection. You are charged only for
               the fuel you have used during your hire, rounded to the nearest quarter tank. The partner
@@ -107,19 +209,25 @@ export default function CustomerTermsPage() {
           </div>
 
           <div>
-            <h2 className="text-2xl font-black text-black mb-3">6. Payments</h2>
+            <h2 className="text-2xl font-black text-black mb-3">10. Payments</h2>
             <p className="text-base font-semibold mb-3">
-              The hire price shown in the bid is the price you pay (plus any fuel charge calculated at
-              the end of the hire). All prices shown include any applicable taxes unless otherwise stated.
+              The hire price shown in the bid is the price you pay through Camel Global (plus any fuel charge
+              calculated at the end of the hire). All prices shown include any applicable taxes unless
+              otherwise stated.
+            </p>
+            <p className="text-base font-semibold mb-3">
+              Any young driver surcharges or security deposits stated on the bid are payable directly to the
+              car hire company at the time of collection — these are not collected by Camel Global.
             </p>
             <p className="text-base font-semibold">
-              Payments are processed securely. Camel Global collects payment on behalf of the partner.
-              Your payment to Camel Global satisfies your obligation to pay the partner.
+              Payments through the platform are processed securely. Camel Global collects payment on
+              behalf of the partner. Your payment to Camel Global satisfies your obligation to pay
+              the partner for the amounts collected through the platform.
             </p>
           </div>
 
           <div>
-            <h2 className="text-2xl font-black text-black mb-3">7. Cancellations and refunds</h2>
+            <h2 className="text-2xl font-black text-black mb-3">11. Cancellations and refunds</h2>
 
             <div className="bg-[#f0f0f0] px-5 py-4 mb-5">
               <p className="text-base font-black text-black mb-1">Cancellation policy summary</p>
@@ -137,23 +245,18 @@ export default function CustomerTermsPage() {
                   refund of everything you paid — including the car hire fee and the fuel deposit.
                 </p>
               </div>
-
               <div className="border-l-4 border-amber-500 pl-4">
                 <p className="text-base font-black text-black mb-1">Within 48 hours of pickup — Partial refund</p>
                 <p className="text-base font-semibold text-black/70">
                   If you cancel within 48 hours of your scheduled pickup time, the car hire fee is
-                  non-refundable. The car hire company has reserved the vehicle for you and is entitled
-                  to retain that fee. However, the full fuel deposit will always be refunded in full,
-                  as the fuel has not been used.
+                  non-refundable. The fuel deposit will always be refunded in full.
                 </p>
               </div>
-
               <div className="border-l-4 border-red-500 pl-4">
                 <p className="text-base font-black text-black mb-1">Once the hire has started — No refund</p>
                 <p className="text-base font-semibold text-black/70">
-                  Once the vehicle has been delivered and the hire is underway, cancellations are not
-                  possible and no refund is available for the car hire fee. Fuel is settled based on
-                  actual usage recorded at the end of the hire.
+                  Once the vehicle has been delivered and the hire is underway, the car hire fee is
+                  non-refundable. Fuel is settled based on actual usage at the end of the hire.
                 </p>
               </div>
             </div>
@@ -161,42 +264,28 @@ export default function CustomerTermsPage() {
             <div className="space-y-4">
               <p className="text-base font-semibold">
                 <strong>Partner cancellations:</strong> If the car hire company cancels your booking for any
-                reason, you will receive a full refund of everything you paid, regardless of timing.
+                reason, you will receive a full refund of everything paid through Camel Global, regardless of timing.
               </p>
-
-              <p className="text-base font-semibold">
-                <strong>The 48-hour threshold</strong> is measured from the scheduled pickup time recorded
-                on your booking at the time of confirmation. The cancellation timestamp is recorded
-                automatically by the platform at the moment you confirm the cancellation — this is the
-                timestamp used to determine which tier applies.
-              </p>
-
               <p className="text-base font-semibold">
                 <strong>How to cancel:</strong> You can cancel a booking directly from your bookings page,
-                provided the hire has not yet started. You do not need to contact us to cancel — the
-                platform handles it automatically.
-              </p>
-
-              <p className="text-base font-semibold">
-                <strong>Refunds</strong> are processed automatically and will appear in your account
-                within 5–10 working days depending on your bank or card provider. You do not need to
-                request a refund — it is issued automatically when you cancel.
+                provided the hire has not yet started. Refunds are processed automatically within 5–10
+                working days.
               </p>
             </div>
           </div>
 
           <div>
-            <h2 className="text-2xl font-black text-black mb-3">8. Insurance and your responsibilities</h2>
+            <h2 className="text-2xl font-black text-black mb-3">12. Insurance and your responsibilities</h2>
             <p className="text-base font-semibold mb-3">
               Every vehicle delivered through Camel Global is covered by insurance arranged by the
-              partner. Insurance documents are confirmed on handover — you&apos;ll be asked to confirm
-              receipt on the platform before driving away.
+              partner with zero excess. Insurance documents are confirmed on handover — you&apos;ll be asked
+              to confirm receipt on the platform before driving away.
             </p>
             <p className="text-base font-semibold mb-3">
               You are responsible for driving the vehicle legally — with a valid licence, within the
-              terms of the insurance, and in accordance with local road laws. Any damage, fines, or
-              liabilities incurred during the hire are your responsibility unless caused by a fault
-              with the vehicle.
+              terms of the insurance, and in accordance with local road laws. All drivers listed on
+              the booking must hold a valid licence. Any damage, fines, or liabilities incurred during
+              the hire are your responsibility unless caused by a fault with the vehicle.
             </p>
             <p className="text-base font-semibold">
               Camel Global does not provide insurance and is not liable for incidents arising during
@@ -205,7 +294,7 @@ export default function CustomerTermsPage() {
           </div>
 
           <div>
-            <h2 className="text-2xl font-black text-black mb-3">9. Our liability</h2>
+            <h2 className="text-2xl font-black text-black mb-3">13. Our liability</h2>
             <p className="text-base font-semibold mb-2">Camel Global is a platform intermediary. We are responsible for:</p>
             <ul className="list-disc list-inside text-base font-semibold space-y-1 mb-4">
               <li>Operating the platform and booking system</li>
@@ -218,6 +307,7 @@ export default function CustomerTermsPage() {
               <li>The condition or suitability of the vehicle provided by the partner</li>
               <li>A partner failing to deliver or collect as agreed</li>
               <li>Incidents, accidents, damage, or loss during the hire period</li>
+              <li>Charges payable directly to the partner (security deposits, young driver surcharges, excess mileage)</li>
               <li>Delays caused by circumstances outside our control</li>
             </ul>
             <p className="text-base font-semibold">
@@ -227,7 +317,7 @@ export default function CustomerTermsPage() {
           </div>
 
           <div>
-            <h2 className="text-2xl font-black text-black mb-3">10. Reviews</h2>
+            <h2 className="text-2xl font-black text-black mb-3">14. Reviews</h2>
             <p className="text-base font-semibold">
               After a booking completes, you may be invited to leave a review of the partner. Reviews
               must be honest and based on your actual experience. We reserve the right to remove reviews
@@ -236,7 +326,7 @@ export default function CustomerTermsPage() {
           </div>
 
           <div>
-            <h2 className="text-2xl font-black text-black mb-3">11. Your account and data</h2>
+            <h2 className="text-2xl font-black text-black mb-3">15. Your account and data</h2>
             <p className="text-base font-semibold">
               You can delete your account at any time from your settings page. We&apos;ll remove your login
               access immediately. Booking and financial records are retained as required by law.
@@ -245,7 +335,7 @@ export default function CustomerTermsPage() {
           </div>
 
           <div>
-            <h2 className="text-2xl font-black text-black mb-3">12. Changes to these terms</h2>
+            <h2 className="text-2xl font-black text-black mb-3">16. Changes to these terms</h2>
             <p className="text-base font-semibold">
               We may update these terms from time to time. The version in force when you made your
               booking applies to that booking. For future bookings, the current version applies.
@@ -254,7 +344,7 @@ export default function CustomerTermsPage() {
           </div>
 
           <div>
-            <h2 className="text-2xl font-black text-black mb-3">13. Governing law</h2>
+            <h2 className="text-2xl font-black text-black mb-3">17. Governing law</h2>
             <p className="text-base font-semibold">
               These terms are governed by the laws of England and Wales. Any disputes will be subject
               to the exclusive jurisdiction of the courts of England and Wales.
@@ -262,7 +352,7 @@ export default function CustomerTermsPage() {
           </div>
 
           <div>
-            <h2 className="text-2xl font-black text-black mb-3">14. Contact</h2>
+            <h2 className="text-2xl font-black text-black mb-3">18. Contact</h2>
             <p className="text-base font-semibold">
               Questions or complaints? Use our{" "}
               <a href="/contact" className="text-[#ff7a00] hover:underline">contact form</a>.

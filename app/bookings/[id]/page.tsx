@@ -26,6 +26,9 @@ type BidRow = {
   full_insurance_included: boolean; full_tank_included: boolean;
   notes: string|null; status: string; created_at: string;
   currency: Currency; avg_rating: number|null; review_count: number;
+  mileage_limit: string|null;
+  security_deposit_amount: number|null;
+  security_deposit_notes: string|null;
 };
 type ExistingReview = {
   id: string; rating: number; comment: string|null;
@@ -58,6 +61,10 @@ type BookingData = {
   insurance_docs_confirmed_by_driver: boolean; insurance_docs_confirmed_by_driver_at: string|null;
   insurance_docs_confirmed_by_customer: boolean; insurance_docs_confirmed_by_customer_at: string|null;
   has_review: boolean; existing_review: ExistingReview|null;
+  // bid fields passed through
+  mileage_limit: string|null;
+  security_deposit_amount: number|null;
+  security_deposit_notes: string|null;
 };
 type ResponseShape = { request: RequestData; bids: BidRow[]; booking: BookingData|null };
 type ConfirmSection = "collection"|"return";
@@ -196,7 +203,6 @@ function CustomerCancellationSummary({ bk }: { bk: BookingData }) {
   );
 }
 
-// ── Completion Statement download button ──────────────────────────────────────
 function CompletionStatementButton({ bookingId, accessToken }: { bookingId: string; accessToken: string }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr]         = useState<string|null>(null);
@@ -219,12 +225,8 @@ function CompletionStatementButton({ bookingId, accessToken }: { bookingId: stri
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={handleDownload}
-        disabled={loading}
-        className="inline-flex items-center gap-2 border border-[#ff7a00] px-5 py-2.5 text-sm font-black text-[#ff7a00] hover:bg-[#ff7a00] hover:text-white transition-colors disabled:opacity-50"
-      >
+      <button type="button" onClick={handleDownload} disabled={loading}
+        className="inline-flex items-center gap-2 border border-[#ff7a00] px-5 py-2.5 text-sm font-black text-[#ff7a00] hover:bg-[#ff7a00] hover:text-white transition-colors disabled:opacity-50">
         {loading ? "Loading…" : "⬇ Booking Completion Statement"}
       </button>
       {err && <p className="mt-2 text-xs font-semibold text-red-600">{err}</p>}
@@ -277,7 +279,6 @@ function BookingSummaryCard({ bk, rates, rateIsLive, accessToken }: { bk: Bookin
           <span className={`h-2.5 w-2.5 rounded-full ${rateIsLive?"bg-green-400":"bg-white/40"}`}/>{rateBadge}{rateIsLive?" · Live rate (frankfurter.app)":""}
         </div>
       </div>
-      {/* Completion statement download — white box matching receipt button style */}
       <div className="bg-white p-6">
         <p className="text-xs font-black uppercase tracking-widest text-black mb-4">Booking Documents</p>
         <CompletionStatementButton bookingId={bk.id} accessToken={accessToken} />
@@ -419,6 +420,9 @@ function BidCard({ bid,currency,rates,requestStatus,acceptingId,expired,onAccept
     try { const r=await fetch(`/api/test-booking/reviews?partner_user_id=${bid.partner_user_id}`); const j=await r.json().catch(()=>null); setReviews(j?.reviews||[]); } catch { setReviews([]); }
     finally { setLoadingRevs(false); }
   }
+
+  const bidCurr = bid.currency ?? "EUR";
+
   return (
     <div className="bg-[#f0f0f0] p-5">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -444,10 +448,31 @@ function BidCard({ bid,currency,rates,requestStatus,acceptingId,expired,onAccept
           )}
           <p className="text-sm font-semibold text-black"><span className="font-black">Phone:</span> {bid.partner_phone||"—"}</p>
           <p className="text-sm font-semibold text-black"><span className="font-black">Vehicle:</span> {bid.vehicle_category_name}</p>
-          <p className="text-sm font-semibold text-black"><span className="font-black">Car hire:</span> <BidAmount amount={bid.car_hire_price} bidCurrency={bid.currency??"EUR"} customerCurrency={currency} rates={rates}/></p>
-          <p className="text-sm font-semibold text-black"><span className="font-black">Fuel deposit:</span> <BidAmount amount={bid.fuel_price} bidCurrency={bid.currency??"EUR"} customerCurrency={currency} rates={rates}/></p>
-          <p className="text-sm font-semibold text-black"><span className="font-black">Total:</span> <BidAmount amount={bid.total_price} bidCurrency={bid.currency??"EUR"} customerCurrency={currency} rates={rates}/></p>
+          <p className="text-sm font-semibold text-black"><span className="font-black">Car hire:</span> <BidAmount amount={bid.car_hire_price} bidCurrency={bidCurr} customerCurrency={currency} rates={rates}/></p>
+          <p className="text-sm font-semibold text-black"><span className="font-black">Fuel deposit:</span> <BidAmount amount={bid.fuel_price} bidCurrency={bidCurr} customerCurrency={currency} rates={rates}/></p>
+          <p className="text-sm font-semibold text-black"><span className="font-black">Total:</span> <BidAmount amount={bid.total_price} bidCurrency={bidCurr} customerCurrency={currency} rates={rates}/></p>
           <p className="text-sm font-semibold text-black"><span className="font-black">Insurance included:</span> {bid.full_insurance_included?"Yes":"No"}</p>
+
+          {/* Mileage limit */}
+          {bid.mileage_limit && (
+            <p className="text-sm font-semibold text-black"><span className="font-black">Mileage limit:</span> {bid.mileage_limit}</p>
+          )}
+
+          {/* Security deposit */}
+          {bid.security_deposit_amount != null && bid.security_deposit_amount > 0 && (
+            <div className="border border-amber-200 bg-amber-50 px-4 py-3 mt-2">
+              <p className="text-sm font-black text-amber-800 mb-1">
+                💳 Security deposit required: <BidAmount amount={bid.security_deposit_amount} bidCurrency={bidCurr} customerCurrency={currency} rates={rates}/>
+              </p>
+              {bid.security_deposit_notes && (
+                <p className="text-sm font-semibold text-amber-700">{bid.security_deposit_notes}</p>
+              )}
+              <p className="text-xs font-semibold text-amber-600 mt-1">
+                This deposit will be blocked on your credit card at collection and released when the vehicle is returned in the agreed condition.
+              </p>
+            </div>
+          )}
+
           {bid.notes&&<p className="text-sm font-semibold text-black"><span className="font-black">Notes:</span> {bid.notes}</p>}
         </div>
         <div className="shrink-0">
@@ -648,6 +673,13 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const carHire = Number(bk?.car_hire_price||0);
   const fuel    = Number(bk?.fuel_price||0);
 
+  // Young driver warning from request data
+  const mainAge = req.driver_age;
+  const isYoungMain = mainAge != null && mainAge >= 21 && mainAge <= 24;
+  const addAges = (req.additional_driver_ages || "").split(",").map(a => Number(a.trim())).filter(n => !isNaN(n) && n > 0);
+  const hasYoungAdditional = addAges.some(n => n >= 21 && n <= 24);
+  const showYoungDriverNote = isYoungMain || hasYoungAdditional;
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <div className="w-full bg-black px-6 py-16 text-white">
@@ -739,6 +771,40 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             </div>
           </div>
 
+          {/* Young driver note on booking page */}
+          {showYoungDriverNote && (
+            <div className="border border-amber-300 bg-amber-50 px-4 py-3">
+              <p className="text-sm font-black text-amber-800 mb-1">⚠ Young driver surcharge may apply</p>
+              <p className="text-sm font-semibold text-amber-700">
+                One or more drivers on this booking are aged 21–24. Car hire companies may include a young driver surcharge in their bid price. You will see the full cost breakdown before accepting any bid.
+              </p>
+            </div>
+          )}
+
+          {/* Document checklist on booking page */}
+          <div className="bg-white p-6">
+            <p className="text-xs font-black uppercase tracking-widest text-black mb-4">📋 What to bring when collecting your car</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[
+                { icon: "🪪", title: "Driving licence (all drivers)", desc: "Full EU licence in Roman alphabet. If your licence does not meet this requirement, bring an international driving permit alongside your original." },
+                { icon: "🛂", title: "Passport or national ID (all drivers)", desc: "A valid passport or national identity document for every driver on the booking." },
+                { icon: "💳", title: "Payment card in lead driver's name", desc: "Required for the security deposit. Credit cards are strongly preferred — debit cards may not be accepted by all companies." },
+                { icon: "📄", title: "Photocopies recommended", desc: "Bring a photocopy of your driving licence and passport for all drivers. Documents must be originals — mobile photos and digital copies are not accepted." },
+              ].map(item => (
+                <div key={item.title} className="flex items-start gap-3 bg-[#f0f0f0] px-4 py-3">
+                  <span className="text-xl shrink-0 mt-0.5">{item.icon}</span>
+                  <div>
+                    <p className="text-sm font-black text-black">{item.title}</p>
+                    <p className="text-xs font-semibold text-black/60 mt-0.5">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-xs font-semibold text-black/50">
+              Failure to present the correct documentation at collection may result in the vehicle being refused.
+            </p>
+          </div>
+
           {bk&&!isCancelled&&(
             <>
               <div className="bg-white p-6 border-l-4 border-green-500">
@@ -761,6 +827,25 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                   <div className="flex justify-between text-sm font-semibold text-black"><span>Full tank deposit <span className="text-black/40">(refundable)</span></span><span><BookingAmount amount={bk.fuel_price} storedCurrency={bkCurr} customerCurrency={currency} rates={liveRates}/></span></div>
                   <div className="flex justify-between text-sm font-black text-black border-t border-black/10 pt-2"><span>Total paid</span><span><BookingAmount amount={bk.amount} storedCurrency={bkCurr} customerCurrency={currency} rates={liveRates}/></span></div>
                 </div>
+                {/* Mileage / deposit on confirmed booking */}
+                {(bk.mileage_limit || (bk.security_deposit_amount != null && bk.security_deposit_amount > 0)) && (
+                  <div className="bg-[#f0f0f0] p-4 space-y-2 mb-4">
+                    <p className="text-xs font-black uppercase tracking-widest text-black mb-3">Additional Terms</p>
+                    {bk.mileage_limit && (
+                      <p className="text-sm font-semibold text-black"><span className="font-black">Mileage limit:</span> {bk.mileage_limit}</p>
+                    )}
+                    {bk.security_deposit_amount != null && bk.security_deposit_amount > 0 && (
+                      <div>
+                        <p className="text-sm font-semibold text-black">
+                          <span className="font-black">Security deposit:</span> {fmtCurr(bk.security_deposit_amount, bkCurr)}
+                        </p>
+                        {bk.security_deposit_notes && (
+                          <p className="text-xs font-semibold text-black/60 mt-1">{bk.security_deposit_notes}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="mb-4">
                   <ReceiptDownloadButton bookingId={bk.id} accessToken={accessToken} />
                 </div>
