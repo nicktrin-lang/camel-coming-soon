@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleSupabaseClient } from "@/lib/supabase/server";
 import { createCustomerServiceRoleSupabaseClient } from "@/lib/supabase-customer/server";
-import { sendCustomerBookingCompletedEmail } from "@/lib/email";
 import { calculateFuelCharge } from "@/lib/portal/calculateFuelCharge";
 
 function getBearerToken(req: Request) {
@@ -47,11 +46,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const customerUser = await getCustomerUserFromAccessToken(accessToken);
     if (!customerUser) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 
-    const body            = await req.json().catch(() => null);
-    const section         = String(body?.section || "");
-    const confirmed       = !!body?.confirmed;
-    const notes           = String(body?.notes || "").trim() || null;
-    const insuranceOnly   = !!body?.insurance_only;
+    const body               = await req.json().catch(() => null);
+    const section            = String(body?.section || "");
+    const confirmed          = !!body?.confirmed;
+    const notes              = String(body?.notes || "").trim() || null;
+    const insuranceOnly      = !!body?.insurance_only;
     const insuranceConfirmed = body?.insurance_confirmed !== undefined ? !!body.insurance_confirmed : undefined;
 
     if (section !== "collection" && section !== "return") {
@@ -94,16 +93,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
 
     const collectionAlreadyLocked = isFuelLocked({
-      driverConfirmed: bookingRow.collection_confirmed_by_driver,
+      driverConfirmed:  bookingRow.collection_confirmed_by_driver,
       customerConfirmed: bookingRow.collection_confirmed_by_customer,
-      driverFuel: bookingRow.collection_fuel_level_driver,
-      customerFuel: bookingRow.collection_fuel_level_customer,
+      driverFuel:       bookingRow.collection_fuel_level_driver,
+      customerFuel:     bookingRow.collection_fuel_level_customer,
     });
     const returnAlreadyLocked = isFuelLocked({
-      driverConfirmed: bookingRow.return_confirmed_by_driver,
+      driverConfirmed:  bookingRow.return_confirmed_by_driver,
       customerConfirmed: bookingRow.return_confirmed_by_customer,
-      driverFuel: bookingRow.return_fuel_level_driver,
-      customerFuel: bookingRow.return_fuel_level_customer,
+      driverFuel:       bookingRow.return_fuel_level_driver,
+      customerFuel:     bookingRow.return_fuel_level_customer,
     });
 
     if (section === "collection" && collectionAlreadyLocked) {
@@ -120,8 +119,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const { error: insErr } = await db
         .from("partner_bookings")
         .update({
-          insurance_docs_confirmed_by_customer: insuranceConfirmed,
-          insurance_docs_confirmed_by_customer_at: insuranceConfirmed
+          insurance_docs_confirmed_by_customer:     insuranceConfirmed,
+          insurance_docs_confirmed_by_customer_at:  insuranceConfirmed
             ? bookingRow.insurance_docs_confirmed_by_customer_at || now
             : null,
         })
@@ -140,10 +139,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         );
       }
       const driverFuel = normalizeFuel(bookingRow.collection_fuel_level_driver);
-      updatePayload.collection_confirmed_by_customer     = confirmed;
-      updatePayload.collection_confirmed_by_customer_at  = confirmed ? bookingRow.collection_confirmed_by_customer_at || now : null;
-      updatePayload.collection_fuel_level_customer       = confirmed ? driverFuel : null;
-      updatePayload.collection_customer_notes            = notes;
+      updatePayload.collection_confirmed_by_customer    = confirmed;
+      updatePayload.collection_confirmed_by_customer_at = confirmed ? bookingRow.collection_confirmed_by_customer_at || now : null;
+      updatePayload.collection_fuel_level_customer      = confirmed ? driverFuel : null;
+      updatePayload.collection_customer_notes           = notes;
       if (insuranceConfirmed !== undefined) {
         updatePayload.insurance_docs_confirmed_by_customer    = insuranceConfirmed;
         updatePayload.insurance_docs_confirmed_by_customer_at = insuranceConfirmed
@@ -173,8 +172,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       ? isFuelLocked({ driverConfirmed: bookingRow.return_confirmed_by_driver, customerConfirmed: confirmed, driverFuel: bookingRow.return_fuel_level_driver, customerFuel: updatePayload.return_fuel_level_customer })
       : returnAlreadyLocked;
 
-    const wasCompleted = bookingRow.booking_status === "completed";
-
     if (nextCollectionLocked && nextReturnLocked) {
       updatePayload.booking_status = "completed";
 
@@ -183,8 +180,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
       const calc = calculateFuelCharge({
         collectionFuel: collFuel,
-        returnFuel: retFuel,
-        fullTankPrice: Number(bookingRow.fuel_price || 0),
+        returnFuel:     retFuel,
+        fullTankPrice:  Number(bookingRow.fuel_price || 0),
       });
       if (calc) {
         updatePayload.fuel_used_quarters = calc.used_quarters;
@@ -218,15 +215,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         .eq("id", bookingRow.request_id);
     }
 
-    // Send completion email
-    const becameCompleted = !wasCompleted && updatePayload.booking_status === "completed";
-    if (becameCompleted && requestRow.customer_email) {
-      try {
-        await sendCustomerBookingCompletedEmail(requestRow.customer_email, bookingRow.job_number);
-      } catch (e) {
-        console.error("Failed to send booking completed email:", e);
-      }
-    }
+    // Completion email is sent by completeBooking() in the portal — do not send here.
 
     return NextResponse.json({
       ok: true,
