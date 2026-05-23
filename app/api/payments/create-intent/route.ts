@@ -122,7 +122,6 @@ export async function POST(req: Request) {
     // ── Stripe amounts (smallest unit) ────────────────────────────────────────
     const totalCents      = Math.round(totalPrice * 100);
     const commissionCents = Math.round(commissionAmount * 100);
-    const partnerCents    = totalCents - commissionCents;
 
     // ── Create PaymentIntent ──────────────────────────────────────────────────
     const jobLabel    = request.job_number ? `#${request.job_number}` : bidId.slice(0, 8);
@@ -132,9 +131,12 @@ export async function POST(req: Request) {
       amount:   totalCents,
       currency: chargeCurrency.toLowerCase(),
       description: `Camel Global ${jobLabel} | ${partnerName} | Car hire ${fmtAmt(carHirePrice, chargeCurrency)} + Fuel deposit ${fmtAmt(fuelPrice, chargeCurrency)} | Commission ${fmtAmt(commissionAmount, chargeCurrency)} | Partner net ${fmtAmt(partnerPayoutAmount + fuelPrice, chargeCurrency)}`,
+      // application_fee_amount ensures Stripe fee is charged to the partner's connected account.
+      // Camel receives exactly commissionCents in platform balance — no Stripe fee deducted from commission.
+      on_behalf_of: partnerProfile.stripe_account_id,
+      application_fee_amount: commissionCents,
       transfer_data: {
         destination: partnerProfile.stripe_account_id,
-        amount: partnerCents,
       },
       metadata: {
         job_number:        String(request.job_number || ""),
