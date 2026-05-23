@@ -42,12 +42,6 @@
 | `camel-global.com` / `www.camel-global.com` | `camel-customer-live` | `camel-customer` | Customer production |
 | `test.camel-global.com` | `camel-customer-live` | `camel-customer` | Customer staging |
 
-### Vercel Projects
-| Project | Repo | Domains |
-|---------|------|---------|
-| `camel-portal-live` | `nicktrin-lang/camel-portal` | `portal.camel-global.com`, `test-portal.camel-global.com` |
-| `camel-customer-live` | `nicktrin-lang/camel-customer` | `camel-global.com`, `www.camel-global.com`, `test.camel-global.com` |
-
 ### Deploy Commands
 ```bash
 # Portal
@@ -80,53 +74,128 @@ cd ~/camel-customer && git add . && git commit -m "message" && git push origin m
 | `lib/portal/syncBookingStatuses.ts` | Booking status sync logic |
 | `lib/portal/refreshPartnerLiveStatus.ts` | Core live status — checks all 7 requirements |
 | `lib/portal/triggerPartnerLiveRefresh.ts` | Triggers the live status refresh |
-| `lib/portal/operatingRules.ts` | Shared OPERATING_RULES data + downloadOperatingRulesPDF() |
+| `lib/portal/operatingRules.ts` | Shared OPERATING_RULES data + downloadOperatingRulesPDF(). Includes section 3b — mileage limits & security deposits |
+| `lib/portal/completeBooking.tsx` | Shared completion logic — Stripe fuel refund, payout_status=ready, generates + emails completion statement PDF to customer. Sends rich completion email with fuel summary, thank you message and PDF attachment |
+| `lib/portal/generateCommissionInvoice.tsx` | Commission invoice PDF generator |
 | `lib/rateLimit.ts` | In-memory rate limiter — 3 req / 15 min per IP |
 | `lib/hcaptcha.ts` | Server-side hCaptcha token verification |
 | `lib/currency.ts` | All currency utilities — EUR, GBP, USD formatting + conversion |
 | `lib/useCurrency.ts` | React hook — currency state, live rates, fmt helpers |
-| `lib/email.ts` | Resend email sender — all notification helpers |
-| `app/api/geocode/route.ts` | Photon forward search + Nominatim reverse geocode |
-| `app/api/chat/route.ts` | AI chat API — Camel Help widget (portal side) |
-| `app/api/chat/transcript/route.ts` | Emails chat transcript to partner/admin |
-| `app/api/cron/review-reminder/route.ts` | Daily cron — sends review reminder 7 days after completion |
-| `app/api/partner/stripe/connect/route.ts` | Creates Stripe Express account + returns onboarding URL |
-| `app/api/partner/stripe/status/route.ts` | Returns partner Stripe onboarding status |
-| `app/api/partner/stripe/dashboard-link/route.ts` | Returns Stripe Express dashboard login link |
-| `app/api/webhooks/stripe/route.ts` | Portal webhook — handles `account.updated` (partner onboarding) |
-| `app/components/ChatWidget.tsx` | Floating AI chat widget — draggable (mouse + touch), streaming |
-| `app/components/Footer.tsx` | Smart footer — partner/admin/driver/customer variants |
-| `app/partner/onboarding/page.tsx` | 7-step onboarding — Location, Currency, Billing, Fleet, Drivers, **Payouts (Stripe)**, Go Live |
-| `app/partner/settings/page.tsx` | Settings — payout management + Stripe Express link + delete account |
-| `app/partner/dashboard/page.tsx` | Dashboard — Stripe payout status banner + checklist |
-| `app/driver/jobs/page.tsx` | Driver jobs — light theme, expandable jobs, fuel recording. **Needs stat cards added (awaiting delivery / on hire / completed counts)** |
+| `lib/email.ts` | Resend email sender — all notification helpers. Supports `attachments` array (base64). Contains old `sendCustomerBookingCompletedEmail` — NOT called anywhere, superseded by completeBooking.tsx |
+| `app/api/partner/bids/route.ts` | Partner bid submission — saves mileage_limit + security_deposit_notes |
+| `app/api/partner/requests/[id]/route.ts` | Partner request detail API — selects mileage_limit + security_deposit_notes from partner_bids |
+| `app/api/partner/bookings/[id]/route.ts` | Partner booking detail API |
+| `app/api/admin/bookings/[id]/route.ts` | Admin booking detail API |
+| `app/admin/requests/[id]/page.tsx` | Admin request detail |
+| `app/admin/bookings/[id]/page.tsx` | Admin booking detail |
+| `app/partner/requests/[id]/page.tsx` | Partner request detail — bid form includes mileage limit + security deposit (text fields, optional). Security deposit only shown when full insurance is NOT included. Young driver alert shown when driver aged 21–24 |
+| `app/partner/bookings/[id]/page.tsx` | Partner booking detail |
+| `app/partner/terms/page.tsx` | Partner T&Cs — includes clause on mileage/deposit collection responsibility. PDF generated dynamically from TERMS array |
 
 ### Key Libraries & Files — Customer (`~/camel-customer`)
 | File | Purpose |
 |------|---------|
 | `lib/supabase-customer/browser.ts` | Supabase browser client (customers) |
 | `lib/supabase-customer/server.ts` | Exports `createCustomerServerClient()` and `createCustomerServiceRoleSupabaseClient()` |
-| `app/api/chat/route.ts` | AI chat API — Camel Help widget (customer side) |
-| `app/api/chat/transcript/route.ts` | Emails chat transcript to customer |
-| `app/api/payments/create-intent/route.ts` | Creates Stripe PaymentIntent with destination charge split (Camel commission + partner net) |
-| `app/api/webhooks/stripe/route.ts` | Customer webhook — handles `payment_intent.succeeded` → creates booking, records payment |
-| `app/api/test-booking/bookings/[id]/cancel/route.ts` | Customer booking cancellation |
-| `app/checkout/[bid_id]/page.tsx` | Stripe Elements checkout page — card form, order summary, pay button |
-| `app/components/ChatWidget.tsx` | **Identical to portal version** — always update both |
-| `app/bookings/[id]/page.tsx` | Booking detail — "Accept & Pay →" redirects to checkout, payment success banner |
-| `app/login/page.tsx` | Customer login — supports `?next=` redirect param |
-| `next.config.ts` | CSP headers — includes Stripe domains (js.stripe.com, *.stripe.com) |
-| `app/ClientRootLayout.tsx` | Global nav — suppressed on `/checkout` pages only |
+| `lib/serverCurrency.ts` | Server-side currency conversion |
+| `lib/email.ts` | Resend email sender. Contains old `sendCustomerBookingCompletedEmail` — NOT called anywhere, superseded by completeBooking.tsx in portal |
+| `lib/portal/generateBookingReceiptPDF.tsx` | Booking confirmation receipt PDF — includes passengers, suitcases, sport_equipment, driver_age, additional_drivers, mileage_limit, security_deposit_notes, and "What to bring" checklist section |
+| `lib/portal/generateCompletionStatementPDF.tsx` | Booking completion statement PDF generator |
+| `app/api/test-booking/bookings/[id]/receipt/route.ts` | GET — returns signed URL for booking receipt |
+| `app/api/test-booking/bookings/[id]/completion-statement/route.ts` | GET — returns signed URL for completion statement |
+| `app/api/test-booking/bookings/[id]/update/route.ts` | POST — customer confirms fuel/insurance. Does NOT send completion email (that is handled by completeBooking.tsx in portal) |
+| `app/api/test-booking/requests/route.ts` | POST — creates booking request. Min driver age validation is 21 |
+| `app/api/test-booking/requests/[id]/route.ts` | GET — returns request + bids (including mileage_limit, security_deposit_notes) + booking |
+| `app/api/webhooks/stripe/route.ts` | Customer webhook — creates booking, generates receipt PDF (with checklist + mileage/deposit), sends confirmation emails |
+| `app/bookings/[id]/page.tsx` | Booking detail — young driver warning, document checklist + mileage/deposit shown on confirmed booking. Bid cards show mileage limit and security deposit disclosure boxes |
+| `app/page.tsx` | Customer homepage — min driver age 21, young driver warning for 21–24, no document checklist (moved to confirmed booking only) |
+| `app/book/page.tsx` | Auto-submit after login |
+| `app/terms/page.tsx` | Customer T&Cs — section 5 young driver surcharge included in bid price, section 6 credit card only required if security deposit stated on bid, section 7 security deposit, section 8 mileage |
+
+---
+
+## CRITICAL: DB Client Rules
+**The customer Supabase project is used for ALL customer-facing API routes** — always use `createCustomerServiceRoleSupabaseClient` in `app/api/test-booking/**` routes. Never mix with `createServiceRoleSupabaseClient` (main/portal DB) in these routes.
+
+---
+
+## Sidebar Architecture (CRITICAL)
+The portal uses **`PortalSidebar.tsx`** (`app/components/portal/PortalSidebar.tsx`) as the main sidebar for both partner and admin — NOT `PartnerSidebar.tsx` or `AdminSidebar.tsx`. Always edit `PortalSidebar.tsx` to add/change nav items.
+
+---
+
+## Driver Age Feature
+
+### Database columns
+```sql
+-- Already run — do not run again
+ALTER TABLE customer_requests
+  ADD COLUMN IF NOT EXISTS driver_age integer,
+  ADD COLUMN IF NOT EXISTS additional_drivers integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS additional_driver_ages text;
+```
+
+### Validation rules
+- Main driver age: required, must be >= 21
+- Additional driver ages: each must be >= 21
+- additional_drivers: 0–4
+- Drivers aged 21–24: young driver warning shown to customer and partner
+
+---
+
+## Mileage Limit & Security Deposit Feature
+
+### Database columns
+```sql
+-- Already run — do not run again
+ALTER TABLE partner_bids
+  ADD COLUMN IF NOT EXISTS mileage_limit text,
+  ADD COLUMN IF NOT EXISTS security_deposit_notes text;
+```
+
+### Rules
+- Both are free-text, optional fields on the partner bid form
+- Security deposit field only shown when full insurance is NOT included
+- Both are outside Camel's payment system — collected by partner directly at handover
+- Customer sees them as disclosure boxes on bid card before accepting
+- Shown again on confirmed booking "Additional Terms" section
+- Included in booking receipt PDF
+- If security deposit set: amber credit card row added to "What to bring" checklist on confirmed booking and receipt PDF
+- Partner operating rules section 3b covers partner responsibility for collection
+- Partner T&Cs clause 6.7/6.8 covers same
+- Customer T&Cs sections 7 and 8 cover customer-facing rules
+
+---
+
+## Completion Email Architecture (CRITICAL)
+- **`lib/portal/completeBooking.tsx`** sends the rich completion email to the customer — fuel summary, thank you message, PDF attachment
+- **`lib/email.ts`** in both repos contains an old `sendCustomerBookingCompletedEmail` function — this is NOT called anywhere and must not be used
+- **`app/api/test-booking/bookings/[id]/update/route.ts`** (customer) does NOT send any completion email — this was the source of a duplicate basic email bug, now fixed
+
+---
+
+## Currency Architecture (CRITICAL)
+
+### Two-currency model
+- `partner_bookings.currency` = **bid currency** — what partner quoted in
+- `partner_bookings.charge_currency` = **charge currency** — what customer paid in
+- `partner_bookings.conversion_rate` = rate used at payment time
+
+### Commission calculation rule
+**NEVER use `commission_amount` or `partner_payout_amount` from the DB for display.** Always recalculate:
+```typescript
+const commAmt = Math.max((car_hire_price * commission_rate) / 100, 10);
+const payout  = Math.max(0, car_hire_price - commAmt);
+```
 
 ---
 
 ## Email Addresses
 | Address | Type | Forwards to |
 |---------|------|-------------|
-| `info@camel-global.com` | Mailbox (Mail Lite, Fasthosts) | Gmail via POP — `mail.livemail.co.uk:995` |
+| `info@camel-global.com` | Mailbox (Mail Lite, Fasthosts) | Gmail via POP |
 | `contact@camel-global.com` | Forwarder | `artur@` + `info@` |
 | `partners@camel-global.com` | Forwarder | `artur@` + `info@` |
-| `press@camel-global.com` | Forwarder | `artur@` + `info@` |
 | `email@camel-global.com` | Forwarder | `nicktrin@gmail.com` + `artur@` |
 
 ---
@@ -135,172 +204,37 @@ cd ~/camel-customer && git add . && git commit -m "message" && git push origin m
 
 ### Payment flow
 ```
-Customer accepts bid → redirected to /checkout/[bid_id]
-→ PaymentIntent created with destination charge split:
-    Camel account:  commission amount (20%, min €10)
-    Partner account: net car hire + full fuel deposit
-→ Customer pays with card via Stripe Elements
-→ payment_intent.succeeded webhook fires to www.camel-global.com/api/webhooks/stripe
-→ Booking created in partner_bookings, payment recorded in payments table
+Customer accepts bid → /checkout/[bid_id]
+→ PaymentIntent created in customer's currency
+→ Customer pays → webhook fires
+→ partner_bookings + payments created
+→ Booking receipt PDF generated + emailed to customer (includes what to bring checklist)
 → Customer redirected to /bookings/[request_id]?payment=success
 ```
 
-### At booking completion (TODO — not yet built)
+### At booking completion
 ```
 Booking marked completed
-→ Fuel used calculated (quarters)
-→ Fuel refund = (fuel_deposit / 4) * quarters_unused
-→ Stripe refund issued from partner's Stripe account back to customer's card
-→ payments.fuel_refund_amount + fuel_refunded_at updated
-→ partner_bookings.payout_status = 'ready'
-```
-
-### Monthly payout (TODO — not yet built)
-```
-1st of month cron job
-→ Finds all partner_bookings where payout_status = 'ready'
-→ Groups by partner
-→ Triggers one Stripe payout per partner (manual payout schedule)
-→ Generates commission invoice PDF (NTUK Ltd → partner, in partner billing currency)
-→ Emails invoice to partner
-→ Marks bookings payout_status = 'paid'
+→ completeBooking() called (lib/portal/completeBooking.tsx)
+→ Fuel refund calculated + Stripe partial refund issued
+→ Completion statement PDF generated
+→ Rich completion email sent to customer (fuel summary, thank you, PDF attached)
+→ payout_status = 'ready'
 ```
 
 ### Stripe webhook endpoints
-| Endpoint | Webhook name | Event | Purpose |
-|----------|-------------|-------|---------|
-| `https://portal.camel-global.com/api/webhooks/stripe` | charming-victory | `account.updated` | Partner onboarding completion |
-| `https://www.camel-global.com/api/webhooks/stripe` | sophisticated-triumph | `payment_intent.succeeded` | Creates booking after payment |
-
-**Important:** `camel-global.com` (without www) redirects with 308 — Stripe won't follow redirects. Always use `www.camel-global.com` for the customer webhook.
-
-### Stripe env vars
-| Var | Portal | Customer |
-|-----|--------|----------|
-| `STRIPE_SECRET_KEY` | ✅ | ✅ |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | ✅ | ✅ |
-| `STRIPE_WEBHOOK_SECRET` | charming-victory secret | sophisticated-triumph secret |
+| Endpoint | Event | Purpose |
+|----------|-------|---------|
+| `https://portal.camel-global.com/api/webhooks/stripe` | `account.updated` | Partner onboarding |
+| `https://www.camel-global.com/api/webhooks/stripe` | `payment_intent.succeeded` | Creates booking after payment |
 
 ---
 
-## Payment Database Tables
-
-### `payments`
-| Column | Purpose |
+## Supabase Storage Buckets
+| Bucket | Purpose |
 |--------|---------|
-| `stripe_payment_intent_id` | Stripe PI reference |
-| `amount_total` | Total charged to customer |
-| `amount_car_hire` | Car hire portion |
-| `amount_fuel_deposit` | Fuel deposit held |
-| `amount_commission` | Camel commission |
-| `amount_partner_net` | Partner net amount |
-| `fuel_refund_amount` | Fuel refund issued (set on completion) |
-| `fuel_refunded_at` | When refund was issued |
-| `payout_status` | `held` / `ready` / `paid` / `cancelled` |
-
-### `payout_batches`
-Monthly batch records — one per partner per month.
-
-### `commission_invoices`
-Auto-generated monthly — NTUK Ltd → partner.
-
-### `partner_bookings` additions
-| Column | Purpose |
-|--------|---------|
-| `payment_id` | FK to payments table |
-| `payout_status` | `held` / `ready` / `paid` / `cancelled` |
-
----
-
-## Cancellation System
-
-### Rules
-| Who cancels | Car hire refund | Fuel refund |
-|-------------|-----------------|-------------|
-| Partner | Full | Full |
-| Customer >48hrs before pickup | Full | Full |
-| Customer <48hrs before pickup | None | Full |
-| Admin | Full | Full |
-| Cancellation (any) | Camel keeps commission | — |
-
----
-
-## Commission & Payments Model
-- Partner = supplier, issues VAT invoice to customer
-- Camel = intermediary, earns commission (default 20%, min €10 floor), invoices partner
-- Commission rate set per-partner in admin — stored on `partner_profiles.commission_rate`
-- Rate stamped on each booking at acceptance — never changes after that
-- Fuel charges pass through 100% to partner — no commission on fuel
-- `partner_profiles.stripe_account_id` — populated on Stripe Express onboarding
-- `partner_profiles.stripe_onboarding_complete` — boolean, set by webhook
-- `partner_profiles.stripe_payouts_enabled` — boolean, set by webhook
-
----
-
-## Live Status System (7 checks)
-1. Fleet base address set
-2. Fleet base GPS set (lat + lng)
-3. Service radius set
-4. At least one active fleet vehicle
-5. At least one active driver
-6. Billing currency set
-7. VAT / NIF number set
-
----
-
-## Currency System
-- **Supported:** `EUR | GBP | USD`
-- **Rates:** Live from `frankfurter.app`, cached 1 hour, fallback GBP 0.85 / USD 1.08
-- **Storage:** All prices stored in the currency the booking was made in
-- **Commission invoices:** Issued in partner's billing currency at live exchange rate at time of invoice
-
----
-
-## Supabase Projects
-| Project | URL | Used by |
-|---------|-----|---------|
-| `camel-global` | `https://guhcavvpuveiovspzxmg.supabase.co` | Portal + Customer (both) |
-
----
-
-## Environment Variables
-
-### Portal (`camel-portal-live`)
-```
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-SUPABASE_SERVICE_ROLE_KEY
-NEXT_PUBLIC_HCAPTCHA_SITE_KEY
-HCAPTCHA_SECRET_KEY
-RESEND_API_KEY
-EMAIL_FROM
-CRON_SECRET
-CAMEL_ADMIN_EMAILS
-PORTAL_BASE_URL                   → https://portal.camel-global.com
-NEXT_PUBLIC_SITE_URL              → https://portal.camel-global.com
-ANTHROPIC_API_KEY
-STRIPE_SECRET_KEY
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-STRIPE_WEBHOOK_SECRET             → charming-victory signing secret (portal.camel-global.com webhook)
-```
-
-### Customer (`camel-customer-live`)
-```
-NEXT_PUBLIC_CUSTOMER_SUPABASE_URL
-NEXT_PUBLIC_CUSTOMER_SUPABASE_ANON_KEY
-CUSTOMER_SUPABASE_SERVICE_ROLE_KEY
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-SUPABASE_SERVICE_ROLE_KEY
-NEXT_PUBLIC_HCAPTCHA_SITE_KEY
-HCAPTCHA_SECRET_KEY
-RESEND_API_KEY
-NEXT_PUBLIC_SITE_URL              → https://camel-global.com
-ANTHROPIC_API_KEY
-STRIPE_SECRET_KEY
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-STRIPE_WEBHOOK_SECRET             → sophisticated-triumph signing secret (www.camel-global.com webhook)
-```
+| `commission-invoices` | Commission invoice PDFs |
+| `booking-receipts` | Booking receipt PDFs + completion statement PDFs |
 
 ---
 
@@ -309,205 +243,107 @@ STRIPE_WEBHOOK_SECRET             → sophisticated-triumph signing secret (www.
 ### Portal (`~/camel-portal`)
 | Tag | Description |
 |-----|-------------|
-| `v-stable-chat20` | Chat 20 — 5 bug fixes, geocode API, duplicate email fixed |
-| `v-stable-chat21` | Chat 21 — Photon search, city fields, address overhaul |
-| `v-stable-chat22` | Chat 22 — Commission rate system fully fixed |
-| `v-stable-chat23` | Chat 23 — AI chat widget, cancellation system |
-| `v-stable-chat24` | Chat 24 — Portal homepage, branding overhaul, driver fixes |
-| `v-stable-chat24b` | Chat 24b — NTUK Ltd company details, footer fixes |
-| `v-stable-chat24c` | Chat 24c — SEO metadata, sitemaps, robots.txt |
-| `v-stable-chat25` | Chat 25 — Stripe Connect partner onboarding, webhook, dashboard payout status, settings payout page |
+| `v-stable-chat30b` | Chat 30b — partner suggestions complete |
+| `v-stable-chat31` | Chat 31 — driver age, sport equipment everywhere, completion statement PDF, completion email |
+| `v-stable-chat32` | Chat 32 — min age 21, young driver warning, mileage/deposit on bids, document checklist, completion email fix, terms updated |
 
 ### Customer (`~/camel-customer`)
 | Tag | Description |
 |-----|-------------|
-| `v-stable-chat20` | Chat 20 — map picker address fix |
-| `v-stable-chat21` | Chat 21 — Photon search, city selector |
-| `v-stable-chat22` | Chat 22 — Commission stamp on customer bid acceptance |
-| `v-stable-chat23` | Chat 23 — AI chat widget, cancellation system |
-| `v-stable-chat24` | Chat 24 — Customer T&Cs, chat widget touch drag |
-| `v-stable-chat24b` | Chat 24b — NTUK Ltd company details |
-| `v-stable-chat24c` | Chat 24c — SEO metadata, sitemaps, robots.txt |
-| `v-stable-chat25` | Chat 25 — Stripe checkout, PaymentIntent split, CSP fix, booking confirmation flow, webhook booking creation |
+| `v-stable-chat30a` | Chat 30a — booking receipt PDF, completion statement fixes |
+| `v-stable-chat31` | Chat 31 — driver age, sport equipment, completion statement download |
+| `v-stable-chat32` | Chat 32 — min age 21, young driver warning, mileage/deposit on bids, document checklist on confirmed booking + receipt PDF, completion email fix, terms updated |
 
 ### Rollback
 ```bash
-cd ~/camel-portal && git checkout v-stable-chat25
-cd ~/camel-customer && git checkout v-stable-chat25
+cd ~/camel-portal && git checkout v-stable-chat32
+cd ~/camel-customer && git checkout v-stable-chat32
 ```
 
 ---
 
 ## What Is Working ✅
-- Customer booking flow — single homepage widget
+- Customer booking flow — homepage widget with currency + driver age selection (min 21)
+- Young driver warning (21–24) shown on homepage widget, booking page, partner request page
 - Guest booking flow — draft survives login/signup redirect
 - Partner bid submission and management
-- Driver job portal — light theme, expandable history, fuel recording, minimal footer
+- Driver job portal
 - Admin approval and account management
 - Full EUR / GBP / USD currency support
-- Full commission system — adjustable per partner, default 20%, min €10
-- Fuel level recording, charge/refund calculation (to nearest ¼ tank)
-- Email notifications + password reset on all portals
+- Full commission system — adjustable per partner, default 20%, min €10 floor
+- Fuel level recording, charge/refund calculation
+- Fuel refund on completion — Stripe partial refund issued automatically
+- Email notifications — all (booking confirmed, completion, review reminder)
 - Live status system — 7 checks
-- Partner onboarding — 7 steps including Stripe Express payout setup
-- Security headers, rate limiting, hCaptcha on all forms
-- Customer profile RLS, cookie consent banner, GDPR soft delete
-- Photon address search across all address inputs
-- AI Chat Widget — both sites, logged-in only, draggable, streaming, transcript email
-- Booking cancellation — customer/partner/admin, 48hr rule, financial breakdowns
-- Portal homepage — full partner landing page
-- Branding overhaul — all partner and admin static pages
-- SEO — metadata, Open Graph, sitemaps, robots.txt
-- **Stripe Connect partner onboarding** — Express account creation, hosted onboarding, webhook completion, dashboard link
-- **Partner dashboard** — Stripe payout status banner, setup checklist includes payouts
-- **Partner settings** — payout management section with Stripe Express link
-- **Customer checkout** — Stripe Elements payment form at `/checkout/[bid_id]`
-- **PaymentIntent with destination charge** — commission split to Camel, net to partner, on payment
-- **Stripe webhook** — `payment_intent.succeeded` creates booking and payment record
-- **Payment success banner** — shown on booking page after successful payment
-- **CSP headers** — Stripe domains whitelisted (js.stripe.com, *.stripe.com, api.stripe.com)
+- Partner onboarding — 7 steps including Stripe Express
+- Stripe Connect partner onboarding
+- Partner + admin bookings and reports
+- Commission invoice PDF
+- Booking receipt PDF — includes driver age, sport equipment, journey details, what to bring checklist, mileage/deposit if set
+- Booking Completion Statement PDF — server-side, stored in booking-receipts bucket, downloadable via signed URL, attached to completion email
+- Rich completion email — fuel summary, thank you message, PDF attached (sent by completeBooking.tsx only)
+- Partner suggestions feature
+- Driver age + additional drivers — captured at booking, displayed everywhere, included in both PDFs
+- Sport equipment — displayed everywhere and in both PDFs
+- Mileage limit + security deposit — optional text fields on partner bid, shown to customer on bid card and confirmed booking, included in receipt PDF
+- Document checklist — shown on confirmed booking page and in receipt PDF only (not on homepage)
+- Customer terms — updated for min age 21, young driver surcharge in bid, credit card only if deposit required
+- Partner terms — updated with mileage/deposit collection responsibility clauses
+- Partner operating rules — section 3b added covering mileage limits and security deposits
 
 ---
 
-## Payments — What Still Needs Building
+## What Needs Building in Chat 33
 
-### 1. Fuel refund on booking completion (next priority)
-When a booking is marked `completed` by the system:
-- Calculate quarters of fuel used = `return_fuel_quarters` (already stored)
-- `fuel_refund = (fuel_deposit / 4) * (4 - quarters_used)`
-- Issue Stripe refund from the PaymentIntent
-- Update `payments.fuel_refund_amount` + `fuel_refunded_at`
-- Set `partner_bookings.payout_status = 'ready'`
-- Files to touch: wherever booking completion is triggered (check `syncBookingStatuses.ts` and driver confirm route)
+### 1. Spanish Translation (PRIORITY)
+- All user-facing strings in camel-customer and camel-portal
+- Language toggle (EN / ES) — remember preference in localStorage
+- Do customer site first, then portal
 
-### 2. Monthly payout cron
-- New cron route: `app/api/cron/monthly-payout/route.ts`
-- Runs 1st of each month
-- Groups `ready` bookings by partner
-- Triggers Stripe payout to partner's `stripe_account_id`
-- Generates commission invoice PDF
-- Emails invoice to partner
-- Marks bookings `paid`
+---
 
-### 3. Commission invoice PDF generation
-- NTUK Ltd → partner
-- In partner's billing currency at live exchange rate
-- Line items: each booking that month
-- Auto-emailed on monthly payout run
-- Also downloadable from partner reports page
-
-### 4. Customer booking receipts
-- Customer account page needs a receipts section
-- Each completed booking shows: what was paid, fuel refund received, final amount
-- Downloadable PDF receipt per booking
-
-### 5. Driver portal stat cards (quick fix)
-- Add 3 stat cards at top of driver jobs page: Awaiting Delivery / On Hire / Completed
-- Currently just shows "X active · Y completed" as text in header
-- Should be visual cards matching the rest of the portal style
-
-### 6. Cancellation refunds via Stripe
-- Currently cancellation records refund_status in DB but doesn't actually trigger a Stripe refund
-- Need to issue actual Stripe refund when booking cancelled
-- Full refund (>48hrs) or fuel-only refund (<48hrs customer cancel)
-
-### 7. Webhook URL fix for production
-- Current customer webhook points to `www.camel-global.com` (works)
-- `camel-global.com` (without www) returns 308 redirect — Stripe won't follow
-- Consider forcing www on all production traffic in Vercel
-
-### 8. Admin financial dashboard
-- View all payments, commissions, payouts
-- Filter by partner, date range, status
-- Export to CSV/Excel
-
-### 9. Reports pages update
-- Partner reports: show paid vs unpaid breakdown, payout history
-- Admin reports: full financial view with payment records
+## What Still Needs Building (Lower Priority)
+- Commission invoice PDF — VAT number + 20% UK VAT once NTUK is VAT registered
+- Xero monthly commission endpoint — deferred
+- DAC7 EU platform reporting — deferred
+- Outreach: set up `e.camel-global.com` subdomain in Resend
 
 ---
 
 ## Collaborator Note
-A collaborator works on the same `camel-portal` repo from a Windows machine (`C:/dev/camel-portal`). He built the **Partner Outreach Agent** (`/admin/outreach`). His changes are on `main`. Always `git pull` before starting. Key files he owns: `app/admin/outreach/page.tsx`, `app/api/admin/outreach/*`.
+A collaborator works on `camel-portal` from Windows (`C:/dev/camel-portal`). He built the **Partner Outreach Agent** (`/admin/outreach`). Always `git pull` before starting.
 
 ---
 
 ## Session Log
 
-### Chat 25 (Completed)
-**Stripe Connect — full payment flow**
-1. Database schema — `payments`, `payout_batches`, `commission_invoices` tables created. Columns added to `partner_bookings` and `partner_profiles`.
-2. Portal — Stripe Express partner onboarding (Step 7 in onboarding flow). API routes: connect, status, dashboard-link.
-3. Portal webhook — `account.updated` marks partner onboarding complete.
-4. Portal dashboard — Stripe payout status banner (orange = not set up, green = active). Checklist item added.
-5. Portal settings — Payout management section with Stripe Express dashboard link.
-6. Customer — Stripe package installed (`stripe`, `@stripe/stripe-js`, `@stripe/react-stripe-js`).
-7. Customer checkout page — `/checkout/[bid_id]` with Stripe Elements, order summary, pay button.
-8. Customer `create-intent` API — creates PaymentIntent with destination charge split.
-9. Customer webhook — `payment_intent.succeeded` creates booking + payment record.
-10. Booking page — "Accept & Pay →" redirects to checkout. Payment success banner added.
-11. CSP fix — `js.stripe.com`, `*.stripe.com`, `api.stripe.com` added to `next.config.ts`.
-12. Double header fix — `/checkout` excluded from global nav in `ClientRootLayout.tsx`.
-13. Webhook URL fix — must use `www.camel-global.com` not `camel-global.com` (308 redirect issue).
-14. Stable tags `v-stable-chat25` on both repos.
-15. **Tested end-to-end** — payment flows, booking created, partner sees booking, transfer split confirmed in Stripe.
+### Chat 32 (Completed)
+**Min age 21, young driver warning, mileage/deposit on bids, document checklist, completion email fix, terms updated**
 
-### Chat 24c (Completed)
-SEO overhaul — metadata, Open Graph, sitemaps, robots.txt, airport keywords, alt text.
+1. `app/page.tsx` (customer) — min age 18→21, young driver warning for 21–24, document checklist removed from homepage entirely
+2. `app/api/test-booking/requests/route.ts` — server-side validation 18→21
+3. `app/bookings/[id]/page.tsx` — young driver warning, document checklist on confirmed booking only, bid cards show mileage/deposit disclosure boxes
+4. `app/partner/requests/[id]/page.tsx` (portal) — mileage limit + security deposit text fields on bid form; security deposit hidden when full insurance included; young driver alert for partner
+5. `app/api/partner/bids/route.ts` — saves mileage_limit + security_deposit_notes to DB
+6. `app/api/partner/requests/[id]/route.ts` — selects mileage_limit + security_deposit_notes from partner_bids
+7. `app/api/test-booking/requests/[id]/route.ts` (customer) — returns mileage_limit + security_deposit_notes on bids and passes through to confirmed booking
+8. `lib/portal/generateBookingReceiptPDF.tsx` — adds "What to bring" checklist section, mileage/deposit sections, passes fields from webhook
+9. `app/api/webhooks/stripe/route.ts` (customer) — passes mileage_limit + security_deposit_notes to receipt PDF
+10. `app/api/test-booking/bookings/[id]/update/route.ts` — removed duplicate basic completion email (was sending before completeBooking.tsx ran)
+11. `app/terms/page.tsx` (customer) — section 5 young driver in bid, section 6 credit card only if deposit required
+12. `app/partner/terms/page.tsx` — clauses 6.7/6.8 partner responsible for collecting mileage/deposit directly
+13. `lib/portal/operatingRules.ts` — section 3b added: mileage limits and security deposits
+14. DB migration: `partner_bids` — `mileage_limit text`, `security_deposit_notes text`
+15. Stable tags: `v-stable-chat32` on both repos
 
-### Chat 24b (Completed)
-NTUK Ltd company details, email forwarders, driver footer fix, review email fix.
+### Chat 31 (Completed)
+**Driver age, sport equipment, completion statement PDF, completion email**
 
-### Chat 24 (Completed)
-Branding, portal homepage, driver fixes, chat widget touch drag.
+### Chat 30 (Completed)
+**Booking receipt PDF, completion statement fixes, partner suggestions**
 
-### Chat 23 (Completed)
-AI Chat Widget + Booking Cancellation System.
-
-### Chats 20–22 (Completed)
-Address search, commission fixes, bug fixes.
-
----
-
-## Pre-Launch Build Plan
-
-| # | Task | Status |
-|---|------|--------|
-| 1 | Security headers | ✅ Done |
-| 2 | Code cleanup | ✅ Done |
-| 3 | Rate limiting | ✅ Done |
-| 4 | CAPTCHA at all sign-in points | ✅ Done |
-| 5 | Cookie acceptance banner | ✅ Done |
-| 6 | Partner & Admin finance pages | ⏸ Partial — reports need payment data |
-| 7 | RLS audit | ✅ Done |
-| 8 | GDPR data deletion | ✅ Done |
-| 9 | Footer + policy pages | ✅ Done |
-| 10 | Spanish translation | ⬜ Todo — do last |
-| 11 | Customer booking site full UI overhaul | ✅ Done |
-| 11b | Portal rebrand | ✅ Done |
-| 11c | Repo split | ✅ Done |
-| 11d | Google Analytics | ✅ Done |
-| 12 | Stripe Connect integration | 🔄 In progress — core flow done, refunds + payouts + invoices remaining |
-| 13 | Xero monthly commission endpoint | ⬜ Deferred |
-| 14 | DAC7 EU platform reporting | ⬜ Deferred |
-| 15 | Partner outreach agent | ✅ Done (collaborator) |
-
----
-
-## TODO Before Go-Live
-- [ ] Fuel refund on booking completion — **next priority**
-- [ ] Monthly payout cron
-- [ ] Commission invoice PDF generation
-- [ ] Customer booking receipts page
-- [ ] Driver portal stat cards (quick fix)
-- [ ] Cancellation Stripe refunds
-- [ ] Stripe webhook production URL fix (www vs non-www)
-- [ ] Admin financial dashboard
-- [ ] Reports pages — paid vs unpaid
-- [ ] Spanish translation — after Stripe complete
-- [ ] Delete legacy `camel-customers` Supabase project
-- [ ] Outreach: deduplicate database
-- [ ] Outreach: set up `e.camel-global.com` subdomain in Resend
+### Chats 20–29 (Completed)
+See previous handover docs.
 
 ---
 
@@ -524,9 +360,6 @@ cd ~/camel-portal && git add . && git commit -m "message" && git push origin mai
 # Customer deploy
 cd ~/camel-customer && git add . && git commit -m "message" && git push origin main
 
-# Copy ChatWidget to both repos
-cp ~/camel-portal/app/components/ChatWidget.tsx ~/camel-customer/app/components/ChatWidget.tsx
-
 # File trees
 find ~/camel-portal -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/.next/*' | sort
 find ~/camel-customer -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/.next/*' | sort
@@ -540,4 +373,4 @@ git checkout v-tag-name
 
 ---
 
-*Last updated: Chat 25 — Stripe Connect full payment flow complete. Partner onboarding, checkout, PaymentIntent split, webhook booking creation all working and tested. Next: fuel refund on completion, monthly payout cron, commission invoices, customer receipts, driver stat cards.*
+*Last updated: Chat 32 — Min age 21, young driver warning, mileage limit + security deposit on bids (text disclosure, outside Camel payments), document checklist on confirmed booking + receipt PDF only, rich completion email fix (duplicate basic email removed), customer + partner terms + operating rules all updated.*
