@@ -27,7 +27,6 @@ type BidRow = {
   notes: string|null; status: string; created_at: string;
   currency: Currency; avg_rating: number|null; review_count: number;
   mileage_limit: string|null;
-  security_deposit_amount: number|null;
   security_deposit_notes: string|null;
 };
 type ExistingReview = {
@@ -455,21 +454,19 @@ function BidCard({ bid,currency,rates,requestStatus,acceptingId,expired,onAccept
 
           {/* Mileage limit */}
           {bid.mileage_limit && (
-            <p className="text-sm font-semibold text-black"><span className="font-black">Mileage limit:</span> {bid.mileage_limit}</p>
+            <div className="border border-black/10 bg-white px-4 py-3 mt-2">
+              <p className="text-sm font-black text-black mb-0.5">📏 Mileage limit</p>
+              <p className="text-sm font-semibold text-black/70">{bid.mileage_limit}</p>
+              <p className="text-xs font-semibold text-black/40 mt-1">Any excess mileage charges are payable directly to the car hire company at collection — credit card required.</p>
+            </div>
           )}
 
           {/* Security deposit */}
-          {bid.security_deposit_amount != null && bid.security_deposit_amount > 0 && (
+          {bid.security_deposit_notes && (
             <div className="border border-amber-200 bg-amber-50 px-4 py-3 mt-2">
-              <p className="text-sm font-black text-amber-800 mb-1">
-                💳 Security deposit required: <BidAmount amount={bid.security_deposit_amount} bidCurrency={bidCurr} customerCurrency={currency} rates={rates}/>
-              </p>
-              {bid.security_deposit_notes && (
-                <p className="text-sm font-semibold text-amber-700">{bid.security_deposit_notes}</p>
-              )}
-              <p className="text-xs font-semibold text-amber-600 mt-1">
-                This deposit will be blocked on your credit card at collection and released when the vehicle is returned in the agreed condition.
-              </p>
+              <p className="text-sm font-black text-amber-800 mb-0.5">💳 Security deposit required</p>
+              <p className="text-sm font-semibold text-amber-700">{bid.security_deposit_notes}</p>
+              <p className="text-xs font-semibold text-amber-600 mt-1">Payable directly to the car hire company at collection. Credit card only — debit cards cannot be used for deposit blocking.</p>
             </div>
           )}
 
@@ -803,23 +800,16 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                   <div className="flex justify-between text-sm font-semibold text-black"><span>Full tank deposit <span className="text-black/40">(refundable)</span></span><span><BookingAmount amount={bk.fuel_price} storedCurrency={bkCurr} customerCurrency={currency} rates={liveRates}/></span></div>
                   <div className="flex justify-between text-sm font-black text-black border-t border-black/10 pt-2"><span>Total paid</span><span><BookingAmount amount={bk.amount} storedCurrency={bkCurr} customerCurrency={currency} rates={liveRates}/></span></div>
                 </div>
-                {/* Mileage / deposit on confirmed booking */}
-                {(bk.mileage_limit || (bk.security_deposit_amount != null && bk.security_deposit_amount > 0)) && (
+                {(bk.mileage_limit || bk.security_deposit_notes) && (
                   <div className="bg-[#f0f0f0] p-4 space-y-2 mb-4">
                     <p className="text-xs font-black uppercase tracking-widest text-black mb-3">Additional Terms</p>
                     {bk.mileage_limit && (
                       <p className="text-sm font-semibold text-black"><span className="font-black">Mileage limit:</span> {bk.mileage_limit}</p>
                     )}
-                    {bk.security_deposit_amount != null && bk.security_deposit_amount > 0 && (
-                      <div>
-                        <p className="text-sm font-semibold text-black">
-                          <span className="font-black">Security deposit:</span> {fmtCurr(bk.security_deposit_amount, bkCurr)}
-                        </p>
-                        {bk.security_deposit_notes && (
-                          <p className="text-xs font-semibold text-black/60 mt-1">{bk.security_deposit_notes}</p>
-                        )}
-                      </div>
+                    {bk.security_deposit_notes && (
+                      <p className="text-sm font-semibold text-black"><span className="font-black">Security deposit:</span> {bk.security_deposit_notes}</p>
                     )}
+                    <p className="text-xs font-semibold text-black/50 pt-1">These are arrangements between you and the car hire company, payable directly at collection. Credit card only.</p>
                   </div>
                 )}
                 <div className="mb-4">
@@ -843,15 +833,12 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                         </div>
                       </div>
                     ))}
-                    {bk.security_deposit_amount != null && bk.security_deposit_amount > 0 && (
+                    {bk.security_deposit_notes && (
                       <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 px-4 py-3 sm:col-span-2">
                         <span className="text-xl shrink-0 mt-0.5">💳</span>
                         <div>
-                          <p className="text-sm font-black text-amber-800">Credit card required — security deposit</p>
-                          <p className="text-xs font-semibold text-amber-700 mt-0.5">
-                            The car hire company requires a security deposit of {fmtCurr(bk.security_deposit_amount, bkCurr)}. A credit card in the lead driver's name must be presented at collection.
-                            {bk.security_deposit_notes && ` ${bk.security_deposit_notes}`}
-                          </p>
+                          <p className="text-sm font-black text-amber-800">Credit card required at collection</p>
+                          <p className="text-xs font-semibold text-amber-700 mt-0.5">{bk.security_deposit_notes} Credit card only — debit cards cannot be used for deposit blocking.</p>
                         </div>
                       </div>
                     )}

@@ -49,7 +49,8 @@ export async function GET(
       .select(`
         id, partner_user_id, vehicle_category_name, car_hire_price,
         fuel_price, total_price, full_insurance_included,
-        full_tank_included, notes, status, created_at, currency
+        full_tank_included, notes, status, created_at, currency,
+        mileage_limit, security_deposit_notes
       `)
       .eq("request_id", id)
       .order("total_price", { ascending: true });
@@ -109,6 +110,8 @@ export async function GET(
         currency: (bid.currency as "EUR" | "GBP") ?? "EUR",
         avg_rating: ratings?.avg ?? null,
         review_count: ratings?.count ?? 0,
+        mileage_limit: bid.mileage_limit || null,
+        security_deposit_notes: bid.security_deposit_notes || null,
       };
     });
 
@@ -208,6 +211,9 @@ export async function GET(
           refund_status: bk.refund_status || null,
           has_review: !!existingReview,
           existing_review: existingReview || null,
+          // Pass through bid terms to confirmed booking
+          mileage_limit: acceptedBid.mileage_limit || null,
+          security_deposit_notes: acceptedBid.security_deposit_notes || null,
         };
       }
     }
