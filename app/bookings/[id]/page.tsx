@@ -773,7 +773,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             <div className="border border-amber-300 bg-amber-50 px-4 py-3">
               <p className="text-sm font-black text-amber-800 mb-1">⚠ Young driver surcharge may apply</p>
               <p className="text-sm font-semibold text-amber-700">
-                One or more drivers on this booking are aged 21–24. Car hire companies may include a young driver surcharge in their bid price. You will see the full cost breakdown before accepting any bid.
+                One or more drivers on this booking are aged 21–24. Car hire companies may include a young driver surcharge in their bid price.
               </p>
             </div>
           )}
