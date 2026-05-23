@@ -781,30 +781,6 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             </div>
           )}
 
-          {/* Document checklist on booking page */}
-          <div className="bg-white p-6">
-            <p className="text-xs font-black uppercase tracking-widest text-black mb-4">📋 What to bring when collecting your car</p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {[
-                { icon: "🪪", title: "Driving licence (all drivers)", desc: "Full EU licence in Roman alphabet. If your licence does not meet this requirement, bring an international driving permit alongside your original." },
-                { icon: "🛂", title: "Passport or national ID (all drivers)", desc: "A valid passport or national identity document for every driver on the booking." },
-                { icon: "💳", title: "Payment card in lead driver's name", desc: "Required for the security deposit. Credit cards are strongly preferred — debit cards may not be accepted by all companies." },
-                { icon: "📄", title: "Photocopies recommended", desc: "Bring a photocopy of your driving licence and passport for all drivers. Documents must be originals — mobile photos and digital copies are not accepted." },
-              ].map(item => (
-                <div key={item.title} className="flex items-start gap-3 bg-[#f0f0f0] px-4 py-3">
-                  <span className="text-xl shrink-0 mt-0.5">{item.icon}</span>
-                  <div>
-                    <p className="text-sm font-black text-black">{item.title}</p>
-                    <p className="text-xs font-semibold text-black/60 mt-0.5">{item.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="mt-3 text-xs font-semibold text-black/50">
-              Failure to present the correct documentation at collection may result in the vehicle being refused.
-            </p>
-          </div>
-
           {bk&&!isCancelled&&(
             <>
               <div className="bg-white p-6 border-l-4 border-green-500">
@@ -849,6 +825,40 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                 <div className="mb-4">
                   <ReceiptDownloadButton bookingId={bk.id} accessToken={accessToken} />
                 </div>
+
+                {/* What to bring checklist — shown only on confirmed booking */}
+                <div className="bg-[#f0f0f0] p-4 mb-4">
+                  <p className="text-xs font-black uppercase tracking-widest text-black mb-3">📋 What to bring when collecting your car</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {[
+                      { icon: "🪪", title: "Driving licence — all drivers", desc: "Full EU licence in Roman alphabet. If your licence does not meet this, bring an international driving permit alongside your original." },
+                      { icon: "🛂", title: "Passport or national ID — all drivers", desc: "A valid passport or national identity document for every driver on this booking." },
+                      { icon: "📄", title: "Photocopies recommended", desc: "Bring a photocopy of your driving licence and passport for all drivers. Some companies require these for their records." },
+                    ].map(item => (
+                      <div key={item.title} className="flex items-start gap-3 bg-white px-4 py-3">
+                        <span className="text-xl shrink-0 mt-0.5">{item.icon}</span>
+                        <div>
+                          <p className="text-sm font-black text-black">{item.title}</p>
+                          <p className="text-xs font-semibold text-black/60 mt-0.5">{item.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {bk.security_deposit_amount != null && bk.security_deposit_amount > 0 && (
+                      <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 px-4 py-3 sm:col-span-2">
+                        <span className="text-xl shrink-0 mt-0.5">💳</span>
+                        <div>
+                          <p className="text-sm font-black text-amber-800">Credit card required — security deposit</p>
+                          <p className="text-xs font-semibold text-amber-700 mt-0.5">
+                            The car hire company requires a security deposit of {fmtCurr(bk.security_deposit_amount, bkCurr)}. A credit card in the lead driver's name must be presented at collection.
+                            {bk.security_deposit_notes && ` ${bk.security_deposit_notes}`}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <p className="mt-3 text-xs font-semibold text-black/50">All documents must be originals — digital copies and mobile photos are not accepted.</p>
+                </div>
+
                 <div className="flex flex-wrap gap-2">
                   {bk.company_phone&&<a href={`https://wa.me/${bk.company_phone.replace(/\D/g,"")}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-green-500 px-4 py-2 text-xs font-black text-white hover:bg-green-600">💬 WhatsApp Car Hire Company</a>}
                   {bk.driver_phone&&<a href={`https://wa.me/${bk.driver_phone.replace(/\D/g,"")}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-green-500 px-4 py-2 text-xs font-black text-white hover:bg-green-600">💬 WhatsApp Driver</a>}

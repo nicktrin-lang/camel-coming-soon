@@ -534,30 +534,6 @@ function CustomerHome() {
               </div>
             </div>
 
-            {/* Document checklist */}
-            <div className="border border-black/10 bg-[#f0f0f0] px-5 py-4 mb-3">
-              <p className="text-xs font-black uppercase tracking-widest text-black mb-3">📋 What to bring when collecting your car</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {[
-                  { icon: "🪪", title: "Driving licence", desc: "Full EU licence in Roman alphabet required. If your licence does not meet this, bring an international driving permit alongside your original." },
-                  { icon: "🛂", title: "Passport or national ID", desc: "A valid passport or national identity document for all drivers." },
-                  { icon: "💳", title: "Payment card in driver's name", desc: "A credit or debit card in the lead driver's name is required. Credit cards are preferred as they allow the deposit to be blocked." },
-                  { icon: "📄", title: "Photocopies recommended", desc: "Bring a photocopy of your driving licence and passport for all drivers. Some companies require these for their records." },
-                ].map(item => (
-                  <div key={item.title} className="flex items-start gap-3 bg-white px-4 py-3">
-                    <span className="text-xl shrink-0 mt-0.5">{item.icon}</span>
-                    <div>
-                      <p className="text-sm font-black text-black">{item.title}</p>
-                      <p className="text-xs font-semibold text-black/60 mt-0.5">{item.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-3 text-xs font-semibold text-black/50">
-                All documents must be originals — digital copies and mobile photos are not accepted. Failure to provide the correct documentation may result in denial of the vehicle.
-              </p>
-            </div>
-
           </div>
         </div>
       </section>
