@@ -60,7 +60,6 @@ type BookingData = {
   insurance_docs_confirmed_by_driver: boolean; insurance_docs_confirmed_by_driver_at: string|null;
   insurance_docs_confirmed_by_customer: boolean; insurance_docs_confirmed_by_customer_at: string|null;
   has_review: boolean; existing_review: ExistingReview|null;
-  // bid fields passed through
   mileage_limit: string|null;
   security_deposit_amount: number|null;
   security_deposit_notes: string|null;
@@ -205,7 +204,6 @@ function CustomerCancellationSummary({ bk }: { bk: BookingData }) {
 function CompletionStatementButton({ bookingId, accessToken }: { bookingId: string; accessToken: string }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr]         = useState<string|null>(null);
-
   async function handleDownload() {
     setLoading(true); setErr(null);
     try {
@@ -215,13 +213,9 @@ function CompletionStatementButton({ bookingId, accessToken }: { bookingId: stri
       const json = await res.json().catch(() => null);
       if (!res.ok || !json?.url) throw new Error(json?.error || "Failed to get statement");
       window.open(json.url, "_blank");
-    } catch (e: any) {
-      setErr(e?.message || "Failed to download statement");
-    } finally {
-      setLoading(false);
-    }
+    } catch (e: any) { setErr(e?.message || "Failed to download statement"); }
+    finally { setLoading(false); }
   }
-
   return (
     <div>
       <button type="button" onClick={handleDownload} disabled={loading}
@@ -249,7 +243,6 @@ function BookingSummaryCard({ bk, rates, rateIsLive, accessToken }: { bk: Bookin
   const primary = (v:number)=>fmtCurr(v,stored);
   const sec = (v:number)=>{ const inEur=convertAmount(v,stored,"EUR",rates); return `(${fmtCurr(convertAmount(inEur,"EUR",sec1,rates),sec1)} · ${fmtCurr(convertAmount(inEur,"EUR",sec2,rates),sec2)})`; };
   const rateBadge = `1€ = ${new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(rates.GBP)} · 1€ = ${new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(rates.USD)}`;
-
   return (
     <>
       <div className="bg-[#003768] p-6">
@@ -419,9 +412,7 @@ function BidCard({ bid,currency,rates,requestStatus,acceptingId,expired,onAccept
     try { const r=await fetch(`/api/test-booking/reviews?partner_user_id=${bid.partner_user_id}`); const j=await r.json().catch(()=>null); setReviews(j?.reviews||[]); } catch { setReviews([]); }
     finally { setLoadingRevs(false); }
   }
-
   const bidCurr = bid.currency ?? "EUR";
-
   return (
     <div className="bg-[#f0f0f0] p-5">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -451,8 +442,6 @@ function BidCard({ bid,currency,rates,requestStatus,acceptingId,expired,onAccept
           <p className="text-sm font-semibold text-black"><span className="font-black">Fuel deposit:</span> <BidAmount amount={bid.fuel_price} bidCurrency={bidCurr} customerCurrency={currency} rates={rates}/></p>
           <p className="text-sm font-semibold text-black"><span className="font-black">Total:</span> <BidAmount amount={bid.total_price} bidCurrency={bidCurr} customerCurrency={currency} rates={rates}/></p>
           <p className="text-sm font-semibold text-black"><span className="font-black">Insurance included:</span> {bid.full_insurance_included?"Yes":"No"}</p>
-
-          {/* Mileage limit */}
           {bid.mileage_limit && (
             <div className="border border-black/10 bg-white px-4 py-3 mt-2">
               <p className="text-sm font-black text-black mb-0.5">📏 Mileage limit</p>
@@ -460,8 +449,6 @@ function BidCard({ bid,currency,rates,requestStatus,acceptingId,expired,onAccept
               <p className="text-xs font-semibold text-black/40 mt-1">Any excess mileage charges are payable directly to the car hire company at collection — credit card required.</p>
             </div>
           )}
-
-          {/* Security deposit */}
           {bid.security_deposit_notes && (
             <div className="border border-amber-200 bg-amber-50 px-4 py-3 mt-2">
               <p className="text-sm font-black text-amber-800 mb-0.5">💳 Security deposit required</p>
@@ -469,7 +456,6 @@ function BidCard({ bid,currency,rates,requestStatus,acceptingId,expired,onAccept
               <p className="text-xs font-semibold text-amber-600 mt-1">Payable directly to the car hire company at collection. Credit card only — debit cards cannot be used for deposit blocking.</p>
             </div>
           )}
-
           {bid.notes&&<p className="text-sm font-semibold text-black"><span className="font-black">Notes:</span> {bid.notes}</p>}
         </div>
         <div className="shrink-0">
@@ -658,6 +644,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
 
   const bk = data.booking;
   const bkCurr: Currency = bk?.currency??"EUR";
+  // Lock is driver+customer agreement only — partner override does not affect lock state
   const collectionLocked = !!bk?.collection_confirmed_by_driver&&!!bk?.collection_confirmed_by_customer&&normalizeFuel(bk.collection_fuel_level_driver)===normalizeFuel(bk.collection_fuel_level_customer);
   const returnLocked     = !!bk?.return_confirmed_by_driver&&!!bk?.return_confirmed_by_customer&&normalizeFuel(bk.return_fuel_level_driver)===normalizeFuel(bk.return_fuel_level_customer);
   const insuranceLocked  = !!bk?.insurance_docs_confirmed_by_driver&&!!bk?.insurance_docs_confirmed_by_customer;
@@ -670,7 +657,6 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const carHire = Number(bk?.car_hire_price||0);
   const fuel    = Number(bk?.fuel_price||0);
 
-  // Young driver warning from request data
   const mainAge = req.driver_age;
   const isYoungMain = mainAge != null && mainAge >= 21 && mainAge <= 24;
   const addAges = (req.additional_driver_ages || "").split(",").map(a => Number(a.trim())).filter(n => !isNaN(n) && n > 0);
@@ -768,13 +754,10 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             </div>
           </div>
 
-          {/* Young driver note on booking page */}
           {showYoungDriverNote && (
             <div className="border border-amber-300 bg-amber-50 px-4 py-3">
               <p className="text-sm font-black text-amber-800 mb-1">⚠ Young driver surcharge may apply</p>
-              <p className="text-sm font-semibold text-amber-700">
-                One or more drivers on this booking are aged 21–24. Car hire companies may include a young driver surcharge in their bid price.
-              </p>
+              <p className="text-sm font-semibold text-amber-700">One or more drivers on this booking are aged 21–24. Car hire companies may include a young driver surcharge in their bid price.</p>
             </div>
           )}
 
@@ -803,20 +786,14 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                 {(bk.mileage_limit || bk.security_deposit_notes) && (
                   <div className="bg-[#f0f0f0] p-4 space-y-2 mb-4">
                     <p className="text-xs font-black uppercase tracking-widest text-black mb-3">Additional Terms</p>
-                    {bk.mileage_limit && (
-                      <p className="text-sm font-semibold text-black"><span className="font-black">Mileage limit:</span> {bk.mileage_limit}</p>
-                    )}
-                    {bk.security_deposit_notes && (
-                      <p className="text-sm font-semibold text-black"><span className="font-black">Security deposit:</span> {bk.security_deposit_notes}</p>
-                    )}
+                    {bk.mileage_limit && <p className="text-sm font-semibold text-black"><span className="font-black">Mileage limit:</span> {bk.mileage_limit}</p>}
+                    {bk.security_deposit_notes && <p className="text-sm font-semibold text-black"><span className="font-black">Security deposit:</span> {bk.security_deposit_notes}</p>}
                     <p className="text-xs font-semibold text-black/50 pt-1">These are arrangements between you and the car hire company, payable directly at collection. Credit card only.</p>
                   </div>
                 )}
                 <div className="mb-4">
                   <ReceiptDownloadButton bookingId={bk.id} accessToken={accessToken} />
                 </div>
-
-                {/* What to bring checklist — shown only on confirmed booking */}
                 <div className="bg-[#f0f0f0] p-4 mb-4">
                   <p className="text-xs font-black uppercase tracking-widest text-black mb-3">📋 What to bring when collecting your car</p>
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -845,7 +822,6 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                   </div>
                   <p className="mt-3 text-xs font-semibold text-black/50">All documents must be originals — digital copies and mobile photos are not accepted.</p>
                 </div>
-
                 <div className="flex flex-wrap gap-2">
                   {bk.company_phone&&<a href={`https://wa.me/${bk.company_phone.replace(/\D/g,"")}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-green-500 px-4 py-2 text-xs font-black text-white hover:bg-green-600">💬 WhatsApp Car Hire Company</a>}
                   {bk.driver_phone&&<a href={`https://wa.me/${bk.driver_phone.replace(/\D/g,"")}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-green-500 px-4 py-2 text-xs font-black text-white hover:bg-green-600">💬 WhatsApp Driver</a>}
@@ -863,12 +839,11 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                 saving={savingConfirm==="insurance"} locked={insuranceLocked}
               />
 
-              {(!collectionLocked||!returnLocked)&&(
-                <div className="grid gap-4 xl:grid-cols-2">
-                  <FuelConfirmCard title="Delivery Fuel" driverConfirmed={bk.collection_confirmed_by_driver} driverFuel={bk.collection_fuel_level_driver} driverConfirmedAt={bk.collection_confirmed_by_driver_at} customerConfirmed={bk.collection_confirmed_by_customer} customerConfirmedAt={bk.collection_confirmed_by_customer_at} locked={collectionLocked} notes={collectionNotes} onNotesChange={setCollectionNotes} onConfirm={()=>saveConfirmation("collection",true)} onUnconfirm={()=>saveConfirmation("collection",false)} saving={savingConfirm==="collection"}/>
-                  <FuelConfirmCard title="Collection Fuel" driverConfirmed={bk.return_confirmed_by_driver} driverFuel={bk.return_fuel_level_driver} driverConfirmedAt={bk.return_confirmed_by_driver_at} customerConfirmed={bk.return_confirmed_by_customer} customerConfirmedAt={bk.return_confirmed_by_customer_at} locked={returnLocked} notes={returnNotes} onNotesChange={setReturnNotes} onConfirm={()=>saveConfirmation("return",true)} onUnconfirm={()=>saveConfirmation("return",false)} saving={savingConfirm==="return"}/>
-                </div>
-              )}
+              {/* FIX: fuel cards always shown so customer can dispute at any stage */}
+              <div className="grid gap-4 xl:grid-cols-2">
+                <FuelConfirmCard title="Delivery Fuel" driverConfirmed={bk.collection_confirmed_by_driver} driverFuel={bk.collection_fuel_level_driver} driverConfirmedAt={bk.collection_confirmed_by_driver_at} customerConfirmed={bk.collection_confirmed_by_customer} customerConfirmedAt={bk.collection_confirmed_by_customer_at} locked={collectionLocked} notes={collectionNotes} onNotesChange={setCollectionNotes} onConfirm={()=>saveConfirmation("collection",true)} onUnconfirm={()=>saveConfirmation("collection",false)} saving={savingConfirm==="collection"}/>
+                <FuelConfirmCard title="Collection Fuel" driverConfirmed={bk.return_confirmed_by_driver} driverFuel={bk.return_fuel_level_driver} driverConfirmedAt={bk.return_confirmed_by_driver_at} customerConfirmed={bk.return_confirmed_by_customer} customerConfirmedAt={bk.return_confirmed_by_customer_at} locked={returnLocked} notes={returnNotes} onNotesChange={setReturnNotes} onConfirm={()=>saveConfirmation("return",true)} onUnconfirm={()=>saveConfirmation("return",false)} saving={savingConfirm==="return"}/>
+              </div>
             </>
           )}
 
