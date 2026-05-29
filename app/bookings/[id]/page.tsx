@@ -372,23 +372,56 @@ function InsuranceConfirmCard({ driverConfirmed,driverConfirmedAt,customerConfir
   );
 }
 
-function FuelConfirmCard({ title,driverConfirmed,driverFuel,driverConfirmedAt,customerConfirmed,customerConfirmedAt,locked,notes,onNotesChange,onConfirm,onUnconfirm,saving }: { title:string;driverConfirmed:boolean;driverFuel:string|null;driverConfirmedAt:string|null;customerConfirmed:boolean;customerConfirmedAt:string|null;locked:boolean;notes:string;onNotesChange:(v:string)=>void;onConfirm:()=>void;onUnconfirm:()=>void;saving:boolean }) {
+// effectiveReady = driver has confirmed OR partner has set an override
+// This is what gates whether the customer can confirm
+function FuelConfirmCard({
+  title, effectiveFuel, effectiveReady, effectiveReadyAt,
+  customerConfirmed, customerConfirmedAt,
+  locked, notes, onNotesChange, onConfirm, onUnconfirm, saving,
+  partnerOverrideActive,
+}: {
+  title: string;
+  effectiveFuel: string|null;       // partner override || driver reading
+  effectiveReady: boolean;          // driver confirmed OR partner override set
+  effectiveReadyAt: string|null;    // timestamp to show
+  customerConfirmed: boolean;
+  customerConfirmedAt: string|null;
+  locked: boolean;
+  notes: string;
+  onNotesChange: (v:string)=>void;
+  onConfirm: ()=>void;
+  onUnconfirm: ()=>void;
+  saving: boolean;
+  partnerOverrideActive: boolean;   // show amber badge if override is in effect
+}) {
   return (
     <div className={`p-6 ${locked?"bg-green-50 border border-green-200":"bg-white"}`}>
       <p className="text-xs font-black uppercase tracking-widest text-black mb-4">{title}</p>
-      <div className={`px-4 py-3 mb-4 ${driverConfirmed&&driverFuel?"bg-black":"bg-[#f0f0f0]"}`}>
-        <p className={`text-xs font-black uppercase tracking-widest mb-1 ${driverConfirmed&&driverFuel?"text-white":"text-black/50"}`}>Driver recorded</p>
-        {driverConfirmed&&driverFuel?<><p className="text-2xl font-black text-white">{fuelLabel(driverFuel)}</p><FuelBar level={driverFuel} light/><p className="text-xs text-white/70 mt-1">{fmt(driverConfirmedAt)}</p></>:<p className="text-sm font-semibold text-black/40">Waiting for driver…</p>}
+      <div className={`px-4 py-3 mb-4 ${effectiveReady&&effectiveFuel?"bg-black":"bg-[#f0f0f0]"}`}>
+        <p className={`text-xs font-black uppercase tracking-widest mb-1 ${effectiveReady&&effectiveFuel?"text-white":"text-black/50"}`}>
+          {partnerOverrideActive ? "Office recorded" : "Driver recorded"}
+        </p>
+        {effectiveReady&&effectiveFuel
+          ? <>
+              <p className="text-2xl font-black text-white">{fuelLabel(effectiveFuel)}</p>
+              <FuelBar level={effectiveFuel} light/>
+              {partnerOverrideActive && <p className="text-xs text-[#ff7a00] mt-1 font-black">⚠ Office override in effect</p>}
+              <p className="text-xs text-white/70 mt-1">{fmt(effectiveReadyAt)}</p>
+            </>
+          : <p className="text-sm font-semibold text-black/40">Waiting for driver…</p>
+        }
       </div>
       {locked?(
-        <div className="bg-green-100 px-4 py-3 text-sm font-black text-green-800">✓ Confirmed — you and the driver agree on {fuelLabel(driverFuel)}</div>
+        <div className="bg-green-100 px-4 py-3 text-sm font-black text-green-800">✓ Confirmed — you and the {partnerOverrideActive?"office":"driver"} agree on {fuelLabel(effectiveFuel)}</div>
       ):(
         <>
           {customerConfirmed&&<div className="bg-[#f0f0f0] px-4 py-3 text-sm font-semibold text-black mb-4">You confirmed this at {fmt(customerConfirmedAt)}</div>}
           <textarea rows={3} value={notes} onChange={e=>onNotesChange(e.target.value)} disabled={locked} className="w-full bg-[#f0f0f0] px-4 py-3 text-sm font-medium text-black outline-none focus:bg-[#e8e8e8] disabled:opacity-50 resize-none mb-4" placeholder="Any notes…"/>
           <div className="flex gap-3">
             {!customerConfirmed?(
-              <button type="button" onClick={onConfirm} disabled={saving||!driverConfirmed} className="flex-1 bg-[#ff7a00] py-4 text-sm font-black text-white hover:opacity-90 disabled:opacity-50 transition-opacity">{saving?"Saving…":!driverConfirmed?"Waiting for driver…":"✓ I agree with this fuel level"}</button>
+              <button type="button" onClick={onConfirm} disabled={saving||!effectiveReady} className="flex-1 bg-[#ff7a00] py-4 text-sm font-black text-white hover:opacity-90 disabled:opacity-50 transition-opacity">
+                {saving?"Saving…":!effectiveReady?"Waiting for driver…":"✓ I agree with this fuel level"}
+              </button>
             ):(
               <button type="button" onClick={onUnconfirm} disabled={saving} className="flex-1 bg-[#f0f0f0] py-4 text-sm font-black text-black hover:bg-[#e8e8e8] disabled:opacity-50">{saving?"Saving…":"Dispute / Change"}</button>
             )}
@@ -645,11 +678,23 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const bk = data.booking;
   const bkCurr: Currency = bk?.currency??"EUR";
 
-  // Effective fuel = partner override if set, else driver reading (mirrors the API route logic)
+  // ── Effective fuel: partner override wins if set, else driver reading ──
   const effectiveCollFuel = normalizeFuel(bk?.collection_fuel_level_partner) || normalizeFuel(bk?.collection_fuel_level_driver);
   const effectiveRetFuel  = normalizeFuel(bk?.return_fuel_level_partner)     || normalizeFuel(bk?.return_fuel_level_driver);
 
-  // Lock: effective fuel exists AND customer confirmed AND customer fuel matches effective
+  // ── effectiveReady: customer can confirm if driver has confirmed OR partner has set an override ──
+  const collEffectiveReady = !!bk?.collection_confirmed_by_driver || !!normalizeFuel(bk?.collection_fuel_level_partner);
+  const retEffectiveReady  = !!bk?.return_confirmed_by_driver     || !!normalizeFuel(bk?.return_fuel_level_partner);
+
+  // ── Timestamps: prefer partner override time if override is active ──
+  const collReadyAt = normalizeFuel(bk?.collection_fuel_level_partner)
+    ? bk?.collection_confirmed_by_partner_at || bk?.collection_confirmed_by_driver_at
+    : bk?.collection_confirmed_by_driver_at;
+  const retReadyAt = normalizeFuel(bk?.return_fuel_level_partner)
+    ? bk?.return_confirmed_by_partner_at || bk?.return_confirmed_by_driver_at
+    : bk?.return_confirmed_by_driver_at;
+
+  // ── Lock: effective fuel matches what customer confirmed ──
   const collectionLocked = !!effectiveCollFuel && !!bk?.collection_confirmed_by_customer && effectiveCollFuel === normalizeFuel(bk.collection_fuel_level_customer);
   const returnLocked     = !!effectiveRetFuel  && !!bk?.return_confirmed_by_customer     && effectiveRetFuel  === normalizeFuel(bk.return_fuel_level_customer);
   const insuranceLocked  = !!bk?.insurance_docs_confirmed_by_driver&&!!bk?.insurance_docs_confirmed_by_customer;
@@ -838,19 +883,24 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
               {bk.booking_status==="completed"&&<ReviewCard bookingId={bk.id} accessToken={accessToken} existingReview={bk.existing_review} onReviewSubmitted={()=>load(false)}/>}
 
               <InsuranceConfirmCard
-                driverConfirmed={bk.insurance_docs_confirmed_by_driver} driverConfirmedAt={bk.insurance_docs_confirmed_by_driver_at}
-                customerConfirmed={bk.insurance_docs_confirmed_by_customer} customerConfirmedAt={bk.insurance_docs_confirmed_by_customer_at}
-                insuranceChecked={insuranceChecked} onInsuranceChange={setInsuranceChecked}
-                onConfirm={()=>saveInsuranceConfirmation(true)} onUnconfirm={()=>saveInsuranceConfirmation(false)}
-                saving={savingConfirm==="insurance"} locked={insuranceLocked}
+                driverConfirmed={bk.insurance_docs_confirmed_by_driver}
+                driverConfirmedAt={bk.insurance_docs_confirmed_by_driver_at}
+                customerConfirmed={bk.insurance_docs_confirmed_by_customer}
+                customerConfirmedAt={bk.insurance_docs_confirmed_by_customer_at}
+                insuranceChecked={insuranceChecked}
+                onInsuranceChange={setInsuranceChecked}
+                onConfirm={()=>saveInsuranceConfirmation(true)}
+                onUnconfirm={()=>saveInsuranceConfirmation(false)}
+                saving={savingConfirm==="insurance"}
+                locked={insuranceLocked}
               />
 
               <div className="grid gap-4 xl:grid-cols-2">
                 <FuelConfirmCard
                   title="Delivery Fuel"
-                  driverConfirmed={bk.collection_confirmed_by_driver}
-                  driverFuel={effectiveCollFuel}
-                  driverConfirmedAt={bk.collection_confirmed_by_driver_at}
+                  effectiveFuel={effectiveCollFuel}
+                  effectiveReady={collEffectiveReady}
+                  effectiveReadyAt={collReadyAt ?? null}
                   customerConfirmed={bk.collection_confirmed_by_customer}
                   customerConfirmedAt={bk.collection_confirmed_by_customer_at}
                   locked={collectionLocked}
@@ -859,12 +909,13 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                   onConfirm={()=>saveConfirmation("collection",true)}
                   onUnconfirm={()=>saveConfirmation("collection",false)}
                   saving={savingConfirm==="collection"}
+                  partnerOverrideActive={!!normalizeFuel(bk.collection_fuel_level_partner)}
                 />
                 <FuelConfirmCard
                   title="Collection Fuel"
-                  driverConfirmed={bk.return_confirmed_by_driver}
-                  driverFuel={effectiveRetFuel}
-                  driverConfirmedAt={bk.return_confirmed_by_driver_at}
+                  effectiveFuel={effectiveRetFuel}
+                  effectiveReady={retEffectiveReady}
+                  effectiveReadyAt={retReadyAt ?? null}
                   customerConfirmed={bk.return_confirmed_by_customer}
                   customerConfirmedAt={bk.return_confirmed_by_customer_at}
                   locked={returnLocked}
@@ -873,6 +924,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                   onConfirm={()=>saveConfirmation("return",true)}
                   onUnconfirm={()=>saveConfirmation("return",false)}
                   saving={savingConfirm==="return"}
+                  partnerOverrideActive={!!normalizeFuel(bk.return_fuel_level_partner)}
                 />
               </div>
             </>

@@ -137,14 +137,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const updatePayload: Record<string, any> = {};
 
     if (section === "collection") {
-      if (confirmed && !bookingRow.collection_confirmed_by_driver) {
+      // Block confirmation only if NEITHER driver nor partner has recorded a fuel level
+      const effectiveFuelCheck = normalizeFuel(bookingRow.collection_fuel_level_partner) || normalizeFuel(bookingRow.collection_fuel_level_driver);
+      if (confirmed && !effectiveFuelCheck) {
         return NextResponse.json(
-          { error: "Driver has not yet confirmed delivery. Please wait for the driver to record the fuel level." },
+          { error: "The fuel level has not yet been recorded. Please wait for the driver or office to record it." },
           { status: 400 }
         );
       }
       // Effective fuel = partner override if set, else driver reading
-      const effectiveFuel = normalizeFuel(bookingRow.collection_fuel_level_partner) || normalizeFuel(bookingRow.collection_fuel_level_driver);
+      const effectiveFuel = effectiveFuelCheck;
       updatePayload.collection_confirmed_by_customer    = confirmed;
       updatePayload.collection_confirmed_by_customer_at = confirmed ? bookingRow.collection_confirmed_by_customer_at || now : null;
       updatePayload.collection_fuel_level_customer      = confirmed ? effectiveFuel : null;
@@ -157,14 +159,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
 
     if (section === "return") {
-      if (confirmed && !bookingRow.return_confirmed_by_driver) {
+      // Block confirmation only if NEITHER driver nor partner has recorded a fuel level
+      const effectiveFuelCheck = normalizeFuel(bookingRow.return_fuel_level_partner) || normalizeFuel(bookingRow.return_fuel_level_driver);
+      if (confirmed && !effectiveFuelCheck) {
         return NextResponse.json(
-          { error: "Driver has not yet confirmed collection. Please wait for the driver to record the fuel level." },
+          { error: "The fuel level has not yet been recorded. Please wait for the driver or office to record it." },
           { status: 400 }
         );
       }
       // Effective fuel = partner override if set, else driver reading
-      const effectiveFuel = normalizeFuel(bookingRow.return_fuel_level_partner) || normalizeFuel(bookingRow.return_fuel_level_driver);
+      const effectiveFuel = effectiveFuelCheck;
       updatePayload.return_confirmed_by_customer    = confirmed;
       updatePayload.return_confirmed_by_customer_at = confirmed ? bookingRow.return_confirmed_by_customer_at || now : null;
       updatePayload.return_fuel_level_customer      = confirmed ? effectiveFuel : null;
