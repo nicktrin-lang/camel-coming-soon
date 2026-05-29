@@ -644,10 +644,16 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
 
   const bk = data.booking;
   const bkCurr: Currency = bk?.currency??"EUR";
-  // Lock is driver+customer agreement only — partner override does not affect lock state
-  const collectionLocked = !!bk?.collection_confirmed_by_driver&&!!bk?.collection_confirmed_by_customer&&normalizeFuel(bk.collection_fuel_level_driver)===normalizeFuel(bk.collection_fuel_level_customer);
-  const returnLocked     = !!bk?.return_confirmed_by_driver&&!!bk?.return_confirmed_by_customer&&normalizeFuel(bk.return_fuel_level_driver)===normalizeFuel(bk.return_fuel_level_customer);
+
+  // Effective fuel = partner override if set, else driver reading (mirrors the API route logic)
+  const effectiveCollFuel = normalizeFuel(bk?.collection_fuel_level_partner) || normalizeFuel(bk?.collection_fuel_level_driver);
+  const effectiveRetFuel  = normalizeFuel(bk?.return_fuel_level_partner)     || normalizeFuel(bk?.return_fuel_level_driver);
+
+  // Lock: effective fuel exists AND customer confirmed AND customer fuel matches effective
+  const collectionLocked = !!effectiveCollFuel && !!bk?.collection_confirmed_by_customer && effectiveCollFuel === normalizeFuel(bk.collection_fuel_level_customer);
+  const returnLocked     = !!effectiveRetFuel  && !!bk?.return_confirmed_by_customer     && effectiveRetFuel  === normalizeFuel(bk.return_fuel_level_customer);
   const insuranceLocked  = !!bk?.insurance_docs_confirmed_by_driver&&!!bk?.insurance_docs_confirmed_by_customer;
+
   const req = data.request;
   const isCancelled = bk?.booking_status==="cancelled";
   const canCancel = !!bk && !isCancelled && PRE_COLLECTION.includes(bk.booking_status);
@@ -839,10 +845,35 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                 saving={savingConfirm==="insurance"} locked={insuranceLocked}
               />
 
-              {/* FIX: fuel cards always shown so customer can dispute at any stage */}
               <div className="grid gap-4 xl:grid-cols-2">
-                <FuelConfirmCard title="Delivery Fuel" driverConfirmed={bk.collection_confirmed_by_driver} driverFuel={bk.collection_fuel_level_driver} driverConfirmedAt={bk.collection_confirmed_by_driver_at} customerConfirmed={bk.collection_confirmed_by_customer} customerConfirmedAt={bk.collection_confirmed_by_customer_at} locked={collectionLocked} notes={collectionNotes} onNotesChange={setCollectionNotes} onConfirm={()=>saveConfirmation("collection",true)} onUnconfirm={()=>saveConfirmation("collection",false)} saving={savingConfirm==="collection"}/>
-                <FuelConfirmCard title="Collection Fuel" driverConfirmed={bk.return_confirmed_by_driver} driverFuel={bk.return_fuel_level_driver} driverConfirmedAt={bk.return_confirmed_by_driver_at} customerConfirmed={bk.return_confirmed_by_customer} customerConfirmedAt={bk.return_confirmed_by_customer_at} locked={returnLocked} notes={returnNotes} onNotesChange={setReturnNotes} onConfirm={()=>saveConfirmation("return",true)} onUnconfirm={()=>saveConfirmation("return",false)} saving={savingConfirm==="return"}/>
+                <FuelConfirmCard
+                  title="Delivery Fuel"
+                  driverConfirmed={bk.collection_confirmed_by_driver}
+                  driverFuel={effectiveCollFuel}
+                  driverConfirmedAt={bk.collection_confirmed_by_driver_at}
+                  customerConfirmed={bk.collection_confirmed_by_customer}
+                  customerConfirmedAt={bk.collection_confirmed_by_customer_at}
+                  locked={collectionLocked}
+                  notes={collectionNotes}
+                  onNotesChange={setCollectionNotes}
+                  onConfirm={()=>saveConfirmation("collection",true)}
+                  onUnconfirm={()=>saveConfirmation("collection",false)}
+                  saving={savingConfirm==="collection"}
+                />
+                <FuelConfirmCard
+                  title="Collection Fuel"
+                  driverConfirmed={bk.return_confirmed_by_driver}
+                  driverFuel={effectiveRetFuel}
+                  driverConfirmedAt={bk.return_confirmed_by_driver_at}
+                  customerConfirmed={bk.return_confirmed_by_customer}
+                  customerConfirmedAt={bk.return_confirmed_by_customer_at}
+                  locked={returnLocked}
+                  notes={returnNotes}
+                  onNotesChange={setReturnNotes}
+                  onConfirm={()=>saveConfirmation("return",true)}
+                  onUnconfirm={()=>saveConfirmation("return",false)}
+                  saving={savingConfirm==="return"}
+                />
               </div>
             </>
           )}

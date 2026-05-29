@@ -32,11 +32,16 @@ function sameFuel(a: unknown, b: unknown) {
   return normalizeFuel(a) === normalizeFuel(b) && normalizeFuel(a) !== null;
 }
 
+// Effective fuel = partner override if set, else driver reading.
+// Lock is: effective fuel exists AND customer confirmed AND customer fuel matches effective.
 function isFuelLocked(opts: {
-  driverConfirmed?: boolean | null; customerConfirmed?: boolean | null;
-  driverFuel?: string | null;       customerFuel?: string | null;
+  customerConfirmed?: boolean | null;
+  customerFuel?: string | null;
+  driverFuel?: string | null;
+  partnerFuel?: string | null;
 }) {
-  return !!opts.driverConfirmed && !!opts.customerConfirmed && sameFuel(opts.driverFuel, opts.customerFuel);
+  const effective = normalizeFuel(opts.partnerFuel) || normalizeFuel(opts.driverFuel);
+  return !!effective && !!opts.customerConfirmed && effective === normalizeFuel(opts.customerFuel);
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -93,16 +98,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
 
     const collectionAlreadyLocked = isFuelLocked({
-      driverConfirmed:  bookingRow.collection_confirmed_by_driver,
       customerConfirmed: bookingRow.collection_confirmed_by_customer,
-      driverFuel:       bookingRow.collection_fuel_level_driver,
-      customerFuel:     bookingRow.collection_fuel_level_customer,
+      customerFuel:      bookingRow.collection_fuel_level_customer,
+      driverFuel:        bookingRow.collection_fuel_level_driver,
+      partnerFuel:       bookingRow.collection_fuel_level_partner,
     });
     const returnAlreadyLocked = isFuelLocked({
-      driverConfirmed:  bookingRow.return_confirmed_by_driver,
       customerConfirmed: bookingRow.return_confirmed_by_customer,
-      driverFuel:       bookingRow.return_fuel_level_driver,
-      customerFuel:     bookingRow.return_fuel_level_customer,
+      customerFuel:      bookingRow.return_fuel_level_customer,
+      driverFuel:        bookingRow.return_fuel_level_driver,
+      partnerFuel:       bookingRow.return_fuel_level_partner,
     });
 
     if (section === "collection" && collectionAlreadyLocked) {
@@ -119,8 +124,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const { error: insErr } = await db
         .from("partner_bookings")
         .update({
-          insurance_docs_confirmed_by_customer:     insuranceConfirmed,
-          insurance_docs_confirmed_by_customer_at:  insuranceConfirmed
+          insurance_docs_confirmed_by_customer:    insuranceConfirmed,
+          insurance_docs_confirmed_by_customer_at: insuranceConfirmed
             ? bookingRow.insurance_docs_confirmed_by_customer_at || now
             : null,
         })
@@ -138,10 +143,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           { status: 400 }
         );
       }
-      const driverFuel = normalizeFuel(bookingRow.collection_fuel_level_driver);
+      // Effective fuel = partner override if set, else driver reading
+      const effectiveFuel = normalizeFuel(bookingRow.collection_fuel_level_partner) || normalizeFuel(bookingRow.collection_fuel_level_driver);
       updatePayload.collection_confirmed_by_customer    = confirmed;
       updatePayload.collection_confirmed_by_customer_at = confirmed ? bookingRow.collection_confirmed_by_customer_at || now : null;
-      updatePayload.collection_fuel_level_customer      = confirmed ? driverFuel : null;
+      updatePayload.collection_fuel_level_customer      = confirmed ? effectiveFuel : null;
       updatePayload.collection_customer_notes           = notes;
       if (insuranceConfirmed !== undefined) {
         updatePayload.insurance_docs_confirmed_by_customer    = insuranceConfirmed;
@@ -157,19 +163,30 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           { status: 400 }
         );
       }
-      const driverFuel = normalizeFuel(bookingRow.return_fuel_level_driver);
+      // Effective fuel = partner override if set, else driver reading
+      const effectiveFuel = normalizeFuel(bookingRow.return_fuel_level_partner) || normalizeFuel(bookingRow.return_fuel_level_driver);
       updatePayload.return_confirmed_by_customer    = confirmed;
       updatePayload.return_confirmed_by_customer_at = confirmed ? bookingRow.return_confirmed_by_customer_at || now : null;
-      updatePayload.return_fuel_level_customer      = confirmed ? driverFuel : null;
+      updatePayload.return_fuel_level_customer      = confirmed ? effectiveFuel : null;
       updatePayload.return_customer_notes           = notes;
     }
 
     // Recalculate lock state after this update
     const nextCollectionLocked = section === "collection"
-      ? isFuelLocked({ driverConfirmed: bookingRow.collection_confirmed_by_driver, customerConfirmed: confirmed, driverFuel: bookingRow.collection_fuel_level_driver, customerFuel: updatePayload.collection_fuel_level_customer })
+      ? isFuelLocked({
+          customerConfirmed: confirmed,
+          customerFuel:      updatePayload.collection_fuel_level_customer,
+          driverFuel:        bookingRow.collection_fuel_level_driver,
+          partnerFuel:       bookingRow.collection_fuel_level_partner,
+        })
       : collectionAlreadyLocked;
     const nextReturnLocked = section === "return"
-      ? isFuelLocked({ driverConfirmed: bookingRow.return_confirmed_by_driver, customerConfirmed: confirmed, driverFuel: bookingRow.return_fuel_level_driver, customerFuel: updatePayload.return_fuel_level_customer })
+      ? isFuelLocked({
+          customerConfirmed: confirmed,
+          customerFuel:      updatePayload.return_fuel_level_customer,
+          driverFuel:        bookingRow.return_fuel_level_driver,
+          partnerFuel:       bookingRow.return_fuel_level_partner,
+        })
       : returnAlreadyLocked;
 
     if (nextCollectionLocked && nextReturnLocked) {
