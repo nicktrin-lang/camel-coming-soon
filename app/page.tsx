@@ -218,7 +218,6 @@ function CustomerHome() {
           sport_equipment: sportEquipment !== "none" ? sportEquipment : null,
           vehicle_category_slug: cat.slug, vehicle_category_name: cat.name,
           notes: notes.trim(),
-          // No currency — customer always pays in partner's bid currency
           driver_age: driverAgeNum,
           additional_drivers: additionalDrivers,
           additional_driver_ages: additionalDriverAges.join(","),
@@ -408,7 +407,11 @@ function CustomerHome() {
               </div>
             </div>
 
-            {/* Driver ages + Book Now — 4-col grid, items-end bottom-aligns Book Now with inputs */}
+            {/*
+              Driver age row — always 2 cols on mobile, 4 cols on sm+.
+              On desktop with no additional drivers: col 3 = empty spacer, col 4 = Book Now.
+              On desktop with additional drivers: extra age inputs fill cols 3+.
+            */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 items-end mb-3">
               <div>
                 <label className={labelCls}>Main driver age</label>
@@ -425,6 +428,7 @@ function CustomerHome() {
                   {[0,1,2,3,4].map(n => <option key={n} value={n}>{n === 0 ? "None" : `${n} additional`}</option>)}
                 </select>
               </div>
+
               {additionalDrivers > 0
                 ? Array.from({ length: additionalDrivers }).map((_, i) => (
                     <div key={i}>
@@ -442,16 +446,22 @@ function CustomerHome() {
                       />
                     </div>
                   ))
-                : <div className="hidden sm:col-span-2 sm:block">
-                    <button type="button" onClick={handleBookNow} disabled={submitting}
-                      className="w-full bg-[#ff7a00] py-4 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
-                      Book Now →
-                    </button>
-                    <p className="text-sm font-bold text-black mt-1">No account needed — sign in when you are ready to confirm</p>
-                  </div>
+                : <>
+                    {/* col 3: empty spacer so Book Now lands in col 4 */}
+                    <div className="hidden sm:block" />
+                    {/* col 4: Book Now — desktop only */}
+                    <div className="hidden sm:block">
+                      <button type="button" onClick={handleBookNow} disabled={submitting}
+                        className="w-full bg-[#ff7a00] py-4 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                        Book Now →
+                      </button>
+                      <p className="text-sm font-bold text-black mt-1">No account needed — sign in when you are ready to confirm</p>
+                    </div>
+                  </>
               }
             </div>
 
+            {/* Young driver warning */}
             {hasYoungDriverWarning && (
               <div className="mb-3 border border-amber-300 bg-amber-50 px-4 py-3">
                 <p className="text-sm font-black text-amber-800 mb-1">⚠ Young driver surcharge may apply</p>
@@ -462,16 +472,7 @@ function CustomerHome() {
               </div>
             )}
 
-            {/* Book Now — mobile always, desktop only when additional drivers selected */}
-            <div className={`${additionalDrivers === 0 ? "sm:hidden " : ""}mb-3`}>
-              <button type="button" onClick={handleBookNow} disabled={submitting}
-                className="w-full bg-[#ff7a00] py-5 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
-                Book Now →
-              </button>
-              <p className="text-sm font-bold text-black mt-1">No account needed — sign in when you are ready to confirm</p>
-            </div>
-
-            {/* Add special requirements — both mobile and desktop, below Book Now */}
+            {/* Add special requirements — always above Book Now (mobile) */}
             <div className="mb-3">
               <button type="button" onClick={() => setNotesOpen(o => !o)}
                 className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors">
@@ -485,6 +486,15 @@ function CustomerHome() {
                     className={inputCls + " resize-none"} autoFocus />
                 </div>
               )}
+            </div>
+
+            {/* Book Now — mobile always visible; desktop only when additional drivers selected */}
+            <div className={`${additionalDrivers === 0 ? "sm:hidden " : ""}mb-3`}>
+              <button type="button" onClick={handleBookNow} disabled={submitting}
+                className="w-full bg-[#ff7a00] py-5 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                Book Now →
+              </button>
+              <p className="text-sm font-bold text-black mt-1">No account needed — sign in when you are ready to confirm</p>
             </div>
 
           </div>
