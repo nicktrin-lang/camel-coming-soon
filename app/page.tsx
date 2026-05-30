@@ -408,7 +408,7 @@ function CustomerHome() {
             </div>
 
             {/* Driver age row — 2 cols mobile, 4 cols sm+ */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 items-end mb-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 items-start mb-3">
               <div>
                 <label className={labelCls}>Main driver age</label>
                 <input
@@ -443,7 +443,7 @@ function CustomerHome() {
                     </div>
                   ))
                 : /* No additional drivers — Book Now spans cols 3+4, desktop only */
-                  <div className="hidden sm:col-span-2 sm:block">
+                  <div className="hidden sm:col-span-2 sm:block pt-[26px]">
                     <button type="button" onClick={handleBookNow} disabled={submitting}
                       className="w-full bg-[#ff7a00] py-4 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
                       Book Now →
