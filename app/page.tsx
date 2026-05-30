@@ -408,7 +408,7 @@ function CustomerHome() {
               </div>
             </div>
 
-            {/* Driver ages + Book Now in same grid */}
+            {/* Driver ages + Book Now in 4-col grid */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-3">
               <div>
                 <label className={labelCls}>Main driver age</label>
