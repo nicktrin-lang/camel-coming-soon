@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { format } from "date-fns";
 import { translations } from "./marketing/translations";
 import { FLEET_CATEGORIES } from "@/app/components/portal/fleetCategories";
 import { CITIES, DEFAULT_CITY, citiesByCountry, type CityEntry } from "@/lib/cities";
@@ -65,7 +68,6 @@ function ResultRow({ r, onClick }: { r: AddressResult; onClick: () => void }) {
   );
 }
 
-// Detect desktop (≥640px) via a hook so we can conditionally render — no CSS-only duplication bugs
 function useIsDesktop() {
   const [isDesktop, setIsDesktop] = useState(false);
   useEffect(() => {
@@ -76,6 +78,11 @@ function useIsDesktop() {
     return () => mq.removeEventListener("change", handler);
   }, []);
   return isDesktop;
+}
+
+// Convert Date to datetime-local string for API
+function toISOLocal(d: Date): string {
+  return format(d, "yyyy-MM-dd'T'HH:mm");
 }
 
 function CustomerHome() {
@@ -90,8 +97,8 @@ function CustomerHome() {
   const [dropoffAddress, setDropoffAddress] = useState("");
   const [dropoffLat,     setDropoffLat]     = useState<number | null>(null);
   const [dropoffLng,     setDropoffLng]     = useState<number | null>(null);
-  const [pickupAt,       setPickupAt]       = useState("");
-  const [dropoffAt,      setDropoffAt]      = useState("");
+  const [pickupDate,     setPickupDate]     = useState<Date | null>(null);
+  const [dropoffDate,    setDropoffDate]    = useState<Date | null>(null);
   const [passengers,     setPassengers]     = useState(2);
   const [suitcases,      setSuitcases]      = useState(1);
   const [vehicleSlug,    setVehicleSlug]    = useState(FLEET_CATEGORIES[0]?.slug || "");
@@ -168,7 +175,9 @@ function CustomerHome() {
     sessionStorage.setItem("camel_booking_draft", JSON.stringify({
       pickupAddress, pickupLat, pickupLng,
       dropoffAddress, dropoffLat, dropoffLng,
-      pickupAt, dropoffAt, passengers, suitcases, vehicleSlug, sportEquipment, notes,
+      pickupAt: pickupDate ? toISOLocal(pickupDate) : "",
+      dropoffAt: dropoffDate ? toISOLocal(dropoffDate) : "",
+      passengers, suitcases, vehicleSlug, sportEquipment, notes,
       cityKey: `${city.country}|${city.city}`,
       driverAge, additionalDrivers, additionalDriverAges,
     }));
@@ -186,9 +195,11 @@ function CustomerHome() {
     setError(null);
     if (!pickupLat || !pickupLng)   { setError("Please select a pickup address from the suggestions."); return; }
     if (!dropoffLat || !dropoffLng) { setError("Please select a drop-off address from the suggestions."); return; }
-    if (!pickupAt)                  { setError("Please select a pickup date and time."); return; }
-    if (!dropoffAt)                 { setError("Please select a drop-off date and time."); return; }
-    const duration = calculateDurationMinutes(pickupAt, dropoffAt);
+    if (!pickupDate)                { setError("Please select a pickup date and time."); return; }
+    if (!dropoffDate)               { setError("Please select a drop-off date and time."); return; }
+    const pickupAt  = toISOLocal(pickupDate);
+    const dropoffAt = toISOLocal(dropoffDate);
+    const duration  = calculateDurationMinutes(pickupAt, dropoffAt);
     if (!duration)                  { setError("Drop-off must be at least 1 day after pickup."); return; }
     const cat = FLEET_CATEGORIES.find(c => c.slug === vehicleSlug);
     if (!cat)                       { setError("Please select a vehicle category."); return; }
@@ -241,10 +252,7 @@ function CustomerHome() {
   const labelCls  = "block text-xs font-black uppercase tracking-widest text-black mb-2";
   const grouped   = citiesByCountry();
 
-  // Desktop layout: Book Now sits in cols 3–4 of the driver age row when no additional drivers.
-  // When additional drivers are selected, Book Now drops full-width below the grid.
-  // We use the isDesktop hook so there is exactly ONE Book Now rendered at all times — no CSS duplication.
-  const desktopNoAdditional = isDesktop && additionalDrivers === 0;
+  const desktopNoAdditional   = isDesktop && additionalDrivers === 0;
   const desktopWithAdditional = isDesktop && additionalDrivers > 0;
   const mobile = !isDesktop;
 
@@ -260,7 +268,7 @@ function CustomerHome() {
       <div className="min-h-screen bg-white flex flex-col">
         <nav className="fixed left-0 top-0 z-50 w-full bg-black">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5">
-            <Image src="/camel-logo.png" alt="Camel Global — Meet and Greet Car Hire Spain" width={200} height={70} priority className="h-16 w-auto brightness-0 invert" />
+            <Image src="/camel-logo.png" alt="Camel Global" width={200} height={70} priority className="h-16 w-auto brightness-0 invert" />
           </div>
         </nav>
         <div className="h-[68px]" />
@@ -275,6 +283,70 @@ function CustomerHome() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+
+      {/* Datepicker overrides — Camel style */}
+      <style>{`
+        .camel-datepicker-wrapper { width: 100%; }
+        .camel-datepicker-wrapper .react-datepicker-wrapper { width: 100%; }
+        .camel-datepicker-wrapper .react-datepicker__input-container { width: 100%; }
+        .camel-datepicker-wrapper input {
+          width: 100%;
+          background: #f0f0f0;
+          padding: 1rem;
+          font-size: 1rem;
+          font-weight: 500;
+          color: #000;
+          outline: none;
+          border: none;
+          cursor: pointer;
+        }
+        .camel-datepicker-wrapper input:focus { background: #e8e8e8; }
+        .camel-datepicker-wrapper input::placeholder { color: rgba(0,0,0,0.4); }
+        .react-datepicker {
+          font-family: inherit;
+          border: 1px solid rgba(0,0,0,0.1);
+          border-radius: 0;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+        }
+        .react-datepicker__header {
+          background: #000;
+          border-bottom: none;
+          border-radius: 0;
+          padding: 12px 0 8px;
+        }
+        .react-datepicker__current-month,
+        .react-datepicker-time__header,
+        .react-datepicker__day-name {
+          color: #fff;
+          font-weight: 800;
+        }
+        .react-datepicker__navigation-icon::before {
+          border-color: #fff;
+        }
+        .react-datepicker__day--selected,
+        .react-datepicker__day--keyboard-selected,
+        .react-datepicker__time-container .react-datepicker__time .react-datepicker__time-box ul.react-datepicker__time-list li.react-datepicker__time-list-item--selected {
+          background: #ff7a00 !important;
+          color: #fff !important;
+          border-radius: 0 !important;
+          font-weight: 800;
+        }
+        .react-datepicker__day:hover {
+          background: #f0f0f0;
+          border-radius: 0;
+        }
+        .react-datepicker__day--today {
+          font-weight: 800;
+          text-decoration: underline;
+        }
+        .react-datepicker__time-container {
+          border-left: 1px solid rgba(0,0,0,0.1);
+        }
+        .react-datepicker__time-container .react-datepicker__time .react-datepicker__time-box ul.react-datepicker__time-list li.react-datepicker__time-list-item:hover {
+          background: #f0f0f0;
+        }
+        .react-datepicker__triangle { display: none; }
+      `}</style>
 
       <nav className="fixed left-0 top-0 z-50 w-full bg-black">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5">
@@ -376,15 +448,39 @@ function CustomerHome() {
               </div>
             </div>
 
-            {/* Dates */}
+            {/* Dates — react-datepicker with time */}
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
                 <label className={labelCls}>Pickup date &amp; time</label>
-                <input type="datetime-local" value={pickupAt} onChange={e => setPickupAt(e.target.value)} className={inputCls} />
+                <div className="camel-datepicker-wrapper">
+                  <DatePicker
+                    selected={pickupDate}
+                    onChange={d => setPickupDate(d)}
+                    showTimeSelect
+                    timeFormat="HH:mm"
+                    timeIntervals={30}
+                    dateFormat="dd/MM/yyyy, HH:mm"
+                    placeholderText="Select date & time"
+                    minDate={new Date()}
+                    popperPlacement="bottom-start"
+                  />
+                </div>
               </div>
               <div>
                 <label className={labelCls}>Drop-off date &amp; time</label>
-                <input type="datetime-local" value={dropoffAt} onChange={e => setDropoffAt(e.target.value)} className={inputCls} />
+                <div className="camel-datepicker-wrapper">
+                  <DatePicker
+                    selected={dropoffDate}
+                    onChange={d => setDropoffDate(d)}
+                    showTimeSelect
+                    timeFormat="HH:mm"
+                    timeIntervals={30}
+                    dateFormat="dd/MM/yyyy, HH:mm"
+                    placeholderText="Select date & time"
+                    minDate={pickupDate || new Date()}
+                    popperPlacement="bottom-start"
+                  />
+                </div>
               </div>
             </div>
 
@@ -416,12 +512,7 @@ function CustomerHome() {
               </div>
             </div>
 
-            {/*
-              Driver age row.
-              DESKTOP, no additional drivers: 4-col grid — age | additional | [Book Now spans cols 3+4]
-              DESKTOP, additional drivers:    4-col grid — age | additional | driver ages... then Book Now full-width below
-              MOBILE: always just age + additional (2-col), Book Now is rendered separately below
-            */}
+            {/* Driver age row */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 items-start mb-3">
               <div>
                 <label className={labelCls}>Main driver age</label>
@@ -436,14 +527,12 @@ function CustomerHome() {
                 </select>
               </div>
 
-              {/* Desktop only: Book Now in cols 3+4 when no additional drivers */}
               {desktopNoAdditional && (
                 <div className="col-span-2 pt-[23px]">
                   <BookNowButton />
                 </div>
               )}
 
-              {/* Desktop only: additional driver age inputs */}
               {desktopWithAdditional && Array.from({ length: additionalDrivers }).map((_, i) => (
                 <div key={i}>
                   <label className={labelCls}>Driver {i + 2} age</label>
@@ -458,7 +547,6 @@ function CustomerHome() {
                 </div>
               ))}
 
-              {/* Mobile only: additional driver age inputs */}
               {mobile && additionalDrivers > 0 && Array.from({ length: additionalDrivers }).map((_, i) => (
                 <div key={i}>
                   <label className={labelCls}>Driver {i + 2} age</label>
@@ -494,12 +582,7 @@ function CustomerHome() {
               </div>
             )}
 
-            {/*
-              Bottom row — rendered once, correct for each scenario:
-              DESKTOP, no additional: special requirements (left) | "No account needed" (right) — Book Now already in grid
-              DESKTOP, with additional: special requirements + Book Now full width
-              MOBILE: special requirements + Book Now full width
-            */}
+            {/* Desktop, no additional drivers: special requirements left | no account needed right */}
             {desktopNoAdditional && (
               <div className="grid grid-cols-4 gap-3 mb-3">
                 <div className="col-span-2 flex items-center">
@@ -515,6 +598,7 @@ function CustomerHome() {
               </div>
             )}
 
+            {/* Desktop with additional drivers OR mobile: special requirements + Book Now */}
             {(desktopWithAdditional || mobile) && (
               <div className="mb-3">
                 <button type="button" onClick={() => setNotesOpen(o => !o)}
