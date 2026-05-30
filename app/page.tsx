@@ -443,7 +443,7 @@ function CustomerHome() {
                     </div>
                   ))
                 : /* No additional drivers — Book Now spans cols 3+4, desktop only */
-                  <div className="hidden sm:col-span-2 sm:block pt-[22px]">
+                  <div className="hidden sm:col-span-2 sm:block pt-[23px]">
                     <button type="button" onClick={handleBookNow} disabled={submitting}
                       className="w-full bg-[#ff7a00] py-4 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
                       Book Now →
@@ -475,20 +475,22 @@ function CustomerHome() {
               </div>
             )}
 
-            {/* Add special requirements — always above Book Now (mobile) */}
-            <div className="mb-3">
-              <button type="button" onClick={() => setNotesOpen(o => !o)}
-                className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors">
-                <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
-                Add special requirements
-              </button>
-              {notesOpen && (
-                <div className="mt-2">
-                  <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
-                    placeholder="Flight number, hotel name, special equipment, anything the car hire company should know…"
-                    className={inputCls + " resize-none"} autoFocus />
-                </div>
-              )}
+            {/* Add special requirements */}
+            <div className="mb-3 sm:grid sm:grid-cols-4 sm:gap-3">
+              <div className="sm:col-start-3 sm:col-span-2">
+                <button type="button" onClick={() => setNotesOpen(o => !o)}
+                  className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors">
+                  <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
+                  Add special requirements
+                </button>
+                {notesOpen && (
+                  <div className="mt-2">
+                    <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
+                      placeholder="Flight number, hotel name, special equipment, anything the car hire company should know…"
+                      className={inputCls + " resize-none"} autoFocus />
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Book Now — mobile always visible; desktop only when additional drivers selected */}
