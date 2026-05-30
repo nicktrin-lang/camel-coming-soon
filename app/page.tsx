@@ -453,23 +453,26 @@ function CustomerHome() {
               </div>
             )}
 
-            {/* Book now + special requirements */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 items-start mb-3">
-              <div className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={handleBookNow}
-                  disabled={submitting}
-                  className="w-full bg-[#ff7a00] py-5 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
-                >
-                  Book Now →
-                </button>
-                <p className="text-sm font-bold text-black">
-                  No account needed — sign in when you are ready to confirm
-                </p>
-              </div>
+            {/* Special requirements — mobile only (above Book Now) */}
+            <div className="sm:hidden mb-3">
+              <button type="button" onClick={() => setNotesOpen(o => !o)}
+                className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors">
+                <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
+                Add special requirements
+              </button>
+              {notesOpen && (
+                <div className="mt-2">
+                  <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
+                    placeholder="Flight number, hotel name, special equipment, anything the car hire company should know…"
+                    className={inputCls + " resize-none"} autoFocus />
+                </div>
+              )}
+            </div>
 
-              <div>
+            {/* Book now row — desktop: special requirements left, Book Now right */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 items-end mb-3">
+              {/* Special requirements — desktop only */}
+              <div className="hidden sm:block">
                 <button type="button" onClick={() => setNotesOpen(o => !o)}
                   className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors">
                   <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
@@ -482,6 +485,20 @@ function CustomerHome() {
                       className={inputCls + " resize-none"} autoFocus />
                   </div>
                 )}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={handleBookNow}
+                  disabled={submitting}
+                  className="w-full bg-[#ff7a00] py-5 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
+                >
+                  Book Now →
+                </button>
+                <p className="text-sm font-bold text-black">
+                  No account needed — sign in when you are ready to confirm
+                </p>
               </div>
             </div>
 
