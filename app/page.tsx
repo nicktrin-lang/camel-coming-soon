@@ -495,18 +495,9 @@ function CustomerHome() {
                   </div>
                 </div>
               )}
-
-              {/* Notes textarea — full width when open, both mobile and desktop */}
-              {notesOpen && (
-                <div className="mt-2">
-                  <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
-                    placeholder="Flight number, hotel name, special equipment, anything the car hire company should know…"
-                    className={inputCls + " resize-none"} autoFocus />
-                </div>
-              )}
             </div>
 
-            {/* Mobile: special requirements + Book Now stacked */}
+            {/* Mobile: special requirements + Book Now — always shown on mobile */}
             <div className="sm:hidden mb-3">
               <button type="button" onClick={() => setNotesOpen(o => !o)}
                 className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors mb-3">
@@ -520,14 +511,14 @@ function CustomerHome() {
               <p className="text-sm font-bold text-black mt-1">No account needed — sign in when you are ready to confirm</p>
             </div>
 
-            {/* Desktop Book Now when additional drivers selected — full width below grid */}
+            {/* Desktop: additional drivers selected — special requirements + Book Now below grid */}
             {additionalDrivers > 0 && (
               <div className="hidden sm:block mb-3">
-                <div className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors mb-3 cursor-pointer"
-                  onClick={() => setNotesOpen(o => !o)}>
+                <button type="button" onClick={() => setNotesOpen(o => !o)}
+                  className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors mb-3">
                   <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
                   Add special requirements
-                </div>
+                </button>
                 <button type="button" onClick={handleBookNow} disabled={submitting}
                   className="w-full bg-[#ff7a00] py-4 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
                   Book Now →
