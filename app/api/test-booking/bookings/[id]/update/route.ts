@@ -32,8 +32,6 @@ function sameFuel(a: unknown, b: unknown) {
   return normalizeFuel(a) === normalizeFuel(b) && normalizeFuel(a) !== null;
 }
 
-// Effective fuel = partner override if set, else driver reading.
-// Lock is: effective fuel exists AND customer confirmed AND customer fuel matches effective.
 function isFuelLocked(opts: {
   customerConfirmed?: boolean | null;
   customerFuel?: string | null;
@@ -86,7 +84,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (bookingErr) return NextResponse.json({ error: bookingErr.message }, { status: 400 });
     if (!bookingRow) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
 
-    // Verify customer owns this booking
     const { data: requestRow } = await db
       .from("customer_requests")
       .select("customer_user_id, customer_email")
@@ -137,7 +134,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const updatePayload: Record<string, any> = {};
 
     if (section === "collection") {
-      // Block confirmation only if NEITHER driver nor partner has recorded a fuel level
       const effectiveFuelCheck = normalizeFuel(bookingRow.collection_fuel_level_partner) || normalizeFuel(bookingRow.collection_fuel_level_driver);
       if (confirmed && !effectiveFuelCheck) {
         return NextResponse.json(
@@ -145,11 +141,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           { status: 400 }
         );
       }
-      // Effective fuel = partner override if set, else driver reading
-      const effectiveFuel = effectiveFuelCheck;
       updatePayload.collection_confirmed_by_customer    = confirmed;
       updatePayload.collection_confirmed_by_customer_at = confirmed ? bookingRow.collection_confirmed_by_customer_at || now : null;
-      updatePayload.collection_fuel_level_customer      = confirmed ? effectiveFuel : null;
+      updatePayload.collection_fuel_level_customer      = confirmed ? effectiveFuelCheck : null;
       updatePayload.collection_customer_notes           = notes;
       if (insuranceConfirmed !== undefined) {
         updatePayload.insurance_docs_confirmed_by_customer    = insuranceConfirmed;
@@ -159,7 +153,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
 
     if (section === "return") {
-      // Block confirmation only if NEITHER driver nor partner has recorded a fuel level
       const effectiveFuelCheck = normalizeFuel(bookingRow.return_fuel_level_partner) || normalizeFuel(bookingRow.return_fuel_level_driver);
       if (confirmed && !effectiveFuelCheck) {
         return NextResponse.json(
@@ -167,15 +160,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           { status: 400 }
         );
       }
-      // Effective fuel = partner override if set, else driver reading
-      const effectiveFuel = effectiveFuelCheck;
       updatePayload.return_confirmed_by_customer    = confirmed;
       updatePayload.return_confirmed_by_customer_at = confirmed ? bookingRow.return_confirmed_by_customer_at || now : null;
-      updatePayload.return_fuel_level_customer      = confirmed ? effectiveFuel : null;
+      updatePayload.return_fuel_level_customer      = confirmed ? effectiveFuelCheck : null;
       updatePayload.return_customer_notes           = notes;
     }
 
-    // Recalculate lock state after this update
     const nextCollectionLocked = section === "collection"
       ? isFuelLocked({
           customerConfirmed: confirmed,
@@ -213,20 +203,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       updatePayload.booking_status = "collected";
     }
 
-    // Save booking update
     const { error: updateErr } = await db
       .from("partner_bookings")
       .update(updatePayload)
       .eq("id", id);
     if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 400 });
 
-    // ── Always sync customer_requests.status to match booking_status ──
+    // ── Sync customer_requests.status ────────────────────────────────────────
     const newBookingStatus = updatePayload.booking_status || bookingRow.booking_status;
     const statusMap: Record<string, string> = {
-      completed: "completed",
-      collected: "collected",
-      returned:  "returned",
-      cancelled: "cancelled",
+      completed: "completed", collected: "collected",
+      returned: "returned",   cancelled: "cancelled",
     };
     const newRequestStatus = statusMap[newBookingStatus] || null;
     if (newRequestStatus && bookingRow.request_id) {
@@ -236,7 +223,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         .eq("id", bookingRow.request_id);
     }
 
-    // Completion email is sent by completeBooking() in the portal — do not send here.
+    // ── Trigger completeBooking in portal when booking reaches "completed" ───
+    if (updatePayload.booking_status === "completed") {
+      const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "https://portal.camel-global.com";
+      fetch(`${portalUrl}/api/internal/complete-booking`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-internal-secret": process.env.CRON_SECRET!,
+        },
+        body: JSON.stringify({ bookingId: id }),
+      }).catch(e => console.error("completeBooking trigger failed:", e?.message));
+    }
 
     return NextResponse.json({
       ok: true,
