@@ -40,18 +40,15 @@ const s = StyleSheet.create({
   totalRow:    { flexDirection: "row", justifyContent: "space-between", backgroundColor: "#111", padding: "8 10", marginTop: 6 },
   totalLabel:  { fontFamily: "Helvetica-Bold", color: "#fff", fontSize: 10 },
   totalValue:  { fontFamily: "Helvetica-Bold", color: "#ff7a00", fontSize: 10 },
-  // Checklist styles
   checklistItem:  { flexDirection: "row", alignItems: "flex-start", marginBottom: 5 },
   checklistDot:   { width: 14, height: 14, backgroundColor: "#ff7a00", marginRight: 8, marginTop: 1, flexShrink: 0, justifyContent: "center", alignItems: "center" },
   checklistTick:  { fontSize: 7, color: "#fff", fontFamily: "Helvetica-Bold" },
   checklistText:  { flex: 1 },
   checklistTitle: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#111" },
   checklistDesc:  { fontSize: 7.5, color: "#666", marginTop: 1, lineHeight: 1.4 },
-  // Additional terms box
   termsBox:     { backgroundColor: "#fff8f0", borderLeft: "3 solid #ff7a00", padding: "8 10", marginBottom: 6 },
   termsLabel:   { fontSize: 7, fontFamily: "Helvetica-Bold", color: "#ff7a00", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 3 },
   termsText:    { fontSize: 7.5, color: "#333", lineHeight: 1.4 },
-  // Amber deposit box
   depositBox:   { backgroundColor: "#fffbeb", borderLeft: "3 solid #f59e0b", padding: "8 10", marginBottom: 6 },
   depositLabel: { fontSize: 7, fontFamily: "Helvetica-Bold", color: "#b45309", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 3 },
   depositText:  { fontSize: 7.5, color: "#333", lineHeight: 1.4 },
@@ -85,6 +82,17 @@ function fmtDateShort(iso: string | null | undefined): string {
   } catch { return iso; }
 }
 
+function fmtDuration(minutes: number | null | undefined): string {
+  if (!minutes) return "—";
+  if (minutes >= 1440) {
+    const days = Math.ceil(minutes / 1440);
+    return `${days} day${days === 1 ? "" : "s"}`;
+  }
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60), m = minutes % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
 function sportEquipmentLabel(v: string | null | undefined): string {
   if (!v || v === "none") return "None";
   const map: Record<string, string> = {
@@ -107,6 +115,8 @@ interface ReceiptData {
   pickupAddress:          string | null;
   dropoffAddress:         string | null;
   pickupAt:               string | null;
+  dropoffAt:              string | null;
+  durationMinutes:        number | null;
   vehicleCategory:        string | null;
   companyName:            string | null;
   chargeCurrency:         string;
@@ -204,6 +214,14 @@ function ReceiptDocument({ d }: { d: ReceiptData }) {
             <View style={s.row}>
               <Text style={s.rowLabel}>Pickup date &amp; time</Text>
               <Text style={s.rowValue}>{fmtDate(d.pickupAt)}</Text>
+            </View>
+            <View style={s.row}>
+              <Text style={s.rowLabel}>Drop-off date &amp; time</Text>
+              <Text style={s.rowValue}>{fmtDate(d.dropoffAt)}</Text>
+            </View>
+            <View style={s.row}>
+              <Text style={s.rowLabel}>Duration</Text>
+              <Text style={s.rowValue}>{fmtDuration(d.durationMinutes)}</Text>
             </View>
           </View>
 
@@ -331,13 +349,14 @@ export interface GenerateBookingReceiptParams {
   pickupAddress:          string | null;
   dropoffAddress:         string | null;
   pickupAt:               string | null;
+  dropoffAt?:             string | null;
+  durationMinutes?:       number | null;
   vehicleCategory:        string | null;
   companyName:            string | null;
   chargeCurrency:         string;
   chargeCarHire:          number;
   chargeFuel:             number;
   chargeTotal:            number;
-  // Optional so existing callers don't break
   passengers?:            number | null;
   suitcases?:             number | null;
   handLuggage?:           number | null;
@@ -377,6 +396,8 @@ export async function generateBookingReceiptPDF(params: GenerateBookingReceiptPa
     ...params,
     issuedAt,
     logoBase64,
+    dropoffAt:            params.dropoffAt ?? null,
+    durationMinutes:      params.durationMinutes ?? null,
     passengers:           params.passengers ?? null,
     suitcases:            params.suitcases ?? null,
     handLuggage:          params.handLuggage ?? null,

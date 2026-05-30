@@ -57,13 +57,13 @@ export async function POST(req: NextRequest) {
       const chargeId      = typeof pi.latest_charge === "string" ? pi.latest_charge : null;
 
       // Customer always pays in bid currency — no conversion
-      const currency      = (m.currency || "EUR").toUpperCase();
-      const carHirePrice  = Number(m.car_hire_price    || 0);
-      const fuelPrice     = Number(m.fuel_price        || 0);
-      const commissionAmt = Number(m.commission_amount || 0);
-      const commissionRate = Number((m.commission_rate || "20").replace("%", ""));
-      const totalPrice    = carHirePrice + fuelPrice;
-      const partnerNet    = Math.max(0, carHirePrice - commissionAmt);
+      const currency       = (m.currency || "EUR").toUpperCase();
+      const carHirePrice   = Number(m.car_hire_price    || 0);
+      const fuelPrice      = Number(m.fuel_price        || 0);
+      const commissionAmt  = Number(m.commission_amount || 0);
+      const commissionRate = Number((m.commission_rate  || "20").replace("%", ""));
+      const totalPrice     = carHirePrice + fuelPrice;
+      const partnerNet     = Math.max(0, carHirePrice - commissionAmt);
 
       // Load bid for original amounts + notes
       const { data: bid } = await db
@@ -78,12 +78,13 @@ export async function POST(req: NextRequest) {
       const notes         = bid?.notes || null;
       const vehicleCategory = bid?.vehicle_category_name || null;
 
-      // Load request
+      // Load request — includes dropoff_at and journey_duration_minutes for receipt PDF
       const { data: request } = await db
         .from("customer_requests")
         .select(`
           status, customer_name, customer_email,
-          pickup_address, dropoff_address, pickup_at,
+          pickup_address, dropoff_address, pickup_at, dropoff_at,
+          journey_duration_minutes,
           vehicle_category_name,
           passengers, suitcases, hand_luggage, sport_equipment,
           driver_age, additional_drivers, additional_driver_ages
@@ -207,6 +208,8 @@ export async function POST(req: NextRequest) {
           pickupAddress:        request.pickup_address || null,
           dropoffAddress:       request.dropoff_address || null,
           pickupAt:             request.pickup_at || null,
+          dropoffAt:            request.dropoff_at || null,
+          durationMinutes:      request.journey_duration_minutes ?? null,
           vehicleCategory:      request.vehicle_category_name || vehicleCategory || null,
           companyName,
           chargeCurrency:       currency,
