@@ -409,7 +409,7 @@ function CustomerHome() {
             </div>
 
             {/* Driver ages + Book Now in same grid */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 items-end mb-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-3">
               <div>
                 <label className={labelCls}>Main driver age</label>
                 <input
@@ -470,7 +470,7 @@ function CustomerHome() {
             </div>
 
             {/* Book now row — desktop: special requirements left, Book Now right */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 items-end mb-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 mb-3">
               {/* Special requirements — desktop only */}
               <div className="hidden sm:block">
                 <button type="button" onClick={() => setNotesOpen(o => !o)}
