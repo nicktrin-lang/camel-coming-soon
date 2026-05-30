@@ -479,20 +479,18 @@ function CustomerHome() {
               On desktop with no additional drivers both sit in the same 4-col grid row.
               Mobile: stacked, special requirements first, then Book Now below.
             */}
-            <div className="mb-3">
-              {/* Desktop sub-row — hidden on mobile */}
+            {/* Desktop sub-row: special requirements (left) | no account needed (right, no-additional only) */}
+            <div className="hidden sm:grid sm:grid-cols-4 sm:gap-3 mb-3">
+              <div className="col-span-2 flex items-center">
+                <button type="button" onClick={() => setNotesOpen(o => !o)}
+                  className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors">
+                  <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
+                  Add special requirements
+                </button>
+              </div>
               {additionalDrivers === 0 && (
-                <div className="hidden sm:grid sm:grid-cols-4 sm:gap-3 mb-1">
-                  <div className="col-span-2 flex items-center">
-                    <button type="button" onClick={() => setNotesOpen(o => !o)}
-                      className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors">
-                      <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
-                      Add special requirements
-                    </button>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-sm font-bold text-black">No account needed — sign in when you are ready to confirm</p>
-                  </div>
+                <div className="col-span-2">
+                  <p className="text-sm font-bold text-black">No account needed — sign in when you are ready to confirm</p>
                 </div>
               )}
             </div>
