@@ -448,7 +448,6 @@ function CustomerHome() {
                       className="w-full bg-[#ff7a00] py-4 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
                       Book Now →
                     </button>
-                    <p className="text-sm font-bold text-black mt-1">No account needed — sign in when you are ready to confirm</p>
                   </div>
               }
             </div>
@@ -475,32 +474,67 @@ function CustomerHome() {
               </div>
             )}
 
-            {/* Add special requirements — col 1+2 on desktop, full width on mobile */}
-            <div className="mb-3 sm:grid sm:grid-cols-4 sm:gap-3">
-              <div className="sm:col-start-1 sm:col-span-2">
-                <button type="button" onClick={() => setNotesOpen(o => !o)}
-                  className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors">
-                  <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
-                  Add special requirements
-                </button>
-                {notesOpen && (
-                  <div className="mt-2">
-                    <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
-                      placeholder="Flight number, hotel name, special equipment, anything the car hire company should know…"
-                      className={inputCls + " resize-none"} autoFocus />
+            {/*
+              Sub-row: "Add special requirements" (cols 1–2) | "No account needed" (cols 3–4)
+              On desktop with no additional drivers both sit in the same 4-col grid row.
+              Mobile: stacked, special requirements first, then Book Now below.
+            */}
+            <div className="mb-3">
+              {/* Desktop sub-row — hidden on mobile */}
+              {additionalDrivers === 0 && (
+                <div className="hidden sm:grid sm:grid-cols-4 sm:gap-3 mb-1">
+                  <div className="col-span-2 flex items-center">
+                    <button type="button" onClick={() => setNotesOpen(o => !o)}
+                      className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors">
+                      <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
+                      Add special requirements
+                    </button>
                   </div>
-                )}
-              </div>
+                  <div className="col-span-2">
+                    <p className="text-sm font-bold text-black">No account needed — sign in when you are ready to confirm</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Notes textarea — full width when open, both mobile and desktop */}
+              {notesOpen && (
+                <div className="mt-2">
+                  <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
+                    placeholder="Flight number, hotel name, special equipment, anything the car hire company should know…"
+                    className={inputCls + " resize-none"} autoFocus />
+                </div>
+              )}
             </div>
 
-            {/* Book Now — mobile always visible; desktop only when additional drivers selected */}
-            <div className={`${additionalDrivers === 0 ? "sm:hidden " : ""}mb-3`}>
+            {/* Mobile: special requirements + Book Now stacked */}
+            <div className="sm:hidden mb-3">
+              <button type="button" onClick={() => setNotesOpen(o => !o)}
+                className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors mb-3">
+                <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
+                Add special requirements
+              </button>
               <button type="button" onClick={handleBookNow} disabled={submitting}
                 className="w-full bg-[#ff7a00] py-5 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
                 Book Now →
               </button>
               <p className="text-sm font-bold text-black mt-1">No account needed — sign in when you are ready to confirm</p>
             </div>
+
+            {/* Desktop Book Now when additional drivers selected — full width below grid */}
+            {additionalDrivers > 0 && (
+              <div className="hidden sm:block mb-3">
+                <div className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors mb-3 cursor-pointer"
+                  onClick={() => setNotesOpen(o => !o)}>
+                  <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
+                  Add special requirements
+                </div>
+                <button type="button" onClick={handleBookNow} disabled={submitting}
+                  className="w-full bg-[#ff7a00] py-4 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                  Book Now →
+                </button>
+                <p className="text-sm font-bold text-black mt-1">No account needed — sign in when you are ready to confirm</p>
+              </div>
+            )}
 
           </div>
         </div>
