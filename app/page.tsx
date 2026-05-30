@@ -475,9 +475,9 @@ function CustomerHome() {
               </div>
             )}
 
-            {/* Add special requirements */}
+            {/* Add special requirements — col 1+2 on desktop, full width on mobile */}
             <div className="mb-3 sm:grid sm:grid-cols-4 sm:gap-3">
-              <div className="sm:col-start-3 sm:col-span-2">
+              <div className="sm:col-start-1 sm:col-span-2">
                 <button type="button" onClick={() => setNotesOpen(o => !o)}
                   className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors">
                   <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
