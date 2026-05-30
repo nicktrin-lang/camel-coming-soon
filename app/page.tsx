@@ -407,11 +407,7 @@ function CustomerHome() {
               </div>
             </div>
 
-            {/*
-              Driver age row — always 2 cols on mobile, 4 cols on sm+.
-              On desktop with no additional drivers: col 3 = empty spacer, col 4 = Book Now.
-              On desktop with additional drivers: extra age inputs fill cols 3+.
-            */}
+            {/* Driver age row — 2 cols mobile, 4 cols sm+ */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 items-end mb-3">
               <div>
                 <label className={labelCls}>Main driver age</label>
@@ -446,20 +442,27 @@ function CustomerHome() {
                       />
                     </div>
                   ))
-                : <>
-                    {/* col 3: empty spacer so Book Now lands in col 4 */}
-                    <div className="hidden sm:block" />
-                    {/* col 4: Book Now — desktop only */}
-                    <div className="hidden sm:block">
-                      <button type="button" onClick={handleBookNow} disabled={submitting}
-                        className="w-full bg-[#ff7a00] py-4 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
-                        Book Now →
-                      </button>
-                      <p className="text-sm font-bold text-black mt-1">No account needed — sign in when you are ready to confirm</p>
-                    </div>
-                  </>
+                : /* No additional drivers — Book Now spans cols 3+4, desktop only */
+                  <div className="hidden sm:col-span-2 sm:block">
+                    <button type="button" onClick={handleBookNow} disabled={submitting}
+                      className="w-full bg-[#ff7a00] py-4 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                      Book Now →
+                    </button>
+                    <p className="text-sm font-bold text-black mt-1">No account needed — sign in when you are ready to confirm</p>
+                  </div>
               }
             </div>
+
+            {/* Desktop Book Now when additional drivers are selected — full width below grid */}
+            {additionalDrivers > 0 && (
+              <div className="hidden sm:block mb-3">
+                <button type="button" onClick={handleBookNow} disabled={submitting}
+                  className="w-full bg-[#ff7a00] py-4 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                  Book Now →
+                </button>
+                <p className="text-sm font-bold text-black mt-1">No account needed — sign in when you are ready to confirm</p>
+              </div>
+            )}
 
             {/* Young driver warning */}
             {hasYoungDriverWarning && (
