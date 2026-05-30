@@ -49,6 +49,17 @@ function fmtDateShort(iso: string | null | undefined): string {
   } catch { return iso; }
 }
 
+function fmtDuration(minutes: number | null | undefined): string {
+  if (!minutes) return "—";
+  if (minutes >= 1440) {
+    const days = Math.ceil(minutes / 1440);
+    return `${days} day${days === 1 ? "" : "s"}`;
+  }
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60), m = minutes % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
 // ── Styles — mirrors generateBookingReceiptPDF exactly ────────────────────────
 const s = StyleSheet.create({
   page:        { fontFamily: "Helvetica", fontSize: 9, color: "#222", backgroundColor: "#fff", paddingBottom: 40 },
@@ -75,31 +86,32 @@ const s = StyleSheet.create({
 });
 
 export interface CompletionStatementParams {
-  jobNumber:       number | null;
-  bookingId:       string;
-  customerName:    string | null;
-  pickupAddress:   string | null;
-  dropoffAddress:  string | null;
-  pickupAt:        string | null;
-  vehicleCategory: string | null;
-  companyName:     string | null;
-  currency:        string;
-  carHire:         number;
-  fuelDeposit:     number;
-  totalPaid:       number;
-  collectionFuel:  string | null;
-  returnFuel:      string | null;
-  usedQuarters:    number;
-  fuelCharge:      number;
-  fuelRefund:      number;
-  issuedAt:        string;
+  jobNumber:        number | null;
+  bookingId:        string;
+  customerName:     string | null;
+  pickupAddress:    string | null;
+  dropoffAddress:   string | null;
+  pickupAt:         string | null;
+  dropoffAt?:       string | null;
+  durationMinutes?: number | null;
+  vehicleCategory:  string | null;
+  companyName:      string | null;
+  currency:         string;
+  carHire:          number;
+  fuelDeposit:      number;
+  totalPaid:        number;
+  collectionFuel:   string | null;
+  returnFuel:       string | null;
+  usedQuarters:     number;
+  fuelCharge:       number;
+  fuelRefund:       number;
+  issuedAt:         string;
 }
 
 function StatementDocument({ p, logoBase64 }: { p: CompletionStatementParams; logoBase64: string | null }) {
   const cur = p.currency;
   const fmt = (n: number) => fmtMoney(n, cur);
   const ref = p.jobNumber ? `#${p.jobNumber}` : p.bookingId.slice(0, 8).toUpperCase();
-  // car hire + fuel charge = total owed; refund is a separate transaction back to customer
   const finalAmount = p.carHire + p.fuelCharge;
 
   return (
@@ -138,6 +150,12 @@ function StatementDocument({ p, logoBase64 }: { p: CompletionStatementParams; lo
               <View style={s.row}><Text style={s.rowLabel}>Drop-off address</Text><Text style={s.rowValue}>{p.dropoffAddress}</Text></View>
             ) : null}
             <View style={s.row}><Text style={s.rowLabel}>Pickup time</Text><Text style={s.rowValue}>{fmtDate(p.pickupAt)}</Text></View>
+            {p.dropoffAt ? (
+              <View style={s.row}><Text style={s.rowLabel}>Drop-off time</Text><Text style={s.rowValue}>{fmtDate(p.dropoffAt)}</Text></View>
+            ) : null}
+            {p.durationMinutes ? (
+              <View style={s.row}><Text style={s.rowLabel}>Duration</Text><Text style={s.rowValue}>{fmtDuration(p.durationMinutes)}</Text></View>
+            ) : null}
             {p.vehicleCategory ? (
               <View style={s.row}><Text style={s.rowLabel}>Vehicle</Text><Text style={s.rowValue}>{p.vehicleCategory}</Text></View>
             ) : null}
@@ -162,7 +180,7 @@ function StatementDocument({ p, logoBase64 }: { p: CompletionStatementParams; lo
             <View style={s.row}><Text style={s.rowLabel}>Fuel refund to you</Text><Text style={s.rowValue}>{p.fuelRefund > 0 ? fmt(p.fuelRefund) : "None"}</Text></View>
           </View>
 
-          {/* Final amount — black bar matching receipt style */}
+          {/* Final amount */}
           <View style={s.totalRow}>
             <Text style={s.totalLabel}>Final amount (car hire + fuel charge)</Text>
             <Text style={s.totalValue}>{fmt(finalAmount)}</Text>
@@ -190,11 +208,12 @@ function StatementDocument({ p, logoBase64 }: { p: CompletionStatementParams; lo
 }
 
 export async function generateCompletionStatementPDF(params: CompletionStatementParams): Promise<Buffer> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://camel-global.com";
+  // Logo lives in camel-portal's public folder — always fetch from there
+  const LOGO_URL = "https://portal.camel-global.com/camel-invoice-logo.png";
 
   let logoBase64: string | null = null;
   try {
-    const logoRes = await fetch(`${siteUrl}/camel-invoice-logo.png`);
+    const logoRes = await fetch(LOGO_URL);
     if (logoRes.ok) {
       const buf = await logoRes.arrayBuffer();
       logoBase64 = Buffer.from(buf).toString("base64");

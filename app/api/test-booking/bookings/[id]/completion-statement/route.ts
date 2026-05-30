@@ -61,7 +61,7 @@ export async function GET(
 
   const { data: cr, error: crErr } = await db
     .from("customer_requests")
-    .select("id, customer_user_id, pickup_address, dropoff_address, pickup_at, vehicle_category_name")
+    .select("id, customer_user_id, pickup_address, dropoff_address, pickup_at, dropoff_at, journey_duration_minutes, vehicle_category_name")
     .eq("id", bk.request_id)
     .maybeSingle();
 
@@ -77,19 +77,11 @@ export async function GET(
     .eq("user_id", bk.partner_user_id)
     .maybeSingle();
 
-  // Always use booking's own currency — no charge_currency needed
   const currency    = (bk.currency || "EUR").toUpperCase();
   const ref         = bk.job_number ?? bookingId.slice(0, 8);
   const storagePath = `${bk.request_id}/completion-statement-${ref}.pdf`;
 
-  const { data: existing } = await db.storage
-    .from(BUCKET)
-    .createSignedUrl(storagePath, SIGNED_URL_EXPIRY);
-
-  if (existing?.signedUrl) {
-    return NextResponse.json({ url: existing.signedUrl });
-  }
-
+  // Always regenerate — don't serve cached version as it may be stale
   const collectionFuel =
     normalizeFuel(bk.collection_fuel_level_partner) ||
     normalizeFuel(bk.collection_fuel_level_driver);
@@ -102,9 +94,11 @@ export async function GET(
       jobNumber:       bk.job_number,
       bookingId,
       customerName:    null,
-      pickupAddress:   cr.pickup_address || null,
-      dropoffAddress:  cr.dropoff_address || null,
-      pickupAt:        cr.pickup_at || null,
+      pickupAddress:   cr.pickup_address    || null,
+      dropoffAddress:  cr.dropoff_address   || null,
+      pickupAt:        cr.pickup_at         || null,
+      dropoffAt:       cr.dropoff_at        || null,
+      durationMinutes: cr.journey_duration_minutes || null,
       vehicleCategory: cr.vehicle_category_name || null,
       companyName:     profile?.company_name || null,
       currency,
