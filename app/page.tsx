@@ -443,7 +443,7 @@ function CustomerHome() {
                     </div>
                   ))
                 : /* No additional drivers — Book Now spans cols 3+4, desktop only */
-                  <div className="hidden sm:col-span-2 sm:block pt-[26px]">
+                  <div className="hidden sm:col-span-2 sm:block pt-[22px]">
                     <button type="button" onClick={handleBookNow} disabled={submitting}
                       className="w-full bg-[#ff7a00] py-4 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
                       Book Now →
