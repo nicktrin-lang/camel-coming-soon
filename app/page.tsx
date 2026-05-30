@@ -408,23 +408,7 @@ function CustomerHome() {
               </div>
             </div>
 
-            {/* Special requirements — mobile only, ABOVE Book Now */}
-            <div className="sm:hidden mb-3">
-              <button type="button" onClick={() => setNotesOpen(o => !o)}
-                className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors">
-                <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
-                Add special requirements
-              </button>
-              {notesOpen && (
-                <div className="mt-2">
-                  <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
-                    placeholder="Flight number, hotel name, special equipment, anything the car hire company should know…"
-                    className={inputCls + " resize-none"} autoFocus />
-                </div>
-              )}
-            </div>
-
-            {/* Driver ages + Book Now — items-end aligns Book Now bottom to inputs */}
+            {/* Driver ages + Book Now — 4-col grid, items-end bottom-aligns Book Now with inputs */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 items-end mb-3">
               <div>
                 <label className={labelCls}>Main driver age</label>
@@ -468,15 +452,6 @@ function CustomerHome() {
               }
             </div>
 
-            {/* Mobile Book Now (no extra drivers) + Book Now when extra drivers selected */}
-            <div className={`${additionalDrivers === 0 ? "sm:hidden " : ""}mb-3`}>
-              <button type="button" onClick={handleBookNow} disabled={submitting}
-                className="w-full bg-[#ff7a00] py-5 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
-                Book Now →
-              </button>
-              <p className="text-sm font-bold text-black mt-1">No account needed — sign in when you are ready to confirm</p>
-            </div>
-
             {hasYoungDriverWarning && (
               <div className="mb-3 border border-amber-300 bg-amber-50 px-4 py-3">
                 <p className="text-sm font-black text-amber-800 mb-1">⚠ Young driver surcharge may apply</p>
@@ -487,8 +462,17 @@ function CustomerHome() {
               </div>
             )}
 
-            {/* Special requirements — desktop, below Book Now */}
-            <div className="hidden sm:block mb-3">
+            {/* Book Now — mobile always, desktop only when additional drivers selected */}
+            <div className={`${additionalDrivers === 0 ? "sm:hidden " : ""}mb-3`}>
+              <button type="button" onClick={handleBookNow} disabled={submitting}
+                className="w-full bg-[#ff7a00] py-5 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                Book Now →
+              </button>
+              <p className="text-sm font-bold text-black mt-1">No account needed — sign in when you are ready to confirm</p>
+            </div>
+
+            {/* Add special requirements — both mobile and desktop, below Book Now */}
+            <div className="mb-3">
               <button type="button" onClick={() => setNotesOpen(o => !o)}
                 className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors">
                 <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
@@ -502,8 +486,6 @@ function CustomerHome() {
                 </div>
               )}
             </div>
-
-
 
           </div>
         </div>
