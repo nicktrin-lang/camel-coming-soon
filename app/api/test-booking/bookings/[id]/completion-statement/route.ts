@@ -1,9 +1,3 @@
-/**
- * GET /api/test-booking/bookings/[id]/completion-statement
- * Returns a signed download URL for the booking completion statement PDF.
- * Mirrors the receipt route exactly — single customer DB client throughout.
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { createCustomerServiceRoleSupabaseClient } from "@/lib/supabase-customer/server";
 import { generateCompletionStatementPDF } from "@/lib/portal/generateCompletionStatementPDF";
@@ -37,22 +31,19 @@ export async function GET(
   const token = getBearerToken(req);
   if (!token) return NextResponse.json({ error: "Unauthorised — no token" }, { status: 401 });
 
-  // Single client for everything — mirrors receipt route exactly
   const db = createCustomerServiceRoleSupabaseClient();
 
-  // Auth
   const { data: authData, error: authErr } = await db.auth.getUser(token);
   if (authErr || !authData?.user) {
     return NextResponse.json({ error: "Unauthorised — bad token" }, { status: 401 });
   }
   const user = authData.user;
 
-  // Load booking
   const { data: bk, error: bkErr } = await db
     .from("partner_bookings")
     .select(`
       id, request_id, partner_user_id, job_number,
-      booking_status, currency, charge_currency,
+      booking_status, currency,
       car_hire_price, fuel_price, amount,
       fuel_used_quarters, fuel_charge, fuel_refund,
       collection_fuel_level_partner, collection_fuel_level_driver,
@@ -68,7 +59,6 @@ export async function GET(
     return NextResponse.json({ error: "Completion statement only available for completed bookings" }, { status: 400 });
   }
 
-  // Load request — verify customer ownership
   const { data: cr, error: crErr } = await db
     .from("customer_requests")
     .select("id, customer_user_id, pickup_address, dropoff_address, pickup_at, vehicle_category_name")
@@ -81,18 +71,17 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Load partner company name
   const { data: profile } = await db
     .from("partner_profiles")
     .select("company_name")
     .eq("user_id", bk.partner_user_id)
     .maybeSingle();
 
-  const currency    = (bk.charge_currency || bk.currency || "EUR").toUpperCase();
+  // Always use booking's own currency — no charge_currency needed
+  const currency    = (bk.currency || "EUR").toUpperCase();
   const ref         = bk.job_number ?? bookingId.slice(0, 8);
   const storagePath = `${bk.request_id}/completion-statement-${ref}.pdf`;
 
-  // Try existing stored file first
   const { data: existing } = await db.storage
     .from(BUCKET)
     .createSignedUrl(storagePath, SIGNED_URL_EXPIRY);
@@ -100,18 +89,6 @@ export async function GET(
   if (existing?.signedUrl) {
     return NextResponse.json({ url: existing.signedUrl });
   }
-
-  // Generate PDF
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://camel-global.com";
-
-  let logoBase64: string | null = null;
-  try {
-    const logoRes = await fetch(`${siteUrl}/camel-invoice-logo.png`);
-    if (logoRes.ok) {
-      const buf = await logoRes.arrayBuffer();
-      logoBase64 = Buffer.from(buf).toString("base64");
-    }
-  } catch { /* logo optional */ }
 
   const collectionFuel =
     normalizeFuel(bk.collection_fuel_level_partner) ||
@@ -142,13 +119,9 @@ export async function GET(
       issuedAt:        new Date().toISOString(),
     });
 
-    // Upload to storage
     const { error: uploadErr } = await db.storage
       .from(BUCKET)
-      .upload(storagePath, pdfBuffer, {
-        contentType: "application/pdf",
-        upsert: true,
-      });
+      .upload(storagePath, pdfBuffer, { contentType: "application/pdf", upsert: true });
 
     if (uploadErr) {
       console.error("completion-statement: upload failed", uploadErr.message);

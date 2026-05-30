@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
-import { useCurrency } from "@/lib/useCurrency";
-import type { Currency } from "@/lib/currency";
+
+type Currency = "EUR" | "GBP" | "USD";
 
 type RequestData = {
   id: string; job_number: number|null; pickup_address: string;
@@ -66,7 +66,6 @@ type BookingData = {
 };
 type ResponseShape = { request: RequestData; bids: BidRow[]; booking: BookingData|null };
 type ConfirmSection = "collection"|"return";
-type Rates = { GBP: number; USD: number };
 
 const HOURS_48 = 48*60*60*1000;
 const PRE_COLLECTION = ["confirmed","driver_assigned","en_route","arrived"];
@@ -97,6 +96,11 @@ function FuelBar({ level, light }: { level: string|null; light?: boolean }) {
       ))}
     </div>
   );
+}
+
+const LOCALE_MAP: Record<Currency,string> = { EUR:"es-ES", GBP:"en-GB", USD:"en-US" };
+function fmtCurr(a: number, c: Currency) {
+  return new Intl.NumberFormat(LOCALE_MAP[c],{style:"currency",currency:c}).format(a);
 }
 
 function fmt(v?: string|null) { if (!v) return "—"; try { return new Date(v).toLocaleString(); } catch { return v; } }
@@ -131,31 +135,6 @@ function sportEquipmentLabel(v: string|null): string {
   return map[v]||v;
 }
 
-const LOCALE_MAP: Record<Currency,string> = { EUR:"es-ES", GBP:"en-GB", USD:"en-US" };
-function fmtCurr(a: number, c: Currency) { return new Intl.NumberFormat(LOCALE_MAP[c],{style:"currency",currency:c}).format(a); }
-function convertAmount(a: number, from: Currency, to: Currency, r: Rates) {
-  if (from===to) return a;
-  let eur=a;
-  if (from==="GBP") eur=Math.round((a/r.GBP)*100)/100;
-  if (from==="USD") eur=Math.round((a/r.USD)*100)/100;
-  if (to==="EUR") return eur;
-  if (to==="GBP") return Math.round(eur*r.GBP*100)/100;
-  return Math.round(eur*r.USD*100)/100;
-}
-
-function BidAmount({ amount, bidCurrency, customerCurrency, rates }: { amount:number|null|undefined; bidCurrency:Currency; customerCurrency:Currency; rates:Rates }) {
-  if (amount==null||isNaN(amount)) return <span>—</span>;
-  const p=convertAmount(amount,bidCurrency,customerCurrency,rates);
-  const s=bidCurrency!==customerCurrency?fmtCurr(amount,bidCurrency):null;
-  return <span>{fmtCurr(p,customerCurrency)}{s&&<span className="opacity-60 text-[0.85em] ml-1">({s})</span>}</span>;
-}
-function BookingAmount({ amount, storedCurrency, customerCurrency, rates }: { amount:number|null|undefined; storedCurrency:Currency; customerCurrency:Currency; rates:Rates }) {
-  if (amount==null||isNaN(Number(amount))) return <span>—</span>;
-  const n=Number(amount),p=convertAmount(n,storedCurrency,customerCurrency,rates);
-  const o: Currency=customerCurrency==="EUR"?"GBP":"EUR";
-  return <span>{fmtCurr(p,customerCurrency)} <span className="opacity-60 text-[0.85em]">({fmtCurr(convertAmount(n,storedCurrency,o,rates),o)})</span></span>;
-}
-
 function CustomerCancellationSummary({ bk }: { bk: BookingData }) {
   const curr: Currency = bk.currency ?? "EUR";
   const carHire  = Number(bk.car_hire_price || 0);
@@ -176,24 +155,24 @@ function CustomerCancellationSummary({ bk }: { bk: BookingData }) {
         <p className="text-sm font-semibold text-red-600 mt-1">Cancelled by: <strong>{cancelledByLabel}</strong> on {fmt(bk.cancelled_at)}</p>
         {bk.cancellation_reason && <p className="text-sm font-semibold text-red-600">Reason: {bk.cancellation_reason}</p>}
       </div>
-      <div className={`px-4 py-3 text-sm font-semibold border ${within48 ? "bg-amber-50 border-amber-300 text-amber-800" : "bg-green-50 border-green-300 text-green-800"}`}>
-        {within48 ? "⚠ This cancellation was made within 48 hours of your pickup time. Under our cancellation policy, the car hire fee is non-refundable. However, your full fuel deposit will be returned." : "✅ This cancellation was made more than 48 hours before your pickup time. You are entitled to a full refund of everything you paid."}
+      <div className={`px-4 py-3 text-sm font-semibold border ${within48?"bg-amber-50 border-amber-300 text-amber-800":"bg-green-50 border-green-300 text-green-800"}`}>
+        {within48?"⚠ This cancellation was made within 48 hours of your pickup time. Under our cancellation policy, the car hire fee is non-refundable. However, your full fuel deposit will be returned.":"✅ This cancellation was made more than 48 hours before your pickup time. You are entitled to a full refund of everything you paid."}
       </div>
       <div className="bg-white border border-red-100 p-4">
         <p className="text-xs font-black uppercase tracking-widest text-black/50 mb-3">What You Paid</p>
         <div className="space-y-2">
-          <div className="flex justify-between text-sm"><span className="font-semibold text-black/60">Car hire</span><span className="font-black text-black">{fmtCurr(carHire, curr)}</span></div>
-          <div className="flex justify-between text-sm"><span className="font-semibold text-black/60">Full tank deposit</span><span className="font-black text-black">{fmtCurr(fuel, curr)}</span></div>
-          <div className="flex justify-between text-sm font-black border-t border-black/10 pt-2"><span className="text-black/60">Total paid</span><span className="text-black">{fmtCurr(total, curr)}</span></div>
+          <div className="flex justify-between text-sm"><span className="font-semibold text-black/60">Car hire</span><span className="font-black text-black">{fmtCurr(carHire,curr)}</span></div>
+          <div className="flex justify-between text-sm"><span className="font-semibold text-black/60">Full tank deposit</span><span className="font-black text-black">{fmtCurr(fuel,curr)}</span></div>
+          <div className="flex justify-between text-sm font-black border-t border-black/10 pt-2"><span className="text-black/60">Total paid</span><span className="text-black">{fmtCurr(total,curr)}</span></div>
         </div>
       </div>
       <div className="bg-white border border-red-100 p-4">
         <p className="text-xs font-black uppercase tracking-widest text-black/50 mb-3">Your Refund</p>
         <div className="space-y-2">
-          <div className="flex justify-between text-sm"><span className="font-semibold text-black/60">Car hire refund</span><span className={`font-black ${carHireRefund > 0 ? "text-green-700" : "text-red-500"}`}>{carHireRefund > 0 ? fmtCurr(carHireRefund, curr) : "Not refunded — within 48hrs of pickup"}</span></div>
-          <div className="flex justify-between text-sm"><span className="font-semibold text-black/60">Fuel deposit refund</span><span className="font-black text-green-700">{fmtCurr(fuelRefund, curr)}</span></div>
-          {nonRefundable > 0 && <div className="flex justify-between text-sm"><span className="font-semibold text-black/60">Non-refundable amount</span><span className="font-black text-red-600">{fmtCurr(nonRefundable, curr)}</span></div>}
-          <div className="flex justify-between text-sm font-black border-t border-black/10 pt-2"><span className="text-black">Total refund to you</span><span className="text-green-700 text-base">{fmtCurr(totalRefund, curr)}</span></div>
+          <div className="flex justify-between text-sm"><span className="font-semibold text-black/60">Car hire refund</span><span className={`font-black ${carHireRefund>0?"text-green-700":"text-red-500"}`}>{carHireRefund>0?fmtCurr(carHireRefund,curr):"Not refunded — within 48hrs of pickup"}</span></div>
+          <div className="flex justify-between text-sm"><span className="font-semibold text-black/60">Fuel deposit refund</span><span className="font-black text-green-700">{fmtCurr(fuelRefund,curr)}</span></div>
+          {nonRefundable>0&&<div className="flex justify-between text-sm"><span className="font-semibold text-black/60">Non-refundable amount</span><span className="font-black text-red-600">{fmtCurr(nonRefundable,curr)}</span></div>}
+          <div className="flex justify-between text-sm font-black border-t border-black/10 pt-2"><span className="text-black">Total refund to you</span><span className="text-green-700 text-base">{fmtCurr(totalRefund,curr)}</span></div>
         </div>
       </div>
       <p className="text-xs font-semibold text-black/50">Refunds are processed automatically and will appear in your account within 5–10 working days depending on your bank.</p>
@@ -227,10 +206,9 @@ function CompletionStatementButton({ bookingId, accessToken }: { bookingId: stri
   );
 }
 
-function BookingSummaryCard({ bk, rates, rateIsLive, accessToken }: { bk: BookingData; rates: Rates; rateIsLive: boolean; accessToken: string }) {
-  const stored: Currency = bk.currency??"EUR";
-  const sec1: Currency   = stored==="USD"?"EUR":stored==="GBP"?"EUR":"GBP";
-  const sec2: Currency   = stored==="EUR"?"USD":stored==="GBP"?"USD":"GBP";
+function BookingSummaryCard({ bk, accessToken }: { bk: BookingData; accessToken: string }) {
+  const curr: Currency  = bk.currency ?? "EUR";
+  const fmt2 = (n: number) => fmtCurr(n, curr);
   const carHireAmt  = Number(bk.car_hire_price||0);
   const fullTankAmt = Number(bk.fuel_price||0);
   const totalAmt    = Number(bk.amount||0);
@@ -240,9 +218,6 @@ function BookingSummaryCard({ bk, rates, rateIsLive, accessToken }: { bk: Bookin
   const usedQ       = bk.fuel_used_quarters??null;
   const collFuel = normalizeFuel(bk.collection_fuel_level_partner)||normalizeFuel(bk.collection_fuel_level_driver)||normalizeFuel(bk.collection_fuel_level_customer);
   const retFuel  = normalizeFuel(bk.return_fuel_level_partner)||normalizeFuel(bk.return_fuel_level_driver)||normalizeFuel(bk.return_fuel_level_customer);
-  const primary = (v:number)=>fmtCurr(v,stored);
-  const sec = (v:number)=>{ const inEur=convertAmount(v,stored,"EUR",rates); return `(${fmtCurr(convertAmount(inEur,"EUR",sec1,rates),sec1)} · ${fmtCurr(convertAmount(inEur,"EUR",sec2,rates),sec2)})`; };
-  const rateBadge = `1€ = ${new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(rates.GBP)} · 1€ = ${new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(rates.USD)}`;
   return (
     <>
       <div className="bg-[#003768] p-6">
@@ -252,23 +227,20 @@ function BookingSummaryCard({ bk, rates, rateIsLive, accessToken }: { bk: Bookin
         </div>
         <div className="bg-white/10 p-4 mb-4">
           <p className="text-xs font-black uppercase tracking-widest text-white/50 mb-1">Total booking value</p>
-          <p className="text-3xl font-black text-white">{primary(totalAmt)} <span className="text-lg font-normal opacity-60">{sec(totalAmt)}</span></p>
+          <p className="text-3xl font-black text-white">{fmt2(totalAmt)}</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <div className="bg-white/10 px-3 py-2"><p className="text-xs font-black text-white/50 uppercase tracking-wide">Car hire</p><p className="font-bold text-white">{primary(carHireAmt)}</p><p className="text-xs text-white/40">{sec(carHireAmt)}</p></div>
-            <div className="bg-white/10 px-3 py-2"><p className="text-xs font-black text-white/50 uppercase tracking-wide">Full tank deposit</p><p className="font-bold text-white">{primary(fullTankAmt)}</p><p className="text-xs text-white/40">{sec(fullTankAmt)}</p></div>
+            <div className="bg-white/10 px-3 py-2"><p className="text-xs font-black text-white/50 uppercase tracking-wide">Car hire</p><p className="font-bold text-white">{fmt2(carHireAmt)}</p></div>
+            <div className="bg-white/10 px-3 py-2"><p className="text-xs font-black text-white/50 uppercase tracking-wide">Full tank deposit</p><p className="font-bold text-white">{fmt2(fullTankAmt)}</p></div>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 mb-4">
-          {[{label:"Delivery fuel",value:fuelLabel(collFuel),bar:collFuel},{label:"Collection fuel",value:fuelLabel(retFuel),bar:retFuel},{label:"Fuel used",value:usedQ!==null?QUARTER_LABELS[usedQ]??`${usedQ}/4`:"—",bar:null},{label:"Per quarter",value:primary(perQtrAmt),bar:null}].map(({label,value,bar})=>(
+          {[{label:"Delivery fuel",value:fuelLabel(collFuel),bar:collFuel},{label:"Collection fuel",value:fuelLabel(retFuel),bar:retFuel},{label:"Fuel used",value:usedQ!==null?QUARTER_LABELS[usedQ]??`${usedQ}/4`:"—",bar:null},{label:"Per quarter",value:fmt2(perQtrAmt),bar:null}].map(({label,value,bar})=>(
             <div key={label} className="bg-white/10 p-3"><p className="text-xs font-black text-white/50 uppercase tracking-wide mb-1">{label}</p><p className="font-black text-white">{value}</p>{bar&&<FuelBar level={bar} light/>}</div>
           ))}
         </div>
         <div className="grid grid-cols-2 gap-2 mb-4">
-          <div className="bg-[#ff7a00]/20 border border-[#ff7a00]/40 p-4"><p className="text-xs font-black text-white/70 uppercase tracking-wide mb-2">Fuel charge to you</p><p className="text-2xl font-black text-white">{fuelCharge!=null?<>{primary(fuelCharge)} <span className="text-base font-normal opacity-70">{sec(fuelCharge)}</span></>:"—"}</p></div>
-          <div className="bg-green-500/20 border border-green-400/40 p-4"><p className="text-xs font-black text-white/70 uppercase tracking-wide mb-2">Refund to you</p><p className="text-2xl font-black text-white">{fuelRefund!=null?<>{primary(fuelRefund)} <span className="text-base font-normal opacity-70">{sec(fuelRefund)}</span></>:"—"}</p></div>
-        </div>
-        <div className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-bold ${rateIsLive?"bg-green-400/20 text-green-200":"bg-white/10 text-white/60"}`}>
-          <span className={`h-2.5 w-2.5 rounded-full ${rateIsLive?"bg-green-400":"bg-white/40"}`}/>{rateBadge}{rateIsLive?" · Live rate (frankfurter.app)":""}
+          <div className="bg-[#ff7a00]/20 border border-[#ff7a00]/40 p-4"><p className="text-xs font-black text-white/70 uppercase tracking-wide mb-2">Fuel charge to you</p><p className="text-2xl font-black text-white">{fuelCharge!=null?fmt2(fuelCharge):"—"}</p></div>
+          <div className="bg-green-500/20 border border-green-400/40 p-4"><p className="text-xs font-black text-white/70 uppercase tracking-wide mb-2">Refund to you</p><p className="text-2xl font-black text-white">{fuelRefund!=null?fmt2(fuelRefund):"—"}</p></div>
         </div>
       </div>
       <div className="bg-white p-6">
@@ -372,44 +344,21 @@ function InsuranceConfirmCard({ driverConfirmed,driverConfirmedAt,customerConfir
   );
 }
 
-// effectiveReady = driver has confirmed OR partner has set an override
-// This is what gates whether the customer can confirm
-function FuelConfirmCard({
-  title, effectiveFuel, effectiveReady, effectiveReadyAt,
-  customerConfirmed, customerConfirmedAt,
-  locked, notes, onNotesChange, onConfirm, onUnconfirm, saving,
-  partnerOverrideActive,
-}: {
-  title: string;
-  effectiveFuel: string|null;       // partner override || driver reading
-  effectiveReady: boolean;          // driver confirmed OR partner override set
-  effectiveReadyAt: string|null;    // timestamp to show
-  customerConfirmed: boolean;
-  customerConfirmedAt: string|null;
-  locked: boolean;
-  notes: string;
-  onNotesChange: (v:string)=>void;
-  onConfirm: ()=>void;
-  onUnconfirm: ()=>void;
-  saving: boolean;
-  partnerOverrideActive: boolean;   // show amber badge if override is in effect
+function FuelConfirmCard({ title,effectiveFuel,effectiveReady,effectiveReadyAt,customerConfirmed,customerConfirmedAt,locked,notes,onNotesChange,onConfirm,onUnconfirm,saving,partnerOverrideActive }: {
+  title:string; effectiveFuel:string|null; effectiveReady:boolean; effectiveReadyAt:string|null;
+  customerConfirmed:boolean; customerConfirmedAt:string|null; locked:boolean; notes:string;
+  onNotesChange:(v:string)=>void; onConfirm:()=>void; onUnconfirm:()=>void; saving:boolean; partnerOverrideActive:boolean;
 }) {
   return (
     <div className={`p-6 ${locked?"bg-green-50 border border-green-200":"bg-white"}`}>
       <p className="text-xs font-black uppercase tracking-widest text-black mb-4">{title}</p>
       <div className={`px-4 py-3 mb-4 ${effectiveReady&&effectiveFuel?"bg-black":"bg-[#f0f0f0]"}`}>
         <p className={`text-xs font-black uppercase tracking-widest mb-1 ${effectiveReady&&effectiveFuel?"text-white":"text-black/50"}`}>
-          {partnerOverrideActive ? "Office recorded" : "Driver recorded"}
+          {partnerOverrideActive?"Office recorded":"Driver recorded"}
         </p>
         {effectiveReady&&effectiveFuel
-          ? <>
-              <p className="text-2xl font-black text-white">{fuelLabel(effectiveFuel)}</p>
-              <FuelBar level={effectiveFuel} light/>
-              {partnerOverrideActive && <p className="text-xs text-[#ff7a00] mt-1 font-black">⚠ Office override in effect</p>}
-              <p className="text-xs text-white/70 mt-1">{fmt(effectiveReadyAt)}</p>
-            </>
-          : <p className="text-sm font-semibold text-black/40">Waiting for driver…</p>
-        }
+          ? <><p className="text-2xl font-black text-white">{fuelLabel(effectiveFuel)}</p><FuelBar level={effectiveFuel} light/>{partnerOverrideActive&&<p className="text-xs text-[#ff7a00] mt-1 font-black">⚠ Office override in effect</p>}<p className="text-xs text-white/70 mt-1">{fmt(effectiveReadyAt)}</p></>
+          : <p className="text-sm font-semibold text-black/40">Waiting for driver…</p>}
       </div>
       {locked?(
         <div className="bg-green-100 px-4 py-3 text-sm font-black text-green-800">✓ Confirmed — you and the {partnerOverrideActive?"office":"driver"} agree on {fuelLabel(effectiveFuel)}</div>
@@ -434,7 +383,7 @@ function FuelConfirmCard({
 
 type ReviewItem = { id:string;rating:number;comment:string|null;partner_reply:string|null;partner_replied_at:string|null;created_at:string };
 
-function BidCard({ bid,currency,rates,requestStatus,acceptingId,expired,onAccept }: { bid:BidRow;currency:Currency;rates:Rates;requestStatus:string;acceptingId:string|null;expired:boolean;onAccept:(id:string)=>void }) {
+function BidCard({ bid,requestStatus,acceptingId,expired,onAccept }: { bid:BidRow;requestStatus:string;acceptingId:string|null;expired:boolean;onAccept:(id:string)=>void }) {
   const [showReviews,setShowReviews] = useState(false);
   const [reviews,setReviews]         = useState<ReviewItem[]>([]);
   const [loadingRevs,setLoadingRevs] = useState(false);
@@ -445,7 +394,8 @@ function BidCard({ bid,currency,rates,requestStatus,acceptingId,expired,onAccept
     try { const r=await fetch(`/api/test-booking/reviews?partner_user_id=${bid.partner_user_id}`); const j=await r.json().catch(()=>null); setReviews(j?.reviews||[]); } catch { setReviews([]); }
     finally { setLoadingRevs(false); }
   }
-  const bidCurr = bid.currency ?? "EUR";
+  const curr = bid.currency ?? "EUR";
+  const fmt2 = (n: number) => fmtCurr(n, curr);
   return (
     <div className="bg-[#f0f0f0] p-5">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -471,35 +421,23 @@ function BidCard({ bid,currency,rates,requestStatus,acceptingId,expired,onAccept
           )}
           <p className="text-sm font-semibold text-black"><span className="font-black">Phone:</span> {bid.partner_phone||"—"}</p>
           <p className="text-sm font-semibold text-black"><span className="font-black">Vehicle:</span> {bid.vehicle_category_name}</p>
-          <p className="text-sm font-semibold text-black"><span className="font-black">Car hire:</span> <BidAmount amount={bid.car_hire_price} bidCurrency={bidCurr} customerCurrency={currency} rates={rates}/></p>
-          <p className="text-sm font-semibold text-black"><span className="font-black">Fuel deposit:</span> <BidAmount amount={bid.fuel_price} bidCurrency={bidCurr} customerCurrency={currency} rates={rates}/></p>
-          <p className="text-sm font-semibold text-black"><span className="font-black">Total:</span> <BidAmount amount={bid.total_price} bidCurrency={bidCurr} customerCurrency={currency} rates={rates}/></p>
+          <p className="text-sm font-semibold text-black"><span className="font-black">Car hire:</span> {fmt2(bid.car_hire_price)}</p>
+          <p className="text-sm font-semibold text-black"><span className="font-black">Fuel deposit:</span> {fmt2(bid.fuel_price)}</p>
+          <p className="text-sm font-semibold text-black"><span className="font-black">Total:</span> {fmt2(bid.total_price)}</p>
           <p className="text-sm font-semibold text-black"><span className="font-black">Insurance included:</span> {bid.full_insurance_included?"Yes":"No"}</p>
-          {bid.mileage_limit && (
-            <div className="border border-black/10 bg-white px-4 py-3 mt-2">
-              <p className="text-sm font-black text-black mb-0.5">📏 Mileage limit</p>
-              <p className="text-sm font-semibold text-black/70">{bid.mileage_limit}</p>
-              <p className="text-xs font-semibold text-black/40 mt-1">Any excess mileage charges are payable directly to the car hire company at collection — credit card required.</p>
-            </div>
-          )}
-          {bid.security_deposit_notes && (
-            <div className="border border-amber-200 bg-amber-50 px-4 py-3 mt-2">
-              <p className="text-sm font-black text-amber-800 mb-0.5">💳 Security deposit required</p>
-              <p className="text-sm font-semibold text-amber-700">{bid.security_deposit_notes}</p>
-              <p className="text-xs font-semibold text-amber-600 mt-1">Payable directly to the car hire company at collection. Credit card only — debit cards cannot be used for deposit blocking.</p>
-            </div>
-          )}
+          {bid.mileage_limit&&<div className="border border-black/10 bg-white px-4 py-3 mt-2"><p className="text-sm font-black text-black mb-0.5">📏 Mileage limit</p><p className="text-sm font-semibold text-black/70">{bid.mileage_limit}</p><p className="text-xs font-semibold text-black/40 mt-1">Any excess mileage charges are payable directly to the car hire company at collection — credit card required.</p></div>}
+          {bid.security_deposit_notes&&<div className="border border-amber-200 bg-amber-50 px-4 py-3 mt-2"><p className="text-sm font-black text-amber-800 mb-0.5">💳 Security deposit required</p><p className="text-sm font-semibold text-amber-700">{bid.security_deposit_notes}</p><p className="text-xs font-semibold text-amber-600 mt-1">Payable directly to the car hire company at collection. Credit card only — debit cards cannot be used for deposit blocking.</p></div>}
           {bid.notes&&<p className="text-sm font-semibold text-black"><span className="font-black">Notes:</span> {bid.notes}</p>}
         </div>
         <div className="shrink-0">
-          {bid.status==="accepted" ? (
+          {bid.status==="accepted"?(
             <span className="bg-green-100 px-4 py-2 text-sm font-black text-green-800">Accepted ✓</span>
-          ) : requestStatus==="confirmed" ? (
+          ):requestStatus==="confirmed"?(
             <span className="bg-[#f0f0f0] px-4 py-2 text-sm font-black text-black/40">Closed</span>
-          ) : (
+          ):(
             <button type="button" onClick={()=>onAccept(bid.id)} disabled={!!acceptingId||expired}
               className="bg-[#ff7a00] px-6 py-3 text-sm font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
-              {acceptingId===bid.id ? "Going to checkout…" : "Accept & Pay →"}
+              {acceptingId===bid.id?"Going to checkout…":"Accept & Pay →"}
             </button>
           )}
         </div>
@@ -538,9 +476,6 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const supabase     = useMemo(()=>createCustomerBrowserClient(),[]);
   const router       = useRouter();
   const searchParams = useSearchParams();
-  const { rates: hookRates, currency } = useCurrency();
-  const [liveRates,        setLiveRates]        = useState<Rates>(hookRates??{ GBP:0.85, USD:1.08 });
-  const [rateIsLive,       setRateIsLive]       = useState(false);
   const [requestId,        setRequestId]        = useState("");
   const [authChecked,      setAuthChecked]      = useState(false);
   const [loading,          setLoading]          = useState(true);
@@ -570,13 +505,6 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
       else { setAuthChecked(true); }
     });
   },[requestId,supabase,router]);
-
-  useEffect(()=>{
-    fetch("/api/currency/rate",{cache:"no-store"}).then(r=>r.json()).then(({rates,live})=>{
-      setLiveRates({GBP:Number(rates?.GBP)||0.85,USD:Number(rates?.USD)||1.08});
-      setRateIsLive(!!live);
-    }).catch(()=>{});
-  },[]);
 
   async function getToken(): Promise<string|null> {
     const { data:{session} } = await supabase.auth.getSession();
@@ -676,25 +604,15 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   );
 
   const bk = data.booking;
-  const bkCurr: Currency = bk?.currency??"EUR";
+  const bkCurr: Currency = bk?.currency ?? "EUR";
+  const fmt2 = (n: number) => fmtCurr(n, bkCurr);
 
-  // ── Effective fuel: partner override wins if set, else driver reading ──
   const effectiveCollFuel = normalizeFuel(bk?.collection_fuel_level_partner) || normalizeFuel(bk?.collection_fuel_level_driver);
   const effectiveRetFuel  = normalizeFuel(bk?.return_fuel_level_partner)     || normalizeFuel(bk?.return_fuel_level_driver);
-
-  // ── effectiveReady: customer can confirm if driver has confirmed OR partner has set an override ──
   const collEffectiveReady = !!bk?.collection_confirmed_by_driver || !!normalizeFuel(bk?.collection_fuel_level_partner);
   const retEffectiveReady  = !!bk?.return_confirmed_by_driver     || !!normalizeFuel(bk?.return_fuel_level_partner);
-
-  // ── Timestamps: prefer partner override time if override is active ──
-  const collReadyAt = normalizeFuel(bk?.collection_fuel_level_partner)
-    ? bk?.collection_confirmed_by_partner_at || bk?.collection_confirmed_by_driver_at
-    : bk?.collection_confirmed_by_driver_at;
-  const retReadyAt = normalizeFuel(bk?.return_fuel_level_partner)
-    ? bk?.return_confirmed_by_partner_at || bk?.return_confirmed_by_driver_at
-    : bk?.return_confirmed_by_driver_at;
-
-  // ── Lock: effective fuel matches what customer confirmed ──
+  const collReadyAt = normalizeFuel(bk?.collection_fuel_level_partner) ? bk?.collection_confirmed_by_partner_at || bk?.collection_confirmed_by_driver_at : bk?.collection_confirmed_by_driver_at;
+  const retReadyAt  = normalizeFuel(bk?.return_fuel_level_partner)     ? bk?.return_confirmed_by_partner_at    || bk?.return_confirmed_by_driver_at    : bk?.return_confirmed_by_driver_at;
   const collectionLocked = !!effectiveCollFuel && !!bk?.collection_confirmed_by_customer && effectiveCollFuel === normalizeFuel(bk.collection_fuel_level_customer);
   const returnLocked     = !!effectiveRetFuel  && !!bk?.return_confirmed_by_customer     && effectiveRetFuel  === normalizeFuel(bk.return_fuel_level_customer);
   const insuranceLocked  = !!bk?.insurance_docs_confirmed_by_driver&&!!bk?.insurance_docs_confirmed_by_customer;
@@ -757,9 +675,9 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                 <div>
                   <p className="text-sm font-black text-red-700">Cancel this booking</p>
                   {isWithin48?(
-                    <p className="mt-1 text-xs font-semibold text-red-500">⚠ Your pickup is within 48 hours. If you cancel now, the car hire fee of {fmtCurr(carHire,bkCurr)} is non-refundable. Your fuel deposit of {fmtCurr(fuel,bkCurr)} will be refunded.</p>
+                    <p className="mt-1 text-xs font-semibold text-red-500">⚠ Your pickup is within 48 hours. If you cancel now, the car hire fee of {fmt2(carHire)} is non-refundable. Your fuel deposit of {fmt2(fuel)} will be refunded.</p>
                   ):(
-                    <p className="mt-1 text-xs font-semibold text-black/50">More than 48 hours before pickup — you will receive a full refund of {fmtCurr(carHire+fuel,bkCurr)}.</p>
+                    <p className="mt-1 text-xs font-semibold text-black/50">More than 48 hours before pickup — you will receive a full refund of {fmt2(carHire+fuel)}.</p>
                   )}
                 </div>
                 {!showCancel&&<button type="button" onClick={()=>setShowCancel(true)} className="shrink-0 border border-red-300 px-4 py-2 text-sm font-black text-red-700 hover:bg-red-50 transition-colors">Cancel Booking</button>}
@@ -800,7 +718,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
               ].map(([l,v])=>(
                 <p key={String(l)} className="text-sm font-semibold text-black"><span className="font-black">{l}:</span> {String(v)}</p>
               ))}
-              {bk&&<p className="text-sm font-semibold text-black sm:col-span-2"><span className="font-black">Booking currency:</span> {(bk as any).charge_currency ?? bk.currency ?? "EUR"}</p>}
+              {bk&&<p className="text-sm font-semibold text-black sm:col-span-2"><span className="font-black">Booking currency:</span> {bk.currency ?? "EUR"}</p>}
               {req.notes&&<p className="text-sm font-semibold text-black sm:col-span-2"><span className="font-black">Notes:</span> {req.notes}</p>}
             </div>
           </div>
@@ -830,9 +748,9 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                 </div>
                 <div className="bg-[#f0f0f0] p-4 space-y-2 mb-4">
                   <p className="text-xs font-black uppercase tracking-widest text-black mb-3">Price Breakdown</p>
-                  <div className="flex justify-between text-sm font-semibold text-black"><span>Car hire</span><span><BookingAmount amount={bk.car_hire_price} storedCurrency={bkCurr} customerCurrency={currency} rates={liveRates}/></span></div>
-                  <div className="flex justify-between text-sm font-semibold text-black"><span>Full tank deposit <span className="text-black/40">(refundable)</span></span><span><BookingAmount amount={bk.fuel_price} storedCurrency={bkCurr} customerCurrency={currency} rates={liveRates}/></span></div>
-                  <div className="flex justify-between text-sm font-black text-black border-t border-black/10 pt-2"><span>Total paid</span><span><BookingAmount amount={bk.amount} storedCurrency={bkCurr} customerCurrency={currency} rates={liveRates}/></span></div>
+                  <div className="flex justify-between text-sm font-semibold text-black"><span>Car hire</span><span>{fmt2(Number(bk.car_hire_price||0))}</span></div>
+                  <div className="flex justify-between text-sm font-semibold text-black"><span>Full tank deposit <span className="text-black/40">(refundable)</span></span><span>{fmt2(Number(bk.fuel_price||0))}</span></div>
+                  <div className="flex justify-between text-sm font-black text-black border-t border-black/10 pt-2"><span>Total paid</span><span>{fmt2(Number(bk.amount||0))}</span></div>
                 </div>
                 {(bk.mileage_limit || bk.security_deposit_notes) && (
                   <div className="bg-[#f0f0f0] p-4 space-y-2 mb-4">
@@ -842,32 +760,24 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                     <p className="text-xs font-semibold text-black/50 pt-1">These are arrangements between you and the car hire company, payable directly at collection. Credit card only.</p>
                   </div>
                 )}
-                <div className="mb-4">
-                  <ReceiptDownloadButton bookingId={bk.id} accessToken={accessToken} />
-                </div>
+                <div className="mb-4"><ReceiptDownloadButton bookingId={bk.id} accessToken={accessToken}/></div>
                 <div className="bg-[#f0f0f0] p-4 mb-4">
                   <p className="text-xs font-black uppercase tracking-widest text-black mb-3">📋 What to bring when collecting your car</p>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {[
-                      { icon: "🪪", title: "Driving licence — all drivers", desc: "Full EU licence in Roman alphabet. If your licence does not meet this, bring an international driving permit alongside your original." },
-                      { icon: "🛂", title: "Passport or national ID — all drivers", desc: "A valid passport or national identity document for every driver on this booking." },
-                      { icon: "📄", title: "Photocopies recommended", desc: "Bring a photocopy of your driving licence and passport for all drivers. Some companies require these for their records." },
-                    ].map(item => (
+                      { icon:"🪪", title:"Driving licence — all drivers", desc:"Full EU licence in Roman alphabet. If your licence does not meet this, bring an international driving permit alongside your original." },
+                      { icon:"🛂", title:"Passport or national ID — all drivers", desc:"A valid passport or national identity document for every driver on this booking." },
+                      { icon:"📄", title:"Photocopies recommended", desc:"Bring a photocopy of your driving licence and passport for all drivers. Some companies require these for their records." },
+                    ].map(item=>(
                       <div key={item.title} className="flex items-start gap-3 bg-white px-4 py-3">
                         <span className="text-xl shrink-0 mt-0.5">{item.icon}</span>
-                        <div>
-                          <p className="text-sm font-black text-black">{item.title}</p>
-                          <p className="text-xs font-semibold text-black/60 mt-0.5">{item.desc}</p>
-                        </div>
+                        <div><p className="text-sm font-black text-black">{item.title}</p><p className="text-xs font-semibold text-black/60 mt-0.5">{item.desc}</p></div>
                       </div>
                     ))}
-                    {bk.security_deposit_notes && (
+                    {bk.security_deposit_notes&&(
                       <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 px-4 py-3 sm:col-span-2">
                         <span className="text-xl shrink-0 mt-0.5">💳</span>
-                        <div>
-                          <p className="text-sm font-black text-amber-800">Credit card required at collection</p>
-                          <p className="text-xs font-semibold text-amber-700 mt-0.5">{bk.security_deposit_notes} Credit card only — debit cards cannot be used for deposit blocking.</p>
-                        </div>
+                        <div><p className="text-sm font-black text-amber-800">Credit card required at collection</p><p className="text-xs font-semibold text-amber-700 mt-0.5">{bk.security_deposit_notes} Credit card only — debit cards cannot be used for deposit blocking.</p></div>
                       </div>
                     )}
                   </div>
@@ -879,53 +789,20 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                 </div>
               </div>
 
-              {bk.booking_status==="completed"&&<BookingSummaryCard bk={bk} rates={liveRates} rateIsLive={rateIsLive} accessToken={accessToken}/>}
+              {bk.booking_status==="completed"&&<BookingSummaryCard bk={bk} accessToken={accessToken}/>}
               {bk.booking_status==="completed"&&<ReviewCard bookingId={bk.id} accessToken={accessToken} existingReview={bk.existing_review} onReviewSubmitted={()=>load(false)}/>}
 
               <InsuranceConfirmCard
-                driverConfirmed={bk.insurance_docs_confirmed_by_driver}
-                driverConfirmedAt={bk.insurance_docs_confirmed_by_driver_at}
-                customerConfirmed={bk.insurance_docs_confirmed_by_customer}
-                customerConfirmedAt={bk.insurance_docs_confirmed_by_customer_at}
-                insuranceChecked={insuranceChecked}
-                onInsuranceChange={setInsuranceChecked}
-                onConfirm={()=>saveInsuranceConfirmation(true)}
-                onUnconfirm={()=>saveInsuranceConfirmation(false)}
-                saving={savingConfirm==="insurance"}
-                locked={insuranceLocked}
+                driverConfirmed={bk.insurance_docs_confirmed_by_driver} driverConfirmedAt={bk.insurance_docs_confirmed_by_driver_at}
+                customerConfirmed={bk.insurance_docs_confirmed_by_customer} customerConfirmedAt={bk.insurance_docs_confirmed_by_customer_at}
+                insuranceChecked={insuranceChecked} onInsuranceChange={setInsuranceChecked}
+                onConfirm={()=>saveInsuranceConfirmation(true)} onUnconfirm={()=>saveInsuranceConfirmation(false)}
+                saving={savingConfirm==="insurance"} locked={insuranceLocked}
               />
 
               <div className="grid gap-4 xl:grid-cols-2">
-                <FuelConfirmCard
-                  title="Delivery Fuel"
-                  effectiveFuel={effectiveCollFuel}
-                  effectiveReady={collEffectiveReady}
-                  effectiveReadyAt={collReadyAt ?? null}
-                  customerConfirmed={bk.collection_confirmed_by_customer}
-                  customerConfirmedAt={bk.collection_confirmed_by_customer_at}
-                  locked={collectionLocked}
-                  notes={collectionNotes}
-                  onNotesChange={setCollectionNotes}
-                  onConfirm={()=>saveConfirmation("collection",true)}
-                  onUnconfirm={()=>saveConfirmation("collection",false)}
-                  saving={savingConfirm==="collection"}
-                  partnerOverrideActive={!!normalizeFuel(bk.collection_fuel_level_partner)}
-                />
-                <FuelConfirmCard
-                  title="Collection Fuel"
-                  effectiveFuel={effectiveRetFuel}
-                  effectiveReady={retEffectiveReady}
-                  effectiveReadyAt={retReadyAt ?? null}
-                  customerConfirmed={bk.return_confirmed_by_customer}
-                  customerConfirmedAt={bk.return_confirmed_by_customer_at}
-                  locked={returnLocked}
-                  notes={returnNotes}
-                  onNotesChange={setReturnNotes}
-                  onConfirm={()=>saveConfirmation("return",true)}
-                  onUnconfirm={()=>saveConfirmation("return",false)}
-                  saving={savingConfirm==="return"}
-                  partnerOverrideActive={!!normalizeFuel(bk.return_fuel_level_partner)}
-                />
+                <FuelConfirmCard title="Delivery Fuel" effectiveFuel={effectiveCollFuel} effectiveReady={collEffectiveReady} effectiveReadyAt={collReadyAt??null} customerConfirmed={bk.collection_confirmed_by_customer} customerConfirmedAt={bk.collection_confirmed_by_customer_at} locked={collectionLocked} notes={collectionNotes} onNotesChange={setCollectionNotes} onConfirm={()=>saveConfirmation("collection",true)} onUnconfirm={()=>saveConfirmation("collection",false)} saving={savingConfirm==="collection"} partnerOverrideActive={!!normalizeFuel(bk.collection_fuel_level_partner)}/>
+                <FuelConfirmCard title="Collection Fuel" effectiveFuel={effectiveRetFuel} effectiveReady={retEffectiveReady} effectiveReadyAt={retReadyAt??null} customerConfirmed={bk.return_confirmed_by_customer} customerConfirmedAt={bk.return_confirmed_by_customer_at} locked={returnLocked} notes={returnNotes} onNotesChange={setReturnNotes} onConfirm={()=>saveConfirmation("return",true)} onUnconfirm={()=>saveConfirmation("return",false)} saving={savingConfirm==="return"} partnerOverrideActive={!!normalizeFuel(bk.return_fuel_level_partner)}/>
               </div>
             </>
           )}
@@ -939,7 +816,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             ):(
               <div className="space-y-3">
                 {data.bids.map(bid=>(
-                  <BidCard key={bid.id} bid={bid} currency={currency} rates={liveRates} requestStatus={req.status} acceptingId={acceptingId} expired={expired} onAccept={acceptBid}/>
+                  <BidCard key={bid.id} bid={bid} requestStatus={req.status} acceptingId={acceptingId} expired={expired} onAccept={acceptBid}/>
                 ))}
               </div>
             )}

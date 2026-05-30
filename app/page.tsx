@@ -7,7 +7,6 @@ import Image from "next/image";
 import { translations } from "./marketing/translations";
 import { FLEET_CATEGORIES } from "@/app/components/portal/fleetCategories";
 import { CITIES, DEFAULT_CITY, citiesByCountry, type CityEntry } from "@/lib/cities";
-import CurrencySelector from "@/app/components/CurrencySelector";
 import { createCustomerBrowserClient } from "@/lib/supabase-customer/browser";
 
 type Lang = keyof typeof translations;
@@ -88,7 +87,6 @@ function CustomerHome() {
   const [error,          setError]          = useState<string | null>(null);
   const [submitting,     setSubmitting]     = useState(false);
 
-  // Driver age fields
   const [driverAge,            setDriverAge]            = useState<string>("");
   const [additionalDrivers,    setAdditionalDrivers]    = useState(0);
   const [additionalDriverAges, setAdditionalDriverAges] = useState<string[]>([]);
@@ -101,7 +99,6 @@ function CustomerHome() {
   const pickupTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropoffTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync additionalDriverAges array length when additionalDrivers changes
   useEffect(() => {
     setAdditionalDriverAges(prev => {
       const next = [...prev];
@@ -153,28 +150,18 @@ function CustomerHome() {
     }, 300);
   }
 
-  function getSelectedCurrency(): "EUR" | "GBP" | "USD" {
-    try {
-      const saved = localStorage.getItem("camel_currency_pref");
-      if (saved === "GBP" || saved === "USD") return saved;
-    } catch {}
-    return "EUR";
-  }
-
   function saveDraft() {
     sessionStorage.setItem("camel_booking_draft", JSON.stringify({
       pickupAddress, pickupLat, pickupLng,
       dropoffAddress, dropoffLat, dropoffLng,
       pickupAt, dropoffAt, passengers, suitcases, vehicleSlug, sportEquipment, notes,
       cityKey: `${city.country}|${city.city}`,
-      currency: getSelectedCurrency(),
       driverAge,
       additionalDrivers,
       additionalDriverAges,
     }));
   }
 
-  // Derive young driver warning
   const driverAgeNum = Number(driverAge);
   const isYoungDriver = driverAge !== "" && !isNaN(driverAgeNum) && driverAgeNum >= 21 && driverAgeNum <= 24;
   const additionalYoungDrivers = additionalDriverAges.filter(a => {
@@ -195,13 +182,11 @@ function CustomerHome() {
     const cat = FLEET_CATEGORIES.find(c => c.slug === vehicleSlug);
     if (!cat)                       { setError("Please select a vehicle category."); return; }
 
-    // Validate driver age — minimum 21
     if (!driverAge || isNaN(driverAgeNum) || driverAgeNum < 21) {
       setError("Main driver must be 21 or over. Most car hire companies require a minimum age of 21.");
       return;
     }
 
-    // Validate additional driver ages — minimum 21
     for (let i = 0; i < additionalDrivers; i++) {
       const age = Number(additionalDriverAges[i]);
       if (!additionalDriverAges[i] || isNaN(age) || age < 21) {
@@ -233,7 +218,7 @@ function CustomerHome() {
           sport_equipment: sportEquipment !== "none" ? sportEquipment : null,
           vehicle_category_slug: cat.slug, vehicle_category_name: cat.name,
           notes: notes.trim(),
-          currency: getSelectedCurrency(),
+          // No currency — customer always pays in partner's bid currency
           driver_age: driverAgeNum,
           additional_drivers: additionalDrivers,
           additional_driver_ages: additionalDriverAges.join(","),
@@ -275,7 +260,6 @@ function CustomerHome() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
 
-      {/* Navbar */}
       <nav className="fixed left-0 top-0 z-50 w-full bg-black">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5">
           <Link href="/">
@@ -293,7 +277,6 @@ function CustomerHome() {
       </nav>
       <div className="h-[68px]" />
 
-      {/* Hero + booking widget */}
       <section className="bg-white pt-8 pb-6 lg:pt-14 lg:pb-10">
         <div className="mx-auto max-w-7xl px-4">
           <div className="mb-8">
@@ -310,14 +293,13 @@ function CustomerHome() {
               Where do you need your car?
             </p>
 
-            {/* Error */}
             {error && (
               <div className="mb-3 border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
                 {error}
               </div>
             )}
 
-            {/* City selector bar */}
+            {/* City selector */}
             <div className="bg-black px-4 py-3 flex flex-wrap items-center gap-3 mb-3">
               <span className="text-xs font-black uppercase tracking-widest text-white">Searching near</span>
               <select
@@ -344,7 +326,7 @@ function CustomerHome() {
               </span>
             </div>
 
-            {/* Row 1: pickup + dropoff */}
+            {/* Pickup + dropoff */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 mb-3">
               <div className="relative">
                 <label className={labelCls}>Pickup location</label>
@@ -386,7 +368,7 @@ function CustomerHome() {
               </div>
             </div>
 
-            {/* Row 2: dates */}
+            {/* Dates */}
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
                 <label className={labelCls}>Pickup date &amp; time</label>
@@ -398,7 +380,7 @@ function CustomerHome() {
               </div>
             </div>
 
-            {/* Row 3: passengers + suitcases + vehicle + sport */}
+            {/* Passengers + vehicle + sport */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-3">
               <div>
                 <label className={labelCls}>Passengers</label>
@@ -426,7 +408,7 @@ function CustomerHome() {
               </div>
             </div>
 
-            {/* Row 4: driver age + additional drivers */}
+            {/* Driver ages */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-3">
               <div>
                 <label className={labelCls}>Main driver age</label>
@@ -461,7 +443,6 @@ function CustomerHome() {
               ))}
             </div>
 
-            {/* Young driver warning */}
             {hasYoungDriverWarning && (
               <div className="mb-3 border border-amber-300 bg-amber-50 px-4 py-3">
                 <p className="text-sm font-black text-amber-800 mb-1">⚠ Young driver surcharge may apply</p>
@@ -472,32 +453,28 @@ function CustomerHome() {
               </div>
             )}
 
-            {/* Row 5: currency (left) + book now (right) */}
+            {/* Book now row — no currency selector */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 items-end mb-3">
               <div>
-                <label className={labelCls}>Booking currency</label>
-                <div className="bg-[#f0f0f0] px-4 py-3">
-                  <CurrencySelector variant="light" />
+                {/* Special requirements — mobile */}
+                <div className="sm:hidden">
+                  <button type="button" onClick={() => setNotesOpen(o => !o)}
+                    className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors">
+                    <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
+                    Add special requirements
+                  </button>
+                  {notesOpen && (
+                    <div className="mt-2">
+                      <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
+                        placeholder="Flight number, hotel name, special equipment, anything the car hire company should know…"
+                        className={inputCls + " resize-none"} autoFocus />
+                    </div>
+                  )}
                 </div>
-              </div>
-
-              {/* Special requirements — mobile */}
-              <div className="sm:hidden">
-                <button
-                  type="button"
-                  onClick={() => setNotesOpen(o => !o)}
-                  className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors"
-                >
-                  <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
-                  Add special requirements
-                </button>
-                {notesOpen && (
-                  <div className="mt-2">
-                    <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
-                      placeholder="Flight number, hotel name, special equipment, anything the car hire company should know…"
-                      className={inputCls + " resize-none"} autoFocus />
-                  </div>
-                )}
+                {/* Info note about currency */}
+                <p className="hidden sm:block text-sm font-semibold text-black/50">
+                  Prices are shown in the car hire company's currency. You pay in their currency at checkout.
+                </p>
               </div>
 
               <div className="flex flex-col gap-2">
@@ -516,11 +493,8 @@ function CustomerHome() {
 
               {/* Special requirements — desktop */}
               <div className="hidden sm:block">
-                <button
-                  type="button"
-                  onClick={() => setNotesOpen(o => !o)}
-                  className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors"
-                >
+                <button type="button" onClick={() => setNotesOpen(o => !o)}
+                  className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors">
                   <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
                   Add special requirements
                 </button>

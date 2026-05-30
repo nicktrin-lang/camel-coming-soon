@@ -15,9 +15,8 @@ const db = createClient(
 async function getStripeFeeData(chargeId: string | null): Promise<{
   stripe_fee: number | null;
   stripe_fee_currency: string | null;
-  exchange_rate: number | null;
 }> {
-  const empty = { stripe_fee: null, stripe_fee_currency: null, exchange_rate: null };
+  const empty = { stripe_fee: null, stripe_fee_currency: null };
   if (!chargeId) return empty;
   try {
     const charge = await stripe.charges.retrieve(chargeId, { expand: ["balance_transaction"] });
@@ -26,7 +25,6 @@ async function getStripeFeeData(chargeId: string | null): Promise<{
     return {
       stripe_fee:          bt.fee != null ? bt.fee / 100 : null,
       stripe_fee_currency: bt.fee_details?.[0]?.currency?.toUpperCase() || null,
-      exchange_rate:       bt.exchange_rate ?? null,
     };
   } catch (e: any) {
     console.error("getStripeFeeData error:", e?.message);
@@ -58,30 +56,29 @@ export async function POST(req: NextRequest) {
       const jobNumber     = m.job_number ? Number(m.job_number) : null;
       const chargeId      = typeof pi.latest_charge === "string" ? pi.latest_charge : null;
 
-      const chargeCurrency  = (m.charge_currency || "EUR").toUpperCase();
-      const conversionRate  = m.conversion_rate ? Number(m.conversion_rate) : 1;
-      const chargeCarHire   = Number(m.car_hire_price    || 0);
-      const chargeFuel      = Number(m.fuel_price        || 0);
-      const commissionAmt   = Number(m.commission_amount || 0);
-      const commissionRate  = Number(m.commission_rate   || 20);
-      const partnerNet      = Number(m.partner_net       || 0);
-      const chargeTotalPrice = chargeCarHire + chargeFuel;
+      // Customer always pays in bid currency — no conversion
+      const currency      = (m.currency || "EUR").toUpperCase();
+      const carHirePrice  = Number(m.car_hire_price    || 0);
+      const fuelPrice     = Number(m.fuel_price        || 0);
+      const commissionAmt = Number(m.commission_amount || 0);
+      const commissionRate = Number((m.commission_rate || "20").replace("%", ""));
+      const totalPrice    = carHirePrice + fuelPrice;
+      const partnerNet    = Math.max(0, carHirePrice - commissionAmt);
 
-      // Load bid for bid currency + original amounts + notes
+      // Load bid for original amounts + notes
       const { data: bid } = await db
         .from("partner_bids")
         .select("currency, notes, car_hire_price, fuel_price, total_price, vehicle_category_name, mileage_limit, security_deposit_notes")
         .eq("id", bidId)
         .maybeSingle();
 
-      const bidCurrency   = (bid?.currency || "EUR").toUpperCase();
       const bidCarHire    = Number(bid?.car_hire_price || 0);
       const bidFuel       = Number(bid?.fuel_price     || 0);
       const bidTotalPrice = Number(bid?.total_price    || bidCarHire + bidFuel);
       const notes         = bid?.notes || null;
       const vehicleCategory = bid?.vehicle_category_name || null;
 
-      // Load request for customer info + pickup details + driver age fields
+      // Load request
       const { data: request } = await db
         .from("customer_requests")
         .select(`
@@ -99,14 +96,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ received: true });
       }
 
-      // Mark bid accepted, others unsuccessful
       await db.from("partner_bids").update({ status: "accepted" }).eq("id", bidId);
       await db.from("partner_bids").update({ status: "unsuccessful" }).eq("request_id", requestId).neq("id", bidId);
       await db.from("customer_requests").update({ status: "confirmed" }).eq("id", requestId);
       await db.from("request_partner_matches").update({ match_status: "accepted" }).eq("request_id", requestId).eq("partner_user_id", partnerUserId);
       await db.from("request_partner_matches").update({ match_status: "closed" }).eq("request_id", requestId).neq("partner_user_id", partnerUserId);
 
-      // Check booking doesn't already exist
       const { data: existing } = await db
         .from("partner_bookings")
         .select("id")
@@ -123,16 +118,17 @@ export async function POST(req: NextRequest) {
             winning_bid_id:        bidId,
             partner_user_id:       partnerUserId,
             booking_status:        "confirmed",
-            currency:              bidCurrency,
+            // currency = charge currency = bid currency (no conversion)
+            currency,
+            charge_currency:       currency,
+            conversion_rate:       1,
             amount:                bidTotalPrice,
             car_hire_price:        bidCarHire,
             fuel_price:            bidFuel,
-            charge_currency:       chargeCurrency,
-            conversion_rate:       conversionRate,
             commission_rate:       commissionRate,
             commission_amount:     commissionAmt,
             partner_payout_amount: partnerNet,
-            notes:                 notes,
+            notes,
             job_number:            jobNumber,
             payout_status:         "held",
           })
@@ -146,29 +142,26 @@ export async function POST(req: NextRequest) {
         bookingId = inserted.id;
       }
 
-      // Stripe fee data
       const feeData = await getStripeFeeData(chargeId);
 
-      // Insert payment record
       await db.from("payments").insert({
         booking_id:               bookingId,
         customer_id:              null,
         stripe_payment_intent_id: pi.id,
         stripe_charge_id:         chargeId,
-        amount_total:             chargeTotalPrice,
-        amount_car_hire:          chargeCarHire,
-        amount_fuel_deposit:      chargeFuel,
+        amount_total:             totalPrice,
+        amount_car_hire:          carHirePrice,
+        amount_fuel_deposit:      fuelPrice,
         amount_commission:        commissionAmt,
         amount_partner_net:       partnerNet,
-        currency:                 chargeCurrency,
+        currency,
         status:                   "succeeded",
         payout_status:            "held",
         stripe_fee:               feeData.stripe_fee,
         stripe_fee_currency:      feeData.stripe_fee_currency,
-        exchange_rate:            feeData.exchange_rate ?? (conversionRate !== 1 ? conversionRate : null),
+        exchange_rate:            null, // no conversion
       });
 
-      // Link payment_id back to booking
       const { data: payment } = await db
         .from("payments")
         .select("id")
@@ -181,7 +174,6 @@ export async function POST(req: NextRequest) {
 
       await syncBookingStatuses(bookingId);
 
-      // ── Load partner profile for emails ─────────────────────────────────
       const { data: partnerProfile } = await db
         .from("partner_profiles")
         .select("company_name, contact_name")
@@ -195,15 +187,16 @@ export async function POST(req: NextRequest) {
       const companyName = partnerProfile?.company_name || "your car hire partner";
       const siteUrl     = process.env.NEXT_PUBLIC_SITE_URL || "https://camel-global.com";
       const portalUrl   = process.env.NEXT_PUBLIC_PORTAL_URL || "https://portal.camel-global.com";
-      const fmtCharge   = (n: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: chargeCurrency }).format(n);
-      const fmtBid      = (n: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: bidCurrency }).format(n);
+      const fmtAmt      = (n: number) => new Intl.NumberFormat(
+        currency === "GBP" ? "en-GB" : currency === "USD" ? "en-US" : "es-ES",
+        { style: "currency", currency }
+      ).format(n);
       const pickupTime  = request?.pickup_at
         ? new Date(request.pickup_at).toLocaleString("en-GB", { timeZone: "Europe/Madrid" })
         : "—";
       const adminEmails = String(process.env.CAMEL_ADMIN_EMAILS || "").split(",").map(e => e.trim()).filter(Boolean);
 
-      // ── Generate & email booking receipt PDF ─────────────────────────────
-      // Fire-and-forget — don't block webhook response
+      // Generate + email booking receipt PDF
       if (request?.customer_email) {
         sendBookingReceiptEmail({
           jobNumber,
@@ -216,11 +209,10 @@ export async function POST(req: NextRequest) {
           pickupAt:             request.pickup_at || null,
           vehicleCategory:      request.vehicle_category_name || vehicleCategory || null,
           companyName,
-          chargeCurrency,
-          chargeCarHire,
-          chargeFuel,
-          chargeTotal:          chargeTotalPrice,
-          // Journey details for PDF
+          chargeCurrency:       currency,
+          chargeCarHire:        bidCarHire,
+          chargeFuel:           bidFuel,
+          chargeTotal:          bidTotalPrice,
           passengers:           request.passengers ?? null,
           suitcases:            request.suitcases ?? null,
           handLuggage:          request.hand_luggage ?? null,
@@ -233,7 +225,7 @@ export async function POST(req: NextRequest) {
         }).catch(e => console.error("Booking receipt PDF email failed:", e?.message));
       }
 
-      // ── Email customer — booking confirmed ───────────────────────────────
+      // Email customer
       if (request?.customer_email) {
         await sendEmail({
           to: request.customer_email,
@@ -256,12 +248,12 @@ export async function POST(req: NextRequest) {
                     <tr><td style="padding:4px 0;color:#666;">Pickup address</td><td style="text-align:right;">${request.pickup_address || "—"}</td></tr>
                     ${request.dropoff_address ? `<tr><td style="padding:4px 0;color:#666;">Drop-off address</td><td style="text-align:right;">${request.dropoff_address}</td></tr>` : ""}
                     <tr style="border-top:1px solid #ddd;">
-                      <td style="padding:8px 0 4px;color:#666;">Car hire</td><td style="text-align:right;">${fmtCharge(chargeCarHire)}</td>
+                      <td style="padding:8px 0 4px;color:#666;">Car hire</td><td style="text-align:right;">${fmtAmt(bidCarHire)}</td>
                     </tr>
-                    <tr><td style="padding:4px 0;color:#666;">Fuel deposit</td><td style="text-align:right;">${fmtCharge(chargeFuel)}</td></tr>
+                    <tr><td style="padding:4px 0;color:#666;">Fuel deposit</td><td style="text-align:right;">${fmtAmt(bidFuel)}</td></tr>
                     <tr style="border-top:1px solid #ddd;">
                       <td style="padding:8px 0 4px;font-weight:700;">Total paid</td>
-                      <td style="text-align:right;font-weight:700;">${fmtCharge(chargeTotalPrice)}</td>
+                      <td style="text-align:right;font-weight:700;">${fmtAmt(bidTotalPrice)}</td>
                     </tr>
                   </table>
                   <p style="margin:8px 0 0;font-size:13px;color:#666;">The fuel deposit will be refunded at the end of your hire based on fuel used.</p>
@@ -275,7 +267,7 @@ export async function POST(req: NextRequest) {
         }).catch(e => console.error("Customer booking confirmed email failed:", e?.message));
       }
 
-      // ── Email partner — new booking ──────────────────────────────────────
+      // Email partner
       if (partnerEmail) {
         await sendEmail({
           to: partnerEmail,
@@ -298,10 +290,9 @@ export async function POST(req: NextRequest) {
                     <tr><td style="padding:4px 0;color:#666;">Pickup address</td><td style="text-align:right;">${request?.pickup_address || "—"}</td></tr>
                     ${request?.dropoff_address ? `<tr><td style="padding:4px 0;color:#666;">Drop-off address</td><td style="text-align:right;">${request.dropoff_address}</td></tr>` : ""}
                     <tr style="border-top:1px solid #ddd;">
-                      <td style="padding:8px 0 4px;color:#666;">Car hire</td><td style="text-align:right;">${fmtBid(bidCarHire)}</td>
+                      <td style="padding:8px 0 4px;color:#666;">Car hire</td><td style="text-align:right;">${fmtAmt(bidCarHire)}</td>
                     </tr>
-                    <tr><td style="padding:4px 0;color:#666;">Fuel deposit</td><td style="text-align:right;">${fmtBid(bidFuel)}</td>
-                    </tr>
+                    <tr><td style="padding:4px 0;color:#666;">Fuel deposit</td><td style="text-align:right;">${fmtAmt(bidFuel)}</td></tr>
                   </table>
                 </div>
                 <a href="${portalUrl}/partner/bookings/${bookingId}" style="display:inline-block;background:#ff7a00;color:#fff;padding:12px 24px;text-decoration:none;font-weight:700;margin-top:8px;">View Booking</a>
@@ -312,7 +303,7 @@ export async function POST(req: NextRequest) {
         }).catch(e => console.error("Partner new booking email failed:", e?.message));
       }
 
-      // ── Email admin — new booking ────────────────────────────────────────
+      // Email admin
       for (const adminEmail of adminEmails) {
         await sendEmail({
           to: adminEmail,
@@ -326,10 +317,12 @@ export async function POST(req: NextRequest) {
                 <strong>Customer:</strong> ${request?.customer_name || "—"} (${request?.customer_email || "—"})<br/>
                 <strong>Pickup:</strong> ${pickupTime}<br/>
                 <strong>Pickup address:</strong> ${request?.pickup_address || "—"}<br/>
-                <strong>Charge currency:</strong> ${chargeCurrency} — car hire ${fmtCharge(chargeCarHire)}, fuel ${fmtCharge(chargeFuel)}, total ${fmtCharge(chargeTotalPrice)}<br/>
-                <strong>Bid currency:</strong> ${bidCurrency} — car hire ${fmtBid(bidCarHire)}, fuel ${fmtBid(bidFuel)}<br/>
-                <strong>Commission:</strong> ${fmtCharge(commissionAmt)} (${commissionRate}%)<br/>
-                <strong>Partner net:</strong> ${fmtCharge(partnerNet)}<br/>
+                <strong>Currency:</strong> ${currency}<br/>
+                <strong>Car hire:</strong> ${fmtAmt(bidCarHire)}<br/>
+                <strong>Fuel deposit:</strong> ${fmtAmt(bidFuel)}<br/>
+                <strong>Total:</strong> ${fmtAmt(bidTotalPrice)}<br/>
+                <strong>Commission:</strong> ${fmtAmt(commissionAmt)} (${commissionRate}%)<br/>
+                <strong>Partner net:</strong> ${fmtAmt(partnerNet)}<br/>
                 <strong>Stripe fee:</strong> ${feeData.stripe_fee != null ? `${feeData.stripe_fee} ${feeData.stripe_fee_currency}` : "pending"}
               </p>
             </div>
@@ -337,7 +330,7 @@ export async function POST(req: NextRequest) {
         }).catch(e => console.error("Admin new booking email failed:", e?.message));
       }
 
-      console.log(`payment_intent.succeeded: booking ${bookingId} — bid ${bidCurrency}, charge ${chargeCurrency}, rate ${conversionRate}, fee ${feeData.stripe_fee} ${feeData.stripe_fee_currency}`);
+      console.log(`payment_intent.succeeded: booking ${bookingId} — currency ${currency}, fee ${feeData.stripe_fee} ${feeData.stripe_fee_currency}`);
     }
   } catch (e: any) {
     console.error("Webhook handler error:", e.message);
