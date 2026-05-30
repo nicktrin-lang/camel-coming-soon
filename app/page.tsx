@@ -455,7 +455,7 @@ function CustomerHome() {
                 <div className="camel-datepicker-wrapper">
                   <DatePicker
                     selected={pickupDate}
-                    onChange={d => setPickupDate(d)}
+                    onChange={(d: Date | null) => setPickupDate(d)}
                     showTimeSelect
                     timeFormat="HH:mm"
                     timeIntervals={30}
@@ -471,7 +471,7 @@ function CustomerHome() {
                 <div className="camel-datepicker-wrapper">
                   <DatePicker
                     selected={dropoffDate}
-                    onChange={d => setDropoffDate(d)}
+                    onChange={(d: Date | null) => setDropoffDate(d)}
                     showTimeSelect
                     timeFormat="HH:mm"
                     timeIntervals={30}
