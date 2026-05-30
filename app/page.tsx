@@ -408,8 +408,8 @@ function CustomerHome() {
               </div>
             </div>
 
-            {/* Driver ages */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-3">
+            {/* Driver ages + Book Now in same grid */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 items-end mb-3">
               <div>
                 <label className={labelCls}>Main driver age</label>
                 <input
@@ -453,30 +453,8 @@ function CustomerHome() {
               </div>
             )}
 
-            {/* Book now row — no currency selector */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 items-end mb-3">
-              <div>
-                {/* Special requirements — mobile */}
-                <div className="sm:hidden">
-                  <button type="button" onClick={() => setNotesOpen(o => !o)}
-                    className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors">
-                    <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
-                    Add special requirements
-                  </button>
-                  {notesOpen && (
-                    <div className="mt-2">
-                      <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
-                        placeholder="Flight number, hotel name, special equipment, anything the car hire company should know…"
-                        className={inputCls + " resize-none"} autoFocus />
-                    </div>
-                  )}
-                </div>
-                {/* Info note about currency */}
-                <p className="hidden sm:block text-sm font-semibold text-black/50">
-                  Prices are shown in the car hire company's currency. You pay in their currency at checkout.
-                </p>
-              </div>
-
+            {/* Book now + special requirements */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 items-start mb-3">
               <div className="flex flex-col gap-2">
                 <button
                   type="button"
@@ -491,8 +469,7 @@ function CustomerHome() {
                 </p>
               </div>
 
-              {/* Special requirements — desktop */}
-              <div className="hidden sm:block">
+              <div>
                 <button type="button" onClick={() => setNotesOpen(o => !o)}
                   className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors">
                   <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
