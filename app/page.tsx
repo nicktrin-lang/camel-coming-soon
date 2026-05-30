@@ -65,9 +65,23 @@ function ResultRow({ r, onClick }: { r: AddressResult; onClick: () => void }) {
   );
 }
 
+// Detect desktop (≥640px) via a hook so we can conditionally render — no CSS-only duplication bugs
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 640px)");
+    setIsDesktop(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return isDesktop;
+}
+
 function CustomerHome() {
-  const router   = useRouter();
-  const supabase = useMemo(() => createCustomerBrowserClient(), []);
+  const router    = useRouter();
+  const supabase  = useMemo(() => createCustomerBrowserClient(), []);
+  const isDesktop = useIsDesktop();
 
   const [city,           setCity]          = useState<CityEntry>(DEFAULT_CITY);
   const [pickupAddress,  setPickupAddress]  = useState("");
@@ -156,9 +170,7 @@ function CustomerHome() {
       dropoffAddress, dropoffLat, dropoffLng,
       pickupAt, dropoffAt, passengers, suitcases, vehicleSlug, sportEquipment, notes,
       cityKey: `${city.country}|${city.city}`,
-      driverAge,
-      additionalDrivers,
-      additionalDriverAges,
+      driverAge, additionalDrivers, additionalDriverAges,
     }));
   }
 
@@ -172,7 +184,6 @@ function CustomerHome() {
 
   async function handleBookNow() {
     setError(null);
-
     if (!pickupLat || !pickupLng)   { setError("Please select a pickup address from the suggestions."); return; }
     if (!dropoffLat || !dropoffLng) { setError("Please select a drop-off address from the suggestions."); return; }
     if (!pickupAt)                  { setError("Please select a pickup date and time."); return; }
@@ -181,12 +192,10 @@ function CustomerHome() {
     if (!duration)                  { setError("Drop-off must be at least 1 day after pickup."); return; }
     const cat = FLEET_CATEGORIES.find(c => c.slug === vehicleSlug);
     if (!cat)                       { setError("Please select a vehicle category."); return; }
-
     if (!driverAge || isNaN(driverAgeNum) || driverAgeNum < 21) {
       setError("Main driver must be 21 or over. Most car hire companies require a minimum age of 21.");
       return;
     }
-
     for (let i = 0; i < additionalDrivers; i++) {
       const age = Number(additionalDriverAges[i]);
       if (!additionalDriverAges[i] || isNaN(age) || age < 21) {
@@ -194,15 +203,9 @@ function CustomerHome() {
         return;
       }
     }
-
     saveDraft();
-
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      router.push("/login?next=/book");
-      return;
-    }
-
+    if (!session?.access_token) { router.push("/login?next=/book"); return; }
     setSubmitting(true);
     try {
       const res = await fetch("/api/test-booking/requests", {
@@ -238,6 +241,20 @@ function CustomerHome() {
   const labelCls  = "block text-xs font-black uppercase tracking-widest text-black mb-2";
   const grouped   = citiesByCountry();
 
+  // Desktop layout: Book Now sits in cols 3–4 of the driver age row when no additional drivers.
+  // When additional drivers are selected, Book Now drops full-width below the grid.
+  // We use the isDesktop hook so there is exactly ONE Book Now rendered at all times — no CSS duplication.
+  const desktopNoAdditional = isDesktop && additionalDrivers === 0;
+  const desktopWithAdditional = isDesktop && additionalDrivers > 0;
+  const mobile = !isDesktop;
+
+  const BookNowButton = ({ tall }: { tall?: boolean }) => (
+    <button type="button" onClick={handleBookNow} disabled={submitting}
+      className={`w-full bg-[#ff7a00] ${tall ? "py-5" : "py-4"} text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity`}>
+      Book Now →
+    </button>
+  );
+
   if (submitting) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
@@ -265,12 +282,8 @@ function CustomerHome() {
             <Image src="/camel-logo.png" alt="Camel Global — Meet and Greet Car Hire Spain" width={200} height={70} priority className="h-16 w-auto brightness-0 invert" />
           </Link>
           <div className="flex items-center gap-3">
-            <Link href="/login" className="border border-white/30 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/10 transition-colors">
-              Log In
-            </Link>
-            <Link href="/signup" className="bg-[#ff7a00] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity">
-              Sign Up
-            </Link>
+            <Link href="/login" className="border border-white/30 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/10 transition-colors">Log In</Link>
+            <Link href="/signup" className="bg-[#ff7a00] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 transition-opacity">Sign Up</Link>
           </div>
         </div>
       </nav>
@@ -313,16 +326,12 @@ function CustomerHome() {
                 {Object.entries(grouped).map(([country, cities]) => (
                   <optgroup key={country} label={country}>
                     {cities.map(c => (
-                      <option key={c.city} value={`${c.country}|${c.city}`}>
-                        {c.city}, {c.country}
-                      </option>
+                      <option key={c.city} value={`${c.country}|${c.city}`}>{c.city}, {c.country}</option>
                     ))}
                   </optgroup>
                 ))}
               </select>
-              <span className="text-xs font-black text-white">
-                Change if your pickup is in a different city
-              </span>
+              <span className="text-xs font-black text-white">Change if your pickup is in a different city</span>
             </div>
 
             {/* Pickup + dropoff */}
@@ -407,16 +416,18 @@ function CustomerHome() {
               </div>
             </div>
 
-            {/* Driver age row — 2 cols mobile, 4 cols sm+ */}
+            {/*
+              Driver age row.
+              DESKTOP, no additional drivers: 4-col grid — age | additional | [Book Now spans cols 3+4]
+              DESKTOP, additional drivers:    4-col grid — age | additional | driver ages... then Book Now full-width below
+              MOBILE: always just age + additional (2-col), Book Now is rendered separately below
+            */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 items-start mb-3">
               <div>
                 <label className={labelCls}>Main driver age</label>
-                <input
-                  type="number" min={21} max={99} value={driverAge}
+                <input type="number" min={21} max={99} value={driverAge}
                   onChange={e => setDriverAge(e.target.value)}
-                  placeholder="e.g. 35"
-                  className={inputCls}
-                />
+                  placeholder="e.g. 35" className={inputCls} />
               </div>
               <div>
                 <label className={labelCls}>Additional drivers</label>
@@ -425,43 +436,43 @@ function CustomerHome() {
                 </select>
               </div>
 
-              {additionalDrivers > 0
-                ? Array.from({ length: additionalDrivers }).map((_, i) => (
-                    <div key={i}>
-                      <label className={labelCls}>Driver {i + 2} age</label>
-                      <input
-                        type="number" min={21} max={99}
-                        value={additionalDriverAges[i] ?? ""}
-                        onChange={e => {
-                          const next = [...additionalDriverAges];
-                          next[i] = e.target.value;
-                          setAdditionalDriverAges(next);
-                        }}
-                        placeholder="e.g. 28"
-                        className={inputCls}
-                      />
-                    </div>
-                  ))
-                : /* No additional drivers — Book Now spans cols 3+4, desktop only */
-                  <div className="hidden sm:col-span-2 sm:block pt-[23px]">
-                    <button type="button" onClick={handleBookNow} disabled={submitting}
-                      className="w-full bg-[#ff7a00] py-4 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
-                      Book Now →
-                    </button>
-                  </div>
-              }
-            </div>
+              {/* Desktop only: Book Now in cols 3+4 when no additional drivers */}
+              {desktopNoAdditional && (
+                <div className="col-span-2 pt-[23px]">
+                  <BookNowButton />
+                </div>
+              )}
 
-            {/* Desktop Book Now when additional drivers are selected — full width below grid */}
-            {additionalDrivers > 0 && (
-              <div className="hidden sm:block mb-3">
-                <button type="button" onClick={handleBookNow} disabled={submitting}
-                  className="w-full bg-[#ff7a00] py-4 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
-                  Book Now →
-                </button>
-                <p className="text-sm font-bold text-black mt-1">No account needed — sign in when you are ready to confirm</p>
-              </div>
-            )}
+              {/* Desktop only: additional driver age inputs */}
+              {desktopWithAdditional && Array.from({ length: additionalDrivers }).map((_, i) => (
+                <div key={i}>
+                  <label className={labelCls}>Driver {i + 2} age</label>
+                  <input type="number" min={21} max={99}
+                    value={additionalDriverAges[i] ?? ""}
+                    onChange={e => {
+                      const next = [...additionalDriverAges];
+                      next[i] = e.target.value;
+                      setAdditionalDriverAges(next);
+                    }}
+                    placeholder="e.g. 28" className={inputCls} />
+                </div>
+              ))}
+
+              {/* Mobile only: additional driver age inputs */}
+              {mobile && additionalDrivers > 0 && Array.from({ length: additionalDrivers }).map((_, i) => (
+                <div key={i}>
+                  <label className={labelCls}>Driver {i + 2} age</label>
+                  <input type="number" min={21} max={99}
+                    value={additionalDriverAges[i] ?? ""}
+                    onChange={e => {
+                      const next = [...additionalDriverAges];
+                      next[i] = e.target.value;
+                      setAdditionalDriverAges(next);
+                    }}
+                    placeholder="e.g. 28" className={inputCls} />
+                </div>
+              ))}
+            </div>
 
             {/* Young driver warning */}
             {hasYoungDriverWarning && (
@@ -474,53 +485,44 @@ function CustomerHome() {
               </div>
             )}
 
-            {/*
-              Sub-row: "Add special requirements" (cols 1–2) | "No account needed" (cols 3–4)
-              On desktop with no additional drivers both sit in the same 4-col grid row.
-              Mobile: stacked, special requirements first, then Book Now below.
-            */}
-            {/* Desktop sub-row: special requirements (left) | no account needed (right, no-additional only) */}
-            <div className="hidden sm:grid sm:grid-cols-4 sm:gap-3 mb-3">
-              <div className="col-span-2 flex items-center">
-                <button type="button" onClick={() => setNotesOpen(o => !o)}
-                  className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors">
-                  <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
-                  Add special requirements
-                </button>
+            {/* Notes textarea */}
+            {notesOpen && (
+              <div className="mb-3">
+                <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
+                  placeholder="Flight number, hotel name, special equipment, anything the car hire company should know…"
+                  className={inputCls + " resize-none"} autoFocus />
               </div>
-              {additionalDrivers === 0 && (
+            )}
+
+            {/*
+              Bottom row — rendered once, correct for each scenario:
+              DESKTOP, no additional: special requirements (left) | "No account needed" (right) — Book Now already in grid
+              DESKTOP, with additional: special requirements + Book Now full width
+              MOBILE: special requirements + Book Now full width
+            */}
+            {desktopNoAdditional && (
+              <div className="grid grid-cols-4 gap-3 mb-3">
+                <div className="col-span-2 flex items-center">
+                  <button type="button" onClick={() => setNotesOpen(o => !o)}
+                    className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors">
+                    <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
+                    Add special requirements
+                  </button>
+                </div>
                 <div className="col-span-2">
                   <p className="text-sm font-bold text-black">No account needed — sign in when you are ready to confirm</p>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
-            {/* Mobile: special requirements + Book Now — always shown on mobile */}
-            <div className="sm:hidden mb-3">
-              <button type="button" onClick={() => setNotesOpen(o => !o)}
-                className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors mb-3">
-                <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
-                Add special requirements
-              </button>
-              <button type="button" onClick={handleBookNow} disabled={submitting}
-                className="w-full bg-[#ff7a00] py-5 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
-                Book Now →
-              </button>
-              <p className="text-sm font-bold text-black mt-1">No account needed — sign in when you are ready to confirm</p>
-            </div>
-
-            {/* Desktop: additional drivers selected — special requirements + Book Now below grid */}
-            {additionalDrivers > 0 && (
-              <div className="hidden sm:block mb-3">
+            {(desktopWithAdditional || mobile) && (
+              <div className="mb-3">
                 <button type="button" onClick={() => setNotesOpen(o => !o)}
                   className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors mb-3">
                   <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
                   Add special requirements
                 </button>
-                <button type="button" onClick={handleBookNow} disabled={submitting}
-                  className="w-full bg-[#ff7a00] py-4 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
-                  Book Now →
-                </button>
+                <BookNowButton tall />
                 <p className="text-sm font-bold text-black mt-1">No account needed — sign in when you are ready to confirm</p>
               </div>
             )}
