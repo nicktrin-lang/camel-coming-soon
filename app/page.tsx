@@ -408,7 +408,7 @@ function CustomerHome() {
               </div>
             </div>
 
-            {/* Driver ages + Book Now in 4-col grid */}
+            {/* Driver ages — Book Now shares this row on desktop when no extra drivers */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-3">
               <div>
                 <label className={labelCls}>Main driver age</label>
@@ -425,22 +425,39 @@ function CustomerHome() {
                   {[0,1,2,3,4].map(n => <option key={n} value={n}>{n === 0 ? "None" : `${n} additional`}</option>)}
                 </select>
               </div>
-              {additionalDrivers > 0 && Array.from({ length: additionalDrivers }).map((_, i) => (
-                <div key={i}>
-                  <label className={labelCls}>Driver {i + 2} age</label>
-                  <input
-                    type="number" min={21} max={99}
-                    value={additionalDriverAges[i] ?? ""}
-                    onChange={e => {
-                      const next = [...additionalDriverAges];
-                      next[i] = e.target.value;
-                      setAdditionalDriverAges(next);
-                    }}
-                    placeholder="e.g. 28"
-                    className={inputCls}
-                  />
-                </div>
-              ))}
+              {additionalDrivers > 0
+                ? Array.from({ length: additionalDrivers }).map((_, i) => (
+                    <div key={i}>
+                      <label className={labelCls}>Driver {i + 2} age</label>
+                      <input
+                        type="number" min={21} max={99}
+                        value={additionalDriverAges[i] ?? ""}
+                        onChange={e => {
+                          const next = [...additionalDriverAges];
+                          next[i] = e.target.value;
+                          setAdditionalDriverAges(next);
+                        }}
+                        placeholder="e.g. 28"
+                        className={inputCls}
+                      />
+                    </div>
+                  ))
+                : <div className="hidden sm:col-span-2 sm:flex flex-col justify-end gap-1">
+                    <button type="button" onClick={handleBookNow} disabled={submitting}
+                      className="w-full bg-[#ff7a00] py-4 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                      Book Now →
+                    </button>
+                    <p className="text-sm font-bold text-black">No account needed — sign in when you are ready to confirm</p>
+                  </div>
+              }
+            </div>
+            {/* Mobile-only Book Now + Book Now when additional drivers selected */}
+            <div className={`${additionalDrivers === 0 ? "sm:hidden " : ""}mb-3 flex flex-col gap-1`}>
+              <button type="button" onClick={handleBookNow} disabled={submitting}
+                className="w-full bg-[#ff7a00] py-5 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                Book Now →
+              </button>
+              <p className="text-sm font-bold text-black">No account needed — sign in when you are ready to confirm</p>
             </div>
 
             {hasYoungDriverWarning && (
@@ -469,38 +486,7 @@ function CustomerHome() {
               )}
             </div>
 
-            {/* Book now row — desktop: special requirements left, Book Now right */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 mb-3">
-              {/* Special requirements — desktop only */}
-              <div className="hidden sm:block">
-                <button type="button" onClick={() => setNotesOpen(o => !o)}
-                  className="flex items-center gap-2 text-sm font-black text-black hover:text-[#ff7a00] transition-colors">
-                  <span className="text-lg leading-none">{notesOpen ? "−" : "+"}</span>
-                  Add special requirements
-                </button>
-                {notesOpen && (
-                  <div className="mt-2">
-                    <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
-                      placeholder="Flight number, hotel name, special equipment, anything the car hire company should know…"
-                      className={inputCls + " resize-none"} autoFocus />
-                  </div>
-                )}
-              </div>
 
-              <div className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={handleBookNow}
-                  disabled={submitting}
-                  className="w-full bg-[#ff7a00] py-5 text-base font-black text-white hover:opacity-90 disabled:opacity-60 transition-opacity"
-                >
-                  Book Now →
-                </button>
-                <p className="text-sm font-bold text-black">
-                  No account needed — sign in when you are ready to confirm
-                </p>
-              </div>
-            </div>
 
           </div>
         </div>
