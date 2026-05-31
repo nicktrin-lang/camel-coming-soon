@@ -107,7 +107,7 @@ export async function POST(req: Request) {
       description: `Camel Global ${jobLabel} | ${partnerName} | Car hire ${fmtAmt(carHirePrice, currency)} + Fuel ${fmtAmt(fuelPrice, currency)} | Commission ${fmtAmt(commissionAmount, currency)} | Partner net ${fmtAmt(partnerPayoutAmount + fuelPrice, currency)}`,
       on_behalf_of:           partnerProfile.stripe_account_id,
       application_fee_amount: commissionCents,
-      transfer_data: { destination: partnerProfile.stripe_account_id },
+      transfer_data: { destination: partnerProfile.stripe_account_id, currency: currency.toLowerCase() },
       metadata: {
         job_number:        String(request.job_number || ""),
         partner_name:      partnerName,
